@@ -23,12 +23,42 @@ export const ETICHETE_STATUS: Readonly<Record<StatusTichet, string>> = {
   in_aprobare: "În aprobare",
   respins: "Respins",
   in_lucru: "În lucru",
-  in_asteptare: "Așteaptă răspunsul tău",
+  // Impersonal: aceeași etichetă o vede solicitantul în portal și operatorul în
+  // coadă (glosar: etichetele de stare nu se adresează nimănui).
+  in_asteptare: "Așteaptă solicitantul",
   rezolvat: "Rezolvat",
   inchis: "Închis",
   anulat: "Anulat",
   redeschis: "Redeschis",
 };
+
+/**
+ * Eticheta BUTONULUI pe care îl apasă solicitantul, nu a stării în care ajunge
+ * tichetul. „Închis” pe un buton nu spune nimănui că e confirmarea rezolvării;
+ * „Confirm rezolvarea” da. Hartă parțială: solicitantul n-are verb pentru
+ * fiecare stare, iar `SchimbaStatus` cade pe `ETICHETE_STATUS` unde lipsește.
+ */
+export const ETICHETE_ACTIUNE_SOLICITANT: Readonly<Partial<Record<StatusTichet, string>>> = {
+  inchis: "Confirm rezolvarea",
+  redeschis: "Redeschide tichetul",
+  anulat: "Anulează tichetul",
+};
+
+/**
+ * Cine se ocupă de tichet, așa cum o poate spune pagina solicitantului.
+ *
+ * Coloana brută `asignat_employee_id` se vede prin politica tichetelor; rândul
+ * operatorului din `employees` NU — angajatul are `employees:read = own`, deci
+ * embed-ul `asignat` vine NULL deși tichetul E repartizat. Pagina confunda
+ * „embed NULL” cu „nerepartizat” și scria „Neatribuit încă” în toate stările
+ * (FLX-004). Numele operatorului rămâne nevizibil fără o funcție `security
+ * definer`; textul e alternativa acceptată explicit în constatare.
+ */
+export function responsabilulTichetului(asignatId: string | null, nume: string | null): string {
+  if (asignatId === null) return "Neatribuit încă";
+  if (nume === null) return "Preluat de echipa de suport";
+  return `În lucru la ${nume}`;
+}
 
 export const TONURI_STATUS: Readonly<Record<StatusTichet, TonStare>> = {
   // Tichet deschis, dar neluat încă de nimeni — „neînceput”, nu „în lucru”.
@@ -38,7 +68,7 @@ export const TONURI_STATUS: Readonly<Record<StatusTichet, TonStare>> = {
   // „În lucru” e atenție, nu succes: lucrul e început, nu terminat.
   in_lucru: "atentie",
   // Era deliberat cel mai vizibil status, fiindcă e singurul în care mingea e la
-  // solicitant. Distincția o poartă acum CUVÂNTUL („Așteaptă răspunsul tău”), nu
+  // solicitant. Distincția o poartă acum CUVÂNTUL („Așteaptă solicitantul”), nu
   // o nuanță proprie de portocaliu.
   in_asteptare: "atentie",
   rezolvat: "succes",

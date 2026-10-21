@@ -417,8 +417,8 @@ export function PanouDepartament({
                 }
               : {})}
           >
-            Administratorii intră aici automat: invită pe cineva cu rolul „Administrator” și apare
-            singur în listă. Poți aduce aici, cu câmpul de mai jos, și asociați sau directori care
+            Administratorii intră aici automat: invitați pe cineva cu rolul „Administrator” și apare
+            singur în listă. Puteți aduce aici, cu câmpul de mai jos, și asociați sau directori care
             nu au cont în aplicație.
           </Callout>
         ) : null}

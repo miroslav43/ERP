@@ -10,6 +10,7 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate } from "@/lib/format/date";
+import { textNumarat } from "@/lib/format/numar";
 import { idDinRuta } from "@/lib/rute/parametri";
 import { citesteSablon, etapeleSablonului, pasiiSablonului } from "@/lib/queries/checklist";
 
@@ -25,7 +26,7 @@ import { optiuniAsistent } from "../_componente/optiuni";
 import { buton } from "@/components/ui/buton";
 import { poateDeschide, type ContextPorti } from "@/config/porti-ruta";
 
-export const metadata: Metadata = { title: "Șablon de checklist" };
+export const metadata: Metadata = { title: "Șablon de parcurs" };
 
 interface ProprietatiPagina {
   readonly params: Promise<{ readonly id: string }>;
@@ -46,7 +47,7 @@ export default async function PaginaSablon({ params }: ProprietatiPagina) {
 
   if (!can(permisiuni, "checklists:read", "own")) {
     return (
-      <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta șabloanele de checklist. Solicitați administratorului organizației rolul potrivit." />
+      <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta șabloanele de parcurs. Solicitați administratorului organizației rolul potrivit." />
     );
   }
 
@@ -74,7 +75,7 @@ export default async function PaginaSablon({ params }: ProprietatiPagina) {
         titlu={sablon.denumire}
         descriere={`${ETICHETE_TIP[sablon.tip]} · Valabil de la ${formatDate(sablon.valabil_de_la)}${
           sablon.valabil_pana_la === null ? "" : ` până la ${formatDate(sablon.valabil_pana_la)}`
-        } · ${sablon.activ ? "Activ" : "Dezactivat"} · ${String(pasi.length)} pași`}
+        } · ${sablon.activ ? "Activ" : "Dezactivat"} · ${textNumarat(pasi.length, "pas", "pași")}`}
         // Pasul firesc după ce vezi (sau tocmai ai creat) un șablon: pornești
         // o instanță din el. Poarta e a paginii-țintă (`checklists:create` all).
         actiuni={
@@ -91,7 +92,7 @@ export default async function PaginaSablon({ params }: ProprietatiPagina) {
                 href={`/onboarding/noua?sablon=${sablon.id}`}
                 className={buton({ varianta: "primar" })}
               >
-                Pornește o instanță
+                Pornește un parcurs
               </Link>
             ) : null}
           </span>

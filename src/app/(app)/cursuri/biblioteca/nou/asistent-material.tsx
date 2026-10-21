@@ -24,6 +24,15 @@
 // politică DELETE: un obiect a cărui cale n-o știe nimeni e pierdut definitiv.
 // Un rând-ciornă e gunoi CATALOGAT: apare în bibliotecă cu insigna „Lipsă" și
 // se poate șterge. Granița e anunțată pe ecran, nu tăcută.
+//
+// ── DE CE RÂNDUL SE CREEAZĂ O SINGURĂ DATĂ (ADM-016) ─────────────────────────
+// Tot ce se poate verifica local (fișier ales, tip, mărime) se verifică ÎNAINTE
+// de `creeazaMaterial`: un fișier respins nu lasă nimic în urmă. Iar un eșec de
+// DUPĂ creare (semnătura de fișier, durata) nu șterge rândul — `materialId`
+// rămâne, a doua apăsare continuă pe el, iar pașii 1–3 se închid, ca titlul și
+// codul de pe ecran să nu se despartă de cele din rând. Înainte, fiecare
+// apăsare crea încă un rând cu același cod: 23505 pe `course_materials_cod_uk`,
+// afișat omului drept „codul există deja" — pentru codul pe care tocmai îl dăduse.
 
 import { useCallback, useId, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -43,6 +52,7 @@ import { urcaPeUrlSemnat } from "@/lib/storage/urca-semnat";
 import {
   LIMITA_PDF_BYTES,
   LIMITA_VIDEO_BYTES,
+  MESAJ_TIP_RESPINS,
   MIME_PDF,
   MIME_VIDEO,
   RESTRICTII_INCARCARE,
@@ -245,35 +255,42 @@ export function AsistentMaterial() {
   }, []);
 
   /**
-   * Pasul 4. Creează rândul, apoi pune conținutul în el.
+   * Pasul 4. Creează rândul (o singură dată), apoi pune conținutul în el.
    *
    * Ordinea nu e negociabilă: calea din Storage conține `material_id`. La orice
    * eșec de după încărcare, obiectul se scoate din bucket — altfel rămâne acolo
-   * pentru totdeauna.
+   * pentru totdeauna. Rândul însă RĂMÂNE, iar următoarea apăsare îl reia; vezi
+   * docblock-ul fișierului.
    */
   const salveaza = useCallback((): void => {
     setErori({});
     porneste(async () => {
-      setStadiu({ tip: "lucru", mesaj: "Se pregătește materialul…" });
-      const creat = await creeazaMaterial(sarcina);
-      if (!creat.ok) {
-        const peCamp = creat.error.fieldErrors ?? {};
-        setErori(peCamp);
-        setStadiu({
-          tip: "eroare",
-          mesaj:
-            Object.keys(peCamp).length > 0
-              ? "Verificați câmpurile marcate — vă întoarcem la pasul lor."
-              : creat.error.message,
-        });
-        // Codul duplicat e o eroare de la pasul 2; trimitem omul înapoi acolo.
-        if (peCamp["cod"] !== undefined || peCamp["titlu"] !== undefined) setPas(2);
-        return;
-      }
-      const idNou = creat.data.id;
-      setMaterialId(idNou);
+      /** Rândul: cel de la încercarea trecută sau unul nou. `null` = refuz deja afișat. */
+      const asiguraMaterialul = async (): Promise<string | null> => {
+        if (materialId !== null) return materialId;
+        setStadiu({ tip: "lucru", mesaj: "Se pregătește materialul…" });
+        const creat = await creeazaMaterial(sarcina);
+        if (!creat.ok) {
+          const peCamp = creat.error.fieldErrors ?? {};
+          setErori(peCamp);
+          setStadiu({
+            tip: "eroare",
+            mesaj:
+              Object.keys(peCamp).length > 0
+                ? "Verificați câmpurile marcate — vă întoarcem la pasul lor."
+                : creat.error.message,
+          });
+          // Codul duplicat e o eroare de la pasul 2; trimitem omul înapoi acolo.
+          if (peCamp["cod"] !== undefined || peCamp["titlu"] !== undefined) setPas(2);
+          return null;
+        }
+        setMaterialId(creat.data.id);
+        return creat.data.id;
+      };
 
       if (sursa === "link") {
+        const idNou = await asiguraMaterialul();
+        if (idNou === null) return;
         setStadiu({ tip: "lucru", mesaj: "Se salvează linkul…" });
         const salvat = await salveazaVersiuneLink(
           intrareVersiuneLink(idNou, { adresa, durata, nota: "" }),
@@ -290,12 +307,15 @@ export function AsistentMaterial() {
         }
         // A doua verificare, deși `IncarcareFisier` a filtrat deja mărimea și
         // tipul: un fișier tras din altă filă poate avea zero octeți și trece
-        // atât de `accept`, cât și de limita de mărime.
+        // atât de `accept`, cât și de limita de mărime. Stă ÎNAINTEA creării:
+        // un fișier respins aici nu lasă în urmă un rând fără conținut.
         const problema = verificaMaterial(fel, fisier.type, fisier.size);
         if (problema !== null) {
           setStadiu({ tip: "eroare", mesaj: problema });
           return;
         }
+        const idNou = await asiguraMaterialul();
+        if (idNou === null) return;
         setStadiu({ tip: "lucru", mesaj: "Se pregătește încărcarea…" });
         const pregatire = await pregatesteIncarcareMaterial({
           material_id: idNou,
@@ -352,7 +372,7 @@ export function AsistentMaterial() {
       setPas(5);
       router.refresh();
     });
-  }, [adresa, durata, fel, fisier, sarcina, router, sursa]);
+  }, [adresa, durata, fel, fisier, materialId, sarcina, router, sursa]);
 
   const inCurs = stadiu.tip === "lucru";
   const previzualizareLink = adresa.trim() === "" ? null : analizeazaLink(adresa);
@@ -373,7 +393,9 @@ export function AsistentMaterial() {
         etichete={ETICHETE_PASI}
         pasCurent={pas}
         eticheta="Pașii creării unui material"
-        {...(pas < 5
+        // Fără salt înapoi odată ce rândul există: titlul și codul lui sunt
+        // deja scrise, iar o modificare de la pasul 2 n-ar mai ajunge în el.
+        {...(pas < 5 && materialId === null
           ? {
               onSalt: (n: number) => {
                 if (n < pas) setPas(n);
@@ -576,9 +598,15 @@ export function AsistentMaterial() {
             Conținutul
           </h2>
 
+          {/* Onest în ambele stări: ce se va întâmpla, inclusiv la eșec — și, după
+              un eșec, că rândul există și se continuă pe el. Textul vechi spunea
+              „nu s-a scris nimic" și după ce materialul apăruse în bibliotecă. */}
           <Callout fel="informativ">
-            Când apăsați „Salvează materialul”, materialul se creează și conținutul urcă în el. Până
-            atunci nu s-a scris nimic.
+            {materialId === null
+              ? "Când apăsați „Salvează materialul”, materialul se creează și conținutul urcă în el. Dacă încărcarea eșuează, materialul rămâne creat fără conținut și reîncercarea continuă pe el."
+              : `Materialul „${titlu}” a fost creat, dar fără conținut. ${
+                  sursa === "link" ? "Corectați adresa" : "Alegeți fișierul din nou"
+                } și salvați: se continuă pe el, nu se creează altul.`}
           </Callout>
 
           {sursa === "link" ? (
@@ -628,6 +656,10 @@ export function AsistentMaterial() {
                   ? "Fișierul depășește 25 MB."
                   : "Filmul depășește 200 MB. Comprimați-l sau folosiți un link extern."
               }
+              // Fără el, câmpul verifică doar mărimea: un .exe trecea de
+              // „Alegeți fișierul" ca acceptat, butonul se aprindea, iar refuzul
+              // venea abia după ce rândul fusese creat (ADM-016).
+              mesajTipRespins={MESAJ_TIP_RESPINS[fel]}
               obligatoriu
               laSchimbare={setFisier}
             />
@@ -759,7 +791,12 @@ export function AsistentMaterial() {
       {/* ── Navigarea ───────────────────────────────────────────────────── */}
       {pas < 5 ? (
         <BaraActiuni eticheta="Navigare în asistent" separata lipitaPeTelefon>
-          <Buton varianta="tertiar" disabled={pas === 1 || inCurs} onClick={inapoi}>
+          {/* Închis după creare, din același motiv ca saltul din lista pașilor. */}
+          <Buton
+            varianta="tertiar"
+            disabled={pas === 1 || inCurs || materialId !== null}
+            onClick={inapoi}
+          >
             Înapoi
           </Buton>
           {pas < 4 ? (

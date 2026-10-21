@@ -157,6 +157,16 @@ describe("actualizeazaAngajat", () => {
     expect(r.error.fieldErrors).toHaveProperty("cnp");
     expect(server.apeluri).toHaveLength(0);
   });
+
+  // QA 8 oct 2026, ADM-007: „abc" se salva ca telefon pe fișă.
+  it("telefon cu litere: VALIDARE pe câmpul `telefon`, fără nicio interogare", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    const r = await actualizeazaAngajat({ ...intrare, telefon: "abc" });
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    if (r.ok) return;
+    expect(r.error.fieldErrors?.["telefon"]).toBeDefined();
+    expect(server.apeluriPe("employees")).toHaveLength(0);
+  });
 });
 
 // ── actualizeazaIncadrarea ───────────────────────────────────────────────────

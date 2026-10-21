@@ -6,6 +6,7 @@ cai:
   - "src/app/(app)/concedii/setari/**"
   - "supabase/migrations/0035_reguli_concediu.sql"
   - "supabase/migrations/0037_fix_grile_pe_tip_reglementat.sql"
+  - "supabase/migrations/0193_concediu_proportional_cu_lunile.sql"
 tabele: [leave_types, leave_type_variants, leave_entitlement_rules, leave_balances, organizations]
 permisiuni: [leave:read, leave:create, leave:update]
 feature: leave
@@ -92,6 +93,39 @@ mișcă soldul lasă omul să creadă că n-a avut efect. `seteazaZileConcediuIm
   grant doar pe `select`, `insert` și `update`, cu `revoke delete` explicit
   (`0009_leave.sql`).
 
+## Cum se calculează dreptul unui an
+
+`app.drept_concediu` (rescrisă în `0193_concediu_proportional_cu_lunile.sql`) dă, pe un
+angajat, un tip și un an:
+
+> (baza + grilele valabile la 31 decembrie) × lunile lucrate în an / 12
+
+- **Baza** e `employment_contracts.zile_concediu_anual` de pe contractul de BAZĂ (activ,
+  altfel cel mai recent) pentru `odihna`; pentru orice alt tip, `leave_types.zile_implicite`.
+  Zilele scrise pe contract nu mai sunt un override la însămânțare, sunt baza per angajat,
+  iar grilele se adună peste ele.
+- **Lunile lucrate** se numără cu luna de intrare și cea de ieșire ÎNTREGI (08.10 → 3 luni),
+  ancorate pe `valabil_de_la` al contractului de bază cu `hired_on` ca rezervă, respectiv
+  pe `employees.terminated_on` cu `incetat_la` ca rezervă. Un `terminated_on` anterior
+  ancorei se IGNORĂ: la reangajare pe aceeași fișă, `creeazaContract` reactivează fișa fără
+  să-l golească, iar încetarea veche ar fi dat 0 zile în anul reangajării și în toți anii
+  următori (ancora e atunci contractul NOU). Suspendările nu scad lunile.
+- **Rotunjirea** urmează `leave_types.mod_rotunjire_acumulare` și se aplică DOAR la an
+  parțial: 21 × 3/12 = 5,25 → 6 (`zi_in_sus`), 5 (`zi_in_jos`), 5 (`matematic`). O bază
+  fracționară configurată deliberat (20,5) rămâne neatinsă pe anul întreg.
+- Tipurile cu `scade_din_sold = false` (medical 183, maternitate 126…) nu se
+  proporționalizează.
+
+Oglinda TypeScript e `src/domain/leave/drepturi.ts` (`calculeazaDreptAnual` →
+`luniLucrateInAn` → `calculeazaDreptProportional`), cu aceleași cifre în
+`drepturi.test.ts` și în `tests/rls/proba-concediu-proportional.sql`. Fișa angajatului
+arată factorul „× n/12 luni” în explicația dreptului; `dreptAfisat` rămâne valoarea
+scrisă în `leave_balances`.
+
+`public.seed_leave_balances` (înrolare, contract nou) nu mai aplică
+`p_zile_odihna_override` — parametrul e ignorat, iar istoricul nu mai primește un rând
+„Corecție de încadrare” la fiecare înrolare.
+
 ## Previzualizarea e o CITIRE, nu o acțiune
 
 `public.aplica_drepturi_concediu` are parametrul `p_simulare`. Cu `true` întoarce ce S-AR
@@ -100,6 +134,13 @@ scrie efectiv soldurile și e Server Action — `aplicaDrepturileConcediu`, care
 numărul de rânduri atinse. Aceeași funcție SQL, două straturi: cine mută previzualizarea
 în `actions.ts` pune o poartă de scriere pe o citire și ascunde butonul de cine avea voie
 doar să se uite.
+
+**Soldurile deja scrise nu se rescriu de migrare.** După 0193, un intrat din toamnă cu
+sold 20 rămâne la 20 pe `/concedii/sold` până când HR deschide „Aplică drepturile” pe anul
+respectiv: previzualizarea arată `drept_vechi 20 → drept_nou 5`, iar cine a consumat deja
+mai mult decât noul drept apare cu `ramase_dupa` negativ (permis de 0017: HR poate duce
+soldul în negativ retroactiv). Funcția parcurge doar `employees.status = 'activ'`, deci
+soldul unui angajat deja încetat nu se recalculează.
 
 ## Citiri
 

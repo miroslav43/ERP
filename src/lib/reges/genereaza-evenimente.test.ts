@@ -287,7 +287,9 @@ describe("genereazaEvenimenteReges", () => {
       title: "Aveți 2 evenimente de transmis în REGES",
       link: "/reges?stare=de_transmis",
     });
-    expect(String(anunturi[0]?.body)).toContain("2026-09-04");
+    // HR-033: termenul se citește în formatul românesc, nu ISO.
+    expect(String(anunturi[0]?.body)).toContain("04.09.2026");
+    expect(String(anunturi[0]?.body)).not.toContain("2026-09-04");
   });
 
   it("cu modulul REGES oprit, evenimentul se scrie, dar nu se anunță nimeni", async () => {

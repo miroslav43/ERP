@@ -7,11 +7,13 @@ import { z } from "zod";
 
 import {
   codCorOptional,
+  codPostalOptional,
   enumOptional,
   numarCuImplicit,
   numarObligatoriu,
   numarOptional,
   optional,
+  telefonOptional,
   textOptional,
 } from "./comun";
 
@@ -342,5 +344,97 @@ describe("codCorOptional", () => {
    */
   it("respinge șase cifre care nu sunt o ocupație reală", () => {
     expect(() => codCorOptional.parse("999999")).toThrow();
+  });
+});
+
+/**
+ * Regula LAXĂ din `qa/spec.md` §1.1: cifre, spații și semnele `+ ( ) - .`,
+ * 6–32 de caractere. Nu cea strict românească din `organization.ts`
+ * (`telefonSchema`), fiindcă angajații și contactele de urgență pot avea
+ * numere străine. QA 8 oct 2026 (ADM-007, ONB-034, ANG-030): „abc" se salva
+ * ca telefon pe fișă, în asistent și în profil.
+ */
+describe("telefonOptional", () => {
+  it("acceptă formatele obișnuite", () => {
+    expect(telefonOptional.parse("0722 123 456")).toBe("0722 123 456");
+    expect(telefonOptional.parse("+40 (722) 123-456")).toBe("+40 (722) 123-456");
+    expect(telefonOptional.parse("0722123456")).toBe("0722123456");
+    expect(telefonOptional.parse("+1.212.555.0100")).toBe("+1.212.555.0100");
+  });
+
+  it("golul, în toate cele trei forme, devine null", () => {
+    expect(telefonOptional.parse("")).toBeNull();
+    expect(telefonOptional.parse("   ")).toBeNull();
+    expect(telefonOptional.parse(null)).toBeNull();
+    expect(telefonOptional.parse(undefined)).toBeNull();
+  });
+
+  it("respinge literele", () => {
+    expect(() => telefonOptional.parse("abc")).toThrow();
+    expect(() => telefonOptional.parse("abc-12")).toThrow();
+  });
+
+  it("respinge sub 6 și peste 32 de caractere", () => {
+    expect(() => telefonOptional.parse("12345")).toThrow();
+    expect(() => telefonOptional.parse("1".repeat(33))).toThrow();
+    expect(telefonOptional.parse("123456")).toBe("123456");
+  });
+
+  /*
+   * Scrieri românești uzuale (QA integrare L4): bara oblică între prefix și
+   * număr și interiorul pe telefonul de serviciu. Fără ele, o fișă veche care
+   * le avea nu se mai putea salva la nicio altă modificare.
+   */
+  it("acceptă bara oblică între prefix și număr", () => {
+    expect(telefonOptional.parse("0722/123.456")).toBe("0722/123.456");
+    expect(telefonOptional.parse("0256/123456")).toBe("0256/123456");
+  });
+
+  it("acceptă un interior la final", () => {
+    expect(telefonOptional.parse("0256 123 456 int. 12")).toBe("0256 123 456 int. 12");
+    expect(telefonOptional.parse("0256 123 456 int 123")).toBe("0256 123 456 int 123");
+    expect(telefonOptional.parse("0256 123 456, interior 7")).toBe("0256 123 456, interior 7");
+    expect(telefonOptional.parse("0256/123456 Int.12")).toBe("0256/123456 Int.12");
+    expect(telefonOptional.parse("+40 256 123 456 ext. 4501")).toBe("+40 256 123 456 ext. 4501");
+  });
+
+  it("interiorul nu deschide ușa literelor oriunde", () => {
+    expect(() => telefonOptional.parse("int. 12")).toThrow();
+    expect(() => telefonOptional.parse("0256 int. 123 456")).toThrow();
+    expect(() => telefonOptional.parse("0256 123 456 int.")).toThrow();
+    expect(() => telefonOptional.parse("0256 123 456 int. abc")).toThrow();
+    expect(() => telefonOptional.parse("0256 123 456 interioare 2")).toThrow();
+    expect(() => telefonOptional.parse("0256 123 456 int. 12".padEnd(33, "3"))).toThrow();
+  });
+
+  it("mesajul e în română și spune ce e permis", () => {
+    const r = telefonOptional.safeParse("abc");
+    expect(r.success).toBe(false);
+    if (r.success) return;
+    expect(r.error.issues[0]?.message).toContain("cifre");
+  });
+});
+
+/** Codul poștal românesc are exact 6 cifre. QA 8 oct 2026, ADM-010: „12ab" se salva. */
+describe("codPostalOptional", () => {
+  it("acceptă șase cifre și golul", () => {
+    expect(codPostalOptional.parse("300001")).toBe("300001");
+    expect(codPostalOptional.parse(" 300001 ")).toBe("300001");
+    expect(codPostalOptional.parse("")).toBeNull();
+    expect(codPostalOptional.parse(null)).toBeNull();
+    expect(codPostalOptional.parse(undefined)).toBeNull();
+  });
+
+  it("respinge litere și lungimi greșite", () => {
+    expect(() => codPostalOptional.parse("12ab")).toThrow();
+    expect(() => codPostalOptional.parse("3000")).toThrow();
+    expect(() => codPostalOptional.parse("3000011")).toThrow();
+  });
+
+  it("mesajul spune „6 cifre”", () => {
+    const r = codPostalOptional.safeParse("12ab");
+    expect(r.success).toBe(false);
+    if (r.success) return;
+    expect(r.error.issues[0]?.message).toContain("6 cifre");
   });
 });

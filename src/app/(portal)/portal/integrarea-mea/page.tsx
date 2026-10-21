@@ -11,6 +11,7 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import type { RolResponsabil } from "@/schemas/checklist";
 import { formatDate } from "@/lib/format/date";
+import { acordSubstantiv, formatNumar, textNumarat } from "@/lib/format/numar";
 import type { ProgresInstanta } from "@/lib/queries/checklist";
 import { listeazaInstante, progresInstante, sarcinileMele } from "@/lib/queries/checklist";
 import { fisaMea } from "@/lib/queries/portal";
@@ -80,7 +81,7 @@ export default async function PaginaIntegrareaMea() {
           <Link href="/portal/integrarea-mea/sarcini" className="underline underline-offset-2">
             {pasiLaColegi === 1
               ? "Un pas vă revine în parcursul unui coleg"
-              : `${String(pasiLaColegi)} pași vă revin în parcursurile colegilor`}
+              : `${textNumarat(pasiLaColegi, "pas", "pași")} vă revin în parcursurile colegilor`}
           </Link>
           .
         </p>
@@ -120,7 +121,8 @@ export default async function PaginaIntegrareaMea() {
                   </div>
                   {total === 0 ? null : (
                     <p className="text-muted-foreground text-nota mt-2 tabular-nums">
-                      {facute.toLocaleString("ro-RO")} din {total.toLocaleString("ro-RO")} pași
+                      {formatNumar(facute)} din {formatNumar(total)}{" "}
+                      {acordSubstantiv(total, "pas", "pași")}
                     </p>
                   )}
                 </Link>

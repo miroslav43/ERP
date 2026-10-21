@@ -36,18 +36,18 @@ export const renderResetareParola = (
   const link =
     `${ctx.appUrl}/auth/callback?token_hash=${encodeURIComponent(data.tokenHash)}` +
     `&type=recovery&next=${encodeURIComponent("/parola-noua")}`;
-  const subject = "Resetarea parolei tale Administrativo";
+  const subject = "Resetarea parolei dumneavoastră Administrativo";
   const bodyHtml =
     `<h1 style="margin:0 0 16px 0;font-family:Arial,Helvetica,sans-serif;font-size:20px;line-height:28px;color:#12203c;">Resetare parolă</h1>` +
     renderParagraph(
-      `Salut, ${escapeHtml(data.nume)}. Am primit o cerere de resetare a parolei pentru contul tău.`,
+      `Bună ziua, ${escapeHtml(data.nume)}. Am primit o cerere de resetare a parolei pentru contul dumneavoastră.`,
     ) +
     renderButton(link, "Setează o parolă nouă", ctx.appUrl) +
     renderParagraph(
       `Linkul expiră în <strong>${String(data.valabilMinute)} de minute</strong> și poate fi folosit o singură dată.`,
     ) +
     renderParagraph(
-      "Dacă nu tu ai cerut resetarea, nu trebuie să faci nimic: parola actuală rămâne neschimbată.",
+      "Dacă nu dumneavoastră ați cerut resetarea, nu trebuie să faceți nimic: parola actuală rămâne neschimbată.",
     ) +
     renderParagraph(
       `Adresa completă:<br /><span style="color:#1d4ed8;word-break:break-all;">${escapeHtml(link)}</span>`,
@@ -55,12 +55,12 @@ export const renderResetareParola = (
   const text = [
     "Resetare parolă",
     "",
-    `Salut, ${data.nume}. Am primit o cerere de resetare a parolei pentru contul tău.`,
+    `Bună ziua, ${data.nume}. Am primit o cerere de resetare a parolei pentru contul dumneavoastră.`,
     "",
     `Setează o parolă nouă: ${link}`,
     "",
     `Linkul expiră în ${String(data.valabilMinute)} de minute și poate fi folosit o singură dată.`,
-    "Dacă nu tu ai cerut resetarea, ignoră acest mesaj — parola rămâne neschimbată.",
+    "Dacă nu dumneavoastră ați cerut resetarea, ignorați acest mesaj — parola rămâne neschimbată.",
   ].join("\n");
   return {
     subject,

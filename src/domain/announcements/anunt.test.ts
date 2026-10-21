@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import { toBucharestDateString } from "@/lib/format/date";
 
 import {
+  expirareInTrecut,
+  expirareLaEditare,
   extrasAnunt,
   filtruDinAdresa,
   numaraPeStari,
@@ -14,6 +16,70 @@ import {
 } from "./anunt";
 
 const ACUM = new Date("2026-08-30T12:00:00.000Z");
+
+describe("expirareInTrecut", () => {
+  it("fără termen nu e în trecut", () => {
+    expect(expirareInTrecut(null, ACUM)).toBe(false);
+  });
+
+  it("o zi demult trecută e în trecut", () => {
+    expect(expirareInTrecut("2020-01-01T23:59:59+02:00", ACUM)).toBe(true);
+  });
+
+  /**
+   * Aceeași graniță ca în `stareAnunt`: la secunda exactă, baza (`expira_la >
+   * now()`) deja ascunde anunțul, deci o expirare „chiar acum" e una trecută.
+   */
+  it("momentul exact egal cu acum e deja în trecut", () => {
+    expect(expirareInTrecut(ACUM.toISOString(), ACUM)).toBe(true);
+  });
+
+  it("sfârșitul zilei de azi (ce trimite caseta pentru „azi”) NU e în trecut", () => {
+    expect(expirareInTrecut(sfarsitulZileiRomania(toBucharestDateString(ACUM)), ACUM)).toBe(false);
+  });
+});
+
+describe("expirareLaEditare", () => {
+  // ACUM = 30 aug 2026, 15:00 ora României.
+  const IERI_STOCAT = sfarsitulZileiRomania("2026-08-29");
+
+  it("anunț expirat, ziua neatinsă în casetă: se PĂSTREAZĂ valoarea stocată, nu se refuză", () => {
+    expect(expirareLaEditare(sfarsitulZileiRomania("2026-08-29"), IERI_STOCAT, ACUM)).toEqual({
+      fel: "pastreaza",
+    });
+  });
+
+  /**
+   * Retragerea pune momentul exact (10:00), caseta precompletează doar ziua și
+   * trimite 23:59:59 al ei. Fără comparația pe zi, editarea în aceeași zi
+   * repunea tăcut anunțul pe avizier până la miezul nopții.
+   */
+  it("anunț retras azi la 10:00, ziua neatinsă: se păstrează momentul retragerii", () => {
+    const retras = "2026-08-30T07:00:00.000Z";
+    expect(expirareLaEditare(sfarsitulZileiRomania("2026-08-30"), retras, ACUM)).toEqual({
+      fel: "pastreaza",
+    });
+  });
+
+  it("fără termen înainte și după: se păstrează", () => {
+    expect(expirareLaEditare(null, null, ACUM)).toEqual({ fel: "pastreaza" });
+  });
+
+  it("ziua schimbată pe una trecută: refuz", () => {
+    expect(expirareLaEditare(sfarsitulZileiRomania("2026-08-28"), IERI_STOCAT, ACUM)).toEqual({
+      fel: "in_trecut",
+    });
+    expect(expirareLaEditare(sfarsitulZileiRomania("2026-08-28"), null, ACUM)).toEqual({
+      fel: "in_trecut",
+    });
+  });
+
+  it("ziua schimbată pe una viitoare sau golită: se scrie, explicit", () => {
+    const maine = sfarsitulZileiRomania("2026-08-31");
+    expect(expirareLaEditare(maine, IERI_STOCAT, ACUM)).toEqual({ fel: "scrie", valoare: maine });
+    expect(expirareLaEditare(null, IERI_STOCAT, ACUM)).toEqual({ fel: "scrie", valoare: null });
+  });
+});
 
 describe("stareAnunt", () => {
   it("fără dată de publicare e ciornă, indiferent de expirare", () => {

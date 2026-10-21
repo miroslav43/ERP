@@ -1,11 +1,13 @@
 // src/app/(platform)/super-admin/organizatii/[orgId]/page.tsx
 import Link from "next/link";
-import { SlidersHorizontal, UserPlus } from "lucide-react";
+import { Mail, SlidersHorizontal, UserPlus } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { buton } from "@/components/ui/buton";
+import { metadataPlatforma } from "@/lib/auth/platform";
 import { cn } from "@/lib/ui/cn";
 import { formatDateTime } from "@/lib/format/date";
+import { idDinRuta } from "@/lib/rute/parametri";
 import { formateazaCui } from "@/domain/organization/cui";
 import {
   InsignaPlan,
@@ -16,6 +18,10 @@ import {
 import { ActiuniOrganizatie } from "./_components/actiuni-organizatie";
 import { FormularEditeazaOrganizatie } from "./_components/formular-editeaza-organizatie";
 import { fisaOrganizatiei } from "../actions";
+
+// Titlul doar pentru administratorul de platformă (PRM-007); fără numele firmei,
+// ca să nu coste o citire în plus pentru cine primește oricum 404.
+export const generateMetadata = metadataPlatforma("Organizație · Panou de platformă");
 
 const ETICHETE_ROL: Record<string, string> = {
   super_admin: "Super-administrator",
@@ -41,7 +47,11 @@ export default async function PaginaFisaOrganizatie({
 }: {
   params: Promise<{ orgId: string }>;
 }) {
-  const { orgId } = await params;
+  // `fisaOrganizatiei` își păstrează `idOrganizatieSchema.parse` ca apărare
+  // în adâncime; aici doar formatul, ca `/organizatii/abc` să fie 404, nu
+  // ZodError ieșit în `error.tsx`.
+  const { orgId: orgIdBrut } = await params;
+  const orgId = idDinRuta(orgIdBrut);
   const fisa = await fisaOrganizatiei(orgId);
   if (!fisa) notFound();
 
@@ -278,6 +288,14 @@ export default async function PaginaFisaOrganizatie({
               ))}
             </ul>
           )}
+          {/* Intrarea naturală în jurnalul de e-mail filtrat pe firma asta. */}
+          <Link
+            href={`/super-admin/emailuri?org=${organizatie.id}`}
+            className={cn(buton({ varianta: "secundar" }), "mt-4")}
+          >
+            <Mail aria-hidden="true" className="size-4" />
+            E-mailurile firmei
+          </Link>
         </section>
       </div>
     </div>

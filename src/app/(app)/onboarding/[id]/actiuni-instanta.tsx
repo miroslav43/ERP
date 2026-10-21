@@ -30,7 +30,7 @@ export function ActiuniInstanta({ instantaId }: { readonly instantaId: string })
       // discret la subsol. Toastul cu acțiune nu se stinge singur.
       arataToast({
         fel: "reusita",
-        text: "Checklistul a fost finalizat.",
+        text: "Parcursul a fost finalizat.",
         actiune: {
           eticheta: "Vezi dovada de parcurgere",
           onClick: () => {
@@ -64,7 +64,7 @@ export function ActiuniInstanta({ instantaId }: { readonly instantaId: string })
       <div className="flex flex-wrap gap-2">
         <Buton varianta="primar" inCurs={inCurs} textInCurs="Se finalizează…" onClick={finalizeaza}>
           <Check aria-hidden="true" className="size-4" />
-          Finalizează checklistul
+          Finalizează parcursul
         </Buton>
         {panou === "inchis" ? (
           <Buton
@@ -74,7 +74,7 @@ export function ActiuniInstanta({ instantaId }: { readonly instantaId: string })
             }}
           >
             <Ban aria-hidden="true" className="size-4" />
-            Anulează checklistul
+            Anulează parcursul
           </Buton>
         ) : null}
       </div>

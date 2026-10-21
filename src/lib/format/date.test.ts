@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatDate,
   formatDateTime,
+  formatInterval,
   formatZiuaMomentului,
   formatMonthYear,
   parseDateRo,
@@ -12,6 +13,16 @@ import {
   momentDinOraRomaniei,
   oraRomanieiPentruCamp,
 } from "./date";
+
+describe("formatInterval", () => {
+  it("aceeași zi se scrie o singură dată, nu „a – a”", () => {
+    expect(formatInterval("2026-10-26", "2026-10-26")).toBe("26.10.2026");
+  });
+
+  it("zile diferite se leagă cu linie de pauză scurtă (en-dash)", () => {
+    expect(formatInterval("2026-11-02", "2026-11-04")).toBe("02.11.2026 – 04.11.2026");
+  });
+});
 
 describe("formatDate", () => {
   it("formatează o zi calendaristică în dd.MM.yyyy", () => {

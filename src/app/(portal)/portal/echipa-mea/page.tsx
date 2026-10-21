@@ -119,7 +119,7 @@ export default async function PaginaEchipaMea() {
     <div className="space-y-6">
       <AntetPagina
         titlu="Echipa mea"
-        descriere="Locul tău în organizație: lanțul de șefi deasupra ta și, dacă ai, oamenii din subordine. Restul firmei nu apare aici."
+        descriere="Locul dumneavoastră în organizație: lanțul de șefi de deasupra și, dacă aveți, oamenii din subordine. Restul firmei nu apare aici."
       />
 
       {arbore.length === 0 ? (
@@ -127,7 +127,7 @@ export default async function PaginaEchipaMea() {
           fel="initiala"
           pictograma={Network}
           titlu="Ierarhia nu e configurată încă"
-          descriere="Fișa ta nu are un manager direct înregistrat, iar nimeni nu te are pe tine ca manager. Anunță departamentul de resurse umane."
+          descriere="Fișa dumneavoastră nu are un manager direct înregistrat, iar nimeni nu vă are pe dumneavoastră ca manager. Anunțați departamentul de resurse umane."
         />
       ) : (
         <Ramura noduri={arbore} nivel={1} idPropriu={idPropriu} />

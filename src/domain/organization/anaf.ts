@@ -21,6 +21,7 @@
 import { z } from "zod";
 
 import { CODURI_CAEN_VALIDE } from "@/domain/organization/caen-nomenclator";
+import { cuVirgula } from "@/lib/text/diacritice";
 import { FORME_JURIDICE, JUDETE, SECTOARE_BUCURESTI } from "@/schemas/organization";
 
 type Judet = (typeof JUDETE)[number];
@@ -99,18 +100,19 @@ export type RaspunsAnaf = z.output<typeof raspunsAnafSchema>;
  * documentele oficiale generate din ea.
  */
 export function sedilaInVirgula(brut: string): string {
-  return brut.replaceAll("Ş", "Ș").replaceAll("ş", "ș").replaceAll("Ţ", "Ț").replaceAll("ţ", "ț");
+  return cuVirgula(brut);
 }
 
-/** Formă de comparație: fără diacritice, fără punctuație, majuscule. */
+/**
+ * Formă de comparație: fără diacritice, fără punctuație, majuscule.
+ *
+ * Sedila (U+0327) e și ea în blocul 0300–036F, deci literele ANAF cu sedilă
+ * ajung litere simple la același pas, fără înlocuiri separate (verificat rulând).
+ */
 function cheieComparatie(brut: string): string {
   return brut
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replaceAll("Ş", "S")
-    .replaceAll("ş", "s")
-    .replaceAll("Ţ", "T")
-    .replaceAll("ţ", "t")
     .replace(/[^A-Za-z]+/g, " ")
     .trim()
     .toUpperCase();

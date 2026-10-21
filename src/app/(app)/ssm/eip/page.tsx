@@ -59,7 +59,7 @@ async function TabelEip({
         titlu="Niciun echipament predat"
         descriere={
           poateCrea
-            ? "Predați primul echipament individual de protecție folosind formularul de mai sus."
+            ? "Apăsați „Predă un echipament” ca să înregistrați prima predare de echipament individual de protecție (EIP)."
             : "Niciun echipament de protecție nu a fost predat încă. Predarea o înregistrează responsabilul SSM."
         }
       />

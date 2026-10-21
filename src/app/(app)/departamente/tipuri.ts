@@ -59,4 +59,17 @@ export interface OptiuneAngajat {
    * nu se inventează „nerepartizat".
    */
   readonly departamentDenumire: string | null;
+  /**
+   * Omul ales e `manager_employee_id` al departamentului în care e membru ACUM.
+   *
+   * Contează fiindcă mutarea lui în alt departament nu e doar o mutare: triggerul
+   * `internal.sef_iese_din_departament` (0143) golește `manager_employee_id` pe
+   * departamentul din care pleacă — cine e scos din departamentul pe care îl
+   * conduce nu-l mai conduce. Efectul se spune ÎNAINTE de apăsare, în formular,
+   * nu se descoperă după, pe un card rămas „manager nedesemnat".
+   *
+   * Se calculează din structura vizibilă; un departament ascuns de RLS nu e în
+   * ea, deci câmpul rămâne `false` și propoziția nu apare — se spune ce se știe.
+   */
+  readonly conduceDepartamentulCurent: boolean;
 }

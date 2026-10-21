@@ -116,3 +116,39 @@ describe("meniul nu conține intrări moarte", () => {
     expect(ids.length).toBe(new Set(ids).size);
   });
 });
+
+/**
+ * UX-001: la 900 px înălțime, meniul unui administrator avea 1174 px de conținut
+ * în 790 px vizibili, iar „Financiar” și „Administrare” stăteau sub pliu.
+ * „Sporuri și prime” și „Popriri” sunt pagini ale salarizării, nu module: ca
+ * sub-intrări ale „Salarizare” scurtează meniul cu două rânduri.
+ */
+describe("Salarizarea își ține sub-paginile ca sub-intrări", () => {
+  const salarizare = NAV_ITEMS.find((item) => item.id === "salarizare");
+
+  it("„Sporuri și prime” și „Popriri” sunt copii ai „Salarizare”, în ordinea asta", () => {
+    expect(salarizare?.children?.map((copil) => [copil.id, copil.label, copil.href])).toEqual([
+      ["componente-salariale", "Sporuri și prime", "/salarizare/componente"],
+      ["popriri", "Popriri", "/salarizare/popriri"],
+    ]);
+  });
+
+  it("nu mai apar ca intrări de prim nivel", () => {
+    const deSus = NAV_ITEMS.map((item) => item.id);
+    expect(deSus).not.toContain("componente-salariale");
+    expect(deSus).not.toContain("popriri");
+  });
+
+  it("copiii păstrează pragul paginii lor", () => {
+    const praguri = new Map(salarizare?.children?.map((copil) => [copil.id, copil.minScope]));
+    expect(praguri.get("componente-salariale")).toBe("team");
+    expect(praguri.get("popriri")).toBe("all");
+  });
+});
+
+/** UX-003: meniul, titlul paginii și adresa spun același lucru — „Panou”. */
+describe("Panoul are o singură denumire", () => {
+  it("intrarea de meniu se numește „Panou”, ca titlul paginii", () => {
+    expect(NAV_ITEMS.find((item) => item.href === "/panou")?.label).toBe("Panou");
+  });
+});

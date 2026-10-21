@@ -104,11 +104,16 @@ const dataOptionala = z
   .transform((valoare) => (valoare === null || valoare.length === 0 ? null : valoare))
   .refine(
     (valoare) => valoare === null || RE_DATA.test(valoare),
-    "Data trebuie scrisă în formatul AAAA-LL-ZZ.",
+    "Introduceți o dată validă (zz.ll.aaaa).",
   );
 
-const dataObligatorie = (camp: string) =>
-  z.string().trim().regex(RE_DATA, `Câmpul „${camp}” trebuie completat în formatul AAAA-LL-ZZ.`);
+/**
+ * `ce` e complementul lui „Introduceți”: „data de început”. Formatul din mesaj
+ * e cel pe care omul îl vede în casetă (`IntrareData` arată zz.ll.aaaa și
+ * trimite ISO), deci singura cauză reală a erorii e câmpul gol.
+ */
+const dataObligatorie = (ce: string) =>
+  z.string().trim().regex(RE_DATA, `Introduceți ${ce} (zz.ll.aaaa).`);
 
 const uuidOptional = z
   .string()
@@ -210,8 +215,8 @@ export const creeazaCerereSchema = z
     /** `null` = cererea e pentru mine însumi. */
     employee_id: uuidOptional,
     leave_type_id: z.uuid("Tipul de concediu selectat nu este valid."),
-    data_inceput: dataObligatorie("Data de început"),
-    data_sfarsit: dataObligatorie("Data de sfârșit"),
+    data_inceput: dataObligatorie("data de început"),
+    data_sfarsit: dataObligatorie("data de sfârșit"),
     motiv: textOptional(1000),
     atasament_path: textOptional(500),
     /**
@@ -240,6 +245,10 @@ export const creeazaCerereSchema = z
     trimite: z.coerce.boolean().default(false),
   })
   .superRefine((valoare, ctx) => {
+    // Rafinarea rulează și după ce regex-ul unei date a picat (problema lui nu
+    // oprește obiectul). Fără garda asta, un câmp gol primea și mesajul despre
+    // an, lipit de cel despre dată (UX-040). Datele invalide au deja mesajul lor.
+    if (!RE_DATA.test(valoare.data_inceput) || !RE_DATA.test(valoare.data_sfarsit)) return;
     const anInceput = Number(valoare.data_inceput.slice(0, 4));
     const anSfarsit = Number(valoare.data_sfarsit.slice(0, 4));
     if (Number.isNaN(anInceput) || anInceput < ANUL_MINIM_CERERE || anInceput > ANUL_MAXIM_CERERE) {
@@ -371,7 +380,7 @@ export const creeazaRegulaConcediuSchema = z
       .min(0, "Numărul de zile suplimentare nu poate fi negativ.")
       .max(60, "Numărul de zile suplimentare este neobișnuit de mare."),
     denumire: textObligatoriu(2, 160, "Denumire"),
-    valabil_de_la: dataObligatorie("Valabil de la"),
+    valabil_de_la: dataObligatorie("data de la care se aplică regula"),
     valabil_pana_la: dataOptionala,
   })
   .superRefine((valoare, ctx) => {

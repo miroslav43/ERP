@@ -60,18 +60,24 @@ export interface StatisticiOrganizatie {
    */
   readonly perLuna: readonly StatisticaLuna[];
   /**
-   * Lunile CU cifre a căror perioadă e totuși încă `draft`: perioade calculate
-   * și apoi redeschise. `payroll.period.reopen` duce `calculat` → `draft` fără
-   * să atingă intrările deja scrise (0026:346-357 golește doar `calculat_la` și
-   * `calculat_de`), deci cifrele rămân și INTRĂ în totalurile anuale — dar se
-   * vor schimba la recalculare.
+   * Lunile CU rânduri de salariu a căror perioadă e totuși încă `draft`.
+   *
+   * Două origini, același tratament: o perioadă calculată și apoi redeschisă
+   * (`payroll.period.reopen` duce `calculat` → `draft` fără să atingă intrările,
+   * 0026:346-357), sau rânduri orfane lăsate de un calcul pe care triggerul l-a
+   * refuzat DUPĂ ce RPC-ul scrisese deja. În ambele cazuri cifrele sunt vechi
+   * sau nevalidate și NU intră în `perLuna`, în `perAngajat` și în totaluri
+   * (HR-027): ecranul perioadei le ascunde deja, raportul nu poate aduna ce
+   * perioada nu arată. Reapar la recalculare.
    */
   readonly luniInCiorna: readonly number[];
   /**
-   * Lunile care au perioadă deschisă, dar NICIO intrare calculată.
+   * Lunile fără un calcul VALABIL: perioadă deschisă fără nicio intrare, sau
+   * ciornă ale cărei rânduri sunt excluse. Cuprinde deci și `luniInCiorna`.
    *
-   * Nu apar nicăieri în cifre, și nu se confundă cu lunile în ciornă: acolo
-   * există un rezultat care se poate schimba, aici nu există niciun rezultat.
+   * Nu apar nicăieri în cifre. Distincția față de `luniInCiorna` rămâne în
+   * ecran: acolo există un rezultat vechi care se poate schimba, aici nu
+   * există niciun rezultat.
    */
   readonly luniNecalculate: readonly number[];
   /** Aceleași luni, cu id-ul perioadei: ecranul duce la perioada de calculat, nu la listă. */
@@ -235,11 +241,19 @@ export async function statisticiAnuale(
 
   const perAngajatMap = new Map<string, StatisticaAngajat>();
   // Acumulatorul lunar, pe `period_id`. O lună rămâne în afara hărții cât timp
-  // n-a sosit nicio intrare calculată de-a ei — de acolo iese, mai jos,
-  // distincția între „în ciornă, cu cifre" și „necalculată, fără nimic".
+  // n-a sosit nicio intrare VALABILĂ de-a ei — de acolo iese, mai jos,
+  // distincția între „în ciornă, cu cifre vechi" și „necalculată, fără nimic".
   const perPerioada = new Map<string, { brut: number; net: number; cost: number }>();
+  // Perioadele `draft` care AU rânduri: se citesc (o singură citire, peste tot
+  // anul, ca să se poată deosebi de cele fără nimic), dar nu se adună (HR-027).
+  const statusPerioada = new Map(randuriPerioada.map((p) => [p.id, p.status]));
+  const draftCuCifre = new Set<string>();
 
   for (const rand of intrari) {
+    if (statusPerioada.get(rand.period_id) === "draft") {
+      draftCuCifre.add(rand.period_id);
+      continue;
+    }
     const lunar = perPerioada.get(rand.period_id) ?? { brut: 0, net: 0, cost: 0 };
     perPerioada.set(rand.period_id, {
       brut: lunar.brut + rand.brut,
@@ -289,7 +303,9 @@ export async function statisticiAnuale(
     ];
   });
 
-  const luniInCiorna = perLuna.filter((l) => l.status === "draft").map((l) => l.luna);
+  const luniInCiorna = randuriPerioada.filter((p) => draftCuCifre.has(p.id)).map((p) => p.luna);
+  // Tot ce n-a intrat în cifre — inclusiv ciornele de mai sus — ca ecranul să
+  // ducă la fiecare perioadă de calculat.
   const perioadeNecalculate = randuriPerioada
     .filter((p) => !perPerioada.has(p.id))
     .map((p) => ({ id: p.id, luna: p.luna }));

@@ -11,10 +11,11 @@ cai:
   - "src/components/layout/topbar.tsx"
   - "src/config/porti-ruta.ts"
 tabele: [employees, employment_contracts, work_permits, vehicle_assignments, leave_balances]
-permisiuni: [employees:read, departments:read, leave:read, ssm:read, vehicles:read]
+permisiuni:
+  [employees:read, employees:create, departments:read, leave:read, ssm:read, vehicles:read]
 capcane: [18]
-scris_pe: d88200b8dc3f13fccad2ce8777662950d9c00eb8
-scris_la: 2026-10-09
+scris_pe: 8b46aa6015ab5a8f558e72a2e13b37148c114114
+scris_la: 2026-10-13
 tags: [modul, hr, nucleu]
 ---
 
@@ -80,6 +81,26 @@ nicio explicație: anul nu are drepturi aplicate. Aceeași formă o ia și o fir
 multe rânduri de sold pe an decât plafonul `max_rows` al PostgREST — `soldAnual` cere
 soldurile întregii firme pe an, fără limită, iar trunchierea e tăcută.
 
+Explicația din paranteză oglindește `app.drept_concediu`
+(`0193_concediu_proportional_cu_lunile.sql`), nu cifra de lângă ea: baza e
+`zile_concediu_anual` de pe contractul de bază la tipul `odihna` și `zile_implicite` la
+oricare altul, peste ea se adună grilele care contribuie, iar factorul `× n/12 luni`
+apare când omul n-a lucrat anul întreg și tipul `scade_din_sold` (regula întreagă:
+[[modul/concedii/setari]]). De aceea secțiunea primește de pe pagină `terminatedOn` și
+`contractDeBaza` — contractul de bază ACTIV, altfel cel mai recent care nu e act
+adițional, aceeași alegere ca funcția SQL — și numără lunile pe loc, cu
+`sfarsitPerioadaLucrata` și `luniLucrateInAn` din `src/domain/leave/drepturi.ts`. Fără
+contract de bază ancora cade pe `hired_on`; fără nicio dată de început, anul se
+consideră întreg.
+
+`dreptAfisat` rămâne valoarea scrisă în `leave_balances`: pe un an fără rând de sold fișa
+arată `zile_implicite` al tipului, iar paranteza baza de pe contract înmulțită cu
+proporția — se potrivesc abia după ce HR aplică drepturile pe anul respectiv. Paranteza
+apare și când singurul motiv e proporția, fără nicio grilă; `poateVedeaRegulile`
+(`leave:read = all`) ascunde grilele, nu factorul de luni. Zilele se scriu cu
+`textZile`/`formatNumar` (`src/lib/format/numar.ts`), nu cu `formatAmount`, care e pentru
+bani și forța două zecimale.
+
 ## Celulele-link din listă
 
 În `page.tsx`, două coloane duc mai departe, iar linkul imbricat în rândul apăsabil
@@ -107,6 +128,15 @@ dată-limită (`src/domain/hr/contracte-expira.ts`, o singură sursă). Se restr
 deci două contracte care expiră ale aceluiași om dau un rând. Cele două filtre de intrare
 se INTERSECTEAZĂ când vin împreună, nu se suprascriu, și amândouă contează la „Șterge
 filtrele” din starea goală.
+
+Starea goală e una din două, nu un singur text cu acțiune condiționată. Cu filtre
+(oricare din `q`, `department_id`, `functie`, `punct_lucru`, `contract`, `status`) duce
+la „Șterge filtrele” pe `/angajati`. Fără filtre, „Adaugă primul angajat” →
+`/angajati/nou` apare numai la `employees:create = all` (`poateCrea`, calculat o dată pe
+pagină și trimis în tabel, același care guvernează „Angajat nou” și „Import din Excel”
+din antet); la `employees:read = team` fără drept de creare, textul spune de unde vin
+fișele în loc să îndemne — omul apare în lista managerului după ce e trecut ca manager
+direct pe fișa lui.
 
 `?contract=` are valori fixe (`enumOptional`), ca `?status=`. O valoare străină pe
 oricare din ele face `safeParse` să cadă pe TOT obiectul, iar `filtreDinUrl` întoarce

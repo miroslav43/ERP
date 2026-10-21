@@ -225,7 +225,7 @@ export function Fluturas({
         <p className="text-muted-foreground text-nota mt-1">
           Cost total angajator: {formatLei(inregistrare.cost_total_angajator)} (din care CAM
           angajator: {formatLei(inregistrare.cam_angajator)} — cost suplimentar al angajatorului, nu
-          se scade din salariul dvs.).
+          se scade din salariul dumneavoastră).
         </p>
       </section>
 

@@ -5,6 +5,8 @@ import { createHash, randomBytes } from "node:crypto";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+// `z.flattenError` propriu, fără createAction: harta de mesaje se încarcă explicit.
+import "@/schemas/mesaje-zod";
 
 import type { ActionResult } from "@/lib/actions/types";
 import { requirePlatformAdmin } from "@/lib/auth/platform";
@@ -309,6 +311,7 @@ export async function invitaMembru(raw: unknown): Promise<ActionResult<RezultatI
       db: admin,
       destinatar: invitatie.email,
       organizatie: org.name,
+      organizationId: org.id,
       invitatDe: "Administratorul platformei",
       rol: input.role,
       token,
@@ -418,6 +421,7 @@ export async function retrimiteInvitatie(raw: unknown): Promise<ActionResult<Rez
       db: admin,
       destinatar: invitatie.email,
       organizatie: org.name,
+      organizationId: org.id,
       invitatDe: "Administratorul platformei",
       rol: invitatie.role as RolAtribuibil,
       token,

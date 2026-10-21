@@ -11,6 +11,8 @@
 // câmpul potrivit, în loc de o violare de constrângere.
 import { z } from "zod";
 
+import "./mesaje-zod";
+
 import { STATUSURI_TICHET, TIPURI_TICHET } from "@/domain/ticketing/stari";
 import { PRIORITATI } from "@/domain/ticketing/prioritate";
 

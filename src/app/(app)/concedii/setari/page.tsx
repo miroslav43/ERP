@@ -10,7 +10,7 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { anDinUrl } from "@/lib/rute/parametri";
-import { formatAmount } from "@/lib/format/money";
+import { formatNumar } from "@/lib/format/numar";
 import { todayInBucharest } from "@/lib/format/date";
 import {
   configurareConcedii,
@@ -152,14 +152,14 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
       antet: "Drept vechi",
       numeric: true,
       peTelefon: "meta",
-      celula: (rand) => formatAmount(rand.drept_vechi),
+      celula: (rand) => formatNumar(rand.drept_vechi),
     },
     {
       cheie: "drept_nou",
       antet: "Drept nou",
       numeric: true,
       peTelefon: "meta",
-      celula: (rand) => <span className="font-medium">{formatAmount(rand.drept_nou)}</span>,
+      celula: (rand) => <span className="font-medium">{formatNumar(rand.drept_nou)}</span>,
     },
     {
       cheie: "ramase_dupa",
@@ -168,7 +168,7 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
       peTelefon: "meta",
       celula: (rand) => (
         <span className={rand.ramase_dupa < 0 ? "text-danger" : ""}>
-          {formatAmount(rand.ramase_dupa)}
+          {formatNumar(rand.ramase_dupa)}
         </span>
       ),
     },

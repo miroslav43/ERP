@@ -142,7 +142,7 @@ export function PanouAsistent({
 
       <form action={trimite} className="border-border flex items-end gap-2 border-t p-2">
         <label htmlFor={idIntrebare} className="sr-only">
-          Întrebarea ta
+          Întrebarea dumneavoastră
         </label>
         <textarea
           ref={camp}
@@ -174,8 +174,8 @@ function Sugestii({ zona }: Readonly<{ zona: "app" | "portal" }>): ReactElement 
   return (
     <div className="flex flex-col gap-2">
       <p className="text-corp text-muted-foreground">
-        Întreabă unde se face un lucru în aplicație. Îți spun pe unde se ajunge și îți dau butonul
-        care te duce acolo.
+        Întrebați unde se face un lucru în aplicație. Vă spun pe unde se ajunge și vă dau butonul
+        care vă duce acolo.
       </p>
       <ul className="flex flex-col gap-1.5 pt-1">
         {SUGESTII[zona].map((sugestie) => (

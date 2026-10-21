@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule, notFound } from "@/lib/actions/errors";
+import { esteAdresaSintetica } from "@/lib/invitatii/adresa";
 import { creeazaInvitatie, type InvitatieCreata } from "@/lib/invitatii/creeaza";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { numaraAdminiActivi, ROLURI_ATRIBUIBILE, schimbaRolul } from "@/lib/membri/schimba-rol";
@@ -81,6 +82,73 @@ export const revocaInvitatia = createAction({
       throw notFound("Invitația nu mai există sau a fost deja folosită.");
     }
     return { id: data.id };
+  },
+});
+
+/**
+ * „Retrimite" de pe rândul unei invitații în așteptare (QA 8 oct 2026, ONB-026).
+ *
+ * Linkul de invitație se afișează o singură dată: baza păstrează doar amprenta
+ * tokenului (`invitations.token_hash`), deci „arată-mi din nou linkul" nu există.
+ * Retrimiterea înseamnă token NOU, termen nou și e-mail nou — iar linkul vechi
+ * moare. Ecranul o spune lângă buton.
+ *
+ * Adresa, rolul și fișa vin din rândul existent, nu din formular: e aceeași
+ * invitație, reînnoită. `creeazaInvitatie` o recunoaște după adresă (sau fișă) și,
+ * cu `retrimiteDacaExista`, face UPDATE cu `.select()` în loc de INSERT.
+ */
+export const retrimiteInvitatia = createAction({
+  name: "members.resend_invite",
+  input: z.object({ invitationId: z.uuid() }),
+  permission: "users:create",
+  minScope: "all",
+  audit: {
+    action: "invite_sent",
+    entityType: "invitations",
+    entityId: (input) => input.invitationId,
+    // ALLOW-LIST: tokenul și hash-ul lui nu ajung NICIODATĂ în audit (S7).
+    allow: ["invitationId"],
+  },
+  revalidate: ["/setari/membri"],
+  handler: async (ctx, input): Promise<InvitatieCreata> => {
+    const { data: rand, error } = await ctx.supabase
+      .from("invitations")
+      .select("id, email, role, employee_id")
+      .eq("id", input.invitationId)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("status", "pending")
+      .maybeSingle();
+
+    if (error !== null) {
+      throw error;
+    }
+    if (rand === null) {
+      throw notFound("Invitația nu mai există sau a fost deja folosită.");
+    }
+    const rol = roluriInvitabile.safeParse(rand.role);
+    if (!rol.success) {
+      throw businessRule("Invitația are un rol care nu se poate retrimite din acest ecran.");
+    }
+
+    return creeazaInvitatie({
+      db: ctx.supabase,
+      // Ocolește RLS DELIBERAT, doar pentru jurnalul de e-mail, ca la
+      // `invitaMembru`: `email_log` are INSERT/UPDATE revocate pentru
+      // `authenticated`. Rândul poartă `organization_id`-ul din sesiune; dreptul
+      // `users:create = all` a fost deja verificat mai sus.
+      dbEmail: createAdminSupabase(),
+      organizationId: ctx.tenant.organizationId,
+      email: rand.email,
+      rol: rol.data,
+      employeeId: rand.employee_id,
+      // O adresă sintetică (fișă fără e-mail, `marca-0042@firma.intern`) n-are
+      // server: tokenul se reînnoiește, linkul ajunge la om pe hârtie.
+      trimiteEmail: !esteAdresaSintetica(rand.email),
+      retrimiteDacaExista: true,
+      invitatDe: ctx.user.fullName ?? ctx.user.email,
+      userId: ctx.user.id,
+      acum: ctx.now,
+    });
   },
 });
 

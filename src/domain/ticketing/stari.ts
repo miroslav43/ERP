@@ -84,6 +84,16 @@ export type MotivRefuz = "tranzitie_invalida" | "fara_drept";
 export type RezultatTranzitie =
   Readonly<{ permisa: true }> | Readonly<{ permisa: false; motiv: MotivRefuz }>;
 
+/**
+ * Decizia asupra unei cereri: ieșirea din `in_aprobare` spre `in_lucru`
+ * (aprobare) sau `respins`. Are o singură cale în interfață — `DecizieCerere`
+ * / `decideTichet`, care scrie și `motiv_respingere`; oferită ca simplu buton
+ * de stare, respingerea lovea `tickets_respingere_ck` și dădea eroare generică.
+ */
+export function esteDecizie(din: StatusTichet, catre: StatusTichet): boolean {
+  return din === "in_aprobare" && (catre === "in_lucru" || catre === "respins");
+}
+
 export function poateSchimbaStatusul(
   din: StatusTichet,
   catre: StatusTichet,
@@ -92,7 +102,7 @@ export function poateSchimbaStatusul(
   if (!tranzitiePermisa(din, catre)) return { permisa: false, motiv: "tranzitie_invalida" };
 
   // Decizia asupra unei cereri: doar managerul direct sau patronul.
-  if (din === "in_aprobare" && (catre === "in_lucru" || catre === "respins")) {
+  if (esteDecizie(din, catre)) {
     return drepturi.poateAproba ? { permisa: true } : { permisa: false, motiv: "fara_drept" };
   }
 
@@ -125,5 +135,50 @@ export function tranzitiiOferite(
 ): readonly StatusTichet[] {
   return tranzitiiPosibile(din).filter(
     (catre) => poateSchimbaStatusul(din, catre, drepturi).permisa,
+  );
+}
+
+/**
+ * Ce i se oferă SOLICITANTULUI în portal, pe propriul tichet.
+ *
+ * Deliberat mai îngust decât `tranzitiiOferite(din, { esteSolicitant: true, … })`:
+ * aceea ar da și `respins → redeschis` — permis în domeniu și în bază, dar din
+ * `redeschis` se trece în `in_lucru` fără nicio decizie, deci o cerere respinsă
+ * ar ocoli reaprobarea — și `anulat`, care e definitiv și ar cere o confirmare.
+ * Portalul oferă doar ce poate face omul fără să-și facă rău: confirmă
+ * rezolvarea sau o contestă.
+ */
+export function tranzitiiSolicitantului(din: StatusTichet): readonly StatusTichet[] {
+  switch (din) {
+    case "rezolvat":
+      return ["inchis", "redeschis"];
+    case "inchis":
+      return ["redeschis"];
+    default:
+      return [];
+  }
+}
+
+/**
+ * Butoanele de stare de pe pagina tichetului din aplicație (`/ticketing/[id]`).
+ *
+ * · Toți primesc `tranzitiiOferite`, fără decizii: decizia asupra unei cereri
+ *   are o singură cale, `DecizieCerere` → `decideTichet`, care scrie și
+ *   `motiv_respingere` (MGR-011).
+ * · Solicitantul care nu operează pierde DOAR `respins → redeschis`: din
+ *   `redeschis` se trece în `in_lucru` fără nicio decizie, deci și-ar fi ocolit
+ *   reaprobarea. Restul rămâne — mai ales „Anulează”, singura cale din interfață
+ *   prin care își retrage o cerere (portalul n-o oferă). Restrângerea la
+ *   `tranzitiiSolicitantului` îi lua butonul și cererea rămânea în coada
+ *   managerului până o respingea el.
+ */
+export function tranzitiiPeTichet(
+  din: StatusTichet,
+  drepturi: DrepturiActor,
+): readonly StatusTichet[] {
+  const ocolesteReaprobarea = (catre: StatusTichet) =>
+    din === "respins" && catre === "redeschis" && drepturi.esteSolicitant && !drepturi.poateOpera;
+  return tranzitiiOferite(din, drepturi).filter(
+    (catre) => !esteDecizie(din, catre) && !ocolesteReaprobarea(catre),
   );
 }

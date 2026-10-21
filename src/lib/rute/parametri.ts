@@ -22,10 +22,30 @@ import type { z } from "zod";
  *
  * De ce aici și nu în fiecare pagină: erau patru pagini cu aceeași scăpare,
  * scrise de doi autori diferiți, în aceeași zi. A cincea va fi scrisă de altcineva.
+ * (Au fost cincisprezece, la campania QA din octombrie 2026 — PRM-003, ADM-043.
+ * De atunci `segmente-dinamice.test.ts` le numără pe sursă.)
  */
 
 /** Un UUID canonic, în forma pe care o emite `gen_random_uuid()`. */
 const TIPAR_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Spune dacă un segment de rută poate fi un id — un UUID canonic.
+ *
+ * Predicatul pur, pentru route handler-ele care răspund text/plain și nu pot
+ * chema `notFound()` fără să-și schimbe contractul (ar răspunde cu HTML-ul
+ * paginii 404). Răspunsul lor pentru un id nevalid e ACELAȘI text și același
+ * cod ca pentru rândul lipsă, ca formatul să nu se distingă de inexistent.
+ * Paginile folosesc `idDinRuta`, care cheamă `notFound()` în locul lor.
+ *
+ * Regexul e deliberat mai permisiv decât `z.uuid()`: Zod 4 respinge UUID-urile
+ * „rotunde" / non-RFC (`00000000-0000-0000-0000-000000000000`), pe care Postgres
+ * le castează fără să clipească. Cu `z.uuid()` am transforma rânduri reale
+ * (seed, demo, rânduri vechi) în 404.
+ */
+export function esteIdDeRuta(valoare: string): boolean {
+  return TIPAR_UUID.test(valoare);
+}
 
 /**
  * Identificatorul dintr-un segment dinamic de rută.
@@ -40,7 +60,7 @@ const TIPAR_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
  * segmentul `[id]`.
  */
 export function idDinRuta(valoare: string): string {
-  if (!TIPAR_UUID.test(valoare)) notFound();
+  if (!esteIdDeRuta(valoare)) notFound();
   return valoare;
 }
 

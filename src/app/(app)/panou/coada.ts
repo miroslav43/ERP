@@ -133,7 +133,7 @@ export function coadaDinContoare(c: ContoarePanou): readonly IntrareCoada[] {
     intrari.push({
       cheie: "tichete",
       numar: coada.tichete,
-      titlu: "Tichete care așteaptă decizia ta",
+      titlu: "Tichete care așteaptă decizia dumneavoastră",
       detaliu: coada.tichete === 1 ? "tichet" : "tichete",
       // Contorul numără DOAR `in_aprobare`: lista filtrată la fel.
       href:
@@ -147,7 +147,7 @@ export function coadaDinContoare(c: ContoarePanou): readonly IntrareCoada[] {
     intrari.push({
       cheie: "integrare",
       numar: coada.pasiIntegrare,
-      titlu: "Pași de integrare care îți revin",
+      titlu: "Pași de integrare care vă revin",
       detaliu: coada.pasiIntegrare === 1 ? "pas" : "pași",
       href: "/onboarding/sarcinile-mele",
       actiune: "Deschide",

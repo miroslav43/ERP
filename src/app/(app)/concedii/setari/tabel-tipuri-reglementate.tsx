@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Lock } from "lucide-react";
 
 import { Tabel, type Coloana } from "@/components/ui/tabel";
-import { formatAmount } from "@/lib/format/money";
+import { formatNumar } from "@/lib/format/numar";
 import type { TipConcediuConfigurabil } from "@/lib/queries/leave";
 
 import { comutaActivTipConcediu } from "./actions";
@@ -53,7 +53,7 @@ export function TabelTipuriReglementate({
       antet: "Zile",
       numeric: true,
       peTelefon: "meta",
-      celula: (tip) => formatAmount(tip.zile_implicite),
+      celula: (tip) => formatNumar(tip.zile_implicite),
     },
     {
       cheie: "temei",

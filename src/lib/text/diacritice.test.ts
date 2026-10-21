@@ -1,7 +1,7 @@
 // src/lib/text/diacritice.test.ts
 import { describe, expect, it } from "vitest";
 
-import { cheieCautare, faraDiacritice } from "./diacritice";
+import { cheieCautare, cuVirgula, faraDiacritice } from "./diacritice";
 
 describe("faraDiacritice", () => {
   it("scoate toate cele cinci litere românești cu semn", () => {
@@ -55,5 +55,16 @@ describe("cheieCautare", () => {
       expect(cheieCautare(c)).toBe(cuProprietate(c));
       expect(cheieCautare(c)).toBe(cuBloc(c));
     }
+  });
+});
+
+describe("cuVirgula", () => {
+  it("sedila devine virgulă dedesubt, la litere mici și mari", () => {
+    expect(cuVirgula("\u015Eos. Virtu\u0163ii")).toBe("Șos. Virtuții");
+    expect(cuVirgula("\u015F\u0163\u015E\u0162")).toBe("șțȘȚ");
+  });
+
+  it("nu atinge literele deja corecte", () => {
+    expect(cuVirgula("Ștefan Țucă, ăîâ")).toBe("Ștefan Țucă, ăîâ");
   });
 });

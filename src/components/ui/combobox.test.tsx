@@ -1,9 +1,12 @@
 // src/components/ui/combobox.test.tsx
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { Camp } from "./camp";
+import type { ActionResult } from "@/lib/actions/types";
 import { cheieCautare } from "@/lib/text/diacritice";
+
+import { Camp } from "./camp";
+import { Formular } from "./formular";
 
 import { Combobox, filtreazaOptiuni, type OptiuneCombobox, type PropsCombobox } from "./combobox";
 
@@ -104,6 +107,54 @@ describe("Combobox — trimiterea formularului", () => {
     if (!(formular instanceof HTMLFormElement)) throw new Error("Formularul lipsește.");
     fireEvent.reset(formular);
     expect(campAscuns(container).value).toBe("");
+  });
+
+  it("sub `<Formular>`, după un refuz al acțiunii, câmpul ascuns păstrează alegerea trimisă", async () => {
+    // Mecanismul exact, verificat în react-dom 19.2.8: rezultatul acțiunii
+    // sosește într-un commit în care React scrie întâi atributele gazdelor
+    // (faza de mutație) și cheamă `form.reset()` la SFÂRȘITUL ei
+    // (`recursivelyResetForms`). Ascultătorul de `reset` abonat într-un
+    // `useEffect([valoareInitiala])` se reabonează abia DUPĂ faza de mutație,
+    // deci resetul îl prindea pe cel vechi, închis peste `valoareInitiala` din
+    // randarea precedentă — `""`. Comboboxul revenea gol, iar următoarea
+    // trimitere dădea „Echipamentul selectat nu este valid.” (ADM-025).
+    //
+    // Un `rerender` + `fireEvent.reset` NU reproduce ordinea; doar un
+    // `<form action>` real o face — de aceea testul trece prin `Formular`.
+    const refuz: ActionResult<never> = {
+      ok: false,
+      error: {
+        code: "VALIDARE",
+        message: "Datele introduse nu sunt valide.",
+        fieldErrors: null,
+        requestId: "test",
+      },
+    };
+    const { container } = render(
+      <Formular actiune={async () => refuz}>
+        {({ valoriTrimise }) => (
+          <Combobox
+            name="employee_id"
+            optiuni={ANGAJATI}
+            textFaraRezultate={GOL}
+            valoareInitiala={valoriTrimise["employee_id"] ?? ""}
+          />
+        )}
+      </Formular>,
+    );
+    fireEvent.mouseDown(caseta());
+    fireEvent.click(screen.getByText("Ionescu Maria"));
+    expect(campAscuns(container).value).toBe("u1");
+
+    await act(async () => {
+      fireEvent.submit(container.querySelector("form")!);
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Datele introduse nu sunt valide.")).toBeDefined();
+    });
+
+    expect(campAscuns(container).value).toBe("u1");
+    expect(caseta().value).toBe("Ionescu Maria");
   });
 
   it("controlat, `valoare` decide afișarea, iar `laSchimbare` primește alegerea", () => {

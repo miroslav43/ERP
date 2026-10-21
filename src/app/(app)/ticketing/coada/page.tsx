@@ -292,7 +292,7 @@ export default async function PaginaCoada({ searchParams }: ProprietatiPagina) {
     <div className="space-y-6">
       <AntetPagina
         titlu="Coada de tichete"
-        descriere="Tichetele la care ai acces, cu cererile care așteaptă decizia ta."
+        descriere="Tichetele la care aveți acces, cu cererile care așteaptă decizia dumneavoastră."
         file={<FileModul eticheta="Navigare ticketing" file={FILE_TICKETING} tenant={tenant} />}
       />
 

@@ -188,17 +188,51 @@ function rpcCuLant(server: ClientFals): void {
   };
 }
 
+/**
+ * Cele două pre-verificări ale calculului (HR-027), citite din bază prin
+ * clientul fals: starea pontajului lunii și cererile de concediu în așteptare.
+ * Implicitul e „drumul liber"; un test care vrea refuzul dă altă valoare.
+ */
+type Preconditii = Readonly<{
+  /** `null` = perioada de pontaj nu există (sau RLS n-o arată). */
+  pontaj?: string | null;
+  cereriInAsteptare?: number;
+}>;
+
+function programeazaPreconditiile(server: ClientFals, preconditii: Preconditii): void {
+  const { pontaj = "blocata", cereriInAsteptare = 0 } = preconditii;
+  server.raspunde("attendance_periods", "select", {
+    data:
+      pontaj === null
+        ? null
+        : {
+            id: ID_2,
+            an: 2026,
+            luna: 8,
+            data_inceput: "2026-08-01",
+            data_sfarsit: "2026-08-31",
+            status: pontaj,
+            blocata_la: null,
+            blocata_de: null,
+            observatii: null,
+          },
+  });
+  server.raspunde("leave_requests", "select", { data: [], count: cereriInAsteptare });
+}
+
 /** Pregătește o perioadă în ciornă cu tot ce citește handlerul direct din bază. */
 function pregateste(
   status = "draft",
   prime: readonly unknown[] = [],
   retineri: readonly unknown[] = [],
+  preconditii: Preconditii = {},
 ): ClientFals {
   const { server } = configureazaActiunea({ permisiuni: PERMIS });
   rpcCuLant(server);
   server.raspunde("payroll_periods", "select", {
     data: { id: ID_1, an: 2026, luna: 8, attendance_period_id: ID_2, settings_id: ID_3, status },
   });
+  programeazaPreconditiile(server, preconditii);
   server.raspunde("payroll_bonuses", "select", { data: prime });
   server.raspunde("payroll_deductions", "select", { data: retineri });
   return server;
@@ -335,6 +369,72 @@ describe("calculeazaPerioada — autorizare și precondiții", () => {
       error: { code: "CONFLICT", message: expect.stringContaining("Nu există niciun angajat") },
     });
   });
+
+  /*
+   * HR-027, cauza reală: `payroll_scrie_rezultate` (0187) verifică doar forma
+   * listei și existența perioadei; gărzile „pontaj blocat" și „zero cereri în
+   * așteptare" stau în triggerul de pe `payroll_periods` (0026:318-337), care
+   * rulează abia la UPDATE-ul de stare — DUPĂ ce RPC-ul a scris rândurile, în
+   * altă tranzacție. Rezultatul: intrări `calculat` pe o perioadă `draft`, pe
+   * care raportul anual le aduna ca „lună în ciornă". Pre-verificarea din
+   * acțiune dublează cele două gărzi ÎNAINTE de orice scriere; triggerul
+   * rămâne bariera.
+   */
+  it.each([
+    ["deschisa", "deschisa"],
+    ["lipsă", null],
+  ])(
+    "pontajul lunii %s: CONFLICT înainte de RPC, nimic scris, și spune cine poate bloca",
+    async (_nume, pontaj) => {
+      const server = pregateste("draft", [], [], { pontaj });
+
+      const r = await calculeazaPerioada({ id: ID_1 });
+
+      expect(r.ok).toBe(false);
+      if (r.ok) return;
+      expect(r.error.code).toBe("CONFLICT");
+      expect(r.error.message).toContain("Pontajul lunii 8/2026 nu este blocat");
+      // HR-024, partea de mesaj: refuzul spune CINE poate bloca, fără să atingă
+      // permisiunile.
+      expect(r.error.message).toContain("cine are dreptul de aprobare a pontajului");
+      expect(server.apeluriRpc.map((a) => a.nume)).not.toContain("payroll_scrie_rezultate");
+      expect(server.apeluriPe("payroll_periods", "update")).toHaveLength(0);
+      expect(angajatiActiviCuContract).not.toHaveBeenCalled();
+      const [citire] = server.apeluriPe("attendance_periods");
+      expect(areFiltru(citire, "eq", "organization_id", ORG_ID)).toBe(true);
+      expect(areFiltru(citire, "eq", "id", ID_2)).toBe(true);
+      expect(areFiltru(citire, "is", "deleted_at", null)).toBe(true);
+    },
+  );
+
+  it.each([
+    [2, "2 cereri de concediu în așteptare care se suprapun"],
+    [1, "o cerere de concediu în așteptare care se suprapune"],
+  ])(
+    "%s cereri de concediu în așteptare: CONFLICT cu numărul lor, nimic scris",
+    async (cereriInAsteptare, fragment) => {
+      const server = pregateste("draft", [], [], { cereriInAsteptare });
+
+      const r = await calculeazaPerioada({ id: ID_1 });
+
+      expect(r).toMatchObject({
+        ok: false,
+        error: { code: "CONFLICT", message: expect.stringContaining(fragment) },
+      });
+      expect(server.apeluriRpc.map((a) => a.nume)).not.toContain("payroll_scrie_rezultate");
+      expect(angajatiActiviCuContract).not.toHaveBeenCalled();
+      // Exact predicatul triggerului (0026:328-335): doar `trimisa`/`in_aprobare`
+      // — NU `aprobata`, spre deosebire de `cereriCareOcupaZile` — și
+      // suprapunerea cu luna, pe ambele capete.
+      const [cereri] = server.apeluriPe("leave_requests");
+      expect(cereri?.optiuni).toEqual({ count: "exact", head: true });
+      expect(areFiltru(cereri, "eq", "organization_id", ORG_ID)).toBe(true);
+      expect(areFiltru(cereri, "in", "status", ["trimisa", "in_aprobare"])).toBe(true);
+      expect(areFiltru(cereri, "lte", "data_inceput", "2026-08-31")).toBe(true);
+      expect(areFiltru(cereri, "gte", "data_sfarsit", "2026-08-01")).toBe(true);
+      expect(areFiltru(cereri, "is", "deleted_at", null)).toBe(true);
+    },
+  );
 });
 
 describe("calculeazaPerioada — calculul și scrierea", () => {
@@ -507,6 +607,28 @@ describe("calculeazaPerioada — calculul și scrierea", () => {
     expect(coduri(b)).not.toContain("SAL_CONTRACT_SCHIMBAT_IN_LUNA");
   });
 
+  it("pontaj gol: se calculează, iar fiecare rând scris poartă SAL_PONTAJ_FARA_ZILE", async () => {
+    // ADM-034: pontajul lunii e blocat, dar nimeni n-a pontat nimic. Calculul
+    // NU se refuză — e o lună legitimă pentru o firmă în pauză — dar fiecare
+    // fluturaș de zero lei spune DE CE e zero și unde se repară.
+    const server = pregateste();
+    programeazaScrierea(server);
+    vi.mocked(pontajAgregatPerioada).mockResolvedValue({
+      pePersoana: new Map(),
+      trunchiat: false,
+    });
+
+    const r = await calculeazaPerioada({ id: ID_1 });
+
+    expect(r).toMatchObject({ ok: true, data: { angajati: 2 } });
+    const randuri = randuriScrise(server);
+    expect(randuri).toHaveLength(2);
+    for (const rand of randuri) {
+      expect(rand.brut).toBe(0);
+      expect(rand.calc_warnings.map((w) => w.cod)).toContain("SAL_PONTAJ_FARA_ZILE");
+    }
+  });
+
   it("poprirea reținută se înregistrează pe dosar, cu numărul dosarului în motiv", async () => {
     const server = pregateste();
     programeazaScrierea(server);
@@ -586,9 +708,12 @@ describe("calculeazaPerioada — calculul și scrierea", () => {
     expect(server.apeluriPe("payroll_periods", "update")).toHaveLength(0);
   });
 
-  it("P0001 din RPC (ex. pontaj neblocat): mesajul bazei ajunge la utilizator", async () => {
+  it("P0001 din RPC (ex. rând incomplet): mesajul bazei ajunge la utilizator", async () => {
+    // „Pontaj neblocat" NU vine de aici: e ridicat de triggerul de pe
+    // `payroll_periods`, la UPDATE-ul de stare, și e pre-verificat în acțiune
+    // (vezi „autorizare și precondiții"). RPC-ul refuză doar forma rândurilor.
     const server = pregateste();
-    const mesaj = "Pontajul lunii 8/2026 nu este blocat.";
+    const mesaj = "Rândul de salariu este incomplet: lipsește câmpul „rest_de_plata”.";
     server.raspundeRpc("payroll_scrie_rezultate", { error: eroarePostgrest("P0001", mesaj) });
 
     const r = await calculeazaPerioada({ id: ID_1 });
@@ -619,6 +744,35 @@ function camp(server: ClientFals, angajatId: string, coloana: string): number {
 }
 
 describe("calculeazaPerioada — intrările lunii ajung în statul de plată", () => {
+  it("normă de 8 h/zi în trei zile (24 h/săpt.): programul întreg lucrat dă salariul întreg, nu 13/21", async () => {
+    // Schema admite contractul din 12 oct 2026; fără norma săptămânală în
+    // calcul, cele 13 zile lucrate se împărțeau la 21 și ieșeau ~62% din salariu.
+    const server = pregateste();
+    programeazaScrierea(server);
+    vi.mocked(angajatiActiviCuContract).mockResolvedValue({
+      angajati: [
+        angajat(ANGAJAT_A, 3000, { norma_ore_zi: 8, norma_ore_saptamana: 24 }),
+        angajat(ANGAJAT_B, 4500),
+      ],
+      faraContract: [],
+      trunchiat: false,
+    });
+    vi.mocked(pontajAgregatPerioada).mockResolvedValue({
+      pePersoana: new Map([
+        [ANGAJAT_A, { ...PONTAJ_GOL, zile_lucrate: 13, ore_lucrate: 104, ore_normale_zi: 104 }],
+        [ANGAJAT_B, LUNA_PLINA],
+      ]),
+      trunchiat: false,
+    });
+
+    await calculeazaPerioada({ id: ID_1 });
+
+    expect(camp(server, ANGAJAT_A, "baza_salariu")).toBeCloseTo(3000, 2);
+    expect(camp(server, ANGAJAT_B, "baza_salariu")).toBeCloseTo(4500, 2);
+    const randA = randuriScrise(server).find((r) => r.employee_id === ANGAJAT_A);
+    expect(randA?.calc_warnings.map((w) => w.cod)).toContain("NORMA_SUB_CINCI_ZILE");
+  });
+
   it("scutirea fiscală activă anulează impozitul angajatului ei, nu și al celorlalți", async () => {
     const server = pregateste();
     programeazaScrierea(server);
@@ -870,6 +1024,7 @@ describe("calculeazaPerioada — eroare la citirea primelor sau reținerilor", (
         status: "draft",
       },
     });
+    programeazaPreconditiile(server, {});
     return server;
   }
 

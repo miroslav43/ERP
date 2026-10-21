@@ -23,9 +23,10 @@ import type { ServerSupabase } from "@/lib/supabase/server";
  * ── CE NU FACE ─────────────────────────────────────────────────────────────
  * Nu citește primii octeți. `content_type` e antetul cu care s-a urcat
  * fișierul, deci un client determinat poate încă minți tipul — dar nu și
- * mărimea. Pentru materialele de curs, unde tipul chiar contează (un „film"
- * care nu e film se vede abia la redare), verificarea de semnătură prin magic
- * bytes rămâne cea din `src/lib/media/cale.ts`.
+ * mărimea. Conținutul real îl verifică fratele ei, `citestePrimiiOcteti`
+ * (`./primii-octeti.ts`), comparat cu `potrivesteSemnatura` (`./semnatura.ts`):
+ * fiecare salvare de fișier cheamă întâi funcția de aici (tip permis? mărime
+ * în plafon?), apoi pe aceea (chiar e ce pretinde?).
  */
 export async function masoaraObiectul(
   supabase: ServerSupabase,

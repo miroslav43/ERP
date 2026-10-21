@@ -2,6 +2,9 @@
 // Validare pe rând: adunăm TOATE erorile rândului (nu ne oprim la prima),
 // iar rândurile corecte rămân importabile chiar dacă altele sunt respinse.
 import { z } from "zod";
+// Raportul importului arată omului primul mesaj din `z.flattenError`: fără
+// harta în română, o regulă fără mesaj propriu ar ieși englezește.
+import "@/schemas/mesaje-zod";
 import type { CampImport, RandMapat } from "./mapare";
 
 export type EroareRand = { readonly rand: number; readonly camp: string; readonly mesaj: string };

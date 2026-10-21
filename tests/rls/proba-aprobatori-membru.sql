@@ -10,6 +10,7 @@
 -- (5) rândul de membru `none` pe patron îl scoate și de acolo;
 -- (6) la rezolvarea bug-ului, autorul duplicatului primește linkul spre
 --     DUPLICATUL lui, nu spre părinte (0188)                        [POZITIVĂ];
+-- (6b) titlul notificării de stare spune „în lucru”, nu `in_lucru` (0194);
 -- (7) managerul își vede propria lună KPI (0190)                    [POZITIVĂ];
 -- (8) dar nu și-o poate modifica (UPDATE cu zero rânduri);
 -- (9) luna subordonatului o vede în continuare                      [POZITIVĂ].
@@ -184,6 +185,20 @@ begin
     v_esecuri := v_esecuri + 1;
     raise warning '  ✗ (6) linkul duplicatului e % (entitate %), așteptat /ticketing/%',
       v_link, v_entitate, v_duplicat;
+  end if;
+
+  -- ═══ (6b) titlul schimbării de stare e românesc, nu codul enum (0194) ═════
+  select count(*) filter (where n.title = 'Tichetul IT-2026-910001: în lucru'),
+         count(*) filter (where n.title like '%: in\_lucru')
+    into v_n, v_atinse
+    from public.notifications n
+   where n.user_id = v_u_ang and n.organization_id = v_org
+     and n.entity_type = 'ticket' and n.entity_id = v_parinte;
+  if v_n = 1 and v_atinse = 0 then
+    raise notice '  ✓ (6b) solicitantul citește „: în lucru”, nu codul `in_lucru`';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (6b) titluri „în lucru”: %, titluri cu codul brut: %', v_n, v_atinse;
   end if;
 
   -- ═══ (7)–(9) luna KPI proprie a managerului ════════════════════════════════

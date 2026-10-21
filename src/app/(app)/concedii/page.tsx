@@ -14,11 +14,11 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { formatAmount } from "@/lib/format/money";
+import { formatNumar, acordSubstantiv } from "@/lib/format/numar";
 import { todayInBucharest } from "@/lib/format/date";
-import { numarDeAprobat, soldAnual } from "@/lib/queries/leave";
+import { numarDeAprobat, ramaseDinRand, soldAnual } from "@/lib/queries/leave";
 import { filtreCereriSchema } from "@/schemas/leave";
-import { fisaProprie } from "@/lib/queries/portal";
+import { drepturileMele, fisaProprie } from "@/lib/queries/portal";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 
 import { ButonSetariConcedii } from "./buton-setari";
@@ -40,18 +40,41 @@ interface OptiuneTip {
   readonly culoare: string;
 }
 
-async function RezumatSoldPropriu({ organizationId }: { readonly organizationId: string }) {
+async function RezumatSoldPropriu({
+  organizationId,
+  employeeId,
+}: {
+  readonly organizationId: string;
+  readonly employeeId: string;
+}) {
   const an = Number(todayInBucharest().slice(0, 4));
-  const { tipuri, solduri } = await soldAnual(organizationId, an);
+  const [{ tipuri, solduri }, drepturi] = await Promise.all([
+    soldAnual(organizationId, an),
+    drepturileMele(organizationId, an),
+  ]);
   const tipOdihna = tipuri.find((t) => t.key === "odihna") ?? tipuri.find((t) => t.scade_din_sold);
   if (tipOdihna === undefined) return null;
-  const sold = solduri.find((s) => s.leave_type_id === tipOdihna.id);
-  const ramase = sold?.ramase ?? tipOdihna.zile_implicite;
+  // `soldAnual` întoarce rândurile TUTUROR angajaților vizibili: pentru un
+  // manager sau HR, primul rând de odihnă găsit era al altcuiva.
+  const sold = solduri.find(
+    (s) => s.leave_type_id === tipOdihna.id && s.employee_id === employeeId,
+  );
+  const dreptCalculat = drepturi.find((d) => d.leave_type_id === tipOdihna.id)?.zile;
+  // Aceeași formulă ca tabelul din `/concedii/sold`: cele două ecrane nu mai
+  // pot spune cifre diferite pentru același rest (UX-011), iar fără rând de
+  // sold restul e dreptul calculat de bază (0193), ca în portal.
+  const ramase = ramaseDinRand(
+    dreptCalculat === undefined
+      ? { tip: tipOdihna, sold: sold ?? null }
+      : { tip: tipOdihna, sold: sold ?? null, dreptCalculat: Number(dreptCalculat) },
+  );
+  if (ramase === null) return null;
 
   return (
     <p className="border-border bg-surface text-foreground rounded-panou text-corp border px-4 py-2">
-      Aveți <strong>{formatAmount(ramase)}</strong> zile rămase din „{tipOdihna.denumire}” pentru
-      anul {String(an)}.{" "}
+      Aveți <strong>{formatNumar(ramase)}</strong>{" "}
+      {acordSubstantiv(ramase, "zi rămasă", "zile rămase")} din „{tipOdihna.denumire}” pentru anul{" "}
+      {String(an)}.{" "}
       <Link href="/concedii/sold" className="underline underline-offset-2">
         Vezi soldul complet
       </Link>
@@ -201,7 +224,9 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
       {/* Soldul apare pentru ORICINE are fișă, nu doar pentru scope „own”:
           până acum managerul, care vede și echipa, nu-și vedea zilele rămase
           exact pe ecranul de unde depune cererea. */}
-      {fisaMea !== null ? <RezumatSoldPropriu organizationId={tenant.organizationId} /> : null}
+      {fisaMea !== null ? (
+        <RezumatSoldPropriu organizationId={tenant.organizationId} employeeId={fisaMea.id} />
+      ) : null}
 
       {/* Fără filtru după angajat: lista are un singur angajat — chiar el. */}
       <FiltreCereri tipuri={tipuri ?? []} angajati={[]} filtre={filtre} />

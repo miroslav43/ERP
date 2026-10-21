@@ -8,9 +8,11 @@
 //
 // Defectul a trăit nevăzut fiindcă predicatul stătea într-un JSX. Aici e scos
 // și apărat.
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { motivulBlocarii, ziuaSePoateDeschide } from "./grila-luna";
+import { GrilaLuna, motivulBlocarii, ziuaSePoateDeschide } from "./grila-luna";
 
 const LIBERA = undefined;
 const PONTATA = { approved_at: null, leave_request_id: null };
@@ -118,5 +120,58 @@ describe("motivulBlocarii", () => {
       leave_request_id: "cerere-1",
     });
     expect(motiv).toContain("aprobată");
+  });
+});
+
+/*
+  Ziua care nu se pontează (ANG-004, ANG-005) nu e legătură.
+
+  Celula ducea la formularul ORICĂREI zile din lună, inclusiv la cele care n-au
+  venit încă și la cele dinaintea angajării — iar `salveazaZiPontaj` le refuză
+  acum pe amândouă. Un link care duce sigur într-un refuz e un defect de ecran,
+  la fel ca cel reparat pe luna blocată. Grila e componentă de server, fără
+  stare: se randează ca HTML și se citește ca HTML.
+*/
+describe("GrilaLuna — zilele care nu se pontează", () => {
+  const AZI = "2026-07-15";
+  const hrefZi = (data: string) => `href="/portal/pontajul-meu/zi/${data}"`;
+  const grila = (angajatDin: string | null) =>
+    renderToStaticMarkup(
+      createElement(GrilaLuna, {
+        an: 2026,
+        luna: 7,
+        zile: [],
+        poateEdita: true,
+        azi: AZI,
+        angajatDin,
+      }),
+    );
+
+  it("ziua de azi și ziua trecută sunt legături", () => {
+    const html = grila("2026-07-10");
+    expect(html).toContain(hrefZi("2026-07-15"));
+    expect(html).toContain(hrefZi("2026-07-14"));
+  });
+
+  it("ziua din viitor nu e legătură și spune de ce", () => {
+    const html = grila("2026-07-10");
+    expect(html).not.toContain(hrefZi("2026-07-16"));
+    expect(html).not.toContain(hrefZi("2026-07-31"));
+    expect(html).toContain("zi din viitor");
+  });
+
+  it("ziua dinaintea angajării nu e legătură și spune de ce; ziua angajării este", () => {
+    const html = grila("2026-07-10");
+    expect(html).not.toContain(hrefZi("2026-07-09"));
+    expect(html).not.toContain(hrefZi("2026-07-01"));
+    expect(html).toContain(hrefZi("2026-07-10"));
+    expect(html).toContain("înainte de angajare");
+  });
+
+  it("fără dată de angajare pe fișă, trecutul rămâne deschis, viitorul nu", () => {
+    const html = grila(null);
+    expect(html).toContain(hrefZi("2026-07-01"));
+    expect(html).not.toContain(hrefZi("2026-07-16"));
+    expect(html).not.toContain("înainte de angajare");
   });
 });

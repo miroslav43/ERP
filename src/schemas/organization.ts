@@ -1,6 +1,7 @@
 // src/schemas/organization.ts
 // Reguli identice pe client (react-hook-form + zodResolver) și pe server (createPlatformAction).
 import { z } from "zod";
+import "./mesaje-zod";
 import { normalizeazaCui, validateazaCui } from "@/domain/organization/cui";
 import { CODURI_CAEN_VALIDE } from "@/domain/organization/caen-nomenclator";
 import { valideazaSelectieCaen } from "@/domain/organization/caen-reguli";
@@ -202,15 +203,23 @@ export const cnpReprezentantSchema = opțional(
 
 export const ticheteFurnizorSchema = opțional(z.enum(FURNIZORI_TICHETE));
 
+const MESAJ_ZIUA_LUNII = "Ziua trebuie să fie între 1 și 31.";
+
 export const ziuaLuniiSchema = opțional(
-  z.coerce.number().int("Ziua trebuie să fie un număr întreg.").min(1).max(31),
+  z.coerce
+    .number()
+    .int("Ziua trebuie să fie un număr întreg.")
+    .min(1, MESAJ_ZIUA_LUNII)
+    .max(31, MESAJ_ZIUA_LUNII),
 );
+
+const MESAJ_ZILE_CONCEDIU = "Zilele de concediu sunt între 0 și 60.";
 
 const zileConcediuImplicitBaza = z.coerce
   .number("Numărul de zile trebuie să fie o cifră.")
-  .int()
-  .min(0)
-  .max(60);
+  .int("Numărul de zile trebuie să fie întreg.")
+  .min(0, MESAJ_ZILE_CONCEDIU)
+  .max(60, MESAJ_ZILE_CONCEDIU);
 
 /**
  * Cu `.default(20)` — corect DOAR la înrolare (organizație nouă, fără

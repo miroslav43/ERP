@@ -13770,6 +13770,20 @@ export type Database = {
         }
         Returns: Json
       }
+      lantul_meu_de_sefi: {
+        Args: { p_org: string }
+        Returns: {
+          department_denumire: string | null
+          department_id: string | null
+          full_name: string
+          functie: string | null
+          id: string
+          manager_employee_id: string | null
+          marca: string
+          pozitie: number
+          user_id: string | null
+        }[]
+      }
       log_audit_event: {
         Args: {
           p_action: Database["public"]["Enums"]["audit_action"]

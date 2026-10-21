@@ -14,7 +14,7 @@ import { todayInBucharest } from "@/lib/format/date";
 
 import { FormularInstanta } from "./formular-instanta";
 
-export const metadata: Metadata = { title: "Instanță de checklist nouă" };
+export const metadata: Metadata = { title: "Parcurs nou" };
 
 const TIPAR_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function uuidDin(valoare: string | string[] | undefined): string | null {
@@ -36,7 +36,7 @@ export default async function PaginaInstantaNoua({
 
   if (!can(permisiuni, "checklists:create", "all")) {
     return (
-      <AccesRestrictionat mesaj="Pornirea unui checklist e rezervată celor care administrează integrarea angajaților. Solicitați dreptul necesar dacă aveți nevoie de el." />
+      <AccesRestrictionat mesaj="Pornirea unui parcurs e rezervată celor care administrează integrarea angajaților. Solicitați dreptul necesar dacă aveți nevoie de el." />
     );
   }
 
@@ -47,15 +47,32 @@ export default async function PaginaInstantaNoua({
   const sablonImplicit = uuidDin(parametri["sablon"]);
   const angajatImplicit = uuidDin(parametri["angajat"]);
 
+  // Antetul e comun ambelor ramuri: fără el, pagina fără șabloane n-avea
+  // niciun `<h1>` — doar starea goală (UX-027).
+  const antet = (
+    <div className="space-y-1">
+      <p className="text-muted-foreground text-corp">
+        <Link href="/onboarding" className="underline-offset-2 hover:underline">
+          Integrare angajați
+        </Link>
+      </p>
+      <AntetPagina
+        titlu="Parcurs nou"
+        descriere="Pașii se copiază automat din șablon la salvare, pe baza datei de referință alese."
+      />
+    </div>
+  );
+
   const sabloane = await sabloaneActive(tenant.organizationId);
   if (sabloane.length === 0) {
     return (
       <div className={`${LATIMI.formular} space-y-6`}>
+        {antet}
         <StareGoala
           fel="initiala"
           pictograma={ListChecks}
           titlu="Niciun șablon activ"
-          descriere="O instanță de checklist pornește dintr-un șablon. Creați întâi unul, în secțiunea Șabloane."
+          descriere="Un parcurs pornește dintr-un șablon. Creați întâi unul, în secțiunea Șabloane."
           actiune={{ eticheta: "Creează un șablon", href: "/onboarding/sabloane/nou" }}
         />
       </div>
@@ -69,17 +86,7 @@ export default async function PaginaInstantaNoua({
 
   return (
     <div className={`${LATIMI.formular} space-y-6`}>
-      <div className="space-y-1">
-        <p className="text-muted-foreground text-corp">
-          <Link href="/onboarding" className="underline-offset-2 hover:underline">
-            Onboarding
-          </Link>
-        </p>
-        <AntetPagina
-          titlu="Instanță de checklist nouă"
-          descriere="Pașii se copiază automat din șablon la salvare, pe baza datei de referință alese."
-        />
-      </div>
+      {antet}
 
       <FormularInstanta
         sabloane={sabloane}

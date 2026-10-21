@@ -413,22 +413,58 @@ describe("arboreleManagerial", () => {
   });
 
   it("scope `own`: propriul lanț de șefi (fără sine) plus propriul subarbore, ascendenții primii", async () => {
+    // ANG-028: sub `employees:read = own`, RLS dă doar rândul propriu, deci o
+    // citire directă a șefilor (`.in("id", manager_path)`) întorcea ZERO rânduri.
+    // Lanțul vine din funcția `lantul_meu_de_sefi`, ordonat după `pozitie`.
     db.raspunde("employees", "select", { data: { manager_path: [ID_1, ID_2, ID_3] } });
     db.raspunde("employees", "select", { data: [nod(ID_3, ID_2)] });
-    db.raspunde("employees", "select", { data: [nod(ID_1, null), nod(ID_2, ID_1)] });
+    const sef = (id: string, manager: string | null, pozitie: number) => ({
+      id,
+      full_name: id,
+      marca: id,
+      functie: "Director",
+      user_id: null,
+      manager_employee_id: manager,
+      department_id: pozitie === 2 ? ID_1 : null,
+      department_denumire: pozitie === 2 ? "Vânzări" : null,
+      pozitie,
+    });
+    // Livrate invers, ca să se vadă că ordinea vine din `pozitie`.
+    db.raspundeRpc("lantul_meu_de_sefi", { data: [sef(ID_2, ID_1, 2), sef(ID_1, null, 1)] });
 
     const r = await arboreleManagerial(ORG_ID, "own", ID_3);
 
     expect(r.map((n) => n.id)).toEqual([ID_1, ID_2, ID_3]);
-    const [proprie, subarbore, ascendenti] = db.apeluri;
+    expect(r[1]).toMatchObject({
+      functie: "Director",
+      manager_employee_id: ID_1,
+      department: { id: ID_1, denumire: "Vânzări" },
+      avatar_url: null,
+    });
+    expect(r[0]?.department).toBeNull();
+    expect(r[1]).not.toHaveProperty("pozitie");
+    expect(r[1]).not.toHaveProperty("department_id");
+
+    const [proprie, subarbore, ...altele] = db.apeluri;
+    expect(altele).toHaveLength(0);
     expect(areFiltru(proprie, "eq", "id", ID_3)).toBe(true);
     expect(areFiltru(subarbore, "contains", "manager_path", [ID_3])).toBe(true);
     expect(areFiltru(subarbore, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(areFiltru(subarbore, "eq", "status", "activ")).toBe(true);
     expect(areFiltru(subarbore, "is", "deleted_at", null)).toBe(true);
-    expect(areFiltru(ascendenti, "in", "id", [ID_1, ID_2])).toBe(true);
-    expect(areFiltru(ascendenti, "eq", "organization_id", ORG_ID)).toBe(true);
-    expect(areFiltru(ascendenti, "is", "deleted_at", null)).toBe(true);
+    expect(db.apeluriRpc).toContainEqual({
+      nume: "lantul_meu_de_sefi",
+      argumente: { p_org: ORG_ID },
+    });
+  });
+
+  it("scope `own`: eroarea funcției lanțului se propagă", async () => {
+    db.raspunde("employees", "select", { data: { manager_path: [ID_1, ID_3] } });
+    db.raspunde("employees", "select", { data: [nod(ID_3, ID_1)] });
+    db.raspundeRpc("lantul_meu_de_sefi", { error: eroarePostgrest("42501") });
+    await expect(arboreleManagerial(ORG_ID, "own", ID_3)).rejects.toMatchObject({
+      code: "42501",
+    });
   });
 
   it("scope `own` la vârful ierarhiei: fără interogarea ascendenților", async () => {
@@ -437,6 +473,7 @@ describe("arboreleManagerial", () => {
     const r = await arboreleManagerial(ORG_ID, "own", ID_3);
     expect(r.map((n) => n.id)).toEqual([ID_3]);
     expect(db.apeluri).toHaveLength(2);
+    expect(db.apeluriRpc.filter((a) => a.nume === "lantul_meu_de_sefi")).toHaveLength(0);
   });
 
   it("scope `team` fără fișă proprie întoarce mulțimea vidă fără să interogheze organizația", async () => {

@@ -461,9 +461,31 @@ export const creeazaContract = createAction({
       ctx.tenant.organizationId,
       input.valabil_de_la,
       input.salariu_baza,
-      input.norma_ore_zi,
+      {
+        normaOreZi: input.norma_ore_zi,
+        normaOreSaptamana: input.norma_ore_saptamana,
+      },
     );
     const db = await createServerSupabase();
+
+    // Zilele de concediu lipsă se iau din FIRMĂ, nu dintr-un implicit al
+    // schemei: „21" stătea în `corpContractSchema` în timp ce regula firmei
+    // dădea 20, iar caseta „Contract nou" promitea cifra greșită (QA 8 oct
+    // 2026, HR-023). Prin sesiunea RLS: membrul își vede propria organizație.
+    let zileConcediuAnual = input.zile_concediu_anual;
+    if (zileConcediuAnual === null) {
+      const { data: firma, error: eroareFirma } = await db
+        .from("organizations")
+        .select("zile_concediu_anual_implicit")
+        .eq("id", ctx.tenant.organizationId)
+        .maybeSingle();
+      if (eroareFirma !== null) throw eroareFirma;
+      if (firma === null) {
+        throw businessRule("Zilele de concediu implicite ale firmei nu au putut fi citite.");
+      }
+      zileConcediuAnual = firma.zile_concediu_anual_implicit;
+    }
+
     const { data, error } = await db
       .from("employment_contracts")
       // RLS (`contracts_insert`) forțează `status = 'proiect'` la INSERT —
@@ -471,6 +493,7 @@ export const creeazaContract = createAction({
       // convenția. Activarea e un al doilea pas, prin UPDATE, mai jos.
       .insert({
         ...input,
+        zile_concediu_anual: zileConcediuAnual,
         organization_id: ctx.tenant.organizationId,
         status: "proiect",
         cod_revisal: null,
@@ -534,6 +557,11 @@ export const creeazaContract = createAction({
     // Numai la contractul propriu-zis, nu la actele adiționale: un act adițional
     // modifică un contract deja activ, iar soldul e deja semănat.
     //
+    // Fără `p_zile_odihna_override` (ignorat din 0193): contractul e deja activ
+    // aici, deci `app.drept_concediu` citește singur zilele de pe el și le
+    // proporționalizează cu lunile lucrate în an. Override-ul rescria dreptul
+    // abia calculat cu valoarea întreagă.
+    //
     // Best-effort, ca la REVISAL mai jos: un contract creat corect nu se anulează
     // pentru că semănarea soldului a eșuat, iar `asigura_sold` e idempotentă.
     if (!input.este_act_aditional) {
@@ -542,7 +570,6 @@ export const creeazaContract = createAction({
         const { error: eroareSold } = await db.rpc("seed_leave_balances", {
           p_employee: input.employee_id,
           p_an: anulAngajarii,
-          p_zile_odihna_override: input.zile_concediu_anual,
         });
         if (eroareSold !== null) throw eroareSold;
       } catch (eroare) {
@@ -879,11 +906,15 @@ export const modificaSalariulContractului = createAction({
         salariu_baza: ["Salariul nou e același cu cel în vigoare la data aleasă."],
       });
     }
+    // Normele actului sunt cele ale contractului (rândul de mai jos le copiază).
     await refuzaSubSalariulMinim(
       ctx.tenant.organizationId,
       input.valabil_de_la,
       input.salariu_baza,
-      Number(contract.norma_ore_zi),
+      {
+        normaOreZi: Number(contract.norma_ore_zi),
+        normaOreSaptamana: Number(contract.norma_ore_saptamana),
+      },
     );
 
     // ── 1. Actul adițional ──

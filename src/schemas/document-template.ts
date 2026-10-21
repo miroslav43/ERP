@@ -6,6 +6,8 @@
 // scriere, iar rezultatul ei e cel care se verifică. Zod păzește doar forma.
 import { z } from "zod";
 
+import "./mesaje-zod";
+
 import { SERII_REZERVATE, esteCodPersonalizat, esteCodPlatforma } from "@/lib/documents/variabile";
 
 /**

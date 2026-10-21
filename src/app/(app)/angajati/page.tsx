@@ -47,6 +47,8 @@ interface ProprietatiTabel {
   readonly parametri: Record<string, string | string[] | undefined>;
   /** `departments:read` — denumirea departamentului devine link spre panoul lui. */
   readonly hrefDepartamente: boolean;
+  /** `employees:create = all` — starea goală oferă „Adaugă primul angajat". */
+  readonly poateCrea: boolean;
 }
 
 async function TabelAngajati({
@@ -55,6 +57,7 @@ async function TabelAngajati({
   userId,
   parametri,
   hrefDepartamente,
+  poateCrea,
 }: ProprietatiTabel) {
   // `filtreDinUrl`, nu `.parse()`: `/angajati?limita=abc` arunca ZodError
   // necaptat — un ecran de eroare pentru o adresă editată de mână sau pentru
@@ -78,13 +81,35 @@ async function TabelAngajati({
       filtre.punct_lucru !== null ||
       filtre.contract !== null ||
       filtre.status !== null;
+    if (areFiltre) {
+      return (
+        <StareGoala
+          fel="filtrata"
+          pictograma={Users}
+          titlu="Niciun angajat găsit"
+          descriere="Nu există fișe care să corespundă filtrelor alese. Ștergeți filtrele ca să vedeți toate fișele."
+          actiune={{ eticheta: "Șterge filtrele", href: "/angajati" }}
+        />
+      );
+    }
+    // Managerul vedea „adăugați primul angajat" fără să poată adăuga (ONB-032):
+    // cine poate crea primește butonul, cine vede doar echipa află de unde vin
+    // fișele în lista lui.
     return (
       <StareGoala
-        fel={areFiltre ? "filtrata" : "initiala"}
+        fel="initiala"
         pictograma={Users}
         titlu="Niciun angajat găsit"
-        descriere="Nu există fișe care să corespundă filtrelor alese. Ștergeți filtrele sau adăugați primul angajat."
-        {...(areFiltre ? { actiune: { eticheta: "Șterge filtrele", href: "/angajati" } } : {})}
+        descriere={
+          poateCrea
+            ? "Nu există încă nicio fișă de angajat."
+            : scope === "team"
+              ? "Nu aveți încă angajați în subordine. Fișele apar aici după ce sunteți trecut ca manager direct pe fișa lor."
+              : "Nu există încă nicio fișă de angajat pe care să o puteți consulta."
+        }
+        {...(poateCrea
+          ? { actiune: { eticheta: "Adaugă primul angajat", href: "/angajati/nou" } }
+          : {})}
       />
     );
   }
@@ -149,8 +174,10 @@ async function TabelAngajati({
       celula: (r) => (
         <>
           <span className="font-medium">{r.full_name}</span>
+          {/* Textul secundar, nu auriul: `text-accent` pe crem dă 2,26:1
+              (UX-020); `text-muted-foreground` dă 5,55:1, ca nota vecină. */}
           {r.user_id === userId ? (
-            <span className="text-accent text-nota ml-2">(fișa dvs.)</span>
+            <span className="text-muted-foreground text-nota ml-2">(fișa dumneavoastră)</span>
           ) : null}
           {r.is_primary ? null : (
             <span className="text-muted-foreground text-nota ml-2">(cumul de funcții)</span>
@@ -373,6 +400,7 @@ export default async function PaginaAngajati({ searchParams }: ProprietatiPagina
           scope={scope}
           userId={utilizator.id}
           parametri={parametri}
+          poateCrea={poateCrea}
           hrefDepartamente={poateDeschide("/departamente", {
             features: module,
             permissions: permisiuni,

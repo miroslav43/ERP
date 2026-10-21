@@ -1,6 +1,8 @@
 // src/schemas/salary-component.ts
 import { z } from "zod";
 
+import "./mesaje-zod";
+
 const textOptional = (maxim: number) =>
   z
     .string()
@@ -10,11 +12,12 @@ const textOptional = (maxim: number) =>
     .default(null)
     .transform((valoare) => (valoare === null || valoare.length === 0 ? null : valoare));
 
-const dataObligatorie = (camp: string) =>
+/** `ce` e complementul lui „Introduceți”: „data de la care se aplică”. */
+const dataObligatorie = (ce: string) =>
   z
     .string()
     .trim()
-    .regex(/^\d{4}-\d{2}-\d{2}$/u, `Câmpul „${camp}” trebuie completat în formatul AAAA-LL-ZZ.`);
+    .regex(/^\d{4}-\d{2}-\d{2}$/u, `Introduceți ${ce} (zz.ll.aaaa).`);
 
 const dataOptionala = z
   .string()
@@ -24,7 +27,7 @@ const dataOptionala = z
   .transform((valoare) => (valoare === null || valoare.length === 0 ? null : valoare))
   .refine(
     (valoare) => valoare === null || /^\d{4}-\d{2}-\d{2}$/u.test(valoare),
-    "Data trebuie scrisă în formatul AAAA-LL-ZZ.",
+    "Introduceți o dată validă (zz.ll.aaaa).",
   );
 
 /** Oglinda enum-ului public.salary_component_kind din 0004_hr.sql. */
@@ -66,7 +69,7 @@ export const asociazaComponentaSchema = z
     kind: z.enum(TIPURI_COMPONENTA_SALARIALA, "Alegeți tipul componentei."),
     procent: z.coerce.number().min(0).max(300).nullable().default(null),
     suma: z.coerce.number().min(0).nullable().default(null),
-    valabil_de_la: dataObligatorie("Valabil de la"),
+    valabil_de_la: dataObligatorie("data de la care se aplică"),
     valabil_pana: dataOptionala,
     observatii: textOptional(500),
   })

@@ -6,6 +6,7 @@ import { BadgeCheck, Send, Trash2 } from "lucide-react";
 
 import { deconteazaDeplasare, stergeCiornaDeplasare, trimiteDeplasare } from "../actions";
 import { Buton } from "@/components/ui/buton";
+import { ButonConfirmare } from "@/components/ui/buton-confirmare";
 
 /**
  * Acțiunile disponibile pe fișa unei deplasări: trimiterea și ștergerea
@@ -16,6 +17,10 @@ import { Buton } from "@/components/ui/buton";
  * se blochează aici — RLS și triggerul din 0015 o resping oricum; acest
  * component doar arată butoanele potrivite stării curente, iar un refuz al
  * bazei ajunge pe ecran ca mesaj, nu ca „succes” tăcut.
+ *
+ * Trimiterea și ștergerea cer confirmare (QA oct 2026, FLX-009): după
+ * trimitere, plecarea, sosirea și angajatul devin ale aprobatorului (triggerul
+ * din 0015), iar ștergerea — chiar logică — scoate ciorna de pe ecran.
  */
 export function ActiuniDeplasare({
   id,
@@ -35,30 +40,6 @@ export function ActiuniDeplasare({
   const [eroare, setEroare] = useState<string | null>(null);
   const [inCurs, porneste] = useTransition();
 
-  function trimite(): void {
-    setEroare(null);
-    porneste(async () => {
-      const rezultat = await trimiteDeplasare({ id });
-      if (!rezultat.ok) {
-        setEroare(rezultat.error.message);
-        return;
-      }
-      router.refresh();
-    });
-  }
-
-  function sterge(): void {
-    setEroare(null);
-    porneste(async () => {
-      const rezultat = await stergeCiornaDeplasare({ id });
-      if (!rezultat.ok) {
-        setEroare(rezultat.error.message);
-        return;
-      }
-      router.push(caleDupaStergere);
-    });
-  }
-
   function deconteaza(): void {
     setEroare(null);
     porneste(async () => {
@@ -77,10 +58,16 @@ export function ActiuniDeplasare({
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2">
         {poateTrimite ? (
-          <Buton varianta="primar" inCurs={inCurs} textInCurs="Se trimite…" onClick={trimite}>
-            <Send aria-hidden="true" className="size-4" />
-            Trimite spre aprobare
-          </Buton>
+          <ButonConfirmare
+            eticheta="Trimite spre aprobare"
+            varianta="primar"
+            pictograma={<Send aria-hidden="true" className="size-4" />}
+            titlu="Trimiteți deplasarea spre aprobare?"
+            consecinta="După trimitere, datele de bază (plecare, sosire, angajat) nu se mai pot modifica decât de aprobator. Dacă e respinsă, o puteți corecta și retrimite."
+            etichetaConfirmare="Trimite spre aprobare"
+            executa={() => trimiteDeplasare({ id })}
+            mesajReusita="Deplasarea a fost trimisă spre aprobare."
+          />
         ) : null}
         {poateDeconta ? (
           <Buton varianta="primar" inCurs={inCurs} textInCurs="Se marchează…" onClick={deconteaza}>
@@ -89,10 +76,21 @@ export function ActiuniDeplasare({
           </Buton>
         ) : null}
         {poateSterge ? (
-          <Buton varianta="distructiv" inCurs={inCurs} textInCurs="Se șterge…" onClick={sterge}>
-            <Trash2 aria-hidden="true" className="size-4" />
-            Șterge ciorna
-          </Buton>
+          <ButonConfirmare
+            eticheta="Șterge ciorna"
+            varianta="distructiv"
+            distructiv
+            pictograma={<Trash2 aria-hidden="true" className="size-4" />}
+            titlu="Ștergeți ciorna?"
+            consecinta="Deplasarea dispare din listă și de pe fișă. Etapele și cheltuielile scrise în ea nu se mai văd din aplicație."
+            etichetaConfirmare="Șterge ciorna"
+            executa={() => stergeCiornaDeplasare({ id })}
+            mesajReusita="Ciorna a fost ștearsă."
+            // Fișa tocmai ștearsă nu mai există: `refresh` ar reîncărca „negăsit”.
+            dupaReusita={() => {
+              router.push(caleDupaStergere);
+            }}
+          />
         ) : null}
       </div>
       {eroare === null ? null : (

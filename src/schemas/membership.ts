@@ -1,6 +1,8 @@
 // src/schemas/membership.ts
 import { z } from "zod";
 
+import "./mesaje-zod";
+
 /** Toate rolurile din enum-ul `app_role`. */
 export const ROLURI_APLICATIE = ["super_admin", "org_admin", "manager", "hr", "employee"] as const;
 export type RolAplicatie = (typeof ROLURI_APLICATIE)[number];

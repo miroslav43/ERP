@@ -9,6 +9,8 @@ import type { ActionContext } from "@/lib/actions/types";
 import { createServerSupabase } from "@/lib/supabase/server";
 import type { TablesUpdate } from "@/types/database";
 import { masoaraObiectul } from "@/lib/storage/masoara-obiectul";
+import { citestePrimiiOcteti } from "@/lib/storage/primii-octeti";
+import { MESAJ_CONTINUT_NEPOTRIVIT, potrivesteSemnatura } from "@/lib/storage/semnatura";
 import { slugFisier } from "@/lib/documents/cale";
 import { STARI_DESCHISE_SESIZARE } from "@/domain/maintenance/sesizari";
 import { BUCKET_MENTENANTA } from "@/lib/queries/maintenance";
@@ -128,7 +130,7 @@ export const atribuieSesizare = createAction({
       tehnician = await fisaProprie(ctx);
       if (tehnician === null) {
         throw businessRule(
-          "Contul dvs. nu e legat de o fișă de angajat, deci nu vă puteți atribui sesizarea. Alegeți un tehnician din listă.",
+          "Contul dumneavoastră nu e legat de o fișă de angajat, deci nu vă puteți atribui sesizarea. Alegeți un tehnician din listă.",
         );
       }
     }
@@ -276,7 +278,7 @@ export const actualizeazaSesizare = createAction({
       // alege, filtrul de aici e doar „încă deschisă".
       [...STARI_DESCHISE_SESIZARE],
       { descriere: input.descriere, urgenta: input.urgenta },
-      "Sesizarea nu se mai poate modifica: e închisă, sau a fost preluată și descrierea nu mai e a dvs. de schimbat.",
+      "Sesizarea nu se mai poate modifica: e închisă, sau a fost preluată și descrierea nu mai e a dumneavoastră de schimbat.",
     ),
 });
 
@@ -430,6 +432,15 @@ export const confirmaFisier = createAction({
     }
     const problema = verificaFisier(input.entity_type, masura.mime, masura.octeti);
     if (problema !== null) throw invalidInput(problema, {});
+
+    // Tipul măsurat e tot antetul declarat la urcare; ce E fișierul se vede în
+    // primii lui octeți, citiți din obiect sub sesiunea apelantului. Obiectul
+    // respins rămâne în bucket și îl curăță jobul zilnic, ca orice fișier
+    // nelegat de un rând.
+    const octeti = await citestePrimiiOcteti(ctx.supabase, BUCKET_MENTENANTA, input.cale);
+    if (octeti === null || !potrivesteSemnatura(masura.mime, octeti)) {
+      throw invalidInput(MESAJ_CONTINUT_NEPOTRIVIT, {});
+    }
 
     const db = await createServerSupabase();
     const { data, error } = await db

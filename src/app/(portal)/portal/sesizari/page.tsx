@@ -178,6 +178,7 @@ export default async function PaginaSesizariPortal({ searchParams }: Proprietati
                     deschideCaseta && echipamentBrut !== null && echipamentPrefill === null
                   }
                   zona="portal"
+                  hrefTichetNou={hrefTichetNou}
                 />
               ),
             }

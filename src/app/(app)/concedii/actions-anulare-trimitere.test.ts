@@ -293,10 +293,18 @@ describe("trimiteCerere", () => {
     server.raspunde("public_holidays", "select", { data: [] });
     server.raspunde("organization_holidays", "select", { data: [] });
   }
+  /**
+   * Data angajării de pe fișa cererii, citită cu clientul admin ÎNAINTEA
+   * verificărilor de trimitere (ANG-010): angajatul nu-și vede fișa prin RLS.
+   */
+  function dataAngajarii(admin: ClientFals, hiredOn: string | null = null) {
+    admin.raspunde("employees", "select", { data: { hired_on: hiredOn } });
+  }
   /** Ciorna, tipul, verificările curate și UPDATE-ul reușit. */
-  function drumCurat(server: ClientFals) {
+  function drumCurat(server: ClientFals, admin: ClientFals) {
     server.raspunde("leave_requests", "select", { data: ciorna() });
     server.raspunde("leave_types", "select", { data: tip() });
+    dataAngajarii(admin);
     sarbatori(server);
     server.raspunde("leave_balances", "select", { data: { ramase: 21 } });
     server.raspunde("leave_requests", "select", { data: [] });
@@ -314,10 +322,16 @@ describe("trimiteCerere", () => {
   });
 
   it("ciorna trece pe `trimisa`, cu `.eq('status','ciorna')` și `.select()` contra celei de-a doua file", async () => {
-    const { server } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
-    drumCurat(server);
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    drumCurat(server, admin);
 
     const r = await trimiteCerere({ id: CERERE });
+
+    // Data angajării, pe fișa CERERII (nu a celui autentificat), în organizație.
+    const [fisa] = admin.apeluriPe("employees", "select");
+    expect(areFiltru(fisa, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(fisa, "eq", "id", FISA)).toBe(true);
+    expect(areFiltru(fisa, "is", "deleted_at", null)).toBe(true);
 
     expect(r).toEqual({
       ok: true,
@@ -424,21 +438,22 @@ describe("trimiteCerere", () => {
   });
 
   it("sold insuficient la trimitere: CONFLICT, ciorna rămâne ciornă", async () => {
-    const { server } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
     server.raspunde("leave_requests", "select", { data: ciorna() });
     server.raspunde("leave_types", "select", { data: tip() });
+    dataAngajarii(admin);
     sarbatori(server);
     server.raspunde("leave_balances", "select", { data: { ramase: 2 } });
     const r = await trimiteCerere({ id: CERERE });
     expect(r).toMatchObject({
       ok: false,
-      error: { code: "CONFLICT", message: expect.stringContaining("lipsesc 3,00 zile") },
+      error: { code: "CONFLICT", message: expect.stringContaining("lipsesc 3 zile.") },
     });
     expect(server.apeluriPe("leave_requests", "update")).toHaveLength(0);
   });
 
   it("varianta ciornei încă activă: se verifică plafonul ei, nu al tipului", async () => {
-    const { server } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
     server.raspunde("leave_requests", "select", { data: ciorna({ leave_variant_id: VARIANTA }) });
     server.raspunde("leave_types", "select", {
       data: tip({ denumire: "Paternal", scade_din_sold: false, plafon_anual_zile: 10 }),
@@ -446,6 +461,7 @@ describe("trimiteCerere", () => {
     server.raspunde("leave_type_variants", "select", {
       data: { denumire: "Paternal cu atestat", zile: 15 },
     });
+    dataAngajarii(admin);
     sarbatori(server);
     server.raspunde("leave_requests", "select", { data: [{ zile_lucratoare: 7 }] });
     server.raspunde("leave_requests", "select", { data: [] });
@@ -461,12 +477,13 @@ describe("trimiteCerere", () => {
   });
 
   it("varianta dezactivată între timp: cade pe plafonul de bază (mai strict), nu blochează orbește", async () => {
-    const { server } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
     server.raspunde("leave_requests", "select", { data: ciorna({ leave_variant_id: VARIANTA }) });
     server.raspunde("leave_types", "select", {
       data: tip({ denumire: "Paternal", scade_din_sold: false, plafon_anual_zile: 10 }),
     });
     server.raspunde("leave_type_variants", "select", { data: null });
+    dataAngajarii(admin);
     sarbatori(server);
     server.raspunde("leave_requests", "select", { data: [{ zile_lucratoare: 7 }] });
 
@@ -476,15 +493,16 @@ describe("trimiteCerere", () => {
       ok: false,
       error: {
         code: "CONFLICT",
-        message: expect.stringContaining("„Paternal” are un plafon legal de 10,00"),
+        message: expect.stringContaining("„Paternal” are un plafon legal de 10 zile pe an."),
       },
     });
   });
 
   it("suprapunere cu altă cerere a aceluiași angajat: CONFLICT", async () => {
-    const { server } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
     server.raspunde("leave_requests", "select", { data: ciorna() });
     server.raspunde("leave_types", "select", { data: tip() });
+    dataAngajarii(admin);
     sarbatori(server);
     server.raspunde("leave_balances", "select", { data: { ramase: 21 } });
     server.raspunde("leave_requests", "select", {
@@ -498,9 +516,10 @@ describe("trimiteCerere", () => {
   });
 
   it("UPDATE respins tăcut (zero rânduri): CONFLICT, nu „trimisă”", async () => {
-    const { server } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
     server.raspunde("leave_requests", "select", { data: ciorna() });
     server.raspunde("leave_types", "select", { data: tip() });
+    dataAngajarii(admin);
     sarbatori(server);
     server.raspunde("leave_balances", "select", { data: { ramase: 21 } });
     server.raspunde("leave_requests", "select", { data: [] });
@@ -514,9 +533,10 @@ describe("trimiteCerere", () => {
   });
 
   it("23P01 la UPDATE (cursă pe suprapunere): CONFLICT cu mesajul tradus", async () => {
-    const { server } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
     server.raspunde("leave_requests", "select", { data: ciorna() });
     server.raspunde("leave_types", "select", { data: tip() });
+    dataAngajarii(admin);
     sarbatori(server);
     server.raspunde("leave_balances", "select", { data: { ramase: 21 } });
     server.raspunde("leave_requests", "select", { data: [] });
@@ -528,12 +548,54 @@ describe("trimiteCerere", () => {
     });
   });
 
+  /*
+    Perioada care nu poate pleca (ANG-010, ANG-011): aceleași reguli ca la
+    creare, fiindcă ciorna ridicată mai târziu ar fi fost altfel un UPDATE fără
+    ele. Cererea rămâne ciornă — niciun UPDATE.
+  */
+  it("ciorna doar de weekend: CONFLICT „nicio zi lucrătoare”, rămâne ciornă", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    // Sâmbătă 11 – duminică 12 iulie 2026.
+    server.raspunde("leave_requests", "select", {
+      data: ciorna({ data_inceput: "2026-07-11", data_sfarsit: "2026-07-12" }),
+    });
+    server.raspunde("leave_types", "select", { data: tip() });
+    dataAngajarii(admin);
+    sarbatori(server);
+
+    const r = await trimiteCerere({ id: CERERE });
+
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "CONFLICT", message: expect.stringContaining("nicio zi lucrătoare") },
+    });
+    expect(server.apeluriPe("leave_requests", "update")).toHaveLength(0);
+    expect(server.apeluriPe("leave_balances")).toHaveLength(0);
+    expect(caiRevalidate()).toEqual([]);
+  });
+
+  it("ciorna care începe înaintea angajării: CONFLICT cu data de pe fișă, rămâne ciornă", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    server.raspunde("leave_requests", "select", { data: ciorna() });
+    server.raspunde("leave_types", "select", { data: tip() });
+    dataAngajarii(admin, "2026-07-08");
+    sarbatori(server);
+
+    const r = await trimiteCerere({ id: CERERE });
+
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "CONFLICT", message: expect.stringContaining("08.07.2026") },
+    });
+    expect(server.apeluriPe("leave_requests", "update")).toHaveLength(0);
+  });
+
   it("ciorna ridicată de cine are `leave:approve = all` se aprobă pe loc", async () => {
     const { server, admin } = configureazaActiunea({
       rol: "org_admin",
       permisiuni: { "leave:update": "all", "leave:approve": "all" },
     });
-    drumCurat(server);
+    drumCurat(server, admin);
     admin.raspunde("approval_tasks", "update", { data: null });
     admin.raspunde("leave_requests", "update", { data: { id: CERERE } });
     admin.raspunde("leave_requests", "select", {

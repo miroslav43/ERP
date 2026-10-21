@@ -8,6 +8,7 @@ import { Camp } from "@/components/ui/camp";
 import { REZULTATE_EXAMEN, TIPURI_EXAMEN } from "@/schemas/ssm";
 import type { InroleazaAngajatInput } from "@/schemas/employee";
 import { mesajCamp } from "./erori-formular";
+import { IntrareDataFormular } from "./intrare-data-formular";
 
 export const CAMPURI_PAS_5 = [
   "inventory_item_ids",
@@ -98,7 +99,9 @@ export function Pas5BunuriCertificari({ formular, obiecteDisponibile }: Propriet
         </legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <Camp nume="examen_data" eticheta="Data examinării" erori={mesajCamp(errors.examen_data)}>
-            {(atribute) => <input {...atribute} type="date" {...register("examen_data")} />}
+            {(atribute) => (
+              <IntrareDataFormular control={control} nume="examen_data" atribute={atribute} />
+            )}
           </Camp>
           <Camp
             nume="examen_tip"
@@ -137,7 +140,13 @@ export function Pas5BunuriCertificari({ formular, obiecteDisponibile }: Propriet
             eticheta="Valabilă până la"
             erori={mesajCamp(errors.examen_valabil_pana)}
           >
-            {(atribute) => <input {...atribute} type="date" {...register("examen_valabil_pana")} />}
+            {(atribute) => (
+              <IntrareDataFormular
+                control={control}
+                nume="examen_valabil_pana"
+                atribute={atribute}
+              />
+            )}
           </Camp>
           <Camp nume="examen_medic" eticheta="Medic" erori={mesajCamp(errors.examen_medic)}>
             {(atribute) => <input {...atribute} {...register("examen_medic")} />}
@@ -217,10 +226,10 @@ export function Pas5BunuriCertificari({ formular, obiecteDisponibile }: Propriet
               erori={mesajCamp(errors.autorizatii?.[index]?.valabil_pana)}
             >
               {(atribute) => (
-                <input
-                  {...atribute}
-                  type="date"
-                  {...register(`autorizatii.${index}.valabil_pana` as const)}
+                <IntrareDataFormular
+                  control={control}
+                  nume={`autorizatii.${index}.valabil_pana`}
+                  atribute={atribute}
                 />
               )}
             </Camp>

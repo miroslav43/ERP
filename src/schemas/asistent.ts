@@ -1,6 +1,8 @@
 // src/schemas/asistent.ts
 import { z } from "zod";
 
+import "./mesaje-zod";
+
 /**
  * Plafoanele nu sunt în schemă din exces de precauție, ci pentru că fiecare
  * dintre ele are un preț măsurabil.

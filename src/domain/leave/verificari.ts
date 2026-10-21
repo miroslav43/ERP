@@ -199,3 +199,41 @@ export function autorulPoateRetrage(status: string, dataInceput: string, azi: st
   if (status !== "aprobata") return true;
   return dataInceput > azi;
 }
+
+/** De ce o perioadă nu poate pleca spre aprobare. */
+export type MotivRefuzPerioada = "fara_zile_lucratoare" | "inainte_de_angajare";
+
+/**
+ * Perioada care nu POATE pleca spre aprobare (ANG-010, ANG-011, HR-009).
+ *
+ * Zero zile lucrătoare — doar weekend, doar sărbători — trecea de sold trivial
+ * (0 ≤ orice) și ajungea la aprobator fără rost; de aceea verificarea asta se
+ * face ÎNAINTEA soldului. O perioadă care începe înaintea angajării cere
+ * concediu pentru zile în care omul nu era al firmei.
+ *
+ * Trecutul NU e refuzat aici, deliberat: concediul medical se depune după ce
+ * s-a întâmplat, iar baza are deja plafonul „mai vechi de doi ani”
+ * (`0009_leave.sql`). Pentru trecut există doar avertismentul de ecran,
+ * `perioadaInTrecut`.
+ *
+ * Șiruri ISO, ca `autorulPoateRetrage`. `angajatDin === null` (importul poate
+ * lăsa `hired_on` gol) sare verificarea angajării, nu refuză.
+ */
+export function refuzulPerioadei(
+  perioada: Readonly<{ dataInceput: string; zileLucratoare: number; angajatDin: string | null }>,
+): MotivRefuzPerioada | null {
+  if (perioada.zileLucratoare <= 0) return "fara_zile_lucratoare";
+  if (perioada.angajatDin !== null && perioada.dataInceput < perioada.angajatDin) {
+    return "inainte_de_angajare";
+  }
+  return null;
+}
+
+/**
+ * Perioada a început deja. DOAR pentru avertismentul de pe ecran: serverul nu
+ * refuză trecutul (vezi `refuzulPerioadei`), dar omul trebuie să știe că
+ * aprobatorul o va vedea ca retroactivă.
+ */
+export function perioadaInTrecut(dataInceput: string, azi: string): boolean {
+  return dataInceput < azi;
+}

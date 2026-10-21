@@ -19,7 +19,6 @@ import {
   FileText,
   FolderTree,
   Gauge,
-  Gavel,
   GraduationCap,
   HardHat,
   House,
@@ -29,7 +28,6 @@ import {
   Megaphone,
   Network,
   Package,
-  Percent,
   Receipt,
   ScrollText,
   Settings,
@@ -102,7 +100,8 @@ export type NavItem = NavLink &
 export const NAV_ITEMS: readonly NavItem[] = [
   {
     id: "dashboard",
-    label: "Panou de control",
+    // „Panou”, ca titlul paginii și ca adresa `/panou` (UX-003).
+    label: "Panou",
     href: "/panou",
     icon: LayoutDashboard,
     group: "operatiuni",
@@ -457,7 +456,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   },
   {
     id: "ticketing",
-    label: "Ticketing IT",
+    label: "Tichete IT",
     href: "/ticketing",
     icon: LifeBuoy,
     group: "resurse",
@@ -506,30 +505,37 @@ export const NAV_ITEMS: readonly NavItem[] = [
     // suprascriere per membru) intrarea și scurtătura de pe panou duceau în refuz.
     minScope: "all",
     order: 110,
-  },
-  {
-    id: "componente-salariale",
-    label: "Sporuri și prime",
-    href: "/salarizare/componente",
-    icon: Percent,
-    group: "financiar",
-    featureKey: "payroll",
-    permission: "payroll:read",
-    minScope: "team",
-    order: 111,
-  },
-  {
-    id: "popriri",
-    label: "Popriri",
-    href: "/salarizare/popriri",
-    icon: Gavel,
-    group: "financiar",
-    featureKey: "payroll",
-    // `all`, nu `team`: un dosar de urmărire silită e o informație despre
-    // situația personală a angajatului, iar reținerea se decide pe toată firma.
-    permission: "payroll:read",
-    minScope: "all",
-    order: 112,
+    /*
+     * Sub-intrări, nu intrări de prim nivel (UX-001): la 900 px înălțime meniul
+     * administratorului avea 1174 px de conținut în 790 vizibili, iar
+     * „Financiar” și „Administrare” stăteau sub pliu. Sunt pagini ale
+     * salarizării, nu module — ca „Soldul zilelor” sub „Concedii”.
+     *
+     * Prețul: apar doar când „Salarizare” e activă. Și cine are `payroll:read`
+     * la `team` printr-o suprascriere per membru (în seed, niciun rol: hr și
+     * org_admin au `all`, managerul `none`) nu mai vede „Sporuri și prime” în
+     * meniu, fiindcă părintele cere `all`; pagina îi rămâne deschisă.
+     */
+    children: [
+      {
+        id: "componente-salariale",
+        label: "Sporuri și prime",
+        href: "/salarizare/componente",
+        featureKey: "payroll",
+        permission: "payroll:read",
+        minScope: "team",
+      },
+      {
+        id: "popriri",
+        label: "Popriri",
+        href: "/salarizare/popriri",
+        featureKey: "payroll",
+        // `all`, nu `team`: un dosar de urmărire silită e o informație despre
+        // situația personală a angajatului, iar reținerea se decide pe toată firma.
+        permission: "payroll:read",
+        minScope: "all",
+      },
+    ],
   },
   {
     id: "diurna",

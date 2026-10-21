@@ -7,6 +7,7 @@
 import Link from "next/link";
 
 import { buton } from "@/components/ui/buton";
+import { metadataPlatforma } from "@/lib/auth/platform";
 import { Paginare } from "@/components/ui/paginare";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { cn } from "@/lib/ui/cn";
@@ -23,7 +24,8 @@ import { ModuleMini } from "../_components/module-mini";
 import { FiltreOrganizatii } from "./_components/filtre-organizatii";
 import { listaOrganizatii } from "./actions";
 
-export const metadata = { title: "Organizații · Panou de platformă" };
+// Titlul doar pentru administratorul de platformă: altfel 404-ul l-ar trăda (PRM-007).
+export const generateMetadata = metadataPlatforma("Organizații · Panou de platformă");
 
 /**
  * Totalul din catalogul CODULUI, nu din bază: pătrățelele arată câte module

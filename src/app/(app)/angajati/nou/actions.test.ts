@@ -4,7 +4,7 @@
 // Straturile comune ale lui `createAction` sunt verificate în testul canonic
 // (`salarizare/actions.test.ts`).
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/headers", async () => (await import("@/lib/teste/actiune")).falsuri.nextHeaders());
 vi.mock("next/server", async (orig) =>
@@ -92,6 +92,9 @@ const INTRARE = {
   data_contract: "2026-09-28",
   valabil_de_la: "2026-10-01",
   salariu_baza: 5000,
+  // Obligatoriu la înrolare: asistentul îl precompletează din firmă, schema
+  // nu mai are „21" codificat (HR-023).
+  zile_concediu_anual: 21,
 };
 
 type Fals = ReturnType<typeof configureazaActiunea>["server"];
@@ -110,12 +113,24 @@ function programeazaInrolarea(server: Fals, sabloane: unknown[] = []) {
   server.raspunde("checklist_templates", "select", { data: sabloane });
 }
 
+/**
+ * „Azi" fix: 12 octombrie 2026. `INTRARE` începe pe 1 octombrie — 11 zile în
+ * urmă, sub pragul de 30 al avertismentului de angajare retroactivă. Fără
+ * ceasul fals, testele care numără avertismentele ar începe să pice singure
+ * după 31 octombrie 2026. Doar `Date` se falsifică: `asteaptaDupa()` și
+ * restul harness-ului nu folosesc timere.
+ */
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-12T10:00:00Z"));
   vi.spyOn(console, "warn").mockImplementation(() => undefined);
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   for (const fals of Object.values(f)) fals.mockReset();
   f.documente.mockResolvedValue({ documente: [], avertismente: [] });
   f.reges.mockResolvedValue({ create: 1, respinse: [] });
+});
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("inroleazaAngajat", () => {
@@ -139,6 +154,87 @@ describe("inroleazaAngajat", () => {
     expect(r.error.fieldErrors?.salariu_baza?.[0]).toContain("4.050");
     expect(server.apeluriPe("employees")).toHaveLength(0);
     expect(server.apeluriRpc.filter((a) => a.nume === "urmatoarea_marca")).toHaveLength(0);
+  });
+
+  it("8 h/zi în trei zile (24 h/săpt.) la minimul proporțional (24/40): înrolarea trece de prag", async () => {
+    // Schema îl admite din 12 oct 2026; pragul calculat din norma zilnică (8/8)
+    // cerea minimul întreg și refuza pe `salariu_baza` exact acest contract.
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("payroll_settings", "select", { data: [{ salariu_minim_brut: 4050 }] });
+    server.raspundeRpc("urmatoarea_marca", { data: "0001" });
+    server.raspunde("employees", "insert", { data: { id: ID_1, full_name: "Popescu Ion" } });
+    server.raspundeRpc("hr_write_sensitive", { data: null });
+    server.raspundeRpc("aloca_numar_contract", { data: "CIM-1" });
+    server.raspunde("employment_contracts", "insert", { data: { id: ID_2 } });
+    server.raspunde("employment_contracts", "update", { data: { id: ID_2 } });
+    server.raspundeRpc("seed_leave_balances", { data: null });
+    server.raspunde("checklist_templates", "select", { data: [] });
+
+    const r = await inroleazaAngajat({
+      ...INTRARE,
+      norma_ore_zi: 8,
+      norma_ore_saptamana: 24,
+      salariu_baza: 2430,
+    });
+
+    expect(r.ok).toBe(true);
+    const [contract] = server.apeluriPe("employment_contracts", "insert");
+    expect(contract?.payload).toMatchObject({ norma_ore_zi: 8, norma_ore_saptamana: 24 });
+  });
+
+  it("8 h/zi, 24 h/săpt. sub minimul proporțional: VALIDARE cu pragul de 2.430 lei", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("payroll_settings", "select", { data: [{ salariu_minim_brut: 4050 }] });
+
+    const r = await inroleazaAngajat({
+      ...INTRARE,
+      norma_ore_zi: 8,
+      norma_ore_saptamana: 24,
+      salariu_baza: 2400,
+    });
+
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    if (r.ok) return;
+    expect(r.error.fieldErrors?.salariu_baza?.[0]).toContain("2.430");
+    expect(server.apeluriPe("employees")).toHaveLength(0);
+  });
+
+  // QA 8 oct 2026, HR-030: „câmpul permite max. 12" — art. 112 Codul muncii.
+  it("norma zilnică de 12 ore: VALIDARE pe `norma_ore_zi`, fără nicio scriere", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    const r = await inroleazaAngajat({ ...INTRARE, norma_ore_zi: 12 });
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    if (r.ok) return;
+    expect(r.error.fieldErrors?.["norma_ore_zi"]?.[0]).toContain("8 ore");
+    expect(server.apeluri).toHaveLength(0);
+    expect(server.apeluriRpc.filter((a) => a.nume === "urmatoarea_marca")).toHaveLength(0);
+  });
+
+  // HR-030, partea a doua: angajarea retroactivă trecea fără niciun semnal.
+  it("contract început cu un an în urmă: înrolarea reușește, cu avertismentul „în trecut”", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    programeazaInrolarea(server);
+    const r = await inroleazaAngajat({
+      ...INTRARE,
+      hired_on: "2025-10-01",
+      data_contract: "2025-09-28",
+      valabil_de_la: "2025-10-01",
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const retroactiv = r.data.avertismente.find((a) => a.includes("în trecut"));
+    expect(retroactiv).toBeDefined();
+    expect(retroactiv).toContain("01.10.2025");
+    expect(retroactiv).toContain("REGES");
+  });
+
+  it("contract început cu 11 zile în urmă (fixture-ul): fără avertisment de retroactivitate", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    programeazaInrolarea(server);
+    const r = await inroleazaAngajat(INTRARE);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.data.avertismente.some((a) => a.includes("în trecut"))).toBe(false);
   });
 
   it("succes: fișă activă cu marca din contor și actul DERIVAT din REGES; contract alocat automat, apoi activat", async () => {
@@ -186,10 +282,12 @@ describe("inroleazaAngajat", () => {
     expect(areFiltru(activare, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(activare?.selectDupaScriere).toBeDefined();
 
+    // Fără `p_zile_odihna_override`: contractul e deja activ când se seamănă
+    // soldul, iar `app.drept_concediu` (0193) citește zilele direct din el și
+    // le proporționalizează cu lunile lucrate. Override-ul ar fi anulat calculul.
     expect(server.apeluriRpc.find((a) => a.nume === "seed_leave_balances")?.argumente).toEqual({
       p_employee: ID_1,
       p_an: 2026,
-      p_zile_odihna_override: 21,
     });
     expect(caiRevalidate()).toEqual([
       "/angajati",
@@ -422,6 +520,7 @@ describe("inroleazaAngajat", () => {
     admin.raspunde("organization_members", "select", { data: { id: ID_2, role: "manager" } });
     admin.raspunde("employees", "select", { data: null });
     server.raspunde("employees", "update", { data: { id: ID_1 } });
+    admin.raspunde("notifications", "insert", { data: null });
 
     const r = await inroleazaAngajat({ ...INTRARE, email_personal: "ion@exemplu.ro" });
 
@@ -433,6 +532,58 @@ describe("inroleazaAngajat", () => {
     expect(areFiltru(legare, "eq", "id", ID_1)).toBe(true);
     expect(areFiltru(legare, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(r.data.avertismente.some((a) => a.includes("legat"))).toBe(true);
+
+    // Membrul află că are fișă — altfel o descoperă din întâmplare (revizuirea
+    // de securitate a lotului G4, REPORT §9b). Prin clientul admin: se scrie
+    // pentru ALT utilizator, iar politica 0144 cere `announcements:create`.
+    // Un manager / org_admin e dus la fișa din aplicația mare.
+    const [veste] = admin.apeluriPe("notifications", "insert");
+    expect(veste?.payload).toEqual(
+      expect.objectContaining({
+        organization_id: ORG_ID,
+        user_id: ID_3,
+        kind: "info",
+        link: `/angajati/${ID_1}`,
+        entity_type: "employee",
+        entity_id: ID_1,
+      }),
+    );
+    expect((veste?.payload as { body: string }).body).toContain("Utilizator Test");
+  });
+
+  it("membru existent cu rolul `employee`: vestea legării duce în portal, la profilul lui", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: PERMIS });
+    programeazaInrolarea(server);
+    admin.raspunde("profiles", "select", { data: { id: ID_3 } });
+    admin.raspunde("organization_members", "select", { data: { id: ID_2, role: "employee" } });
+    admin.raspunde("employees", "select", { data: null });
+    server.raspunde("employees", "update", { data: { id: ID_1 } });
+    admin.raspunde("notifications", "insert", { data: null });
+
+    const r = await inroleazaAngajat({ ...INTRARE, email_personal: "ion@exemplu.ro" });
+
+    expect(r.ok).toBe(true);
+    const [veste] = admin.apeluriPe("notifications", "insert");
+    expect(veste?.payload).toEqual(
+      expect.objectContaining({ user_id: ID_3, link: "/portal/profilul-meu", entity_id: ID_1 }),
+    );
+  });
+
+  it("vestea legării picată nu desface înrolarea și nu șterge avertismentul „legat”", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: PERMIS });
+    programeazaInrolarea(server);
+    admin.raspunde("profiles", "select", { data: { id: ID_3 } });
+    admin.raspunde("organization_members", "select", { data: { id: ID_2, role: "manager" } });
+    admin.raspunde("employees", "select", { data: null });
+    server.raspunde("employees", "update", { data: { id: ID_1 } });
+    admin.raspunde("notifications", "insert", { error: eroarePostgrest("XX000", "cade") });
+
+    const r = await inroleazaAngajat({ ...INTRARE, email_personal: "ion@exemplu.ro" });
+
+    expect(r).toMatchObject({ ok: true, data: { invitatieTrimisaLa: null } });
+    if (!r.ok) return;
+    expect(r.data.avertismente.some((a) => a.includes("legat"))).toBe(true);
+    expect(admin.apeluriPe("notifications", "insert")).toHaveLength(1);
   });
 
   it("membru existent care are DEJA o fișă principală: nu se leagă, se explică", async () => {
@@ -668,7 +819,11 @@ describe("inroleazaAngajat", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.data.checklistPornit).toBeNull();
-    expect(r.data.avertismente.some((a) => a.includes("Checklistul"))).toBe(true);
+    expect(r.data.avertismente.some((a) => a.includes("Parcursul de integrare"))).toBe(true);
+    // Șirul exact pe care îl caută `asistent-angajat-nou.tsx` ca să arate
+    // linkul „Pornește parcursul”: dacă se schimbă doar într-o parte, linkul
+    // dispare tăcut.
+    expect(r.data.avertismente.some((a) => a.includes("Integrare → Parcurs nou"))).toBe(true);
   });
 
   it("avertismentele generatorului de documente ajung în rezultatul înrolării", async () => {

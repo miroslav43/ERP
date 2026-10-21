@@ -8,6 +8,7 @@ import { useId } from "react";
 import { BaraFiltre, type FiltruActiv } from "@/components/ui/bara-filtre";
 import { Camp } from "@/components/ui/camp";
 import { Combobox } from "@/components/ui/combobox";
+import { IntrareData } from "@/components/ui/intrare-data";
 // Din `@/lib/registru/filtre`, NU din `@/lib/queries/registru`: acela e
 // `server-only`, iar un import de valoare de acolo într-un Client Component
 // pică doar la build (a7c2b58, 8 oct 2026).
@@ -215,11 +216,11 @@ export function FiltreRegistru({ ani, tipuri, angajati, dosare }: Props) {
       </Camp>
 
       <Camp nume="de_la" eticheta="De la" className="w-full sm:w-40">
-        {(atribute) => <input {...atribute} key={deLa} type="date" defaultValue={deLa} />}
+        {(atribute) => <IntrareData {...atribute} key={deLa} implicit={deLa} />}
       </Camp>
 
       <Camp nume="pana_la" eticheta="Până la" className="w-full sm:w-40">
-        {(atribute) => <input {...atribute} key={panaLa} type="date" defaultValue={panaLa} />}
+        {(atribute) => <IntrareData {...atribute} key={panaLa} implicit={panaLa} />}
       </Camp>
 
       <Camp nume="q" eticheta="Caută" className="w-full sm:w-56">

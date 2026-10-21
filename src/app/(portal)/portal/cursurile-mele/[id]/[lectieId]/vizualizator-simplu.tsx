@@ -146,16 +146,29 @@ export function VizualizatorSimplu({
       ) : (
         <>
           {/*
-            `<iframe sandbox="allow-same-origin">` fără `allow-scripts`: PDF-ul
-            vine de pe originea NOASTRĂ, cu `Content-Type` forțat de ruta de
-            livrare. Nu curățăm PDF-uri — parsarea PDF ca apărare e mai
-            periculoasă decât amenințarea; apărarea corectă e izolarea.
+            FĂRĂ `sandbox`. Cadrul avea `sandbox="allow-same-origin"`, iar
+            Chromium arăta „This page has been blocked by Chromium” în locul
+            PDF-ului (ANG-026): flagul „sandboxed plugins browsing context” din
+            specificația HTML nu are NICIUN token `allow-*` care să-l ridice,
+            deci vizualizatorul PDF al browserului e refuzat în ORICE cadru
+            sandboxed. `allow-scripts allow-same-origin` ar fi echivalent cu
+            lipsa sandbox-ului, dar cu iluzia protecției.
+
+            Apărarea pe care o voia sandbox-ul există deja în două locuri: la
+            urcare, `salveazaVersiuneFisier` (`cursuri/actions.ts`) respinge și
+            șterge orice „PDF” fără semnătura `%PDF`, iar `/api/materiale/[id]`
+            forțează `content-type` din lista proprie și pune
+            `x-content-type-options: nosniff` — un HTML nu ajunge nici în bucket
+            ca PDF, nici servit ca `text/html`. Nu curățăm PDF-uri: parsarea PDF
+            ca apărare e mai periculoasă decât amenințarea.
+
+            Linkul de mai jos rămâne obligatoriu: Chrome pe Android nu randează
+            PDF în cadru deloc, cu sau fără sandbox.
           */}
           <iframe
             src={`/api/materiale/${versiuneId}`}
             title={lectie.titlu}
             className="border-border rounded-panou h-[70vh] w-full border"
-            sandbox="allow-same-origin"
           />
           <p className="text-nota">
             <a

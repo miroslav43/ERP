@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { meritaPontata, type RegimZile } from "./zi-de-pontat";
+import { meritaPontata, mesajRefuzZi, refuzulZilei, type RegimZile } from "./zi-de-pontat";
 
 /** Firma lucrează șapte zile din șapte, sărbători incluse. */
 const NONSTOP: RegimZile = { lucreazaWeekend: true, lucreazaSarbatori: true };
@@ -81,5 +81,68 @@ describe("meritaPontata", () => {
     expect(meritaPontata("28-08-2026", NONSTOP)).toBe(false);
     expect(meritaPontata("", NONSTOP)).toBe(false);
     expect(meritaPontata("2026-13-45", NONSTOP)).toBe(false);
+  });
+});
+
+/*
+  Ziua care nu POATE fi pontată, indiferent de regimul firmei (ANG-004, ANG-005).
+
+  Pontajul e înregistrarea a ce s-a întâmplat: o zi care n-a venit încă nu are
+  ce înregistra, iar o zi dinaintea angajării nu era a firmei. Amândouă treceau
+  până acum, iar orele lor intrau în totalurile lunii.
+*/
+describe("refuzulZilei", () => {
+  const AZI = "2026-07-15";
+  const ANGAJAT_DIN = "2026-07-10";
+
+  it("ziua de azi trece", () => {
+    expect(refuzulZilei(AZI, AZI, ANGAJAT_DIN)).toBeNull();
+  });
+
+  it("ziua de mâine e „viitor”", () => {
+    expect(refuzulZilei("2026-07-16", AZI, ANGAJAT_DIN)).toBe("viitor");
+  });
+
+  it("ziua angajării trece — omul a lucrat din prima zi", () => {
+    expect(refuzulZilei(ANGAJAT_DIN, AZI, ANGAJAT_DIN)).toBeNull();
+  });
+
+  it("ziua dinaintea angajării e „inainte_de_angajare”", () => {
+    expect(refuzulZilei("2026-07-09", AZI, ANGAJAT_DIN)).toBe("inainte_de_angajare");
+  });
+
+  it("fără dată de angajare pe fișă, verificarea angajării se sare", () => {
+    // Importul poate lăsa `hired_on` gol; nu refuzăm pe o informație absentă.
+    expect(refuzulZilei("2020-01-01", AZI, null)).toBeNull();
+  });
+
+  it("fără dată de angajare, viitorul rămâne refuzat", () => {
+    expect(refuzulZilei("2026-07-16", AZI, null)).toBe("viitor");
+  });
+
+  it("viitorul bate angajarea când ar fi amândouă", () => {
+    // Azi e ÎNAINTEA angajării (fișă scrisă în avans): mâine e tot „viitor”,
+    // nu „înainte de angajare” — omul nu poate repara nimic la a doua.
+    expect(refuzulZilei("2026-07-16", AZI, "2026-08-01")).toBe("viitor");
+  });
+
+  it("compară pe an, nu doar pe zi și lună", () => {
+    expect(refuzulZilei("2027-01-05", AZI, ANGAJAT_DIN)).toBe("viitor");
+    expect(refuzulZilei("2025-12-31", AZI, ANGAJAT_DIN)).toBe("inainte_de_angajare");
+  });
+});
+
+describe("mesajRefuzZi", () => {
+  it("ziua din viitor trimite omul la fișa săptămânii", () => {
+    expect(mesajRefuzZi("viitor", null)).toContain("fișa săptămânii");
+  });
+
+  it("ziua dinaintea angajării spune data de pe fișă, în format românesc", () => {
+    expect(mesajRefuzZi("inainte_de_angajare", "2026-07-10")).toContain("10.07.2026");
+  });
+
+  it("mesajele se termină cu punct", () => {
+    expect(mesajRefuzZi("viitor", null).endsWith(".")).toBe(true);
+    expect(mesajRefuzZi("inainte_de_angajare", "2026-07-10").endsWith(".")).toBe(true);
   });
 });

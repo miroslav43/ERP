@@ -5,9 +5,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * `handler`-ul: limitarea de rată și clientul anon nu sunt subiectul aici.
  * Restul dependențelor care ies din proces sunt false.
  */
-const { rpc, numaraConversia } = vi.hoisted(() => ({
+const { rpc, numaraConversia, trimiteEmailInvitatie } = vi.hoisted(() => ({
   rpc: vi.fn(),
   numaraConversia: vi.fn(),
+  trimiteEmailInvitatie: vi.fn(),
 }));
 
 vi.mock("@/lib/actions/public-action", () => ({
@@ -17,9 +18,7 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminSupabase: () => ({ rpc }) })
 vi.mock("@/lib/auth/token-invitatie", () => ({
   generateazaTokenInvitatie: async () => ({ token: "tok", hash: "hash" }),
 }));
-vi.mock("@/lib/email/invitations", () => ({
-  trimiteEmailInvitatie: async () => ({ ok: true }),
-}));
+vi.mock("@/lib/email/invitations", () => ({ trimiteEmailInvitatie }));
 vi.mock("next/headers", () => ({
   headers: async () => new Headers({ host: "administrativo.ro", "user-agent": "Mozilla/5.0" }),
 }));
@@ -50,7 +49,22 @@ const BAZA = {
 beforeEach(() => {
   rpc.mockReset();
   numaraConversia.mockReset();
+  trimiteEmailInvitatie.mockReset();
   rpc.mockResolvedValue({ data: { organization_id: "o-1", invitation_id: "i-1" }, error: null });
+  trimiteEmailInvitatie.mockResolvedValue({ ok: true });
+});
+
+describe("invitația fondatorului", () => {
+  it("pleacă cu firma abia creată, ca jurnalul de e-mail să o poată filtra", async () => {
+    await definitie.handler(CTX, schemaInregistrare.parse(BAZA));
+    expect(trimiteEmailInvitatie).toHaveBeenCalledTimes(1);
+    expect(trimiteEmailInvitatie.mock.calls[0]?.[0]).toMatchObject({
+      organizationId: "o-1",
+      invitationId: "i-1",
+      rol: "org_admin",
+      destinatar: "ana@example.com",
+    });
+  });
 });
 
 describe("conversia numărată pe server", () => {

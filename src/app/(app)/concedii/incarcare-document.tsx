@@ -5,6 +5,13 @@ import { useState, useTransition } from "react";
 
 import { IncarcareFisier } from "@/components/ui/incarcare-fisier";
 import { urcaPeUrlSemnat } from "@/lib/storage/urca-semnat";
+// DOAR din `semnatura.ts` (modul pur). `primii-octeti.ts` e `server-only`:
+// importat de aici ar pica la build, nu în tsc/eslint/vitest (capcana 53).
+import {
+  MESAJ_CONTINUT_NEPOTRIVIT,
+  OCTETI_SEMNATURA,
+  potrivesteSemnatura,
+} from "@/lib/storage/semnatura";
 import { LIMITA_DOCUMENT_BYTES, MIME_ACCEPTATE, verificaDocument } from "@/lib/documents/cale";
 import { explicatieOriginalFizic, modDocument } from "@/domain/leave/documente-fizice";
 
@@ -58,6 +65,29 @@ export function IncarcareDocumentConcediu({
   const [problema, setProblema] = useState<string | null>(null);
   const [inCurs, porneste] = useTransition();
 
+  /*
+   * Serverul a respins atașamentul la trimiterea cererii (conținut nepotrivit,
+   * tip nepermis, obiect dispărut) și l-a scos din Storage. Calea veche din
+   * câmpul ascuns nu mai duce nicăieri: o retrimitere fără re-alegere ar lovi
+   * „nu mai este disponibil” pe un obiect deja șters. Se golește deci câmpul
+   * și se reface inputul (`key`), ca omul să aleagă din nou.
+   *
+   * Starea se corectează ÎN randare, după tiparul „adjusting state when a prop
+   * changes” din documentația React — nu într-un efect, unde un `setState`
+   * sincron e exact ce interzice `react-hooks/set-state-in-effect`. Lista de
+   * erori a unei trimiteri e aceeași referință până la trimiterea următoare,
+   * deci compararea de referință ajunge; lista GOALĂ e însă construită din nou
+   * la fiecare randare de ambele ecrane (`?? []`), de aceea se cere și nevidă.
+   */
+  const [respingere, setRespingere] = useState<readonly string[] | undefined>(undefined);
+  const [generatie, setGeneratie] = useState(0);
+  if (erori !== undefined && erori.length > 0 && erori !== respingere) {
+    setRespingere(erori);
+    setCale(null);
+    setNumeUrcat(null);
+    setGeneratie((g) => g + 1);
+  }
+
   const mod = modDocument(cheieTip, necesitaDocument);
   const explicatie = explicatieOriginalFizic(cheieTip);
 
@@ -80,6 +110,15 @@ export function IncarcareDocumentConcediu({
     }
 
     porneste(async () => {
+      // Curtoazie, nu poartă: capul fișierului se compară cu tipul declarat
+      // ÎNAINTE să urce 20 MB și fără să lase un obiect orfan în bucket. Poarta
+      // reală e `creeazaCerereConcediu`, care citește octeții din obiectul urcat.
+      const cap = new Uint8Array(await fisier.slice(0, OCTETI_SEMNATURA).arrayBuffer());
+      if (!potrivesteSemnatura(fisier.type, cap)) {
+        setProblema(MESAJ_CONTINUT_NEPOTRIVIT);
+        return;
+      }
+
       const pregatire = await pregatesteIncarcareDocumentConcediu({
         employee_id: employeeId,
         nume_fisier: fisier.name,
@@ -105,6 +144,7 @@ export function IncarcareDocumentConcediu({
   return (
     <div className="sm:col-span-2">
       <IncarcareFisier
+        key={generatie}
         nume="fisier_document"
         eticheta={obligatoriu ? "Document justificativ" : "Document justificativ (opțional)"}
         accept={ACCEPT}

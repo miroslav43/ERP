@@ -52,6 +52,7 @@ import { areFiltru, eroarePostgrest } from "@/lib/teste/supabase-fals";
 
 import {
   invitaMembru,
+  retrimiteInvitatia,
   revocaInvitatia,
   schimbaRolulMembrului,
   seteazaStareaMembrului,
@@ -200,6 +201,116 @@ describe("revocaInvitatia", () => {
     server.raspunde("invitations", "update", { error: eroarePostgrest("42501") });
     const r = await revocaInvitatia({ invitationId: ID_1 });
     expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+  });
+});
+
+// ONB-026: linkul se afișează o singură dată (baza păstrează doar amprenta
+// tokenului). „Retrimite" e singurul drum al adminului care l-a pierdut: token
+// nou, termen nou, e-mail nou — iar linkul vechi moare.
+describe("retrimiteInvitatia", () => {
+  const randInvitatie = { id: ID_1, email: "ana@firma.ro", role: "hr", employee_id: null };
+
+  it("fără `users:create` la `all`: INTERZIS, nicio interogare, nicio retrimitere", async () => {
+    const { server } = configureazaActiunea({ permisiuni: MODIFICARE });
+    const r = await retrimiteInvitatia({ invitationId: ID_1 });
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+    expect(server.apeluri).toHaveLength(0);
+    expect(creeazaInvitatie).not.toHaveBeenCalled();
+  });
+
+  it("invitația nu mai e în așteptare (sau e a altei firme): NEGASIT, nicio retrimitere", async () => {
+    const { server } = configureazaActiunea({ permisiuni: CREARE });
+    server.raspunde("invitations", "select", { data: null });
+
+    const r = await retrimiteInvitatia({ invitationId: ID_1 });
+
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "NEGASIT", message: "Invitația nu mai există sau a fost deja folosită." },
+    });
+    const [apel] = server.apeluriPe("invitations", "select");
+    expect(areFiltru(apel, "eq", "id", ID_1)).toBe(true);
+    expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(apel, "eq", "status", "pending")).toBe(true);
+    expect(creeazaInvitatie).not.toHaveBeenCalled();
+    expect(caiRevalidate()).toEqual([]);
+  });
+
+  it("retrimite pe adresa, rolul și fișa din rând, cu `retrimiteDacaExista`", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: CREARE });
+    server.raspunde("invitations", "select", {
+      data: { ...randInvitatie, employee_id: ID_2 },
+    });
+    const retrimisa = {
+      id: ID_1,
+      email: "ana@firma.ro",
+      token: "t-nou",
+      emailTrimis: true,
+      retrimisa: true,
+    };
+    creeazaInvitatie.mockResolvedValue(retrimisa);
+
+    const r = await retrimiteInvitatia({ invitationId: ID_1 });
+
+    expect(r).toEqual({ ok: true, data: retrimisa });
+    expect(creeazaInvitatie).toHaveBeenCalledTimes(1);
+    const [parametri] = creeazaInvitatie.mock.calls[0] as [Record<string, unknown>];
+    expect(parametri).toMatchObject({
+      db: server.client,
+      dbEmail: admin.client,
+      organizationId: ORG_ID,
+      email: "ana@firma.ro",
+      rol: "hr",
+      employeeId: ID_2,
+      retrimiteDacaExista: true,
+      trimiteEmail: true,
+      invitatDe: "Utilizator Test",
+      userId: USER_ID,
+    });
+    expect(parametri.acum).toBeInstanceOf(Date);
+    expect(caiRevalidate()).toEqual(["/setari/membri"]);
+  });
+
+  it("adresa sintetică (fișă fără e-mail): token nou, dar fără e-mail trimis", async () => {
+    const { server } = configureazaActiunea({ permisiuni: CREARE });
+    server.raspunde("invitations", "select", {
+      data: { ...randInvitatie, email: "marca-0042@firma.intern", role: "employee" },
+    });
+    creeazaInvitatie.mockResolvedValue({
+      id: ID_1,
+      email: "marca-0042@firma.intern",
+      token: "t",
+      emailTrimis: false,
+      retrimisa: true,
+    });
+
+    await retrimiteInvitatia({ invitationId: ID_1 });
+
+    const [parametri] = creeazaInvitatie.mock.calls[0] as [Record<string, unknown>];
+    expect(parametri).toMatchObject({ trimiteEmail: false, rol: "employee" });
+  });
+
+  it("auditul poartă id-ul invitației, dar NICIODATĂ tokenul", async () => {
+    const { server } = configureazaActiunea({ permisiuni: CREARE });
+    server.raspunde("invitations", "select", { data: randInvitatie });
+    creeazaInvitatie.mockResolvedValue({
+      id: ID_1,
+      email: "ana@firma.ro",
+      token: "secret-token",
+      emailTrimis: true,
+      retrimisa: true,
+    });
+
+    await retrimiteInvitatia({ invitationId: ID_1 });
+    await asteaptaDupa();
+
+    const audit = server.audituri().find((a) => a.p_status === "success");
+    expect(audit).toMatchObject({
+      p_action: "invite_sent",
+      p_entity_type: "invitations",
+      p_entity_id: ID_1,
+    });
+    expect(JSON.stringify(audit)).not.toContain("secret-token");
   });
 });
 

@@ -7,6 +7,9 @@ import { Download, Loader2, Paperclip } from "lucide-react";
 import { Buton } from "@/components/ui/buton";
 import { IncarcareFisier } from "@/components/ui/incarcare-fisier";
 import { arataToast } from "@/components/ui/toast";
+// Copia locală scria „2.4 MB” (punct englezesc, `toFixed`) și „KB”; acum aceeași
+// funcție ca restul aplicației: „2,4 MB”, „512 kB”.
+import { marimeCitibila } from "@/lib/format/marime";
 import {
   LIMITA_DOVADA_BYTES,
   MIME_DOVADA,
@@ -48,12 +51,6 @@ interface Proprietati {
   readonly marimeBytes: number | null;
   /** Fals ⇒ dovada se vede și se descarcă, dar nu se înlocuiește. */
   readonly poateScrie: boolean;
-}
-
-function marimeCitibila(octeti: number): string {
-  if (octeti < 1024) return `${String(octeti)} B`;
-  if (octeti < 1024 * 1024) return `${(octeti / 1024).toFixed(0)} KB`;
-  return `${(octeti / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export function IncarcareDovada({ pasId, numeFisier, marimeBytes, poateScrie }: Proprietati) {

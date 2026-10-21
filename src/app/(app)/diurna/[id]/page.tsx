@@ -31,6 +31,7 @@ import {
   ETICHETE_TIP_CHELTUIALA,
   TONURI_STATUS_DEPLASARE,
 } from "../etichete";
+import { rezumatDecizie } from "../rezumat-decizie";
 import { ActiuniCheltuiala } from "./actiuni-cheltuiala";
 import { ActiuniDeplasare } from "./actiuni-deplasare";
 import { Etape } from "./etape";
@@ -384,9 +385,13 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
           className="border-primary/30 bg-primary/5 rounded-panou border p-4"
         >
           <h2 id="titlu-decizie" className="text-sectiune mb-2 font-medium">
-            Decizia dvs.
+            Decizia dumneavoastră
           </h2>
-          <DecizieDeplasare id={deplasare.id} status="in_aprobare" />
+          <DecizieDeplasare
+            id={deplasare.id}
+            status="in_aprobare"
+            rezumat={rezumatDecizie(deplasare, angajat)}
+          />
         </section>
       ) : null}
 

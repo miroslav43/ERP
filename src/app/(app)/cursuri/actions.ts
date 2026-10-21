@@ -16,13 +16,14 @@ import type { ActionContext } from "@/lib/actions/types";
 import {
   BUCKET_CURSURI,
   construiesteCaleMaterial,
-  potrivesteSemnatura,
   prefixCaleMaterial,
   verificaMaterial,
   verificaSubtitrare,
 } from "@/lib/media/cale";
 import { caleInPrefix } from "@/lib/documents/cale";
 import { analizeazaLink } from "@/lib/media/link-extern";
+import { citestePrimiiOcteti } from "@/lib/storage/primii-octeti";
+import { MESAJ_CONTINUT_NEPOTRIVIT, potrivesteSemnatura } from "@/lib/storage/semnatura";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { consumeRateLimit } from "@/lib/utils/rate-limit";
 import {
@@ -348,21 +349,6 @@ export const pregatesteIncarcareMaterial = createAction({
   },
 });
 
-/**
- * Primii octeți ai obiectului DEJA încărcat.
- *
- * MIME-ul din formular e cel declarat de browser — un HTML redenumit `.mp4` îl
- * raportează cum vrea cel care încarcă. Singura verificare care înseamnă ceva
- * se face aici, pe conținutul real, înainte de a scrie rândul.
- */
-async function primiiOcteti(ctx: ActionContext, cale: string): Promise<Uint8Array | null> {
-  const { data, error } = await ctx.supabase.storage.from(BUCKET_CURSURI).createSignedUrl(cale, 60);
-  if (error !== null || data === null) return null;
-  const raspuns = await fetch(data.signedUrl, { headers: { Range: "bytes=0-4095" } });
-  if (!raspuns.ok) return null;
-  return new Uint8Array(await raspuns.arrayBuffer());
-}
-
 export const salveazaVersiuneFisier = createAction({
   name: "cursuri.versiune.salveaza_fisier",
   feature: FEATURE,
@@ -407,10 +393,16 @@ export const salveazaVersiuneFisier = createAction({
     // `fel` din BAZĂ, nu din formular: pregătirea a verificat MIME-ul pe `fel`
     // trimis de client, iar materialul poate fi schimbat între timp — un MP4
     // putea deveni versiunea curentă a unui material de tip PDF.
+    // MIME-ul din formular e cel declarat de browser — un HTML redenumit `.mp4`
+    // îl raportează cum vrea cel care încarcă. Singura verificare care înseamnă
+    // ceva se face pe conținutul real al obiectului DEJA urcat, înainte de a
+    // scrie rândul.
     const felPotrivit =
       (material.fel === "pdf" || material.fel === "video") &&
       verificaMaterial(material.fel, input.mime, 1) === null;
-    const octeti = felPotrivit ? await primiiOcteti(ctx, input.cale) : null;
+    const octeti = felPotrivit
+      ? await citestePrimiiOcteti(ctx.supabase, BUCKET_CURSURI, input.cale)
+      : null;
     if (octeti === null || !potrivesteSemnatura(input.mime, octeti)) {
       // Fișierul nu e ce pretinde. Îl scoatem din bucket ca să nu rămână un
       // obiect orfan pe care nimeni nu-l mai revendică.
@@ -420,7 +412,7 @@ export const salveazaVersiuneFisier = createAction({
       // altfel. Calea e verificată mai sus împotriva prefixului organizației,
       // deci nu poate atinge alt tenant.
       await createAdminSupabase().storage.from(BUCKET_CURSURI).remove([input.cale]);
-      throw businessRule("Fișierul încărcat nu are conținutul tipului declarat.");
+      throw businessRule(MESAJ_CONTINUT_NEPOTRIVIT);
     }
 
     const { data: ultima } = await ctx.supabase

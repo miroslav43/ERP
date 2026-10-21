@@ -1,6 +1,10 @@
 // src/domain/payroll/calc.test.ts
 import { describe, expect, it } from "vitest";
-import { calculatePayrollEntry, type PayrollSettingsSnapshot } from "./calc";
+import {
+  calculatePayrollEntry,
+  type AttendanceSummary,
+  type PayrollSettingsSnapshot,
+} from "./calc";
 
 /**
  * Cotele de mai jos sunt ILUSTRATIVE, alese ca să facă aritmetica ușor de
@@ -452,6 +456,116 @@ describe("calculatePayrollEntry — normă parțială", () => {
     // Salariul de bază al unui part-time e deja mai mic în contract; motorul nu
     // îl mai reduce o dată. Confuzia asta ar înjumătăți salarii reale.
     expect(partiala.bazaSalariu).toBe(intreaga.bazaSalariu);
+  });
+});
+
+/*
+ * Timpul parțial lucrat în zile întregi, dar în mai puțin de cinci zile pe
+ * săptămână (art. 103–105 Codul muncii): 8 h/zi, 24 h/săpt. Schema îl admite
+ * din 12 oct 2026; până atunci calea era de neatins. Pontajul lui are ~13 zile
+ * într-o lună de 21 de zile lucrătoare, iar împărțirea la cele 21 îi plătea
+ * ~62% din salariul contractual, fără eroare și fără avertisment.
+ */
+describe("calculatePayrollEntry — normă în mai puțin de cinci zile pe săptămână", () => {
+  const TREI_ZILE = {
+    salariuBaza: 3000,
+    nrPersoaneIntretinere: 0,
+    normaZilnicaOre: 8,
+    normaOreSaptamana: 24,
+  } as const;
+  const pontaj = (zileLucrate: number, extra: Partial<AttendanceSummary> = {}) => ({
+    ...PONTAJ_STANDARD,
+    zileLucrate,
+    oreLucrate: zileLucrate * 8,
+    ...extra,
+  });
+  const calculeaza = (contract: typeof TREI_ZILE | typeof CINCI_ZILE, a: AttendanceSummary) =>
+    calculatePayrollEntry({
+      settings: SETARI,
+      contract,
+      attendance: a,
+      bonuses: [],
+      deductions: [],
+    });
+  const CINCI_ZILE = {
+    salariuBaza: 3000,
+    nrPersoaneIntretinere: 0,
+    normaZilnicaOre: 8,
+    normaOreSaptamana: 40,
+  } as const;
+
+  it("toate zilele programului lucrate (13 din 21, peste media de 12,6): salariul întreg, nu 13/21", () => {
+    const r = calculeaza(TREI_ZILE, pontaj(13));
+    expect(r.bazaSalariu).toBeCloseTo(3000, 2);
+  });
+
+  it("sub media zilelor datorate (12 din 12,6): proporțional cu zilele programului, nu cu ale lunii", () => {
+    const r = calculeaza(TREI_ZILE, pontaj(12));
+    // 3000 / (21 × 24/40) × 12 = 3000 / 12,6 × 12 = 2857,14
+    expect(r.bazaSalariu).toBeCloseTo(2857.14, 2);
+  });
+
+  it("tariful orar se ia din orele lunii ale contractului (21 × 24/5), nu din 21 × 8", () => {
+    const r = calculeaza(TREI_ZILE, pontaj(13, { oreSuplimentare: 2 }));
+    // 2 × 3000 / (12,6 × 8) × 1,75 = 104,17
+    expect(r.sumaOreSuplimentare).toBeCloseTo(104.17, 2);
+  });
+
+  it("indemnizația de concediu de odihnă se plătește la rata zilnică a programului", () => {
+    const r = calculatePayrollEntry({
+      settings: SETARI,
+      contract: TREI_ZILE,
+      attendance: pontaj(9, { zileConcediuOdihna: 3 }),
+      bonuses: [],
+      deductions: [],
+      concediuOdihna: { mod: "baza", istoric: [], luniNecesare: 3 },
+    });
+    // 3000 / 12,6 × 3 = 714,29
+    expect(r.indemnizatieCo).toBeCloseTo(714.29, 2);
+    // 3000 / 12,6 × 9 = 2142,86; împreună cu concediul, cât 12 zile ale programului.
+    expect(r.bazaSalariu).toBeCloseTo(2142.86, 2);
+  });
+
+  it("avertizează că baza e proporționată cu media zilelor programului", () => {
+    const r = calculeaza(TREI_ZILE, pontaj(13));
+    const avertisment = r.warnings.find((w) => w.cod === "NORMA_SUB_CINCI_ZILE");
+    expect(avertisment?.mesaj).toContain("12,6");
+  });
+
+  it("contractele de cinci zile rămân neatinse: normă săptămânală dată sau lipsă, același rezultat", () => {
+    const cu = calculeaza(CINCI_ZILE, pontaj(21, { oreSuplimentare: 2 }));
+    const fara = calculatePayrollEntry({
+      settings: SETARI,
+      contract: { salariuBaza: 3000, nrPersoaneIntretinere: 0, normaZilnicaOre: 8 },
+      attendance: pontaj(21, { oreSuplimentare: 2 }),
+      bonuses: [],
+      deductions: [],
+    });
+    expect(cu).toEqual(fara);
+    expect(cu.warnings.some((w) => w.cod === "NORMA_SUB_CINCI_ZILE")).toBe(false);
+  });
+
+  it("norma zilnică falsă de odinioară (3,2 h/zi, 16 h/săpt., cinci zile) rămâne neatinsă", () => {
+    const vechi = calculatePayrollEntry({
+      settings: SETARI,
+      contract: { salariuBaza: 1620, nrPersoaneIntretinere: 0, normaZilnicaOre: 3.2 },
+      attendance: pontaj(20),
+      bonuses: [],
+      deductions: [],
+    });
+    const cuSaptamana = calculatePayrollEntry({
+      settings: SETARI,
+      contract: {
+        salariuBaza: 1620,
+        nrPersoaneIntretinere: 0,
+        normaZilnicaOre: 3.2,
+        normaOreSaptamana: 16,
+      },
+      attendance: pontaj(20),
+      bonuses: [],
+      deductions: [],
+    });
+    expect(cuSaptamana).toEqual(vechi);
   });
 });
 
@@ -995,5 +1109,59 @@ describe("calculatePayrollEntry — ore într-un fel de muncă nedeclarat (0080)
     // iar fluturașii calculați până acum rămân identici.
     const rezultat = calculeaza(FARA_DECLARATIE, { oreNoapte: 6, oreSuplimentare: 4 });
     expect(rezultat.warnings.some((w) => w.cod === "SAL_ORE_IN_MOD_NEDECLARAT")).toBe(false);
+  });
+});
+
+describe("calculatePayrollEntry — pontaj gol (ADM-034)", () => {
+  // Un pontaj blocat dar GOL înseamnă zero zile lucrate, zero concediu, zero
+  // absențe — calculul plătește zilele din pontaj, deci salariul iese zero fără
+  // nicio eroare. Pe un angajat cu salariu de bază 5.000 lei, „brut 0,00 lei"
+  // fără explicație e exact clasa de defect tăcut pe care o vânează modulul.
+  const PONTAJ_GOL: AttendanceSummary = {
+    ...PONTAJ_STANDARD,
+    zileLucrate: 0,
+    oreLucrate: 0,
+    oreSuplimentare: 0,
+    oreNoapte: 0,
+    zileConcediuOdihna: 0,
+    zileConcediuMedical: 0,
+    zileAbsentaNemotivata: 0,
+  };
+
+  const calculeaza = (attendance: AttendanceSummary) =>
+    calculatePayrollEntry({
+      settings: SETARI,
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance,
+      bonuses: [],
+      deductions: [],
+    });
+
+  it("pontaj complet gol: brut 0 și avertisment SAL_PONTAJ_FARA_ZILE", () => {
+    const rezultat = calculeaza(PONTAJ_GOL);
+    expect(rezultat.brut).toBe(0);
+    expect(rezultat.warnings.map((w) => w.cod)).toContain("SAL_PONTAJ_FARA_ZILE");
+    // Textul complet, cu drumul de reparare — ce ajunge pe fluturaș.
+    const avertisment = rezultat.warnings.find((w) => w.cod === "SAL_PONTAJ_FARA_ZILE");
+    expect(avertisment?.mesaj).toContain("nicio zi înregistrată");
+    expect(avertisment?.mesaj).toContain("recalculați");
+  });
+
+  it("o lună lucrată nu primește avertismentul", () => {
+    expect(calculeaza(PONTAJ_STANDARD).warnings.map((w) => w.cod)).not.toContain(
+      "SAL_PONTAJ_FARA_ZILE",
+    );
+  });
+
+  it("o lună nelucrată, dar cu concediu medical, nu e o lună goală", () => {
+    // Pontajul ARE zile — doar că niciuna lucrată. Avertismentul e despre
+    // absența oricărei înregistrări, nu despre un brut mic.
+    const rezultat = calculeaza({ ...PONTAJ_GOL, zileConcediuMedical: 5 });
+    expect(rezultat.warnings.map((w) => w.cod)).not.toContain("SAL_PONTAJ_FARA_ZILE");
+  });
+
+  it("o lună cu doar o sâmbătă lucrată nu e o lună goală", () => {
+    const rezultat = calculeaza({ ...PONTAJ_GOL, zileRepausLucrate: 1, oreNormaleRepaus: 8 });
+    expect(rezultat.warnings.map((w) => w.cod)).not.toContain("SAL_PONTAJ_FARA_ZILE");
   });
 });

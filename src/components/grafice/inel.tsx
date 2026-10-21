@@ -59,7 +59,7 @@ const CIRCUMFERINTA = 2 * Math.PI * RAZA;
 
 export function Inel({
   felii,
-  formateaza = (v) => String(v),
+  formateaza,
   subtitluCentral,
   marime = 200,
   titlu,
@@ -67,6 +67,10 @@ export function Inel({
   antetCategorie = "Categorie",
   className,
 }: PropsInel): ReactElement | null {
+  // Centrul și legenda scriu mereu ceva, deci cad pe `String`. Spre tabelul
+  // ascuns se trimite DOAR ce a dat apelantul: fără prop, celula rămâne cu
+  // cifra brută, nu cu `String(v)` — identic cu comportamentul de dinainte.
+  const scrie = formateaza ?? ((v: number) => String(v));
   const total = felii.reduce((s, f) => s + f.valoare, 0);
   // Un inel dintr-un întreg de zero n-are ce împărți. Starea goală e treaba
   // apelantului: el știe dacă „zero" înseamnă „încă nimic" sau „nu se aplică".
@@ -92,6 +96,7 @@ export function Inel({
       antetCategorie={antetCategorie}
       {...(unitate === undefined ? {} : { unitate })}
       puncte={felii.map((f) => ({ eticheta: f.eticheta, valoare: f.valoare }))}
+      {...(formateaza === undefined ? {} : { formateaza })}
       {...(className === undefined ? {} : { className })}
     >
       <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
@@ -142,7 +147,7 @@ export function Inel({
             textAnchor="middle"
             className="fill-foreground text-[15px] font-medium"
           >
-            {formateaza(total)}
+            {scrie(total)}
           </text>
           {subtitluCentral === undefined ? null : (
             <text x={100} y={114} textAnchor="middle" className="fill-muted-foreground text-[10px]">
@@ -161,7 +166,7 @@ export function Inel({
                 style={{ background: f.culoare ?? culoareSerie(i) }}
               />
               <span className="min-w-0 flex-1 truncate">{f.eticheta}</span>
-              <span className={cn("font-medium tabular-nums")}>{formateaza(f.valoare)}</span>
+              <span className={cn("font-medium tabular-nums")}>{scrie(f.valoare)}</span>
               <span className="text-muted-foreground text-nota tabular-nums">
                 {((f.valoare / total) * 100).toFixed(1)}%
               </span>

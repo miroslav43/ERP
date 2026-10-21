@@ -46,12 +46,15 @@ export function Linie({
   serii,
   inaltime = 200,
   dePlaZero = false,
-  formateaza = (v) => String(v),
+  formateaza,
   titlu,
   unitate,
   antetCategorie = "Perioadă",
   className,
 }: PropsLinie): ReactElement | null {
+  // Axa scrie mereu trepte, deci cade pe `String`; tabelul ascuns primește
+  // doar ce a dat apelantul (vezi `InvelisGrafic`).
+  const scrie = formateaza ?? ((v: number) => String(v));
   const etichete = serii[0]?.puncte.map((p) => p.eticheta) ?? [];
   if (etichete.length < 2) return null;
 
@@ -93,6 +96,7 @@ export function Linie({
       antetCategorie={antetCategorie}
       {...(unitate === undefined ? {} : { unitate })}
       puncte={puncteTabel}
+      {...(formateaza === undefined ? {} : { formateaza })}
       {...(className === undefined ? {} : { className })}
     >
       {serii.length > 1 ? (
@@ -122,7 +126,7 @@ export function Linie({
               className="absolute right-0 -translate-y-1/2 whitespace-nowrap"
               style={{ top: y(t) }}
             >
-              {formateaza(t)}
+              {scrie(t)}
             </span>
           ))}
         </div>

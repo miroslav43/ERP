@@ -27,6 +27,9 @@ import {
   liniiDeAprobat,
   listeazaAngajatiPontaj,
   listeazaPerioade,
+  numaraLiniiNeaprobate,
+  numaraZileRespinse,
+  numarZilePontatePerioada,
   totiAngajatiiPontaj,
   loturiPerioadei,
   pontajDeAprobat,
@@ -387,6 +390,67 @@ describe("liniiDeAprobat — citită până la capăt", () => {
   });
 });
 
+describe("numaraLiniiNeaprobate — contorul din caseta de blocare", () => {
+  it("contor exact, cu EXACT cele șase filtre ale lui `liniiDeAprobat`", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("attendance_entries", "select", { data: null, count: 3 });
+    const n = await numaraLiniiNeaprobate(ORG_ID, PERIOADA);
+    expect(n).toBe(3);
+    const [apel] = server.apeluri;
+    expect(apel?.tabela).toBe("attendance_entries");
+    expect(apel?.optiuni).toEqual({ count: "exact", head: true });
+    expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(apel, "eq", "period_id", PERIOADA)).toBe(true);
+    // Aceleași excluderi ca în `liniiDeAprobat`: caseta și pagina de detalii
+    // trebuie să numere același lucru.
+    for (const col of ["approved_at", "leave_request_id", "respins_la", "deleted_at"]) {
+      expect(areFiltru(apel, "is", col, null)).toBe(true);
+    }
+    // Fără paginare: un contor nu se trunchiază la 1000.
+    expect(argumente(apel, "range")).toBeUndefined();
+  });
+
+  it("`count: null` ⇒ 0, nu NaN și nu null", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("attendance_entries", "select", { data: null, count: null });
+    expect(await numaraLiniiNeaprobate(ORG_ID, PERIOADA)).toBe(0);
+  });
+
+  it("eroarea PostgREST se propagă", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("attendance_entries", "select", { error: eroarePostgrest("42501") });
+    await expect(numaraLiniiNeaprobate(ORG_ID, PERIOADA)).rejects.toMatchObject({ code: "42501" });
+  });
+});
+
+describe("numaraZileRespinse — avertismentul din caseta de blocare", () => {
+  it("contor exact pe zilele cu `respins_la` nenul, ale perioadei, nesterse", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("attendance_entries", "select", { data: null, count: 2 });
+    expect(await numaraZileRespinse(ORG_ID, PERIOADA)).toBe(2);
+    const [apel] = server.apeluri;
+    expect(apel?.tabela).toBe("attendance_entries");
+    expect(apel?.optiuni).toEqual({ count: "exact", head: true });
+    expect(organizatieSiNeșters(apel)).toBe(true);
+    expect(areFiltru(apel, "eq", "period_id", PERIOADA)).toBe(true);
+    expect(areFiltru(apel, "not", "respins_la", "is")).toBe(true);
+    // Fără paginare: un contor nu se trunchiază la 1000.
+    expect(argumente(apel, "range")).toBeUndefined();
+  });
+
+  it("`count: null` ⇒ 0", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("attendance_entries", "select", { data: null, count: null });
+    expect(await numaraZileRespinse(ORG_ID, PERIOADA)).toBe(0);
+  });
+
+  it("eroarea PostgREST se propagă", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("attendance_entries", "select", { error: eroarePostgrest("42501") });
+    await expect(numaraZileRespinse(ORG_ID, PERIOADA)).rejects.toMatchObject({ code: "42501" });
+  });
+});
+
 describe("citesteSaptamanaPontaj", () => {
   it("fără submisie ⇒ null, fără a citi zilele", async () => {
     const { server } = configureazaActiunea();
@@ -637,5 +701,50 @@ describe("pontajDeAprobat — contorul care urmează lista", () => {
     server.raspunde("attendance_entries", "select", { data: [] });
     server.raspunde("attendance_week_submissions", "select", { count: 1 });
     expect(await pontajDeAprobat(ORG_ID)).toMatchObject({ zile: 0, fise: 1 });
+  });
+});
+
+// ── numarZilePontatePerioada ────────────────────────────────────────────────
+//
+// Pagina perioadei de salarizare în ciornă întreabă „are pontajul lunii măcar
+// o zi?" înainte de „Calculează": un pontaj blocat dar gol dă salariu zero
+// pentru toată lumea, fără nicio eroare (ADM-034).
+
+describe("numarZilePontatePerioada", () => {
+  it("numără prin `count: exact, head: true`, pe organizație, perioadă și nesters", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("attendance_entries", "select", { count: 42 });
+
+    expect(await numarZilePontatePerioada(ORG_ID, PERIOADA)).toBe(42);
+
+    const [numar] = server.apeluriPe("attendance_entries");
+    expect(numar?.coloane).toBe("id");
+    expect(numar?.optiuni).toEqual({ count: "exact", head: true });
+    expect(organizatieSiNeșters(numar)).toBe(true);
+    expect(areFiltru(numar, "eq", "period_id", PERIOADA)).toBe(true);
+  });
+
+  it("exclude zilele respinse — aceeași regulă ca `pontaj_agregat_salarizare` (0198)", async () => {
+    // O lună doar cu zile respinse dă salariu zero, exact ca una goală: dacă
+    // le-am număra aici, avertismentul „pontaj gol” n-ar mai apărea.
+    const { server } = configureazaActiunea();
+    server.raspunde("attendance_entries", "select", { count: 0 });
+    await numarZilePontatePerioada(ORG_ID, PERIOADA);
+    const [numar] = server.apeluriPe("attendance_entries");
+    expect(areFiltru(numar, "is", "respins_la", null)).toBe(true);
+  });
+
+  it("`count` null (răspuns fără antet) ⇒ 0, nu NaN", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("attendance_entries", "select", { count: null });
+    expect(await numarZilePontatePerioada(ORG_ID, PERIOADA)).toBe(0);
+  });
+
+  it("eroarea se propagă — un zero fals ar afișa un avertisment fals", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("attendance_entries", "select", { error: eroarePostgrest("42501") });
+    await expect(numarZilePontatePerioada(ORG_ID, PERIOADA)).rejects.toMatchObject({
+      code: "42501",
+    });
   });
 });

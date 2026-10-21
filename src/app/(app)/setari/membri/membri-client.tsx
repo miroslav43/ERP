@@ -7,16 +7,19 @@ import { useState, useTransition } from "react";
 import { Copy, MailPlus, ShieldAlert } from "lucide-react";
 
 import { Buton } from "@/components/ui/buton";
+import { ButonConfirmare } from "@/components/ui/buton-confirmare";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { arataToast } from "@/components/ui/toast";
 import { clientEnv } from "@/config/env";
 import type { ActionResult } from "@/lib/actions/types";
+import type { Locuri } from "@/lib/invitatii/locuri";
 // Aceeași listă ca pe fișa angajatului: două ecrane schimbă acum același rol.
 import { ROLURI, etichetaRol } from "@/lib/membri/etichete";
 
 import {
   invitaMembru,
+  retrimiteInvitatia,
   revocaInvitatia,
   schimbaRolulMembrului,
   seteazaStareaMembrului,
@@ -66,9 +69,29 @@ function linkDinToken(token: string): string {
   return `${bazaUrl}/invitatie/${encodeURIComponent(token)}`;
 }
 
+/**
+ * Rândul de locuri de sub „Membri (N)" (ONB-027). Cifrele vin din `numaraLocuri`,
+ * aceeași aritmetică cu refuzul invitației, ca ecranul să nu promită un loc pe
+ * care trimiterea îl refuză.
+ */
+function textLocuri(locuri: Locuri, invitatiiPendinte: number): string {
+  if (locuri.plin) {
+    return "Toate locurile sunt ocupate: dezactivați un membru sau extindeți contractul.";
+  }
+  const baza =
+    locuri.limita === null
+      ? `${String(locuri.folosite)} locuri folosite`
+      : `${String(locuri.folosite)} din ${String(locuri.limita)} locuri folosite`;
+  if (invitatiiPendinte === 0) return `${baza}.`;
+  const invitatii =
+    invitatiiPendinte === 1 ? "1 invitație" : `${String(invitatiiPendinte)} invitații`;
+  return `${baza} (inclusiv ${invitatii} în așteptare).`;
+}
+
 export function PanouMembri({
   membri,
   invitatii,
+  locuri = null,
   poateInvita,
   poateVedeaFise,
   poateAcordaPermisiuni,
@@ -77,6 +100,8 @@ export function PanouMembri({
 }: Readonly<{
   membri: readonly RandMembru[];
   invitatii: readonly RandInvitatie[];
+  /** Locurile din contract; `null` când rândul organizației nu s-a putut citi. */
+  locuri?: Locuri | null;
   /** Rolul cu care pornește formularul de invitație (`?rol=`). */
   rolInitial?: "org_admin" | "manager" | "hr" | "employee";
   /**
@@ -117,6 +142,30 @@ export function PanouMembri({
           : `Invitația a fost creată, dar e-mailul nu a putut fi trimis. Copiați linkul de mai jos.`,
         esteEroare: !rezultat.data.emailTrimis,
       });
+    });
+  }
+
+  /**
+   * „Retrimite" (ONB-026). Linkul nu se poate reafișa — baza păstrează doar
+   * amprenta tokenului —, deci retrimiterea emite unul NOU și îl arată în blocul
+   * de link de sus; cel vechi nu mai funcționează, iar mesajul o spune.
+   */
+  function retrimite(invitatie: RandInvitatie): void {
+    startTransition(async () => {
+      const rezultat: ActionResult<InvitatieCreata> = await retrimiteInvitatia({
+        invitationId: invitatie.id,
+      });
+      if (!rezultat.ok) {
+        setMesaj({ text: rezultat.error.message, esteEroare: true });
+        arataToast({ fel: "eroare", text: rezultat.error.message });
+        return;
+      }
+      setLinkInvitatie(linkDinToken(rezultat.data.token));
+      const text = rezultat.data.emailTrimis
+        ? `Link nou generat pentru ${rezultat.data.email}; cel vechi nu mai funcționează.`
+        : `Link nou generat pentru ${rezultat.data.email}; cel vechi nu mai funcționează. E-mailul nu a fost trimis: copiați linkul din secțiunea de invitare.`;
+      setMesaj({ text, esteEroare: false });
+      arataToast({ fel: "reusita", text });
     });
   }
 
@@ -169,10 +218,15 @@ export function PanouMembri({
    * Nicio coloană nu e `sortabil`: lista de membri se citește întreagă, fără
    * cursor — o organizație are zeci de membri, nu mii.
    *
-   * Selectorul de rol și butonul de dezactivare stau pe `insigna`, nu pe
-   * `meta`: pe telefon, `meta` e un rând mărunt de text separat prin „·”, iar o
-   * comandă îngropată acolo nu se mai vede ca o comandă. Ca `insigna` ajung pe
-   * rândul de sus al cardului, lângă persoana pe care o privesc.
+   * Selectorul de rol stă pe `insigna`, nu pe `meta`: pe telefon, `meta` e un
+   * rând mărunt de text separat prin „·”, iar o comandă îngropată acolo nu se
+   * mai vede ca o comandă. Ca `insigna` ajunge pe rândul de sus al cardului,
+   * lângă persoana pe care o privește.
+   *
+   * Coloana de acțiuni stă însă pe `actiuni`: „Dezactivează” deschide un
+   * `<dialog>` de confirmare, iar `insigna` ajunge pe card într-un `<p>` —
+   * „<dialog> cannot be a descendant of <p>”, hidratarea ar cădea (regula din
+   * `tabel.tsx`, la `peTelefon`).
    */
   const coloaneMembri: readonly Coloana<RandMembru>[] = [
     {
@@ -204,7 +258,7 @@ export function PanouMembri({
       peTelefon: "insigna",
       celula: (membru) =>
         membru.esteEu ? (
-          <span className="text-muted-foreground">{etichetaRol(membru.role)} (dvs.)</span>
+          <span className="text-muted-foreground">{etichetaRol(membru.role)} (dumneavoastră)</span>
         ) : (
           <>
             <label htmlFor={`rol-${membru.id}`} className="sr-only">
@@ -240,7 +294,7 @@ export function PanouMembri({
       cheie: "actiuni",
       antet: "Acțiuni",
       latime: "ingusta",
-      peTelefon: "insigna",
+      peTelefon: "actiuni",
       celula: (membru) => (
         <span className="inline-flex flex-wrap items-center gap-2">
           {/* Permisiunile punctuale stau pe fișă; nimeni nu și le acordă sieși. */}
@@ -262,23 +316,34 @@ export function PanouMembri({
           ) : null}
           {membru.esteEu ? (
             <span className="text-muted-foreground text-nota">—</span>
+          ) : membru.status === "active" ? (
+            /*
+             * Dezactivarea cere confirmare, cu numele omului în titlu (QA oct
+             * 2026, ONB-029): îi ia accesul la firmă dintr-un clic. Reactivarea
+             * de mai jos rămâne directă — nu ia nimic nimănui.
+             */
+            <ButonConfirmare
+              eticheta="Dezactivează"
+              disabled={inCurs}
+              titlu={`Dezactivați accesul lui ${membru.nume ?? membru.email}?`}
+              consecinta="Nu se mai poate autentifica în firmă de la următoarea navigare; fișa de angajat și istoricul rămân. Se poate reactiva oricând."
+              etichetaConfirmare="Dezactivează accesul"
+              distructiv
+              executa={() => seteazaStareaMembrului({ memberId: membru.id, status: "inactive" })}
+              mesajReusita="Membrul a fost dezactivat."
+            />
           ) : (
             <Buton
               varianta="secundar"
               disabled={inCurs}
               onClick={() =>
                 ruleaza(
-                  seteazaStareaMembrului({
-                    memberId: membru.id,
-                    status: membru.status === "active" ? "inactive" : "active",
-                  }),
-                  membru.status === "active"
-                    ? "Membrul a fost dezactivat."
-                    : "Membrul a fost reactivat.",
+                  seteazaStareaMembrului({ memberId: membru.id, status: "active" }),
+                  "Membrul a fost reactivat.",
                 )
               }
             >
-              {membru.status === "active" ? "Dezactivează" : "Reactivează"}
+              Reactivează
             </Buton>
           )}
         </span>
@@ -363,12 +428,27 @@ export function PanouMembri({
             </Buton>
           </div>
         ) : null}
+        {linkInvitatie !== null ? (
+          <p className="text-muted-foreground text-nota mt-1">
+            Linkul se afișează o singură dată: aplicația păstrează doar amprenta lui. Dacă se
+            pierde, apăsați „Retrimite” pe rândul invitației.
+          </p>
+        ) : null}
       </section>
 
       <section aria-labelledby="titlu-membri">
-        <h2 id="titlu-membri" className="text-foreground text-corp mb-2 font-medium">
-          Membri ({membri.length})
-        </h2>
+        <div className="mb-2">
+          <h2 id="titlu-membri" className="text-foreground text-corp font-medium">
+            Membri ({membri.length})
+          </h2>
+          {locuri === null ? null : (
+            <p
+              className={`text-nota mt-1 ${locuri.plin ? "text-warning" : "text-muted-foreground"}`}
+            >
+              {textLocuri(locuri, invitatii.length)}
+            </p>
+          )}
+        </div>
         <Tabel
           caption="Membrii organizației curente"
           coloane={coloaneMembri}
@@ -416,19 +496,26 @@ export function PanouMembri({
                   <span className="text-muted-foreground">pentru o fișă de angajat</span>
                 )}
                 <span className="text-muted-foreground">expiră la {invitatie.expiraLa}</span>
+                {/* Token nou, e-mail nou; linkul vechi moare (ONB-026). */}
                 <Buton
+                  varianta="secundar"
+                  className="ml-auto"
+                  disabled={inCurs || !poateInvita}
+                  onClick={() => retrimite(invitatie)}
+                >
+                  Retrimite
+                </Buton>
+                <ButonConfirmare
+                  eticheta="Revocă"
                   varianta="distructiv"
                   disabled={inCurs || !poateInvita}
-                  className="ml-auto"
-                  onClick={() =>
-                    ruleaza(
-                      revocaInvitatia({ invitationId: invitatie.id }),
-                      "Invitația a fost revocată.",
-                    )
-                  }
-                >
-                  Revocă
-                </Buton>
+                  titlu={`Revocați invitația pentru ${invitatie.email}?`}
+                  consecinta="Linkul trimis nu va mai funcționa. Puteți trimite o invitație nouă oricând."
+                  etichetaConfirmare="Revocă invitația"
+                  distructiv
+                  executa={() => revocaInvitatia({ invitationId: invitatie.id })}
+                  mesajReusita="Invitația a fost revocată."
+                />
               </li>
             ))}
           </ul>

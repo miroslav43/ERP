@@ -23,7 +23,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Jurnal de audit",
-  description: "Evenimentele înregistrate în organizația ta.",
+  description: "Evenimentele înregistrate în organizația dumneavoastră.",
 };
 
 const CALE = "/setari/audit";
@@ -53,8 +53,8 @@ export default async function PaginaAuditOrganizatie({ searchParams }: Props) {
           <Lock aria-hidden="true" className="text-warning mx-auto size-6" />
           <h1 className="text-foreground text-sectiune mt-3 font-semibold">Acces restricționat</h1>
           <p className="text-muted-foreground text-corp mt-2">
-            Jurnalul de audit poate fi consultat doar de administratorii organizației. Cere-i
-            administratorului tău dreptul necesar dacă ai nevoie de el.
+            Jurnalul de audit poate fi consultat doar de administratorii organizației. Solicitați
+            administratorului dreptul necesar dacă aveți nevoie de el.
           </p>
         </div>
       </div>

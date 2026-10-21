@@ -8,6 +8,13 @@ import { FormularDialog } from "@/components/ui/formular-dialog";
 import { IncarcareFisier } from "@/components/ui/incarcare-fisier";
 import type { ActionResult } from "@/lib/actions/types";
 import { urcaPeUrlSemnat } from "@/lib/storage/urca-semnat";
+// DOAR din `semnatura.ts` (modul pur). `primii-octeti.ts` e `server-only`:
+// importat de aici ar pica la build, nu în tsc/eslint/vitest (capcana 53).
+import {
+  MESAJ_CONTINUT_NEPOTRIVIT,
+  OCTETI_SEMNATURA,
+  potrivesteSemnatura,
+} from "@/lib/storage/semnatura";
 import { LIMITA_DOCUMENT_BYTES, MIME_ACCEPTATE, verificaDocument } from "@/lib/documents/cale";
 import {
   anuleazaDocumentEmis,
@@ -79,6 +86,15 @@ export function FormularDocument({
 
     const problema = verificaDocument(fisier.type, fisier.size);
     if (problema !== null) return refuzLocal(problema, "fisier");
+
+    // Curtoazie, nu poartă: capul fișierului se compară cu tipul declarat
+    // ÎNAINTE să urce 20 MB și fără să lase un obiect orfan în bucket. Omul
+    // cinstit cu un `.docx` redenumit `.pdf` află aici; poarta reală rămâne
+    // `salveazaDocument`, care citește octeții din obiectul urcat.
+    const cap = new Uint8Array(await fisier.slice(0, OCTETI_SEMNATURA).arrayBuffer());
+    if (!potrivesteSemnatura(fisier.type, cap)) {
+      return refuzLocal(MESAJ_CONTINUT_NEPOTRIVIT, "fisier");
+    }
 
     const pregatire = await pregatesteIncarcareDocument({
       employeeId,
@@ -322,7 +338,7 @@ export function ButonAnuleazaDocumentEmis({
     <FormularDialog
       declansator={{ eticheta: "Anulează", varianta: "distructiv" }}
       titlu={`Anulează ${titlu.toLowerCase()} ${numarAfisat}`}
-      descriere="Documentul iese din dosar și din portalul angajatului ca document valabil. Numărul rămâne consumat, iar documentul se păstrează ca anulat, și în dosar, și în registrul general. Dacă e nevoie, îl poți emite din nou din „Emite documente”."
+      descriere="Documentul iese din dosar și din portalul angajatului ca document valabil. Numărul rămâne consumat, iar documentul se păstrează ca anulat, și în dosar, și în registrul general. Dacă e nevoie, îl puteți emite din nou din „Emite documente”."
       marime="mediu"
       actiune={trimite}
       mesajReusita="Documentul a fost anulat."

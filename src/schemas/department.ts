@@ -1,6 +1,8 @@
 // src/schemas/department.ts
 import { z } from "zod";
 
+import "./mesaje-zod";
+
 const textOptional = (maxim: number) =>
   z
     .string()
@@ -68,7 +70,11 @@ const codOptional = z
 
 export const creeazaDepartamentSchema = z.object({
   cod: codOptional,
-  denumire: z.string().trim().min(2, "Denumirea trebuie să aibă cel puțin 2 caractere.").max(160),
+  denumire: z
+    .string()
+    .trim()
+    .min(2, "Denumirea trebuie să aibă cel puțin 2 caractere.")
+    .max(160, "Denumirea nu poate depăși 160 de caractere."),
   descriere: textOptional(1000),
   parent_id: uuidOptional,
   manager_employee_id: uuidOptional,

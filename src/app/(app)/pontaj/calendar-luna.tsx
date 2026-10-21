@@ -92,7 +92,10 @@ export function CalendarLuna({
 
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto">
+      {/* `relative`: spanurile `sr-only` din celule („ (azi)”, „+N alții”) sunt
+          `position: absolute`; fără strămoș poziționat, poziția lor statică
+          din tabelul de 52rem întinde pagina, nu doar containerul (UX-005). */}
+      <div className="relative overflow-x-auto">
         <table className="text-corp w-full min-w-[52rem] table-fixed border-collapse text-left">
           <caption className="sr-only">
             Calendarul lunar de pontaj. Fiecare zi listează angajații cu ore înregistrate.

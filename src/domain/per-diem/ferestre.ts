@@ -27,6 +27,18 @@ export const REGULI_TRECERE_FRONTIERA = [
 export type RegulaTrecereFrontiera = (typeof REGULI_TRECERE_FRONTIERA)[number];
 
 /**
+ * Regula de trecere a frontierei, spusă omului. Motivul ferestrei se afișează
+ * ca atare în fișa deplasării; codul brut („tara_sosire”) nu înseamnă nimic
+ * pentru cine citește (FLX-006).
+ */
+export const DESCRIERE_REGULA_TRECERE: Readonly<Record<RegulaTrecereFrontiera, string>> = {
+  tara_plecare: "țara din care se pleacă",
+  tara_sosire: "țara în care se intră",
+  tara_cu_valoare_mai_mare: "țara cu baremul mai mare",
+  durata_maxima: "țara cu cele mai multe ore",
+};
+
+/**
  * Cum se numără zilele de diurnă (`per_diem_policies.mod_calcul_zile`, 0156):
  * - `ferestre_24h` — câte 24 de ore de la plecare; restul final e tăiat de praguri;
  * - `zile_calendaristice` — fiecare zi din calendar (ora României) în care omul
@@ -169,7 +181,7 @@ function construiesteFereastra(
 
   if (tariFereastra.length > 1) {
     if (p.acordaZiuaTrecerii) {
-      motiv = `${motiv}; trecere de frontieră — ziua atribuită unei singure țări (${p.regulaTrecere})`;
+      motiv = `${motiv}; trecere de frontieră — ziua atribuită unei singure țări: ${DESCRIERE_REGULA_TRECERE[p.regulaTrecere]}`;
     } else {
       fractiune = 0;
       motiv = "trecere de frontieră — politica firmei nu acordă diurnă în această zi";

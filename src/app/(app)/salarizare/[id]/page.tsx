@@ -24,6 +24,7 @@ import {
   type RandPrimaPerioada,
   type RandRetinerePerioada,
 } from "@/lib/queries/payroll";
+import { numarZilePontatePerioada } from "@/lib/queries/attendance";
 import { AlertTriangle, Receipt, Users } from "lucide-react";
 
 import { TONURI_STATUS_PERIOADA, ETICHETE_STATUS_PERIOADA, numeLuna } from "../etichete";
@@ -77,10 +78,17 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
   const poateVedeaPontajul = module.has("attendance") && can(permisiuni, "attendance:read", "team");
   const poateDeschideFisa = can(permisiuni, "employees:read", "all");
 
-  const personalDraft =
-    perioada.status === "draft" && poateCalcula
-      ? await angajatiActiviCuContract(tenant.organizationId, perioada.an, perioada.luna)
-      : { angajati: [], faraContract: [], trunchiat: false };
+  // Două citiri independente, doar pentru ciorna de calculat: cine intră pe
+  // stat și dacă pontajul lunii are măcar o zi. `null` = întrebarea nu s-a pus.
+  const ciornaDeCalculat = perioada.status === "draft" && poateCalcula;
+  const [personalDraft, zilePontate] = await Promise.all([
+    ciornaDeCalculat
+      ? angajatiActiviCuContract(tenant.organizationId, perioada.an, perioada.luna)
+      : { angajati: [], faraContract: [], trunchiat: false },
+    ciornaDeCalculat
+      ? numarZilePontatePerioada(tenant.organizationId, perioada.attendance_period_id)
+      : null,
+  ]);
   const angajatiDraft = personalDraft.angajati;
   /*
    * Cele două semnale pe care citirea le calculează anume ca să nu dispară
@@ -429,6 +437,47 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
                   </li>
                 ))}
               </ul>
+            </section>
+          )}
+
+          {/*
+            ADM-034: un pontaj blocat, dar GOL, trecea prin calcul fără o vorbă
+            și dădea „brut 0,00 lei" pentru toată lumea. Avertisment, NU blocaj
+            (butonul rămâne activ): o firmă în pauză are legitim o lună fără
+            pontaj. Cine calculează totuși primește `SAL_PONTAJ_FARA_ZILE` pe
+            fiecare fluturaș, cu drum spre pontaj.
+          */}
+          {zilePontate !== 0 || angajatiDraft.length === 0 ? null : (
+            <section
+              aria-labelledby="pontaj-gol"
+              className="border-warning/40 bg-warning/12 rounded-panou text-corp border p-4"
+            >
+              <h2 id="pontaj-gol" className="flex items-start gap-2 font-medium">
+                <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                Pontajul lunii nu are nicio zi înregistrată
+              </h2>
+              <p className="mt-1">
+                Calculul ar da salariu zero pentru{" "}
+                {angajatiDraft.length === 1
+                  ? "singurul angajat cu contract"
+                  : `toți cei ${String(angajatiDraft.length)} angajați cu contract`}
+                : salariul se plătește pe zilele din pontaj, iar un pontaj blocat, dar gol, înseamnă
+                zero zile lucrate, zero concediu și zero absențe. Zilele respinse și necorectate nu
+                se numără: nu se plătesc. Completați sau importați pontajul, blocați din nou luna și
+                abia apoi calculați.
+                {poateVedeaPontajul ? (
+                  <>
+                    {" "}
+                    <Link
+                      href={`/pontaj/perioade/${perioada.attendance_period_id}`}
+                      className="underline underline-offset-2"
+                    >
+                      Deschide pontajul lunii
+                    </Link>
+                    .
+                  </>
+                ) : null}
+              </p>
             </section>
           )}
 

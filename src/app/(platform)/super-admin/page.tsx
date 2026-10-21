@@ -1,10 +1,13 @@
 import Link from "next/link";
 
+import { metadataPlatforma } from "@/lib/auth/platform";
+
 import { Cifra } from "./_components/cifra";
 import { Sarcina } from "./_components/sarcina";
 import { datePanou } from "./organizatii/actions";
 
-export const metadata = { title: "Panou de platformă" };
+// Titlul doar pentru administratorul de platformă: altfel 404-ul l-ar trăda (PRM-007).
+export const generateMetadata = metadataPlatforma("Panou de platformă");
 
 /** Acțiunile din `audit_logs` sunt chei tehnice; aici le dăm nume de oameni. */
 const ETICHETE_ACTIUNE: Readonly<Record<string, string>> = {

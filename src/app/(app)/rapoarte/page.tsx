@@ -16,7 +16,9 @@ import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
+import { rotunjesteLaBani } from "@/domain/bani";
 import { formatLei } from "@/lib/format/money";
+import { textNumarat } from "@/lib/format/numar";
 import { formatOre, formatOreCuUnitate } from "@/lib/format/ore";
 import { formatMonthShort } from "@/lib/format/date";
 import { aniCuPerioade, statisticiAnuale } from "@/lib/queries/rapoarte";
@@ -149,16 +151,21 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
    * `cost < brut` și felia a treia ieșea NEGATIVĂ — iar `Inel` scoate feliile
    * negative din desen dar le ține în numitor, deci procentele treceau de 100 %
    * fără nicio eroare.
+   *
+   * Diferențele se rotunjesc la ban: `766,88 − 750` în virgulă mobilă dă
+   * `16.879999999999995`, iar cifra asta ajungea neatinsă în tabelul pentru
+   * cititorul de ecran (HR-028). Suma feliilor rotunjite poate diferi cu un ban
+   * de `costTotalAngajator`; centrul inelului scrie suma feliilor.
    */
   const feliiCost = [
-    { eticheta: "Net, la angajat", valoare: statistici.totalVenitNetAnual },
+    { eticheta: "Net, la angajat", valoare: rotunjesteLaBani(statistici.totalVenitNetAnual) },
     {
       eticheta: "Taxe reținute din brut",
-      valoare: statistici.totalVenitBrutAnual - statistici.totalVenitNetAnual,
+      valoare: rotunjesteLaBani(statistici.totalVenitBrutAnual - statistici.totalVenitNetAnual),
     },
     {
       eticheta: "Contribuții ale firmei",
-      valoare: costTotalAngajator - statistici.totalVenitBrutAnual,
+      valoare: rotunjesteLaBani(costTotalAngajator - statistici.totalVenitBrutAnual),
     },
   ];
 
@@ -341,14 +348,21 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
         )
       ) : (
         <>
+          {/*
+            HR-027: cifrele unei luni redeschise în ciornă (sau ale unor rânduri
+            orfane lăsate de un calcul refuzat) NU mai intră în totaluri —
+            ecranul perioadei le ascunde, raportul nu poate aduna ce perioada nu
+            arată. Informativ, nu atenție: nu e nimic de reparat, doar de știut.
+          */}
           {statistici.luniInCiorna.length === 0 ? null : (
-            <Callout fel="atentie" titlu="Anul nu e închis">
+            <Callout fel="informativ" titlu="Luni redeschise">
               {statistici.luniInCiorna.length === 1
-                ? `Luna ${formatMonthShort(statistici.luniInCiorna[0] ?? 1)} e încă în ciornă, iar cifrele ei intră în totalurile de mai jos.`
-                : `${String(statistici.luniInCiorna.length)} luni sunt încă în ciornă (${statistici.luniInCiorna
+                ? `Luna ${formatMonthShort(statistici.luniInCiorna[0] ?? 1)} a fost redeschisă în ciornă: cifrele ei vechi nu intră în totalurile de mai jos și reapar la recalculare.`
+                : `${textNumarat(statistici.luniInCiorna.length, "lună", "luni")} au fost redeschise în ciornă (${statistici.luniInCiorna
                     .map(formatMonthShort)
-                    .join(", ")}), iar cifrele lor intră în totalurile de mai jos.`}{" "}
-              Se vor schimba la recalculare.
+                    .join(
+                      ", ",
+                    )}): cifrele lor vechi nu intră în totalurile de mai jos și reapar la recalculare.`}
             </Callout>
           )}
 
@@ -376,9 +390,10 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
                   )}
                 </span>
               ))}
+              {/* „un calcul valabil", nu „niciun calcul": acoperă și ciornele cu cifre vechi. */}
               {statistici.luniNecalculate.length === 1
-                ? " are perioadă deschisă, dar niciun calcul, deci lipsește din toate cifrele și din grafice."
-                : " au perioadă deschisă, dar niciun calcul, deci lipsesc din toate cifrele și din grafice."}
+                ? " nu are un calcul valabil, deci lipsește din toate cifrele și din grafice."
+                : " nu au un calcul valabil, deci lipsesc din toate cifrele și din grafice."}
             </Callout>
           )}
 
@@ -392,6 +407,7 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
                   titlu="Venit brut pe luni"
                   unitate="Lei"
                   puncte={serieBrut}
+                  formateaza={formatLei}
                   latime={140}
                 />
               }
@@ -401,7 +417,13 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
               valoare={formatLei(statistici.totalVenitNetAnual)}
               {...(poateDeschideSalarizarea ? { href: `/salarizare?an=${String(an)}` } : {})}
               serie={
-                <Sparkline titlu="Venit net pe luni" unitate="Lei" puncte={serieNet} latime={140} />
+                <Sparkline
+                  titlu="Venit net pe luni"
+                  unitate="Lei"
+                  puncte={serieNet}
+                  formateaza={formatLei}
+                  latime={140}
+                />
               }
             />
             <Indicator

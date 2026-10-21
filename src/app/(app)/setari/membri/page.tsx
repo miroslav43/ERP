@@ -6,6 +6,7 @@ import { PanouMembri, type RandInvitatie, type RandMembru } from "./membri-clien
 import { createServerSupabase } from "@/lib/supabase/server";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
+import { numaraLocuri } from "@/lib/invitatii/locuri";
 import { RUTA_ALEGE_ORGANIZATIA, RUTA_AUTENTIFICARE } from "@/config/routes";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
@@ -35,12 +36,12 @@ export default async function SetariMembriPage({
   const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
   if (scopeFor(permisiuni, "users:update") !== "all") {
     return (
-      <AccesRestrictionat mesaj="Lista membrilor și invitațiile pot fi consultate doar de administratorii organizației. Cere-i administratorului tău dreptul necesar dacă ai nevoie de el." />
+      <AccesRestrictionat mesaj="Lista membrilor și invitațiile pot fi consultate doar de administratorii organizației. Solicitați administratorului dreptul necesar dacă aveți nevoie de el." />
     );
   }
 
   const supabase = await createServerSupabase();
-  const [membriRezultat, invitatiiRezultat] = await Promise.all([
+  const [membriRezultat, invitatiiRezultat, organizatieRezultat] = await Promise.all([
     // Adresa de e-mail se ia într-un al doilea query, nu prin `profil:profiles(...)`.
     //
     // Încorporarea presupune că PostgREST poate deduce legătura dintre cele două
@@ -65,6 +66,13 @@ export default async function SetariMembriPage({
       .eq("organization_id", tenant.organizationId)
       .eq("status", "pending")
       .order("expires_at", { ascending: true }),
+    // Plafonul de locuri (ONB-027): `organizations_select` dă rândul oricărui
+    // membru. Fără el, adminul afla de plafon abia din refuzul invitației.
+    supabase
+      .from("organizations")
+      .select("seats_limit")
+      .eq("id", tenant.organizationId)
+      .maybeSingle(),
   ]);
 
   if (membriRezultat.error !== null || invitatiiRezultat.error !== null) {
@@ -155,6 +163,18 @@ export default async function SetariMembriPage({
         ? null
         : { id: rand.employee_id, nume: numeFiseInvitate.get(rand.employee_id) ?? null },
   }));
+  // Aceeași aritmetică cu refuzul din `creeazaInvitatie`: membri ACTIVI +
+  // invitații în așteptare. O cifră calculată altfel ar promite locuri pe care
+  // invitația le refuză.
+  const locuri =
+    organizatieRezultat.data === null
+      ? null
+      : numaraLocuri({
+          membriActivi: membri.filter((m) => m.status === "active").length,
+          invitatiiPendinte: invitatii.length,
+          limita: organizatieRezultat.data.seats_limit,
+        });
+
   // `?rol=org_admin` (din panoul departamentului „Conducerea"): formularul pornește pe rolul cerut.
   const rolBrut = (await searchParams)["rol"];
   const rolInitial =
@@ -172,6 +192,7 @@ export default async function SetariMembriPage({
       <PanouMembri
         membri={membri}
         invitatii={invitatii}
+        locuri={locuri}
         rolInitial={rolInitial}
         poateInvita={can(permisiuni, "users:create", "all")}
         poateVedeaFise={poateVedeaFise}

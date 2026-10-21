@@ -134,7 +134,9 @@ export function FormularInstruireBloc({
     return await inregistreazaInstruireBloc({
       training_type_id: tipAles,
       data_instruirii: String(formular.get("data_instruirii") ?? ""),
-      durata_ore: Number(formular.get("durata_ore") ?? 0),
+      // Șirul brut, nu `Number(...)`: câmpul golit sau de neînțeles vine „”,
+      // iar `Number("")` era 0 — instruirea se salva „0:00 h” (ADM-018).
+      durata_ore: String(formular.get("durata_ore") ?? ""),
       lector_employee_id: text("lector_employee_id"),
       lector_extern: text("lector_extern"),
       tematica: text("tematica"),

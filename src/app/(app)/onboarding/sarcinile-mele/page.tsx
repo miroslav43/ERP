@@ -31,7 +31,7 @@ export default async function PaginaSarcini() {
 
   if (!can(permisiuni, "checklists:read", "own")) {
     return (
-      <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta checklisturile de integrare. Solicitați administratorului organizației rolul potrivit." />
+      <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta parcursurile de integrare. Solicitați administratorului organizației rolul potrivit." />
     );
   }
 

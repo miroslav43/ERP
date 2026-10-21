@@ -1,6 +1,8 @@
 // src/schemas/permisiuni-membru.ts
 import { z } from "zod";
 
+import "./mesaje-zod";
+
 import { PERMISSION_KEYS, PERMISSION_SCOPES } from "@/config/permissions";
 
 /**

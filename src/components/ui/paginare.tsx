@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import type { ReactElement } from "react";
 
+import { acordSubstantiv } from "@/lib/format/numar";
 import { cn } from "@/lib/ui/cn";
 
 import { buton } from "./buton";
@@ -70,7 +71,9 @@ export function Paginare({
             <span className="text-foreground font-mono font-medium tabular-nums">{total}</span>
           </>
         ) : null}
-        {afisate === 1 ? " rând" : " de rânduri"}
+        {/* Substantivul se acordă cu numărul scris ULTIMUL: totalul, când e
+            cunoscut („6 din 6 rânduri”, „25 din 40 de rânduri”). */}
+        {` ${acordSubstantiv(stieTotalul ? total : afisate, "rând", "rânduri")}`}
         {cursorUrmator === null && stieTotalul === false ? " · ultima pagină" : null}
       </p>
 
