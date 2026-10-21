@@ -45,9 +45,11 @@ de bord.
 Nu există rute noi: fișa `/flota/[id]` primește file prin `?fila=service` și
 `?fila=costuri` (plus `?perioada=3|6|12|tot` și `?cursor=` pe Costuri). Fila se oferă
 doar cui poate citi service-ul, adică `vehicles:read` cel puțin `team` ȘI vehiculul
-vizibil; un `?fila=` scris de mână pe un cont fără drept cade pe fișa obișnuită, nu pe un
+echipei, FĂRĂ pool (`poate_vedea_vehicul(…, false)`); pe un pool, sub `team`, filele
+lipsesc. Un `?fila=` scris de mână pe un cont fără drept cade pe fișa obișnuită, nu pe un
 ecran gol. Scrierea cere `vehicles:update` all — literal ca politicile. Managerul
-citește planurile, intervențiile și cheltuielile mașinii echipei lui; șoferul (`own`) și
+citește planurile, intervențiile și cheltuielile mașinii echipei lui, nu și ale mașinii
+comune (proba `proba-flota-matrice-roluri.sql`); șoferul (`own`) și
 `hr` nu citesc nimic, fără eroare: află de scadență din notificare. Fila Costuri a
 managerului NU arată cifrele derivate din foi (vezi „Costuri”).
 
@@ -129,7 +131,7 @@ Combustibilul fără foaie nu intră în consum: n-are kilometri cu care să fie
 Adunările trec prin bani întregi (`sumaLei`).
 
 **Foile se citesc sub alt drept decât service-ul.** Service-ul, cheltuielile și documentele
-sunt COMPLETE pentru orice vehicul vizibil (`vehicles:read >= team`); foile și alimentările
+sunt COMPLETE pentru orice vehicul cu filele deschise (`vehicles:read >= team`); foile și alimentările
 se citesc sub `trip_sheets:read`, iar la `team` (managerul) RLS le taie TĂCUT la foile
 șoferilor echipei, pe un vehicul pe care îl conduc și alții. De aceea `FilaCosturi` primește
 `vedeToateFoile = can(trip_sheets:read, all)`: fără el foile nu se interoghează, totalul
