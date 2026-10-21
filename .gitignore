@@ -92,3 +92,6 @@ supabase/.branches
 
 # QA manual pe producție — conține parole și capturi
 /qa/
+
+# Credențiale Cloudflare puse local (token + captura cu cheile R2) — nu pleacă în git
+/cloudflareapitoken*
