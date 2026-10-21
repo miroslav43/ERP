@@ -45,6 +45,9 @@ describe("eticheteazaTipDocument", () => {
     // Scoase de 0142 din hartă, dar rămase ca rânduri anulate.
     ["invitatie_inrolare", "Invitație de înrolare"],
     ["nota_interna", "Notă internă"],
+    ["afis_punct_lucru", "Afiș pentru punctul de lucru"],
+    // Șablonul din 0160 (QA ADM-037/HR-026: ieșea „Act aditional salariu”).
+    ["act_aditional_salariu", "Act adițional de modificare a salariului"],
   ])("codul cunoscut %s are denumirea proprie", (cod, asteptat) => {
     expect(eticheteazaTipDocument(cod)).toBe(asteptat);
   });

@@ -30,14 +30,9 @@ export function faraCaractereDeControl(text: string): string {
   return curataText(rezultat);
 }
 
-const CU_VIRGULA: Readonly<Record<string, string>> = {
-  ş: "ș", // ş → ș
-  Ş: "Ș", // Ş → Ș
-  ţ: "ț", // ţ → ț
-  Ţ: "Ț", // Ţ → Ț
-};
-
-/** „ş”, „ţ” (cu sedilă, U+015F/U+0163 și majusculele) → „ș”, „ț” (cu virgulă). */
-export function cuVirgula(text: string): string {
-  return text.replace(/[ŞşŢţ]/gu, (litera) => CU_VIRGULA[litera] ?? litera);
-}
+/**
+ * „ş”, „ţ” (cu sedilă) → „ș”, „ț” (cu virgulă). Locuiește în
+ * `src/lib/text/diacritice.ts`, fără dependențe; aici rămâne re-exportul,
+ * ca apelanții uneltelor să nu se schimbe.
+ */
+export { cuVirgula } from "@/lib/text/diacritice";

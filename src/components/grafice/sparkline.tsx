@@ -26,6 +26,12 @@ export type PropsSparkline = PropsGrafic &
     inaltime?: number;
     /** Verdictul, dacă seria îl are: coboară e bine la fluctuație, rău la efectiv. */
     ton?: "neutru" | "bun" | "rau";
+    /**
+     * Cum se scriu cifrele în tabelul ascuns. Sparkline-ul nu scrie nicio cifră
+     * în desen, deci prop-ul există DOAR pentru cititorul de ecran — o serie de
+     * bani fără el se citea cu punct zecimal și fără „lei”.
+     */
+    formateaza?: (v: number) => string;
   }>;
 
 const CULOARE = {
@@ -39,6 +45,7 @@ export function Sparkline({
   latime = 132,
   inaltime = 30,
   ton = "neutru",
+  formateaza,
   titlu,
   unitate,
   antetCategorie = "Perioadă",
@@ -74,6 +81,7 @@ export function Sparkline({
       antetCategorie={antetCategorie}
       {...(unitate === undefined ? {} : { unitate })}
       puncte={puncte}
+      {...(formateaza === undefined ? {} : { formateaza })}
       {...(className === undefined ? {} : { className })}
     >
       <svg

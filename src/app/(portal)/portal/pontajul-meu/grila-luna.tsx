@@ -3,7 +3,12 @@ import Link from "next/link";
 
 import { CLASE_TIP_ZI, CODURI_TIP_ZI, ETICHETE_TIP_ZI } from "@/app/(app)/pontaj/etichete";
 import { formatOre } from "@/lib/format/ore";
-import { construiesteSaptamani, ziIso } from "@/domain/calendar/grila-lunara";
+import {
+  construiesteSaptamani,
+  INITIALE_ZILE_SAPTAMANA,
+  ziIso,
+} from "@/domain/calendar/grila-lunara";
+import { refuzulZilei, type MotivRefuzZi } from "@/domain/attendance/zi-de-pontat";
 import type { ZiPontaj } from "@/lib/queries/portal";
 
 /**
@@ -49,6 +54,16 @@ const ZILE_SAPTAMANA = [
 const CODURI: Readonly<Record<string, string | undefined>> = CODURI_TIP_ZI;
 const CLASE: Readonly<Record<string, string | undefined>> = CLASE_TIP_ZI;
 const ETICHETE: Readonly<Record<string, string | undefined>> = ETICHETE_TIP_ZI;
+
+/**
+ * De ce ziua nu e legătură, în două cuvinte, pentru cititorul de ecran. Celula
+ * rămâne vizual neschimbată: o zi care n-a venit încă nu e un defect de
+ * afișat, doar nu se deschide (ANG-004, ANG-005).
+ */
+const ETICHETE_REFUZ: Readonly<Record<MotivRefuzZi, string>> = {
+  viitor: "zi din viitor",
+  inainte_de_angajare: "înainte de angajare",
+};
 
 /**
  * Tipurile care apar EFECTIV în luna afișată, în ordinea etichetei.
@@ -116,6 +131,14 @@ interface Proprietati {
   readonly zile: readonly ZiPontaj[];
   /** Ziua devine link către formularul ei doar când chiar se poate edita. */
   readonly poateEdita: boolean;
+  /**
+   * Ziua de azi, din `todayInBucharest()`: zilele de după ea nu se deschid —
+   * `salveazaZiPontaj` le refuză (ANG-004). Primită, nu citită aici: grila e
+   * pură și se testează cu o zi fixă.
+   */
+  readonly azi: string;
+  /** `employees.hired_on`: zilele dinaintea ei nu se deschid (ANG-005). `null` = fără verificare. */
+  readonly angajatDin: string | null;
   /** Poarta lui `/portal/concediile-mele/[id]`: „Din concediu” devine link spre cerere. */
   readonly poateDeschideConcediu?: boolean;
 }
@@ -125,6 +148,8 @@ export function GrilaLuna({
   luna,
   zile,
   poateEdita,
+  azi,
+  angajatDin,
   poateDeschideConcediu = false,
 }: Proprietati) {
   const saptamani = construiesteSaptamani(an, luna);
@@ -133,21 +158,36 @@ export function GrilaLuna({
 
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto">
-        <table className="text-corp w-full min-w-[44rem] table-fixed border-collapse text-left">
+      {/*
+        `relative`: spanurile `sr-only` din celule sunt `position: absolute`;
+        fără un strămoș poziționat, blocul lor conținător e cel inițial, iar
+        poziția lor statică (coloana de sâmbătă) întindea pagina la 525 px pe un
+        telefon de 390 (UX-045, ANG-033). Fără `min-w-[44rem]`: șapte coloane
+        înguste încap pe telefon, cu inițialele zilelor în antet.
+      */}
+      <div className="relative overflow-x-auto">
+        <table className="text-corp w-full table-fixed border-collapse text-left">
           <caption className="sr-only">
             Grila lunară a propriului pontaj. Zilele lucrătoare editabile sunt legături către
             formularul zilei.
           </caption>
           <thead>
             <tr>
-              {ZILE_SAPTAMANA.map((zi) => (
+              {ZILE_SAPTAMANA.map((zi, i) => (
                 <th
                   key={zi}
                   scope="col"
-                  className="border-border bg-surface text-muted-foreground text-nota border px-2 py-1.5 font-medium"
+                  className="border-border bg-surface text-muted-foreground text-nota border px-1 py-1.5 font-medium sm:px-2"
                 >
-                  {zi}
+                  {/* Inițiala pe telefon, numele întreg de la `sm`; numele
+                      accesibil rămâne „Luni” la orice lățime. */}
+                  <span aria-hidden="true" className="sm:hidden">
+                    {INITIALE_ZILE_SAPTAMANA[i]}
+                  </span>
+                  <span aria-hidden="true" className="hidden sm:inline">
+                    {zi}
+                  </span>
+                  <span className="sr-only">{zi}</span>
                 </th>
               ))}
             </tr>
@@ -160,18 +200,23 @@ export function GrilaLuna({
                     return (
                       <td
                         key={indexZi}
-                        className="border-border bg-surface h-20 border align-top"
+                        className="border-border bg-surface h-16 border align-top sm:h-20"
                       />
                     );
                   }
                   const iso = ziIso(an, luna, zi);
                   const intrare = peZi.get(iso);
+                  // Ziua din viitor sau dinaintea angajării nu se deschide,
+                  // oricare i-ar fi rândul: acțiunea o refuză (ANG-004/005).
+                  const refuz = poateEdita ? refuzulZilei(iso, azi, angajatDin) : null;
                   return (
                     <CelulaLunii
                       key={iso}
                       zi={zi}
                       data={iso}
+                      esteAzi={iso === azi}
                       intrare={intrare}
+                      refuz={refuz}
                       hrefConcediu={
                         poateDeschideConcediu &&
                         intrare !== undefined &&
@@ -193,8 +238,8 @@ export function GrilaLuna({
                        * (`salveazaZiPontaj` o refuză explicit). O zi fără rând
                        * nu e blocată de nimic — e chiar cazul obișnuit.
                        */
-                      editabila={ziuaSePoateDeschide(poateEdita, intrare)}
-                      motivBlocare={motivulBlocarii(poateEdita, intrare)}
+                      editabila={refuz === null && ziuaSePoateDeschide(poateEdita, intrare)}
+                      motivBlocare={refuz === null ? motivulBlocarii(poateEdita, intrare) : null}
                     />
                   );
                 })}
@@ -231,6 +276,28 @@ export function GrilaLuna({
 }
 
 /**
+ * Eticheta de stare a celulei: prescurtată pe telefon, întreagă de la `sm`.
+ *
+ * La 390 px o coloană are ~43 px utili, iar „Respinsă” / „Aprobată” se rupeau
+ * în mijlocul cuvântului („Respin/să”). Ambele forme vizibile sunt
+ * `aria-hidden`; cititorul de ecran primește mereu cuvântul întreg, din
+ * `sr-only` — același tipar ca antetul zilelor.
+ */
+function EtichetaStare({ scurt, intreg }: { readonly scurt: string; readonly intreg: string }) {
+  return (
+    <>
+      <span aria-hidden="true" className="sm:hidden">
+        {scurt}
+      </span>
+      <span aria-hidden="true" className="hidden sm:inline">
+        {intreg}
+      </span>
+      <span className="sr-only">{intreg}</span>
+    </>
+  );
+}
+
+/**
  * O zi din grilă.
  *
  * Un singur element interactiv per celulă, niciodată un link într-un link — de
@@ -243,17 +310,23 @@ export function GrilaLuna({
 function CelulaLunii({
   zi,
   data,
+  esteAzi,
   intrare,
   editabila,
   motivBlocare,
+  refuz = null,
   hrefConcediu = null,
 }: {
   readonly zi: number;
   readonly data: string;
+  /** Marcată ca în `(app)/pontaj/calendar-luna.tsx`: culoare + „(azi)” + `aria-current`. */
+  readonly esteAzi: boolean;
   readonly intrare: ZiPontaj | undefined;
   readonly editabila: boolean;
   /** De ce nu se deschide ziua. `null` când se deschide. */
   readonly motivBlocare: string | null;
+  /** Ziua nu se pontează deloc (viitor, înainte de angajare); `null` altfel. */
+  readonly refuz?: MotivRefuzZi | null;
   /** Cererea din spatele zilei de concediu; `null` = text. */
   readonly hrefConcediu?: string | null;
 }) {
@@ -278,7 +351,12 @@ function CelulaLunii({
 
   const corp = (
     <>
-      <span className="text-muted-foreground text-nota font-medium">{zi}</span>
+      <span
+        className={`text-nota ${esteAzi ? "text-primary font-semibold" : "text-muted-foreground font-medium"}`}
+      >
+        {zi}
+        {esteAzi ? <span className="sr-only"> (azi)</span> : null}
+      </span>
       <span className="text-corp mt-1 block">
         {intrare === undefined ? (
           <span className="text-muted-foreground">—</span>
@@ -293,8 +371,8 @@ function CelulaLunii({
         )}
       </span>
       {respinsa ? (
-        <span className="text-danger text-nota mt-0.5 block font-medium">
-          Respinsă
+        <span className="text-danger text-nota mt-0.5 block leading-tight font-medium break-words">
+          <EtichetaStare scurt="Resp." intreg="Respinsă" />
           <span className="sr-only">
             {" — "}
             {intrare?.motiv_respingere ?? "fără motiv înregistrat"}. Corectați ziua.
@@ -302,38 +380,40 @@ function CelulaLunii({
         </span>
       ) : null}
       {suplimentare > 0 ? (
-        <span className="text-muted-foreground text-nota block tabular-nums">
+        <span className="text-muted-foreground text-nota block leading-tight break-words tabular-nums">
           +{formatOre(suplimentare)} supl.
         </span>
       ) : null}
       {intrare === undefined ? null : (
         <span className="sr-only"> · {ETICHETE[intrare.tip_zi] ?? intrare.tip_zi}</span>
       )}
+      {refuz === null ? null : <span className="sr-only"> · {ETICHETE_REFUZ[refuz]}</span>}
     </>
   );
 
   if (!editabila) {
     return (
       <td
-        className={`border-border h-20 border align-top ${fundal}`}
+        className={`border-border h-16 border align-top sm:h-20 ${fundal}`}
+        aria-current={esteAzi ? "date" : undefined}
         {...(motivBlocare === null ? {} : { title: motivBlocare })}
       >
-        <div className="p-1.5">
+        <div className="p-1 sm:p-1.5">
           {corp}
           {/* Motivul, nu doar absența clicului. Un `title` singur nu ajunge:
               pe telefon nu există hover, iar exact acolo se pontează cel mai
               des. Eticheta scurtă se vede, explicația întreagă e în `title`
               și în textul citit de cititorul de ecran. */}
           {motivBlocare === null ? null : (
-            <span className="text-muted-foreground text-nota mt-0.5 block">
+            <span className="text-muted-foreground text-nota mt-0.5 block leading-tight break-words">
               {motivBlocare.startsWith("Zi aprobată") ? (
-                "Aprobată"
+                <EtichetaStare scurt="Apr." intreg="Aprobată" />
               ) : hrefConcediu === null ? (
-                "Din concediu"
+                <EtichetaStare scurt="Conc." intreg="Din concediu" />
               ) : (
                 // Ziua spunea „se modifică din Concediile mele" fără drum: acum e drumul.
                 <Link href={hrefConcediu} className="underline underline-offset-2">
-                  Din concediu
+                  <EtichetaStare scurt="Conc." intreg="Din concediu" />
                 </Link>
               )}
               <span className="sr-only"> — {motivBlocare}</span>
@@ -345,10 +425,13 @@ function CelulaLunii({
   }
 
   return (
-    <td className={`border-border h-20 border align-top ${fundal}`}>
+    <td
+      className={`border-border h-16 border align-top sm:h-20 ${fundal}`}
+      aria-current={esteAzi ? "date" : undefined}
+    >
       <Link
         href={`/portal/pontajul-meu/zi/${data}`}
-        className="hover:bg-surface block h-full p-1.5 transition-colors"
+        className="hover:bg-surface block h-full p-1 transition-colors sm:p-1.5"
       >
         {corp}
       </Link>

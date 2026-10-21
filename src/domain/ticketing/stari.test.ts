@@ -2,12 +2,15 @@
 import { describe, expect, it } from "vitest";
 import {
   cereAprobare,
+  esteDecizie,
   poateSchimbaStatusul,
   statusInitial,
   STATUSURI_TICHET,
   tranzitiePermisa,
   tranzitiiOferite,
   tranzitiiPosibile,
+  tranzitiiPeTichet,
+  tranzitiiSolicitantului,
   type DrepturiActor,
 } from "./stari";
 
@@ -145,6 +148,110 @@ describe("ce se oferă în interfață", () => {
   it("unui străin nu i se oferă nimic", () => {
     for (const status of STATUSURI_TICHET) {
       expect(tranzitiiOferite(status, STRAIN), status).toEqual([]);
+    }
+  });
+});
+
+describe("decizia asupra unei cereri", () => {
+  it("e doar ieșirea din „în aprobare” spre „în lucru” sau „respins”", () => {
+    expect(esteDecizie("in_aprobare", "in_lucru")).toBe(true);
+    expect(esteDecizie("in_aprobare", "respins")).toBe(true);
+  });
+
+  it("anularea unei cereri și prelucrarea obișnuită nu sunt decizii", () => {
+    expect(esteDecizie("in_aprobare", "anulat")).toBe(false);
+    expect(esteDecizie("nou", "in_lucru")).toBe(false);
+    expect(esteDecizie("redeschis", "in_lucru")).toBe(false);
+    expect(esteDecizie("respins", "redeschis")).toBe(false);
+  });
+});
+
+describe("ce i se oferă solicitantului în portal", () => {
+  it("pe un tichet rezolvat: confirmă sau redeschide", () => {
+    expect(tranzitiiSolicitantului("rezolvat")).toEqual(["inchis", "redeschis"]);
+  });
+
+  it("pe un tichet închis: doar redeschide", () => {
+    expect(tranzitiiSolicitantului("inchis")).toEqual(["redeschis"]);
+  });
+
+  it("nimic în restul stărilor — nici anularea, nici redeschiderea unei cereri respinse", () => {
+    // `respins → redeschis` e permis în domeniu și în bază, dar ocolește
+    // reaprobarea; `anulat` e definitiv și ar cere o confirmare. Portalul nu
+    // le oferă — deliberat mai îngust decât `tranzitiiOferite`.
+    for (const status of STATUSURI_TICHET) {
+      if (status === "rezolvat" || status === "inchis") continue;
+      expect(tranzitiiSolicitantului(status), status).toEqual([]);
+    }
+  });
+
+  it("nu oferă niciodată ceva ce domeniul ar refuza solicitantului", () => {
+    for (const status of STATUSURI_TICHET) {
+      const oferite = tranzitiiOferite(status, SOLICITANT);
+      for (const catre of tranzitiiSolicitantului(status)) {
+        expect(oferite, `${status} → ${catre}`).toContain(catre);
+      }
+    }
+  });
+});
+
+describe("ce se oferă ca buton de stare pe pagina tichetului din aplicație", () => {
+  it("solicitantul nu-și poate redeschide cererea respinsă — ar ocoli reaprobarea", () => {
+    expect(tranzitiiPeTichet("respins", SOLICITANT)).not.toContain("redeschis");
+    expect(tranzitiiPeTichet("respins", SOLICITANT)).toEqual(["anulat"]);
+  });
+
+  it("solicitantul își poate anula cererea oriunde e încă deschisă — singura cale din interfață", () => {
+    for (const status of [
+      "nou",
+      "in_aprobare",
+      "respins",
+      "in_lucru",
+      "in_asteptare",
+      "redeschis",
+    ] as const) {
+      expect(tranzitiiPeTichet(status, SOLICITANT), status).toContain("anulat");
+    }
+  });
+
+  it("în afară de ocoliș, solicitantul păstrează tot ce-i dă domeniul (fără decizii)", () => {
+    for (const status of STATUSURI_TICHET) {
+      if (status === "respins") continue;
+      expect(tranzitiiPeTichet(status, SOLICITANT), status).toEqual(
+        tranzitiiOferite(status, SOLICITANT).filter((catre) => !esteDecizie(status, catre)),
+      );
+    }
+    expect(tranzitiiPeTichet("rezolvat", SOLICITANT)).toEqual(tranzitiiSolicitantului("rezolvat"));
+    expect(tranzitiiPeTichet("inchis", SOLICITANT)).toEqual(tranzitiiSolicitantului("inchis"));
+  });
+
+  it("operatorul păstrează toate tranzițiile lui, fără decizii", () => {
+    expect(tranzitiiPeTichet("respins", PATRON)).toEqual(["anulat", "redeschis"]);
+    expect(tranzitiiPeTichet("in_aprobare", PATRON)).toEqual(["anulat"]);
+    const operatorSolicitant: DrepturiActor = { ...SOLICITANT, poateOpera: true };
+    expect(tranzitiiPeTichet("in_lucru", operatorSolicitant)).toEqual(
+      tranzitiiOferite("in_lucru", operatorSolicitant),
+    );
+  });
+
+  it("decizia asupra cererii nu e niciodată buton de stare", () => {
+    for (const drepturi of [SOLICITANT, MANAGER, PATRON, STRAIN]) {
+      for (const catre of tranzitiiPeTichet("in_aprobare", drepturi)) {
+        expect(esteDecizie("in_aprobare", catre)).toBe(false);
+      }
+    }
+  });
+
+  it("nu oferă niciodată ceva ce domeniul ar refuza", () => {
+    for (const drepturi of [SOLICITANT, MANAGER, PATRON, STRAIN]) {
+      for (const status of STATUSURI_TICHET) {
+        for (const catre of tranzitiiPeTichet(status, drepturi)) {
+          expect(
+            poateSchimbaStatusul(status, catre, drepturi).permisa,
+            `${status} → ${catre}`,
+          ).toBe(true);
+        }
+      }
     }
   });
 });

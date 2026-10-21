@@ -414,7 +414,7 @@ export const MESAJE: readonly MesajIncarcare[] = [
   // ── Integrare angajați și evaluări ────────────────────────────────────
   // src/app/(app)/onboarding/[id]/dovada/page.tsx
   {
-    text: "Parcurgerea unui checklist de integrare produce o dovadă tipăribilă, cu pașii și momentul fiecăruia.",
+    text: "Un parcurs de integrare finalizat produce o dovadă tipăribilă, cu pașii și momentul fiecăruia.",
     categorie: "Integrare angajați și evaluări",
   },
   // src/config/permissions.ts (checklists:update / checklists:approve)

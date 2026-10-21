@@ -48,6 +48,7 @@ const DENUMIRI: Readonly<Record<string, string>> = {
   nda: "Acord de confidențialitate",
   anexa_proprietate_intelectuala: "Anexă de proprietate intelectuală",
   act_aditional_telemunca: "Act adițional de telemuncă",
+  act_aditional_salariu: "Act adițional de modificare a salariului",
   document_personal: "Document de personal",
   adeverinta: "Adeverință",
   adeverinta_salariat: "Adeverință de salariat",
@@ -103,6 +104,7 @@ const DENUMIRI: Readonly<Record<string, string>> = {
   nota_interna: "Notă internă",
   sesizare_defectiune: "Sesizare de defecțiune",
   dovada_integrare: "Dovadă de integrare",
+  afis_punct_lucru: "Afiș pentru punctul de lucru",
 };
 
 /** „adeverinta_vechime" → „Adeverinta vechime" pentru codurile fără denumire proprie. */

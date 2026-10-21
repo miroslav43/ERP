@@ -13,7 +13,12 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { anDinUrl } from "@/lib/rute/parametri";
-import { listeazaPerioade, type PerioadaPontaj } from "@/lib/queries/attendance";
+import {
+  listeazaPerioade,
+  numaraLiniiNeaprobate,
+  numaraZileRespinse,
+  type PerioadaPontaj,
+} from "@/lib/queries/attendance";
 import { stareaLunii } from "@/domain/attendance/luna";
 
 import { ButonSetariPontaj } from "../buton-setari";
@@ -62,6 +67,28 @@ async function TabelPerioade({
 }) {
   const perioade = await listeazaPerioade(organizationId, an);
   const dupaLuna = new Map(perioade.map((p) => [p.luna, p]));
+
+  // Cifra din caseta de blocare: câte linii ar rămâne neaprobate. Doar pentru
+  // lunile care SE POT bloca (cu rând și neblocate) — cel mult 12 contoare
+  // exacte, în paralel, nu `.select("period_id")` numărat în aplicație, care
+  // se trunchiază tăcut la 1000.
+  const deBlocat = perioade.filter((p) => p.status !== "blocata");
+  // Plus zilele respinse și necorectate, pe care contorul de mai sus le exclude
+  // deliberat și pe care salarizarea nu le plătește (0198).
+  const contoare = await Promise.all(
+    deBlocat.map(
+      async (p) =>
+        [
+          p.id,
+          await Promise.all([
+            numaraLiniiNeaprobate(organizationId, p.id),
+            numaraZileRespinse(organizationId, p.id),
+          ]),
+        ] as const,
+    ),
+  );
+  const liniiNeaprobate = new Map(contoare.map(([id, [linii]]) => [id, linii]));
+  const zileRespinse = new Map(contoare.map(([id, [, respinse]]) => [id, respinse]));
 
   const randuri: readonly RandPerioada[] = LUNI_ETICHETE.map((eticheta, index) => ({
     luna: index + 1,
@@ -147,10 +174,11 @@ async function TabelPerioade({
       antet: "Acțiuni",
       antetAscuns: true,
       latime: "ingusta",
-      // „insignă”, nu „meta”: `ActiuniPerioada` randează un `<div>`, iar rândul
-      // mărunt al cardului e un `<p>` — browserul l-ar închide devreme și
-      // hidratarea ar cădea.
-      peTelefon: "insigna",
+      // „actiuni”, nu „insignă” și nu „meta”: `ActiuniPerioada` deschide un
+      // `<dialog>` de confirmare, iar `insigna`/`meta` ajung pe card într-un
+      // `<p>` — „<dialog> cannot be a descendant of <p>”, hidratarea ar cădea
+      // (regula din `tabel.tsx`, la `peTelefon`).
+      peTelefon: "actiuni",
       celula: (rand) => (
         <ActiuniPerioada
           an={an}
@@ -159,6 +187,10 @@ async function TabelPerioade({
           status={rand.perioada?.status ?? null}
           poateDeschide={poateDeschide}
           poateBloca={poateBloca}
+          liniiNeaprobate={
+            rand.perioada === null ? 0 : (liniiNeaprobate.get(rand.perioada.id) ?? 0)
+          }
+          zileRespinse={rand.perioada === null ? 0 : (zileRespinse.get(rand.perioada.id) ?? 0)}
         />
       ),
     },

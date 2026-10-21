@@ -259,6 +259,26 @@ describe("adaugaFisaAptitudine", () => {
       error: { code: "CONFLICT", message: "Există deja o înregistrare cu aceste date." },
     });
   });
+
+  // QA 8 oct 2026, HR-017: o fișă „valabilă până" la 01.01.2026 pentru un
+  // examen din 10.09.2026 se salva și intra direct în raportul de expirări.
+  it("valabilitatea anterioară examinării: VALIDARE pe `valabil_pana`, zero INSERT, audit fără date medicale", async () => {
+    const { server } = configureazaActiunea({ permisiuni: CREARE });
+    const r = await adaugaFisaAptitudine({ ...fisa, valabil_pana: "2026-01-01" });
+    await asteaptaDupa();
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    if (r.ok) return;
+    expect(r.error.fieldErrors?.["valabil_pana"]?.[0]).toContain("anterioară datei examinării");
+    expect(server.apeluriPe("occupational_health_exams")).toHaveLength(0);
+    // `createAction` jurnalizează și refuzul (status `denied`), dar prin aceeași
+    // allow-list: art. 9 GDPR se păstrează și pe calea asta.
+    const [audit] = server.audituri();
+    expect(audit).toMatchObject({ p_status: "denied" });
+    expect(audit?.p_after).not.toHaveProperty("rezultat");
+    expect(audit?.p_after).not.toHaveProperty("medic");
+    expect(audit?.p_after).not.toHaveProperty("unitate_medicala");
+    expect(audit?.p_after).not.toHaveProperty("cost");
+  });
 });
 
 describe("nomenclatorInstruiri", () => {

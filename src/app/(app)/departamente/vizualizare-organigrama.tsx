@@ -148,7 +148,7 @@ export function VizualizareOrganigrama({
     // Derularea orizontală e a acestui bloc, niciodată a documentului. Bleed-ul
     // `-mx-4 px-4` îi dă toată lățimea ecranului pe telefon, fără să scoată
     // pagina din marginile ei.
-    <div className="-mx-4 overflow-x-auto px-4 pb-4">
+    <div className="relative -mx-4 overflow-x-auto px-4 pb-4">
       <div className="w-fit min-w-full">
         <Ramura noduri={noduri} nivel={1} laDeschiderePanou={laDeschiderePanou} />
       </div>

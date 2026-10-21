@@ -1,8 +1,10 @@
 // src/app/(app)/setari/organizatie/actions.test.ts
 //
-// Setările firmei. Organizația vine din tenant, nu din payload (S1); `cui` și
-// `tara` sunt NOT NULL, deci lipsa lor se OMITE din UPDATE în loc să trimită
-// null; regulile care altfel ar cădea în bază ca 23514 fără câmp sunt în schemă.
+// Setările firmei. Organizația vine din tenant, nu din payload (S1); `tara` e
+// NOT NULL, deci lipsa ei se OMITE din UPDATE în loc să trimită null; `cui` nu
+// se scrie DELOC de aici — garda `internal.guard_organizations` îl readuce la
+// valoarea veche fără eroare, deci un „salvat” pe el ar minți (ADM-039); regulile
+// care altfel ar cădea în bază ca 23514 fără câmp sunt în schemă.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -121,26 +123,32 @@ describe("actualizeazaOrganizatia", () => {
     expect(Number.isNaN(Date.parse(String(p.updated_at)))).toBe(false);
   });
 
-  it("`cui` și `tara` lipsă se OMIT din UPDATE (coloane NOT NULL), nu se trimit ca null", async () => {
+  it("`tara` lipsă se OMITE din UPDATE (coloană NOT NULL), nu se trimite ca null", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
     server.raspunde("organizations", "update", { data: { id: ORG_ID, name: "Firma Test" } });
 
     await actualizeazaOrganizatia({ ...minim, tara: "" });
 
-    const p = payloadScris(server);
-    expect(p).not.toHaveProperty("cui");
-    expect(p).not.toHaveProperty("tara");
+    expect(payloadScris(server)).not.toHaveProperty("tara");
   });
 
-  it.each([
-    ["ro 123456", "RO123456"],
-    ["RO123456", "RO123456"],
-    ["12345678", "12345678"],
-  ])("CUI-ul %j se scrie normalizat ca %j", async (cui, asteptat) => {
+  it("`cui` trimis de un client vechi se IGNORĂ: nu intră în UPDATE, nu dă eroare, nu apare în audit", async () => {
+    // Garda `internal.guard_organizations` (0002, redefinită în 0121 și 0186)
+    // face `new.cui := old.cui` pentru orice sesiune non-platformă și întoarce
+    // rândul FĂRĂ eroare. Un UPDATE care îl trimite reușește, iar ecranul spune
+    // „salvat” pentru o valoare care n-a fost scrisă (ADM-039, PRM-002/G6).
+    // Cheia iese din schemă; `z.object` taie cheile necunoscute, deci un client
+    // vechi care îl mai trimite nu cade — e doar ignorat.
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
     server.raspunde("organizations", "update", { data: { id: ORG_ID, name: "Firma Test" } });
-    await actualizeazaOrganizatia({ ...minim, cui });
-    expect(payloadScris(server).cui).toBe(asteptat);
+
+    const r = await actualizeazaOrganizatia({ ...minim, cui: "RO123456" });
+    await asteaptaDupa();
+
+    expect(r.ok).toBe(true);
+    expect(payloadScris(server)).not.toHaveProperty("cui");
+    const audit = server.audituri().find((a) => a.p_status === "success");
+    expect(audit?.p_after).not.toHaveProperty("cui");
   });
 
   it("țara se scrie ca cod ISO cu majuscule", async () => {
@@ -180,7 +188,6 @@ describe("actualizeazaOrganizatia", () => {
       "cod_caen_secundare",
     ],
     ["țară inexistentă", { tara: "XX" }, "tara"],
-    ["CUI cu litere", { cui: "RO12AB" }, "cui"],
     ["capital negativ", { capital_social: "-1" }, "capital_social"],
     [
       "zile de concediu peste 60",

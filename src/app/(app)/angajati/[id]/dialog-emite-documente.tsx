@@ -149,7 +149,7 @@ export function DialogEmiteDocumente({
             </Callout>
           ) : alese.size === 0 ? (
             <Callout fel="informativ" titlu="Niciun document ales">
-              Bifează documentele pe care vrei să le emiți.
+              Bifați documentele pe care vreți să le emiteți.
             </Callout>
           ) : null}
         </div>

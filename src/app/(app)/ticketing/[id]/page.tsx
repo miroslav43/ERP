@@ -11,6 +11,7 @@ import { cn } from "@/lib/ui/cn";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
+import { idDinRuta } from "@/lib/rute/parametri";
 import { formatDate, formatDateTime } from "@/lib/format/date";
 import {
   citesteTichetul,
@@ -24,10 +25,11 @@ import {
 import { NAV_ITEMS } from "@/config/navigation";
 import { MarcheazaDuplicat } from "./marcheaza-duplicat";
 import { fisaProprie } from "@/lib/queries/portal";
-import { tranzitiiOferite, type StatusTichet } from "@/domain/ticketing/stari";
+import { tranzitiiPeTichet, type StatusTichet } from "@/domain/ticketing/stari";
 import type { Prioritate } from "@/domain/ticketing/prioritate";
 
 import {
+  ETICHETE_ACTIUNE_SOLICITANT,
   ETICHETE_CAMP,
   ETICHETE_PRIORITATE,
   ETICHETE_STATUS,
@@ -146,7 +148,10 @@ export default async function PaginaTichet({ params, searchParams }: Proprietati
     return <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta tichetele." />;
   }
 
-  const { id } = await params;
+  // Numărul afișat pe tichet (`IT-2026-00004`) nu e id: adresa cu el dă 404,
+  // ca orice segment care nu e UUID (ADM-043).
+  const { id: idBrut } = await params;
+  const id = idDinRuta(idBrut);
   const tichet = await citesteTichetul(id);
   // RLS-ul a filtrat deja: dacă nu se vede, pentru utilizator nu există.
   if (tichet === null) notFound();
@@ -197,8 +202,18 @@ export default async function PaginaTichet({ params, searchParams }: Proprietati
   ]);
   const rutaModul = hrefModul(tichet.modul);
   const drepturi = { esteSolicitant, poateAproba, poateOpera };
-  const optiuni = tranzitiiOferite(tichet.status as StatusTichet, drepturi);
+  const status = tichet.status as StatusTichet;
+  // Decizia are o singură cale, `DecizieCerere` → `decideTichet`, care scrie și
+  // `motiv_respingere`. Oferită și ca buton de stare, „Respins” lovea
+  // `tickets_respingere_ck` (23514) cu eroare generică, iar „În lucru” dubla
+  // „Aprobă” (MGR-011). Solicitantul care nu operează nu-și mai poate redeschide
+  // de aici cererea respinsă (ar ocoli reaprobarea), dar își păstrează „Anulează”.
+  const optiuni = tranzitiiPeTichet(status, drepturi);
   const asteaptaDecizia = tichet.status === "in_aprobare" && poateAproba;
+  // După aprobare, cine nu operează nu mai are niciun buton și nu vede cine
+  // preia — tichetul părea rămas în gol (MGR-011).
+  const asteaptaPreluarea =
+    tichet.status === "in_lucru" && tichet.asignat_employee_id === null && !poateOpera;
   const diagnostic = contextDiagnostic(tichet.context);
 
   return (
@@ -247,6 +262,12 @@ export default async function PaginaTichet({ params, searchParams }: Proprietati
           <p className="text-foreground text-corp font-medium">Motivul respingerii</p>
           <p className="text-muted-foreground text-corp mt-1">{tichet.motiv_respingere}</p>
         </div>
+      )}
+
+      {asteaptaPreluarea && (
+        <p className="border-border bg-surface text-muted-foreground rounded-control text-corp border p-3">
+          Cererea a fost aprobată. Echipa de suport o preia din coadă; responsabilul va apărea aici.
+        </p>
       )}
 
       {asteaptaDecizia && (
@@ -414,13 +435,18 @@ export default async function PaginaTichet({ params, searchParams }: Proprietati
             eticheta="Cost estimat"
             valoare={tichet.cost_estimat === null ? null : `${tichet.cost_estimat} RON`}
           />
+          {/* Pe coloana brută: managerul are `employees:read = team`, operatorul
+              IT nu e în echipa lui, deci embed-ul vine NULL și rândul dispărea
+              deși tichetul era repartizat (FLX-004 pentru aprobator). */}
           <Rand
             eticheta="Asignat"
             valoare={
-              tichet.asignat === null ? null : (
+              tichet.asignat_employee_id === null ? null : tichet.asignat !== null ? (
                 <LinkEntitate href={hrefFisa(tichet.asignat, permisiuni)}>
                   {tichet.asignat.full_name}
                 </LinkEntitate>
+              ) : (
+                "Preluat de echipa de suport"
               )
             }
           />
@@ -457,7 +483,13 @@ export default async function PaginaTichet({ params, searchParams }: Proprietati
         ) : null}
       </section>
 
-      <SchimbaStatus ticketId={tichet.id} optiuni={optiuni} />
+      {/* Un patron/manager/hr care își deschide PROPRIUL tichet aici vede
+          aceleași verbe ca angajatul în portal; echipa păstrează numele stărilor. */}
+      <SchimbaStatus
+        ticketId={tichet.id}
+        optiuni={optiuni}
+        {...(esteSolicitant && !poateOpera ? { etichete: ETICHETE_ACTIUNE_SOLICITANT } : {})}
+      />
 
       {/* Repartizarea și prioritatea sunt acțiunile operatorului, nu ale
           solicitantului: amândouă cer `tickets:update = all`, exact ce verifică

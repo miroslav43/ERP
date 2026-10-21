@@ -22,9 +22,14 @@ describe("NOMENCLATOR_CAEN", () => {
   it("conține codurile interzise pentru SRL-D cu denumirea corectă", () => {
     const gasesteDenumire = (cod: string) => NOMENCLATOR_CAEN.find((c) => c.cod === cod)?.denumire;
 
-    expect(gasesteDenumire("9200")).toBe("Activităţi de jocuri de noroc şi pariuri");
+    expect(gasesteDenumire("9200")).toBe("Activități de jocuri de noroc și pariuri");
     expect(gasesteDenumire("1105")).toBe("Fabricarea berii");
-    expect(gasesteDenumire("6811")).toBe("Cumpărarea şi vânzarea de bunuri imobiliare proprii");
+    expect(gasesteDenumire("6811")).toBe("Cumpărarea și vânzarea de bunuri imobiliare proprii");
+  });
+
+  it("nicio denumire nu păstrează ş/ţ cu sedilă din PDF (QA ONB-016)", () => {
+    const cuSedila = NOMENCLATOR_CAEN.filter((c) => /[şţŞŢ]/u.test(c.denumire)).map((c) => c.cod);
+    expect(cuSedila).toEqual([]);
   });
 });
 

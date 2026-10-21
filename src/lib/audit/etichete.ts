@@ -13,7 +13,13 @@ import type { TonStare } from "@/components/ui/badge";
 export type Optiune = Readonly<{ valoare: string; eticheta: string }>;
 
 const umanizeaza = (cheie: string): string => {
-  const curat = cheie.replace(/[_.]+/g, " ").trim();
+  // Cheile din `redactPayload(input, allow)` sunt camelCase („motivRespingere”):
+  // fără despărțire, rezerva scria „MotivRespingere” (FLX-006).
+  const curat = cheie
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[_.]+/g, " ")
+    .trim()
+    .toLowerCase();
   if (curat === "") return "—";
   return `${curat.charAt(0).toUpperCase()}${curat.slice(1)}`;
 };
@@ -132,8 +138,103 @@ const ENTITATI: Readonly<Record<string, string>> = {
   employee_evaluations: "Evaluare",
   checklist_instances: "Parcurs de integrare",
   checklist_instance: "Parcurs de integrare",
-  checklist_templates: "Șablon de integrare",
+  checklist_templates: "Șablon de parcurs",
   registru_documente: "Document din registru",
+  // FLX-006: tabelele cu `internal.attach_audit` și literalele singulare din
+  // `def.audit.entityType` care lipseau. Fără ele, jurnalul arăta „Approval
+  // tasks” sau „Employee sensitive data”, iar filtrul nu le cunoștea.
+  approval_tasks: "Sarcină de aprobare",
+  approval_flows: "Flux de aprobare",
+  approval_steps: "Pas de aprobare",
+  alert_rules: "Regulă de alertă",
+  compliance_alerts: "Alertă de conformitate",
+  employee_sensitive_data: "Date sensibile ale angajatului",
+  employee_dependents: "Persoană în întreținere",
+  employee_dependent: "Persoană în întreținere",
+  employee_documents: "Document al angajatului",
+  employee_tax_exemptions: "Scutire fiscală",
+  employment_contract: "Contract de muncă",
+  contract_suspendare: "Suspendare de contract",
+  inrolare_ciorna: "Ciornă de înrolare",
+  organization: "Organizație",
+  organization_bank_accounts: "Cont bancar al organizației",
+  organization_holidays: "Zi liberă a organizației",
+  role_permission: "Permisiune pe rol",
+  attendance_entry: "Zi de pontaj",
+  attendance_settings: "Setări de pontaj",
+  attendance_week_submission: "Săptămână de pontaj",
+  attendance_approval_batch: "Aprobare de pontaj în lot",
+  setari_pontare_rapida: "Setări de pontare rapidă",
+  leave_types: "Tip de concediu",
+  leave_type: "Tip de concediu",
+  leave_type_variants: "Variantă de tip de concediu",
+  leave_entitlement_rules: "Regulă de drept la concediu",
+  leave_entitlement_rule: "Regulă de drept la concediu",
+  leave_balances: "Sold de concediu",
+  medical_leave_codes: "Cod de concediu medical",
+  payroll_settings: "Setări de salarizare",
+  payroll_bonus_rules: "Regulă de primă",
+  payroll_bonuses: "Primă",
+  payroll_bonus: "Primă",
+  payroll_deductions: "Reținere",
+  payroll_deduction: "Reținere",
+  payroll_garnishments: "Poprire",
+  payroll_garnishment: "Poprire",
+  payroll_personal_deduction_brackets: "Grilă de deducere personală",
+  payroll_prior_income: "Venit anterior",
+  salary_components: "Componentă salarială",
+  salary_component_types: "Tip de componentă salarială",
+  per_diem_policy: "Politică de diurnă",
+  per_diem_valori_legale: "Valori legale de diurnă",
+  business_trip_leg: "Etapă de deplasare",
+  trip_expense: "Cheltuială de deplasare",
+  vehicle_assignment: "Atribuire de vehicul",
+  vehicle_document: "Document de vehicul",
+  fuel_entry: "Alimentare cu combustibil",
+  odometer_anomaly: "Anomalie de kilometraj",
+  ticket_comment: "Comentariu la tichet",
+  ticket_watcher: "Urmăritor de tichet",
+  fault_report_comment: "Comentariu la sesizare",
+  equipment_meter: "Contor de echipament",
+  equipment_oprire: "Oprire de echipament",
+  maintenance_intervention: "Intervenție de mentenanță",
+  maintenance_attachment: "Fișier de mentenanță",
+  maintenance_settings: "Setări de mentenanță",
+  inventory_allocation: "Predare de inventar",
+  checklist_instance_item: "Pas din parcurs",
+  checklist_template: "Șablon de parcurs",
+  checklist_template_item: "Pas din șablon",
+  checklist_template_stages: "Etapă din șablon",
+  checklist_material_reads: "Material citit în parcurs",
+  course_items: "Lecție de curs",
+  course_material_versions: "Versiune de material",
+  course_enrollment_items: "Progres la curs",
+  course_assignment_rules: "Regulă de atribuire a cursurilor",
+  course_quiz_attempts: "Încercare la test",
+  course_answer_keys: "Barem de test",
+  evaluation_templates: "Șablon de evaluare",
+  kpi_seturi: "Set de indicatori",
+  kpi_tinte_angajat: "Ținte KPI ale angajatului",
+  announcement_read: "Confirmare de citire a anunțului",
+  hr_document_templates: "Șablon de document",
+  hr_issued_documents: "Document emis",
+  ssm_training: "Instruire SSM",
+  ssm_training_type: "Tip de instruire SSM",
+  occupational_health_exam: "Examen de medicina muncii",
+  ppe_issuance: "Echipament de protecție predat",
+  personnel_authorization: "Autorizație de personal",
+  iscir_authorization: "Autorizație ISCIR",
+  fire_extinguisher: "Stingător",
+  fire_extinguisher_check: "Verificare de stingător",
+  registru_document: "Document din registru",
+  registru_exercitiu: "Exercițiu de registru",
+  nomenclator_config: "Configurare de nomenclator",
+  nomenclator_dosar: "Dosar din nomenclator",
+  reges_credentiale: "Credențiale REGES",
+  reges_nomenclatoare: "Nomenclatoare REGES",
+  reges_nomenclator: "Nomenclator REGES",
+  reges_propuneri: "Propunere REGES",
+  reges_termene: "Termen REGES",
 };
 
 const VALORI_ENTITATI: readonly string[] = Object.keys(ENTITATI);
@@ -168,6 +269,40 @@ const CAMPURI: Readonly<Record<string, string>> = {
   platitor_tva: "Plătitor de TVA",
   forma_juridica: "Formă juridică",
   settings: "Setări",
+  motiv_respingere: "Motivul respingerii",
+  // Cheile camelCase scrise de `redactPayload(input, allow)` în acțiuni.
+  motivRespingere: "Motivul respingerii",
+  taskId: "Sarcină",
+  decizie: "Decizie",
+  comentariu: "Comentariu",
+  employeeId: "Angajat",
+};
+
+/**
+ * Valorile de enum care ajung în diferențe ca șiruri brute („aprobata”,
+ * „in_lucru”). Se traduc doar când valoarea întreagă e un cod cunoscut; textul
+ * liber trece neatins (FLX-006).
+ */
+const VALORI: Readonly<Record<string, string>> = {
+  ciorna: "Ciornă",
+  trimisa: "Trimisă",
+  in_aprobare: "În aprobare",
+  aprobata: "Aprobată",
+  aprobat: "Aprobat",
+  respinsa: "Respinsă",
+  respins: "Respins",
+  anulata: "Anulată",
+  anulat: "Anulat",
+  nou: "Nou",
+  in_lucru: "În lucru",
+  in_asteptare: "Așteaptă solicitantul",
+  rezolvat: "Rezolvat",
+  inchis: "Închis",
+  redeschis: "Redeschis",
+  activ: "Activ",
+  inactiv: "Inactiv",
+  finalizat: "Finalizat",
+  in_curs: "În curs",
 };
 
 const STATUSURI: Readonly<Record<string, string>> = {
@@ -198,6 +333,14 @@ export const etichetaEntitate = (valoare: string | null): string =>
 
 export const etichetaCamp = (cale: readonly string[]): string =>
   cale.map((parte) => CAMPURI[parte] ?? umanizeaza(parte)).join(" › ");
+
+/**
+ * Eticheta unei valori din diferență. Doar șirurile care sunt, întregi, un cod
+ * cunoscut se traduc; orice altceva se întoarce neschimbat, pentru
+ * `formateazaValoare`.
+ */
+export const etichetaValoare = <T>(_cale: readonly string[], valoare: T): T | string =>
+  typeof valoare === "string" ? (VALORI[valoare] ?? valoare) : valoare;
 
 export const etichetaStatus = (valoare: string): string =>
   STATUSURI[valoare] ?? umanizeaza(valoare);

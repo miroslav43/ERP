@@ -193,6 +193,7 @@ export function Combobox({
 
   const refRadacina = useRef<HTMLDivElement | null>(null);
   const refInput = useRef<HTMLInputElement | null>(null);
+  const refAscuns = useRef<HTMLInputElement | null>(null);
   const refLista = useRef<HTMLUListElement | null>(null);
 
   const [valoareInterna, setValoareInterna] = useState(valoareInitiala ?? "");
@@ -262,14 +263,32 @@ export function Combobox({
     }
   }, [deschis, indiceActiv]);
 
-  // React 19 resetează formularul după o acțiune reușită, iar `<button type="reset">`
-  // face același lucru. Câmpul ascuns e controlat de starea de mai sus, deci ar
-  // rămâne singurul câmp plin într-un formular altfel golit — și s-ar retrimite.
+  /*
+   * React 19 resetează formularul după ORICE acțiune de formular — reușită sau
+   * refuz — iar `<button type="reset">` face același lucru. Câmpul ascuns e
+   * controlat de starea de mai sus, deci ar rămâne singurul câmp plin într-un
+   * formular altfel golit — și s-ar retrimite.
+   *
+   * ── DE CE VALOAREA INIȚIALĂ SE CITEȘTE DIN DOM, NU DIN ÎNCHIDERE ─────────
+   * Sub `<Formular>`, după un refuz, părintele randează din nou cu
+   * `valoareInitiala={valoriTrimise[...]}` — alegerea trimisă. Dar resetul lui
+   * React sosește în FAZA DE MUTAȚIE a aceluiași commit (`recursivelyResetForms`,
+   * la sfârșitul ei), adică ÎNAINTE ca un `useEffect([valoareInitiala])` să se
+   * reaboneze. Ascultătorul care prindea resetul era cel vechi, închis peste
+   * `valoareInitiala` din randarea precedentă — `""` — și golea comboboxul exact
+   * când formularul își recăpăta restul valorilor (ADM-025: „Echipament” revenea
+   * gol, iar următoarea trimitere dădea „Echipamentul selectat nu este valid.”).
+   *
+   * Atributele gazdelor se scriu tot în faza de mutație, dar ÎNAINTE de reset —
+   * e aceeași garanție care face `defaultValue` să meargă pe `<input>`. Deci
+   * `data-initiala` de pe câmpul ascuns poartă deja valoarea NOUĂ când sosește
+   * `reset`, iar ascultătorul, abonat o singură dată, o citește de acolo.
+   */
   useEffect(() => {
     const formular = refRadacina.current?.closest("form") ?? null;
     if (formular === null) return;
     const laReset = (): void => {
-      setValoareInterna(valoareInitiala ?? "");
+      setValoareInterna(refAscuns.current?.dataset["initiala"] ?? "");
       setInterogare(null);
       setDeschis(false);
     };
@@ -277,7 +296,7 @@ export function Combobox({
     return () => {
       formular.removeEventListener("reset", laReset);
     };
-  }, [valoareInitiala]);
+  }, []);
 
   function deschide(): void {
     if (dezactivat === true) return;
@@ -360,7 +379,15 @@ export function Combobox({
           dezactivat nu se trimite, iar primitiva se dă drept înlocuitor
           cap-la-cap pentru `<select>`. Fără el, un combobox dezactivat își
           trimitea valoarea, spre deosebire de `<select disabled>`. */}
-      <input type="hidden" name={name} value={valoareAleasa} disabled={dezactivat} />
+      <input
+        ref={refAscuns}
+        type="hidden"
+        name={name}
+        value={valoareAleasa}
+        disabled={dezactivat}
+        // Citit de ascultătorul de `reset` — vezi comentariul efectului de mai sus.
+        data-initiala={valoareInitiala ?? ""}
+      />
 
       {/* Regiune vie montată permanent: dacă ar apărea odată cu mesajul, o parte
           dintre cititoarele de ecran n-ar anunța niciodată golul. */}

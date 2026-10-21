@@ -279,7 +279,11 @@ describe("decideFoaie", () => {
     const mesaj = "Nu vă puteţi aproba singur propria foaie de parcurs.";
     server.raspunde("trip_sheets", "update", { error: eroarePostgrest("P0001", mesaj) });
     const r = await decideFoaie({ id: ID_1, decizie: "aprobat" });
-    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT", message: mesaj } });
+    // Mesajul din 0018 are sedilă; ajunge la om cu virgulă dedesubt (ADM-021).
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "CONFLICT", message: "Nu vă puteți aproba singur propria foaie de parcurs." },
+    });
   });
 });
 

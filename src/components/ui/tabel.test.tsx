@@ -146,6 +146,18 @@ describe("Tabel — pe telefon", () => {
     expect(within(lista as HTMLElement).getAllByRole("listitem")).toHaveLength(2);
   });
 
+  it("containerul derulabil al tabelului e poziționat, ca `sr-only` din antet să nu întindă pagina", () => {
+    // `sr-only` = `position: absolute`. Fără un strămoș poziționat, blocul
+    // conținător e cel inițial, iar poziția statică a spanului dintr-o coloană
+    // îndepărtată întinde `documentElement` (UX-005; memoria
+    // `erp-sronly-in-overflow`). `overflow` decupează doar ce-l are drept bloc
+    // conținător.
+    const { container } = randeaza();
+    const tabel = container.querySelector("div.md\\:block");
+    expect(tabel?.classList.contains("overflow-x-auto")).toBe(true);
+    expect(tabel?.classList.contains("relative")).toBe(true);
+  });
+
   it("coloana `ascuns` nu apare în varianta de card", () => {
     const { container } = randeaza();
     const lista = container.querySelector("ul.md\\:hidden") as HTMLElement;
@@ -185,6 +197,39 @@ describe("Tabel — pe telefon", () => {
     // Și metadatele rămân în paragraf, fără coloana de acțiuni.
     const meta = lista.querySelector("p") as HTMLElement;
     expect(meta.querySelector("[data-testid=dialog-actiune]")).toBeNull();
+  });
+
+  it("`etichetaTelefon` numește cifra în card, nu și în celula de desktop", () => {
+    // UX-011: soldul de concediu devenea pe telefon „730,00 · 0,00 · 0,00 ·
+    // 0,00” — cifre fără nume, deci nu se mai știa care e dreptul și care restul.
+    const { container } = randeaza({
+      coloane: [
+        { cheie: "nume", antet: "Nume", peTelefon: "titlu", celula: (r) => r.nume },
+        {
+          cheie: "ramase",
+          antet: "Rămase",
+          numeric: true,
+          peTelefon: "meta",
+          etichetaTelefon: "Rămase",
+          celula: () => "20",
+        },
+      ],
+    });
+
+    const lista = container.querySelector("ul.md\\:hidden") as HTMLElement;
+    const meta = within(lista).getAllByRole("listitem")[0]?.querySelector("p") as HTMLElement;
+    expect(meta.textContent).toContain("Rămase: 20");
+
+    const celule = container.querySelectorAll("div.md\\:block td");
+    expect(Array.from(celule, (td) => td.textContent)).toContain("20");
+    expect(Array.from(celule, (td) => td.textContent).join("|")).not.toContain("Rămase:");
+  });
+
+  it("fără `etichetaTelefon`, metadatele rămân doar valoarea", () => {
+    const { container } = randeaza();
+    const lista = container.querySelector("ul.md\\:hidden") as HTMLElement;
+    const meta = within(lista).getAllByRole("listitem")[0]?.querySelector("p") as HTMLElement;
+    expect(meta.textContent).toBe("DEMO-001·4200");
   });
 });
 

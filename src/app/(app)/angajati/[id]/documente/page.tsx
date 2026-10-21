@@ -1,9 +1,12 @@
 // src/app/(app)/angajati/[id]/documente/page.tsx
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, BookMarked, Download, FileText } from "lucide-react";
+import { textNumarat } from "@/app/(app)/mentenanta/etichete";
 import { requireFeature } from "@/lib/auth/features";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
+import { idDinRuta } from "@/lib/rute/parametri";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format/date";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
@@ -23,12 +26,20 @@ import { listeazaSabloanePersonalizate } from "@/lib/queries/sabloane-documente"
 import { DialogEmiteDocumente } from "../dialog-emite-documente";
 import { optiuniEmitere } from "./optiuni-emitere";
 
+// Static, ca frații din `[id]/` (PRM-009, HR-004): fără nume, ca să nu coste o
+// citire în plus și să nu-l scrie în titlul filei cuiva care primește refuz.
+export const metadata: Metadata = { title: "Documentele angajatului" };
+
 export default async function PaginaDocumenteAngajat({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
+  // 404 pentru un segment care nu e UUID, consecvent cu fișa: înainte, 22P02
+  // era înghițit de `const { data: angajat }` de mai jos și pagina răspundea
+  // „Fișa nu e accesibilă" — un refuz fals pentru o adresă care nu există.
+  const { id: idBrut } = await params;
+  const id = idDinRuta(idBrut);
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
@@ -186,7 +197,9 @@ export default async function PaginaDocumenteAngajat({
         <AntetPagina
           className="mt-1"
           titlu={`Documente — ${angajat.full_name ?? ""}`}
-          descriere={`Marca ${angajat.marca} · ${String(documente.data.length)} document(e) în dosar`}
+          // Emisele și fișierele încărcate se numără SEPARAT (UX-021): un singur
+          // „0 document(e) în dosar” stătea deasupra a trei documente emise.
+          descriere={`Marca ${angajat.marca} · ${textNumarat(emiseActive.length, "document emis", "documente emise")} · ${textNumarat(documente.data.length, "fișier încărcat", "fișiere încărcate")}`}
           {...(can(permisiuni, "registru:read", "all")
             ? {
                 actiuni: (

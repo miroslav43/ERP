@@ -1,7 +1,8 @@
 // src/app/(platform)/super-admin/emailuri/page.tsx
 import { Suspense } from "react";
 import { AlertTriangle, Inbox, Mail } from "lucide-react";
-import { requirePlatformAdmin } from "@/lib/auth/platform";
+import { z } from "zod";
+import { metadataPlatforma, requirePlatformAdmin } from "@/lib/auth/platform";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/format/date";
 import { getEmailConfig } from "@/lib/email/config";
@@ -19,7 +20,8 @@ import { Buton, buton } from "@/components/ui/buton";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { cn } from "@/lib/ui/cn";
 
-export const metadata = { title: "Emailuri · Super-Admin" };
+// Titlul doar pentru administratorul de platformă: altfel 404-ul l-ar trăda (PRM-007).
+export const generateMetadata = metadataPlatforma("Emailuri · Panou de platformă");
 export const dynamic = "force-dynamic";
 
 const STATUSURI = ["queued", "sent", "delivered", "bounced", "complained", "failed"] as const;
@@ -47,7 +49,12 @@ type SearchParams = Readonly<Record<string, string | string[] | undefined>>;
 const primaValoare = (v: string | string[] | undefined): string =>
   (Array.isArray(v) ? v[0] : v)?.trim() ?? "";
 
-type Filtre = Readonly<{ status: string; sablon: string; q: string }>;
+/** `org` e un uuid validat sau șirul gol; o valoare stricată din query string e ignorată, nu 404. */
+type Filtre = Readonly<{ status: string; sablon: string; q: string; org: string }>;
+const orgSchema = z.uuid();
+const orgValid = (v: string): string => (orgSchema.safeParse(v).success ? v : "");
+
+type Firma = Readonly<{ id: string; name: string }>;
 
 /** Cheia necunoscută se arată ca atare — baza poate avea șabloane pe care codul nu le știe. */
 const etichetaSablon = (cheie: string): string =>
@@ -66,14 +73,20 @@ function Skeleton() {
 async function TabelEmailuri({ filtre }: { readonly filtre: Filtre }) {
   const supabase = await createServerSupabase();
   const config = getEmailConfig();
+  // Embed-ul `organizations(name)` merge prin FK-ul `email_log_organization_id_fkey`;
+  // platforma vede toate firmele prin `organizations_select`. Rândurile vechi
+  // (dinainte ca jurnalul să scrie firma) și e-mailurile de cont au NULL.
   let cerere = supabase
     .from("email_log")
-    .select("id, destinatar, subiect, template, status, provider_id, error, sent_at, created_at")
+    .select(
+      "id, destinatar, subiect, template, status, provider_id, error, sent_at, created_at, organization_id, organizations(name)",
+    )
     .order("created_at", { ascending: false })
     .limit(100);
   if (esteStatus(filtre.status)) cerere = cerere.eq("status", filtre.status);
   if (filtre.sablon !== "") cerere = cerere.eq("template", filtre.sablon);
   if (filtre.q !== "") cerere = cerere.ilike("destinatar", `%${filtre.q}%`);
+  if (filtre.org !== "") cerere = cerere.eq("organization_id", filtre.org);
 
   const { data, error } = await cerere;
   if (error !== null) {
@@ -142,6 +155,17 @@ async function TabelEmailuri({ filtre }: { readonly filtre: Filtre }) {
       ),
     },
     {
+      cheie: "firma",
+      antet: "Firmă",
+      peTelefon: "meta",
+      // Liniuța acoperă deopotrivă e-mailurile de cont (fără firmă prin natura
+      // lor) și rândurile vechi, scrise înainte ca jurnalul să poarte firma —
+      // niciunul nu e un defect, deci nu se deosebesc vizual.
+      celula: (rand) => (
+        <span className="text-muted-foreground">{rand.organizations?.name ?? "—"}</span>
+      ),
+    },
+    {
       cheie: "stare",
       antet: "Stare",
       peTelefon: "insigna",
@@ -203,8 +227,19 @@ export default async function PaginaEmailuri({
     status: primaValoare(params["status"]),
     sablon: primaValoare(params["sablon"]),
     q: primaValoare(params["q"]),
+    org: orgValid(primaValoare(params["org"])),
   };
   const config = getEmailConfig();
+
+  // Lista firmelor pentru filtru, pe același client de sesiune: platform admin
+  // trece de `organizations_select`. Volumul e de ordinul zecilor, fără cursor.
+  const supabase = await createServerSupabase();
+  const { data: firme } = await supabase
+    .from("organizations")
+    .select("id, name")
+    .is("deleted_at", null)
+    .order("name");
+  const listaFirme: readonly Firma[] = firme ?? [];
 
   return (
     <div className="space-y-6">
@@ -273,13 +308,43 @@ export default async function PaginaEmailuri({
             ))}
           </select>
         </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="org" className="text-muted-foreground text-nota font-medium">
+            Firmă
+          </label>
+          <select
+            id="org"
+            name="org"
+            defaultValue={filtre.org}
+            className="border-border bg-background text-foreground rounded-control text-corp border px-2.5 py-1.5"
+          >
+            <option value="">Toate firmele</option>
+            {listaFirme.map((firma) => (
+              <option key={firma.id} value={firma.id}>
+                {firma.name}
+              </option>
+            ))}
+          </select>
+        </div>
         <Buton type="submit" varianta="primar">
           Filtrează
         </Buton>
+        {/*
+          Rândurile scrise înainte ca jurnalul să poarte firma n-au cum să fie
+          găsite de filtrul pe firmă; fără nota asta, „0 rezultate” pentru o firmă
+          cu invitații vechi ar arăta ca un defect.
+        */}
+        <p className="text-muted-foreground text-nota basis-full">
+          Filtrul pe firmă găsește doar mesajele înregistrate cu firma lor; cele mai vechi apar cu
+          „—” la Firmă și doar fără filtru.
+        </p>
       </form>
 
       <div aria-live="polite">
-        <Suspense key={`${filtre.status}|${filtre.sablon}|${filtre.q}`} fallback={<Skeleton />}>
+        <Suspense
+          key={`${filtre.status}|${filtre.sablon}|${filtre.q}|${filtre.org}`}
+          fallback={<Skeleton />}
+        >
           <TabelEmailuri filtre={filtre} />
         </Suspense>
       </div>

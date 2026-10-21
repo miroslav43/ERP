@@ -127,6 +127,25 @@ describe("creeazaPunctLucru", () => {
     expect(caiRevalidate()).toEqual(["/puncte-lucru"]);
   });
 
+  // QA 8 oct 2026, ADM-010: „12ab" se salva drept cod poștal.
+  it("cod poștal cu litere: VALIDARE pe `cod_postal`, zero INSERT", async () => {
+    const { server } = configureazaActiunea({ permisiuni: CREARE });
+    const r = await creeazaPunctLucru({ denumire: "Depozit", cod_postal: "12ab" });
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    if (r.ok) return;
+    expect(r.error.fieldErrors?.["cod_postal"]?.[0]).toContain("6 cifre");
+    expect(server.apeluriPe("puncte_lucru")).toHaveLength(0);
+  });
+
+  it("cod poștal de șase cifre ajunge în payload", async () => {
+    const { server } = configureazaActiunea({ permisiuni: CREARE });
+    server.raspunde("puncte_lucru", "insert", { data: { id: ID_1 } });
+    const r = await creeazaPunctLucru({ denumire: "Depozit", cod_postal: "300001" });
+    expect(r.ok).toBe(true);
+    const [apel] = server.apeluriPe("puncte_lucru");
+    expect(apel?.payload).toMatchObject({ cod_postal: "300001" });
+  });
+
   // `throw mapPostgrestError(...)` aruncă un `ActionError` SIMPLU (fără
   // `details`); `createAction` îl recunoaște (`esteActionError`) și îi păstrează
   // codul. Până la 2 oct 2026 orice cod al bazei devenea aici EROARE_INTERNA.

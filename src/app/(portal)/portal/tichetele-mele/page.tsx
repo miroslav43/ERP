@@ -18,6 +18,7 @@ import {
   ETICHETE_PRIORITATE,
   ETICHETE_STATUS,
   ETICHETE_TIP,
+  responsabilulTichetului,
   TONURI_PRIORITATE,
   TONURI_STATUS,
 } from "@/app/(app)/ticketing/etichete";
@@ -99,13 +100,14 @@ export default async function PaginaTicheteleMele() {
                   <Badge ton={TONURI_PRIORITATE[tichet.prioritate]}>
                     {ETICHETE_PRIORITATE[tichet.prioritate]}
                   </Badge>
-                  {tichet.asignat === null ? (
-                    <span className="text-muted-foreground text-nota">Neatribuit încă</span>
-                  ) : (
-                    <span className="text-muted-foreground text-nota">
-                      La {tichet.asignat.full_name}
-                    </span>
-                  )}
+                  {/* Pe coloana brută, nu pe embed: rândul operatorului e ascuns
+                      de `employees_select`, dar tichetul E repartizat (FLX-004). */}
+                  <span className="text-muted-foreground text-nota">
+                    {responsabilulTichetului(
+                      tichet.asignat_employee_id,
+                      tichet.asignat?.full_name ?? null,
+                    )}
+                  </span>
                 </div>
               </Link>
             </li>

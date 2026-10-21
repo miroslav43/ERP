@@ -4,6 +4,7 @@
 // mesajele fără să atingă un fișier comun.
 
 import { businessRule, invalidInput, isPostgrestError } from "@/lib/actions/errors";
+import { cuVirgula } from "@/lib/text/diacritice";
 
 /**
  * Traduce o eroare Postgres într-un mesaj de business afișabil ca atare.
@@ -17,7 +18,8 @@ import { businessRule, invalidInput, isPostgrestError } from "@/lib/actions/erro
  * Fără propagare, `mapPostgrestError` le-ar înlocui cu „Operațiunea a fost
  * respinsă de o regulă a sistemului" — iar șoferul n-ar afla CE km să corecteze.
  * De aceea mesajul se propagă, nu se rescrie: cifrele din el se pot afla doar
- * din bază.
+ * din bază. Singura atingere e `cuVirgula` — sedila din migrările vechi devine
+ * virgula dedesubt (QA ADM-021).
  *
  * Tip `never`: apelul întrerupe fluxul exact ca un `throw`, deci TypeScript
  * îngustează corect tipul lui `data` imediat după.
@@ -38,7 +40,9 @@ export function traduEroare(error: unknown): never {
       );
     }
     if (error.code === "P0001") {
-      const mesaj = error.message.slice(0, 300);
+      // Mesajele vechi din bază (0012/0018/0172) au ş/ţ cu sedilă. Nu se
+      // retranscriu funcțiile ca să le corecteze — se corectează la afișare.
+      const mesaj = cuVirgula(error.message.slice(0, 300));
       const campuri = campurileMesajului(mesaj);
       if (campuri.length > 0) {
         throw invalidInput(mesaj, Object.fromEntries(campuri.map((c) => [c, [mesaj]])));
@@ -53,7 +57,8 @@ export function traduEroare(error: unknown): never {
  * Câmpul (sau câmpurile) de care ține un refuz al triggerelor de flotă, după
  * începutul mesajului. Cu el, eroarea ajunge ÎN caseta vinovată, înroșită, nu
  * într-un banner deasupra formularului. Mesajele din bază (0012/0018) sunt
- * scrise cu ş/ţ cu sedilă; potrivirea ocolește literele acelea.
+ * scrise cu ş/ţ cu sedilă; potrivirea ocolește literele acelea (rulează după
+ * `cuVirgula`, dar tiparele rămân valabile pentru ambele forme).
  */
 const CAMPURI_DUPA_MESAJ: readonly (readonly [RegExp, readonly string[]])[] = [
   [/^Kilometrajul de sosire/u, ["km_sosire"]],
@@ -115,7 +120,9 @@ export function traduEroareAlocare(error: unknown): never {
       }
     }
     if (error.code === "P0001") {
-      const mesaj = error.message.slice(0, 300);
+      // Mesajele vechi din bază (0012/0018/0172) au ş/ţ cu sedilă. Nu se
+      // retranscriu funcțiile ca să le corecteze — se corectează la afișare.
+      const mesaj = cuVirgula(error.message.slice(0, 300));
       const campuri = CAMPURI_ALOCARE.find(([re]) => re.test(mesaj))?.[1] ?? [];
       if (campuri.length > 0) {
         throw invalidInput(mesaj, Object.fromEntries(campuri.map((c) => [c, [mesaj]])));

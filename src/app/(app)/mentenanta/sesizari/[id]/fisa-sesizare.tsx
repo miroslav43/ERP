@@ -79,7 +79,7 @@ export function FisaSesizare({
   const raportor =
     numeFisa(sesizare.raportat_de_employee_id) ??
     numeCont(sesizare.raportat_de_user_id) ??
-    (sesizare.raportat_de_user_id === userId ? "Dvs." : "Administratorul organizației");
+    (sesizare.raportat_de_user_id === userId ? "Dumneavoastră" : "Administratorul organizației");
   const tehnician = numeFisa(sesizare.atribuit_employee_id);
   const atribuitaMie = date.fisaId !== null && sesizare.atribuit_employee_id === date.fisaId;
 
@@ -181,7 +181,7 @@ export function FisaSesizare({
               ) : (
                 <>
                   <LinkEntitate href={legaturaFisa(sesizare.atribuit_employee_id)}>
-                    {atribuitaMie ? `${tehnician} (dvs.)` : tehnician}
+                    {atribuitaMie ? `${tehnician} (dumneavoastră)` : tehnician}
                   </LinkEntitate>
                   {sesizare.atribuit_la === null ? null : (
                     <span className="text-muted-foreground">

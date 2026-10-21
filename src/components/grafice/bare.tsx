@@ -63,6 +63,7 @@ export function Bare({
       antetCategorie={antetCategorie}
       {...(unitate === undefined ? {} : { unitate })}
       puncte={puncte}
+      {...(formateaza === undefined ? {} : { formateaza })}
       {...(className === undefined ? {} : { className })}
     >
       <svg

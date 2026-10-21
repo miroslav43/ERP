@@ -273,6 +273,30 @@ describe("creeazaDepartament", () => {
     expect(server.apeluri).toHaveLength(0);
   });
 
+  // ADM-009: pe ecran apărea „Too big: expected string to have <=160 characters”.
+  it("denumirea de 214 caractere: mesaj românesc, cu punct, pe calea reală a acțiunii", async () => {
+    const { server } = configureazaActiunea({ permisiuni: CREARE });
+    const r = await creeazaDepartament({ denumire: "D".repeat(214) });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    const mesaj = r.error.fieldErrors?.["denumire"]?.[0] ?? "";
+    expect(mesaj).not.toMatch(/^Too /u);
+    expect(mesaj).toMatch(/\.$/u);
+    expect(server.apeluri).toHaveLength(0);
+  });
+
+  it("o regulă fără mesaj propriu iese prin harta globală, nu englezește", async () => {
+    configureazaActiunea({ permisiuni: CREARE });
+    const r = await creeazaDepartament({
+      denumire: "Producție",
+      muta_managerul_in_departament: "poate" as never,
+    });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    const mesaj = r.error.fieldErrors?.["muta_managerul_in_departament"]?.[0] ?? "";
+    expect(mesaj).toBe("Valoarea nu are formatul așteptat.");
+  });
+
   it("codul duplicat (23505) se raportează CONFLICT, nu „eroare neașteptată”", async () => {
     // `throw mapPostgrestError(...)` aruncă un obiect `ActionError` simplu —
     // nici `ActionDenied`, nici eroare PostgREST (n-are `details`) — deci

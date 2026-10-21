@@ -28,6 +28,7 @@
 import { randomUUID } from "node:crypto";
 import { mapPostgrestError } from "@/lib/actions/errors";
 import type { JsonObject } from "@/lib/actions/types";
+import { formatDate } from "@/lib/format/date";
 import type { ServerSupabase } from "@/lib/supabase/server";
 import {
   calculeazaTermen,
@@ -277,7 +278,9 @@ async function anuntaDeTransmis(
         body:
           primulTermen === null
             ? "Deschideți REGES-Online și pregătiți transmiterea."
-            : `Cel mai apropiat termen: ${primulTermen}. Netransmiterea în termen este contravenție, separat pentru fiecare salariat.`,
+            : // HR-033: zz.ll.aaaa, ca în restul aplicației. `termen_transmitere`
+              // e coloană `date`, deci ISO garantat — `formatDate` nu aruncă.
+              `Cel mai apropiat termen: ${formatDate(primulTermen)}. Netransmiterea în termen este contravenție, separat pentru fiecare salariat.`,
         // Coada de transmis, nu rădăcina modulului: ecranul se deschide pe
         // rândurile pe care anunțul le numără.
         link: "/reges?stare=de_transmis",

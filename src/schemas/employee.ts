@@ -8,6 +8,7 @@ import {
   numarCuImplicit,
   numarObligatoriu,
   numarOptional,
+  telefonOptional,
 } from "./comun";
 
 import { normalizeazaCnp, validateazaCnp } from "@/domain/hr/cnp";
@@ -75,16 +76,13 @@ const dataOptionala = z
   .nullable()
   .default(null)
   .transform((valoare) => (valoare === null || valoare.length === 0 ? null : valoare))
-  .refine(
-    (valoare) => valoare === null || RE_DATA.test(valoare),
-    "Data trebuie scrisă în formatul AAAA-LL-ZZ.",
-  );
+  .refine((valoare) => valoare === null || RE_DATA.test(valoare), "Introduceți data (zz.ll.aaaa).");
 
 const dataObligatorie = (camp: string) =>
   z
     .string(`Câmpul „${camp}” este obligatoriu.`)
     .trim()
-    .regex(RE_DATA, `Câmpul „${camp}” trebuie completat în formatul AAAA-LL-ZZ.`);
+    .regex(RE_DATA, `Introduceți data în câmpul „${camp}” (zz.ll.aaaa).`);
 
 const uuidOptional = z
   .string()
@@ -224,7 +222,8 @@ export const creeazaAngajatSchema = z.object({
   last_name: textObligatoriu(1, 80, "Nume"),
   first_name: textObligatoriu(1, 80, "Prenume"),
   email_personal: emailOptional,
-  telefon: textOptional(32),
+  // Regula laxă din `./comun`: numere străine permise, dar „abc" nu (QA ADM-007).
+  telefon: telefonOptional,
   adresa_strada: textOptional(200),
   adresa_oras: textOptional(120),
   adresa_judet: textOptional(80),
@@ -235,7 +234,7 @@ export const creeazaAngajatSchema = z.object({
   adresa_resedinta_judet: textOptional(80),
   adresa_resedinta_cod_postal: textOptional(12),
   email_serviciu: emailOptional,
-  telefon_serviciu: textOptional(32),
+  telefon_serviciu: telefonOptional,
   stare_civila: enumOptional(STARI_CIVILE, "Alegeți o stare civilă din listă."),
   data_nasterii: dataOptionala,
   gen: z.enum(GENURI).default("nedeclarat"),
@@ -291,7 +290,7 @@ export const creeazaAngajatSchema = z.object({
   optiune_pilon_ii: z.coerce.boolean().default(true),
   is_primary: z.coerce.boolean().default(true),
   contact_urgenta_nume: textOptional(120),
-  contact_urgenta_telefon: textOptional(32),
+  contact_urgenta_telefon: telefonOptional,
   contact_urgenta_relatie: textOptional(60),
   observatii: textOptional(2000),
   cnp: cnpOptional,
@@ -556,12 +555,18 @@ const corpContractSchema = z.object({
     mesaj: "Norma săptămânală trebuie să fie un număr.",
     interval: "Norma săptămânală este între 0,5 și 48 de ore.",
   }),
+  /**
+   * Cel mult 8 ore pe zi — art. 112 Codul muncii. Baza păstrează check-ul
+   * `<= 12` din `0004_hr.sql`; aici, mai strict, fiindcă un contract cu 12
+   * ore/zi nu e „normă", e un program care încalcă legea (QA 8 oct 2026,
+   * HR-030). Orele peste 8 sunt suplimentare, nu normă.
+   */
   norma_ore_zi: numarCuImplicit({
     min: 0.5,
-    max: 12,
+    max: 8,
     implicit: 8,
     mesaj: "Norma zilnică trebuie să fie un număr.",
-    interval: "Norma zilnică este între 0,5 și 12 ore.",
+    interval: "Norma zilnică este între 0,5 și 8 ore (Codul muncii, art. 112).",
   }),
   work_mode: z.enum(MODURI_LUCRU).default("sediu"),
   special_regime: enumOptional(REGIMURI_SPECIALE, "Alegeți un regim special din listă."),
@@ -603,10 +608,15 @@ const corpContractSchema = z.object({
     .toUpperCase()
     .regex(/^[A-Z]{3}$/u, "Moneda se scrie cu trei litere (ex. RON).")
     .default("RON"),
-  zile_concediu_anual: numarCuImplicit({
+  /**
+   * FĂRĂ implicit codificat. „21" stătea aici în timp ce regula firmei dădea
+   * 20 (QA 8 oct 2026, HR-023): lipsa înseamnă `null`, iar `creeazaContract`
+   * completează din `organizations.zile_concediu_anual_implicit`. La înrolare
+   * câmpul e obligatoriu — vezi `inroleazaAngajatSchema`.
+   */
+  zile_concediu_anual: numarOptional({
     min: 0,
     max: 60,
-    implicit: 21,
     intreg: true,
     mesaj: "Zilele de concediu trebuie să fie un număr.",
     interval: "Zilele de concediu anual sunt între 0 și 60.",
@@ -635,9 +645,37 @@ function valideazaReguliContract(
     valabil_de_la: string;
     work_mode: string;
     loc_telemunca: string | null;
+    norma_ore_zi: number;
+    norma_ore_saptamana: number;
   }>,
   ctx: z.core.$RefinementCtx,
 ): void {
+  /*
+   * Coerența celor două norme: o zi nu poate depăși săptămâna. Prinde
+   * „8 ore/zi, 4 ore/săptămână”, inversiunea tipică a celor două câmpuri.
+   *
+   * NU „zi × 5 ≤ săptămână” (regula din 8baf375e): timpul parțial se poate
+   * lucra în zile întregi, dar în mai puțin de cinci zile pe săptămână
+   * (art. 103–105 Codul muncii) — 8 h/zi în trei zile = 24 h, sau sâmbăta și
+   * duminica = 16 h. Regula veche le refuza și forța o normă zilnică falsă
+   * (3,2 h/zi), care ajungea în REGES și în pragul de salariu minim.
+   *
+   * Nici plafon superior („săptămână ≤ zi × 7” sau „× 6”): repartizarea
+   * inegală a timpului de muncă (art. 113 alin. 2) face ca norma zilnică din
+   * contract să nu fie neapărat cea a fiecărei zile, deci o limită de felul
+   * ăsta n-ar fi sigur legală. Plafoanele rămân pe câmpuri: 8 h/zi
+   * (art. 112) și 48 h/săptămână (art. 114).
+   *
+   * Mesajul stă pe `norma_ore_zi`, câmpul care se completează de obicei al
+   * doilea.
+   */
+  if (valoare.norma_ore_zi > valoare.norma_ore_saptamana) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["norma_ore_zi"],
+      message: "Norma zilnică nu poate depăși norma săptămânală. Corectați una dintre ele.",
+    });
+  }
   if (valoare.contract_duration === "determinat" && valoare.valabil_pana === null) {
     ctx.addIssue({
       code: "custom",
@@ -743,6 +781,21 @@ export const inroleazaAngajatSchema = creeazaAngajatSchema
      * prin transfer.
      */
     hired_on: dataObligatorie("Vechimea în unitate"),
+
+    /**
+     * Obligatoriu AICI, opțional pe `creeazaContractSchema`: asistentul îl
+     * precompletează din firmă (`asistent-angajat-nou.tsx`), iar acțiunea de
+     * înrolare îl scrie pe contract și în documentul CIM ca `number`. Un câmp
+     * golit spune „lipsește", nu cade tăcut pe zero (`numarObligatoriu`).
+     */
+    zile_concediu_anual: numarObligatoriu({
+      min: 0,
+      max: 60,
+      intreg: true,
+      lipsa: "Zilele de concediu anual sunt obligatorii.",
+      mesaj: "Zilele de concediu trebuie să fie un număr.",
+      interval: "Zilele de concediu anual sunt între 0 și 60.",
+    }),
 
     /**
      * Numărul contractului, ACUM OPȚIONAL.
@@ -910,7 +963,7 @@ export const inroleazaAngajatSchema = creeazaAngajatSchema
           valabil_pana: z
             .string()
             .trim()
-            .regex(RE_DATA, "Data de expirare trebuie scrisă AAAA-LL-ZZ."),
+            .regex(RE_DATA, "Introduceți data de expirare (zz.ll.aaaa)."),
         }),
       )
       .max(10, "Cel mult 10 autorizații la înrolare.")
@@ -1034,6 +1087,21 @@ export const inroleazaAngajatSchema = creeazaAngajatSchema
       }
       bunuri.add(id);
     });
+
+    // Oglinda regulii din `fisaAptitudineSchema` (ssm.ts): înrolarea inserează
+    // aceeași fișă prin `adaugaFisaAptitudine`, deci refuzul vine de aici, pe
+    // câmpul omului, nu ca avertisment după ce angajatul e deja creat.
+    if (
+      valoare.examen_data !== null &&
+      valoare.examen_valabil_pana !== null &&
+      valoare.examen_valabil_pana < valoare.examen_data
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["examen_valabil_pana"],
+        message: "Valabilitatea fișei nu poate fi anterioară datei examinării.",
+      });
+    }
   });
 
 /**
@@ -1146,18 +1214,24 @@ export const persoanaIntretinereSchema = z
       .nullable()
       .default(null)
       .transform((v) => (v === null || v.length === 0 ? null : v))
-      .refine((v) => v === null || RE_DATA.test(v), "Data nașterii trebuie scrisă AAAA-LL-ZZ."),
+      .refine(
+        (v) => v === null || RE_DATA.test(v),
+        "Introduceți o dată a nașterii validă (zz.ll.aaaa).",
+      ),
     in_intretinere_de_la: z
       .string()
       .trim()
-      .regex(RE_DATA, "Data de la care e în întreținere trebuie scrisă AAAA-LL-ZZ."),
+      .regex(RE_DATA, "Introduceți data de la care e în întreținere (zz.ll.aaaa)."),
     in_intretinere_pana_la: z
       .string()
       .trim()
       .nullable()
       .default(null)
       .transform((v) => (v === null || v.length === 0 ? null : v))
-      .refine((v) => v === null || RE_DATA.test(v), "Data de sfârșit trebuie scrisă AAAA-LL-ZZ."),
+      .refine(
+        (v) => v === null || RE_DATA.test(v),
+        "Introduceți o dată de sfârșit validă (zz.ll.aaaa).",
+      ),
     observatii: z.string().trim().max(500).nullable().default(null),
   })
   .superRefine((valoare, ctx) => {

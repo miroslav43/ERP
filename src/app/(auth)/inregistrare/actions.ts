@@ -57,8 +57,10 @@ const ZI_IN_MS = 24 * 60 * 60 * 1000;
 export const inregistreazaFirma = createPublicAction({
   name: "inregistrare.firma",
   input: schemaInregistrare,
-  // Mai strict decât cererea de demo (3/oră): acolo se scrie un rând, aici se
-  // creează o organizație cu module active. Baza numără a doua oară, pe IP.
+  // Limita asta e SINGURA: 0145 a scos contorul din `inregistreaza_organizatie`
+  // (număra IP-ul serverului, nu al vizitatorului, și se pierdea la orice
+  // `raise`), deci funcția din bază nu mai numără nimic. Și se consumă abia
+  // DUPĂ validare (`createPublicAction`): o greșeală de tastare nu costă un slot.
   rateLimit: { max: 3, windowSeconds: 3600 },
   handler: async (ctx, input) => {
     const { token, hash } = await generateazaTokenInvitatie();
@@ -124,6 +126,7 @@ export const inregistreazaFirma = createPublicAction({
         db: createAdminSupabase(),
         destinatar: input.email,
         organizatie: input.firma,
+        organizationId,
         invitatDe: "Administrativo",
         rol: "org_admin",
         token,

@@ -24,6 +24,8 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+// `z.flattenError` propriu, fără createAction: harta de mesaje se încarcă explicit.
+import "@/schemas/mesaje-zod";
 
 import { requireUser } from "@/lib/auth/current-user";
 import { createServerSupabase } from "@/lib/supabase/server";

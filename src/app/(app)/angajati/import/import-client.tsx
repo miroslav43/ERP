@@ -129,7 +129,7 @@ export function ImportAngajatiClient() {
     for (;;) {
       const rezultat = await aplicaImportAngajati({ batchId: previzualizare.batchId, offset });
       if (!rezultat.ok) {
-        setEroare(`${rezultat.error.message} Poți relua importul de la rândul ${offset + 1}.`);
+        setEroare(`${rezultat.error.message} Puteți relua importul de la rândul ${offset + 1}.`);
         setPas("previzualizare");
         return;
       }

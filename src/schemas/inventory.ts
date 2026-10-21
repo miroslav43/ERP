@@ -39,7 +39,7 @@ const dataOptionala = z
   .transform((valoare) => (valoare === null || valoare.length === 0 ? null : valoare))
   .refine(
     (valoare) => valoare === null || RE_DATA.test(valoare),
-    "Data trebuie scrisă în formatul AAAA-LL-ZZ.",
+    "Introduceți o dată validă (zz.ll.aaaa).",
   );
 
 /** Moment opțional (timestamptz), acceptat ca șir ISO dintr-un `datetime-local`. */

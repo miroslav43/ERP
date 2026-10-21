@@ -145,10 +145,10 @@ export function FormularProfil({
                 nume="parola_noua"
                 eticheta="Parolă nouă"
                 obligatoriu
-                ajutor="Cel puțin 8 caractere."
+                ajutor="Cel puțin 12 caractere."
                 {...(erori["parola_noua"] === undefined ? {} : { erori: erori["parola_noua"] })}
               >
-                {(a) => <input {...a} type="password" minLength={8} autoComplete="new-password" />}
+                {(a) => <input {...a} type="password" minLength={12} autoComplete="new-password" />}
               </Camp>
 
               <Camp
@@ -159,7 +159,7 @@ export function FormularProfil({
                   ? {}
                   : { erori: erori["confirma_parola"] })}
               >
-                {(a) => <input {...a} type="password" minLength={8} autoComplete="new-password" />}
+                {(a) => <input {...a} type="password" minLength={12} autoComplete="new-password" />}
               </Camp>
             </div>
 

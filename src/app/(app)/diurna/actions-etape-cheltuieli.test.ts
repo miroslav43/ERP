@@ -385,6 +385,90 @@ describe("decideCheltuiala", () => {
     if (r.ok) return;
     expect(r.error.message).toContain("dreptul de modificare");
   });
+
+  /** Drumul notificării: cheltuiala, deplasarea ei, contul angajatului. */
+  function drumNotificare(admin: ReturnType<typeof configureazaActiunea>["admin"]) {
+    admin.raspunde("trip_expenses", "select", {
+      data: { tip: "cazare", suma: "120.50", moneda: "EUR" },
+    });
+    admin.raspunde("business_trips", "select", { data: { employee_id: ID_3 } });
+    admin.raspunde("employees", "select", { data: { user_id: ID_3 } });
+  }
+
+  it("aprobarea anunță angajatul prin clientul admin, pe deplasarea lui din portal", async () => {
+    // QA 8 oct 2026, FLX-005: angajatul nu afla niciodată că i s-a aprobat o
+    // cheltuială — doar decizia pe DEPLASARE avea sender.
+    const { server, admin } = configureazaActiunea({ permisiuni: { "per_diem:approve": "all" } });
+    server.raspunde("trip_expenses", "update", { data: { id: ID_1, business_trip_id: ID_2 } });
+    drumNotificare(admin);
+    admin.raspunde("notifications", "insert", { data: null });
+
+    const r = await decideCheltuiala({ id: ID_1, decizie: "aproba" });
+
+    expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+    expect(server.apeluriPe("trip_expenses", "update")[0]?.selectDupaScriere).toBe(
+      "id, business_trip_id",
+    );
+    for (const tabela of ["trip_expenses", "business_trips", "employees"] as const) {
+      expect(areFiltru(admin.apeluriPe(tabela, "select")[0], "eq", "organization_id", ORG_ID)).toBe(
+        true,
+      );
+    }
+    const [insert] = admin.apeluriPe("notifications", "insert");
+    expect(insert?.payload).toEqual(
+      expect.objectContaining({
+        organization_id: ORG_ID,
+        user_id: ID_3,
+        kind: "success",
+        link: `/portal/diurna-mea/${ID_2}`,
+        entity_type: "trip_expense",
+        entity_id: ID_1,
+      }),
+    );
+    expect((insert?.payload as { body: string }).body).toContain("120,50 EUR");
+  });
+
+  it("respingerea duce motivul în notificare, ca avertisment", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: { "per_diem:approve": "all" } });
+    server.raspunde("trip_expenses", "update", { data: { id: ID_1, business_trip_id: ID_2 } });
+    drumNotificare(admin);
+    admin.raspunde("notifications", "insert", { data: null });
+
+    await decideCheltuiala({ id: ID_1, decizie: "respinge", motiv_respingere: "Bon ilizibil" });
+
+    const [insert] = admin.apeluriPe("notifications", "insert");
+    expect(insert?.payload).toEqual(
+      expect.objectContaining({ user_id: ID_3, kind: "warning", entity_id: ID_1 }),
+    );
+    expect((insert?.payload as { body: string }).body).toContain("Bon ilizibil");
+  });
+
+  it("notificarea picată nu desface decizia", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: { "per_diem:approve": "all" } });
+    server.raspunde("trip_expenses", "update", { data: { id: ID_1, business_trip_id: ID_2 } });
+    drumNotificare(admin);
+    admin.raspunde("notifications", "insert", { error: eroarePostgrest("XX000", "cade") });
+
+    const r = await decideCheltuiala({ id: ID_1, decizie: "aproba" });
+
+    expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+    expect(admin.apeluriPe("notifications", "insert")).toHaveLength(1);
+  });
+
+  it("fișă fără cont: decizia rămâne, nicio notificare", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: { "per_diem:approve": "all" } });
+    server.raspunde("trip_expenses", "update", { data: { id: ID_1, business_trip_id: ID_2 } });
+    admin.raspunde("trip_expenses", "select", {
+      data: { tip: "cazare", suma: "120.50", moneda: "EUR" },
+    });
+    admin.raspunde("business_trips", "select", { data: { employee_id: ID_3 } });
+    admin.raspunde("employees", "select", { data: { user_id: null } });
+
+    const r = await decideCheltuiala({ id: ID_1, decizie: "aproba" });
+
+    expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+    expect(admin.apeluriPe("notifications")).toHaveLength(0);
+  });
 });
 
 describe("creeazaPolitica", () => {

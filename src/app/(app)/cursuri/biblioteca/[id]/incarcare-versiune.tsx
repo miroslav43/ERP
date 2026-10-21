@@ -21,12 +21,14 @@ import { BaraActiuni } from "@/components/ui/bara-actiuni";
 import { Buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
 import { Camp } from "@/components/ui/camp";
-import { IncarcareFisier, marimeCitibila } from "@/components/ui/incarcare-fisier";
+import { IncarcareFisier } from "@/components/ui/incarcare-fisier";
 import { arataToast } from "@/components/ui/toast";
+import { marimeCitibila } from "@/lib/format/marime";
 import { urcaPeUrlSemnat } from "@/lib/storage/urca-semnat";
 import {
   LIMITA_PDF_BYTES,
   LIMITA_VIDEO_BYTES,
+  MESAJ_TIP_RESPINS,
   MIME_PDF,
   MIME_VIDEO,
   RESTRICTII_INCARCARE,
@@ -185,6 +187,10 @@ export function IncarcareVersiune({ materialId, fel, cereDurata }: Proprietati) 
               ? "Fișierul depășește 25 MB."
               : "Filmul depășește 200 MB. Comprimați-l sau folosiți un link extern."
           }
+          // Fără el, câmpul verifică doar mărimea: un fișier de alt tip trecea
+          // de „Alegeți fișierul" ca acceptat și cădea abia la server. Același
+          // text ca în asistent și în `verificaMaterial`.
+          mesajTipRespins={MESAJ_TIP_RESPINS[fel]}
           obligatoriu
           laSchimbare={setFisier}
         />

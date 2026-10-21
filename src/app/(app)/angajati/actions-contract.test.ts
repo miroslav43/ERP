@@ -78,13 +78,16 @@ type Fals = ReturnType<typeof configureazaActiunea>["server"];
 describe("creeazaContract", () => {
   const PERMIS = { "employees:create": "all" } as const;
   const CONTRACT_NOU = ID_2;
-  const intrare = {
+  const intrareFaraZile = {
     employee_id: ID_1,
     numar: "12/2026",
     data_contract: "2026-09-28",
     valabil_de_la: "2026-10-01",
     salariu_baza: 5000,
   };
+  // Cu zilele trimise explicit, acțiunea nu mai citește implicitul firmei —
+  // testele de mai jos nu programează `organizations` decât unde contează.
+  const intrare = { ...intrareFaraZile, zile_concediu_anual: 20 };
 
   function programeaza(server: Fals, opts: { actAditional?: boolean } = {}) {
     // Salariul minim al firmei, citit înaintea scrierii (nicio setare = fără prag).
@@ -119,6 +122,45 @@ describe("creeazaContract", () => {
     const [citire] = server.apeluriPe("payroll_settings", "select");
     expect(areFiltru(citire, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(areFiltru(citire, "lte", "valabil_de_la", "2026-10-01")).toBe(true);
+  });
+
+  it("8 h/zi în trei zile (24 h/săpt.) la minimul proporțional (24/40): trece de prag, contractul se creează", async () => {
+    // Schema îl admite din 12 oct 2026; pragul calculat din norma zilnică (8/8)
+    // cerea însă minimul întreg și îl refuza pe `salariu_baza`.
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("payroll_settings", "select", { data: [{ salariu_minim_brut: "4050.00" }] });
+    server.raspunde("employment_contracts", "insert", { data: { id: CONTRACT_NOU } });
+    server.raspunde("employment_contracts", "update", { data: { id: CONTRACT_NOU } });
+    server.raspunde("employees", "update", { data: { id: ID_1 } });
+    server.raspundeRpc("seed_leave_balances", { data: null });
+
+    const r = await creeazaContract({
+      ...intrare,
+      norma_ore_zi: 8,
+      norma_ore_saptamana: 24,
+      salariu_baza: 2430,
+    });
+
+    expect(r).toEqual({ ok: true, data: { id: CONTRACT_NOU } });
+    const [insert] = server.apeluriPe("employment_contracts", "insert");
+    expect(insert?.payload).toMatchObject({ norma_ore_zi: 8, norma_ore_saptamana: 24 });
+  });
+
+  it("8 h/zi, 24 h/săpt. sub minimul proporțional: VALIDARE cu pragul de 2.430 lei", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("payroll_settings", "select", { data: [{ salariu_minim_brut: "4050.00" }] });
+
+    const r = await creeazaContract({
+      ...intrare,
+      norma_ore_zi: 8,
+      norma_ore_saptamana: 24,
+      salariu_baza: 2400,
+    });
+
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    if (r.ok) return;
+    expect(r.error.fieldErrors?.salariu_baza?.[0]).toContain("2.430");
+    expect(server.apeluriPe("employment_contracts")).toHaveLength(0);
   });
 
   it("succes: inserează ca `proiect` (cerut de RLS), apoi îl activează cu `.select()` după", async () => {
@@ -158,10 +200,15 @@ describe("creeazaContract", () => {
     expect(areFiltru(fisa, "eq", "id", ID_1)).toBe(true);
     expect(areFiltru(fisa, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(fisa?.selectDupaScriere).toBeDefined();
+    // Zilele explicite ajung pe contract; `seed_leave_balances` NU mai primește
+    // override — `app.drept_concediu` (0193) le citește din contractul activ și
+    // le proporționalizează cu lunile lucrate, iar override-ul ar anula calculul.
+    const [insert] = server.apeluriPe("employment_contracts", "insert");
+    expect(insert?.payload).toMatchObject({ zile_concediu_anual: 25 });
+    expect(server.apeluriPe("organizations")).toHaveLength(0);
     expect(server.apeluriRpc.find((a) => a.nume === "seed_leave_balances")?.argumente).toEqual({
       p_employee: ID_1,
       p_an: 2026,
-      p_zile_odihna_override: 25,
     });
     const parametri = genereazaEvenimenteFals.mock.calls[0]?.[0] as {
       organizationId: string;
@@ -178,6 +225,37 @@ describe("creeazaContract", () => {
       }),
     ]);
     expect(caiRevalidate()).toEqual([`/angajati/${ID_1}`, "/reges"]);
+  });
+
+  it("fără zile de concediu: le citește din firmă (`zile_concediu_anual_implicit`), nu din schemă", async () => {
+    // Caseta „Contract nou" promitea 21 de zile din schemă, iar regula firmei
+    // dădea 20 (QA 8 oct 2026, HR-023): o singură sursă, firma.
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("payroll_settings", "select", { data: [] });
+    server.raspunde("organizations", "select", { data: { zile_concediu_anual_implicit: 20 } });
+    server.raspunde("employment_contracts", "insert", { data: { id: CONTRACT_NOU } });
+    server.raspunde("employment_contracts", "update", { data: { id: CONTRACT_NOU } });
+    server.raspunde("employees", "update", { data: { id: ID_1 } });
+    server.raspundeRpc("seed_leave_balances", { data: null });
+
+    const r = await creeazaContract(intrareFaraZile);
+
+    expect(r).toEqual({ ok: true, data: { id: CONTRACT_NOU } });
+    const [citire] = server.apeluriPe("organizations", "select");
+    expect(areFiltru(citire, "eq", "id", ORG_ID)).toBe(true);
+    const [insert] = server.apeluriPe("employment_contracts", "insert");
+    expect(insert?.payload).toMatchObject({ zile_concediu_anual: 20 });
+  });
+
+  it("fără zile și firma nu se poate citi: CONFLICT, fără INSERT", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("payroll_settings", "select", { data: [] });
+    server.raspunde("organizations", "select", { data: null });
+
+    const r = await creeazaContract(intrareFaraZile);
+
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(server.apeluriPe("employment_contracts")).toHaveLength(0);
   });
 
   it("act adițional: NU cere evenimentul de angajare (ar fi un al doilea AdaugareContract)", async () => {
@@ -499,6 +577,33 @@ describe("modificaSalariulContractului — act adițional", () => {
     if (r.ok) return;
     expect(r.error.fieldErrors?.salariu_baza?.[0]).toContain("salariul minim");
     expect(server.apeluriPe("employment_contracts", "insert")).toHaveLength(0);
+  });
+
+  it("pe un contract de 8 h/zi în trei zile (24 h/săpt.), pragul e 24/40 din minim, nu minimul întreg", async () => {
+    const contractTreiZile = { ...contract, norma_ore_zi: 8, norma_ore_saptamana: 24 };
+
+    // 2.400 lei: sub pragul proporțional de 2.430 lei → VALIDARE, cu pragul în mesaj.
+    const sub = configureazaActiunea({ permisiuni: PERMIS }).server;
+    sub.raspunde("employment_contracts", "select", { data: contractTreiZile });
+    sub.raspunde("employment_contracts", "select", { data: [] });
+    sub.raspunde("payroll_settings", "select", { data: [{ salariu_minim_brut: 4050 }] });
+    const refuz = await modificaSalariulContractului({ ...intrare, salariu_baza: 2400 });
+    expect(refuz).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    if (!refuz.ok) expect(refuz.error.fieldErrors?.salariu_baza?.[0]).toContain("2.430");
+
+    // 2.500 lei: peste prag → actul se creează, cu norma contractului.
+    const peste = configureazaActiunea({ permisiuni: PERMIS }).server;
+    peste.raspunde("employment_contracts", "select", { data: contractTreiZile });
+    peste.raspunde("employment_contracts", "select", { data: [] });
+    peste.raspunde("payroll_settings", "select", { data: [{ salariu_minim_brut: 4050 }] });
+    peste.raspunde("employment_contracts", "insert", {
+      data: { id: ACT_ID, numar: "42/2026-AA1" },
+    });
+    peste.raspunde("employment_contracts", "update", { data: { id: ACT_ID } });
+    const r = await modificaSalariulContractului({ ...intrare, salariu_baza: 2500 });
+    expect(r).toMatchObject({ ok: true });
+    const [insert] = peste.apeluriPe("employment_contracts", "insert");
+    expect(insert?.payload).toMatchObject({ norma_ore_zi: 8, norma_ore_saptamana: 24 });
   });
 
   it("fără employees:create la `all`: INTERZIS — inserarea trece prin `contracts_insert`", async () => {

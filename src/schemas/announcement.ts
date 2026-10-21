@@ -1,9 +1,19 @@
 // src/schemas/announcement.ts
 import { z } from "zod";
 
+import "./mesaje-zod";
+
 export const anuntNouSchema = z.object({
-  titlu: z.string().trim().min(1, "Titlul este obligatoriu.").max(200),
-  continut: z.string().trim().min(1, "Conținutul este obligatoriu.").max(10000),
+  titlu: z
+    .string()
+    .trim()
+    .min(1, "Titlul este obligatoriu.")
+    .max(200, "Titlul are cel mult 200 de caractere."),
+  continut: z
+    .string()
+    .trim()
+    .min(1, "Conținutul este obligatoriu.")
+    .max(10000, "Conținutul are cel mult 10 000 de caractere."),
   fixat: z.coerce.boolean().default(false),
   publica_acum: z.coerce.boolean().default(false),
   expira_la: z

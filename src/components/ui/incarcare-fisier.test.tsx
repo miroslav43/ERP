@@ -2,7 +2,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { IncarcareFisier, marimeCitibila, seIncadreazaInAccept } from "./incarcare-fisier";
+import { IncarcareFisier, seIncadreazaInAccept } from "./incarcare-fisier";
 
 /**
  * Ce se verifică aici sunt regulile invizibile pentru compilator, toate
@@ -221,22 +221,7 @@ describe("seIncadreazaInAccept — aceleași reguli ca browserul", () => {
   });
 });
 
-describe("marimeCitibila — cifra pe care o citește omul", () => {
-  it("folosește aceeași bază ca limitele scrise în ecrane (1024)", () => {
-    expect(marimeCitibila(1024)).toBe("1 kB");
-    expect(marimeCitibila(2 * 1024 * 1024)).toBe("2 MB");
-  });
-
-  it("dă o zecimală doar sub 10, cu virgulă românească", () => {
-    expect(marimeCitibila(Math.round(2.4 * 1024 * 1024))).toBe("2,4 MB");
-    expect(marimeCitibila(Math.round(12.4 * 1024 * 1024))).toBe("12 MB");
-  });
-
-  it("octeții rămân întregi, fără zecimale", () => {
-    expect(marimeCitibila(0)).toBe("0 B");
-    expect(marimeCitibila(999)).toBe("999 B");
-  });
-});
+// `marimeCitibila` s-a mutat în `src/lib/format/marime.ts`; testele ei, acolo.
 
 describe("IncarcareFisier — formularul resetat și câmpul dezactivat", () => {
   it("resetarea formularului (React 19 după `action`) golește și fișierul afișat", () => {

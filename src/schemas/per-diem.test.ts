@@ -1,5 +1,6 @@
 // src/schemas/per-diem.test.ts
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
 import { deplasareNouaSchema, etapaNouaSchema } from "./per-diem";
 
@@ -24,6 +25,24 @@ const DEPLASARE = {
   salariu_minim_stat_gazda: null,
   moneda_salariu_minim: null,
 };
+
+describe("avansul acordat (ANG-018)", () => {
+  it("avans negativ: un singur mesaj românesc, pe câmp", () => {
+    const rezultat = deplasareNouaSchema.safeParse({ ...DEPLASARE, avans_acordat: -50 });
+    expect(rezultat.success).toBe(false);
+    const erori = z.flattenError(rezultat.error as z.ZodError).fieldErrors as Record<
+      string,
+      string[] | undefined
+    >;
+    expect(erori["avans_acordat"]).toEqual(["Avansul nu poate fi negativ."]);
+  });
+
+  it("avans care nu e număr: mesaj românesc", () => {
+    const rezultat = deplasareNouaSchema.safeParse({ ...DEPLASARE, avans_acordat: "abc" });
+    const problema = rezultat.error?.issues.find((i) => i.path[0] === "avans_acordat");
+    expect(problema?.message).toBe("Avansul trebuie să fie un număr.");
+  });
+});
 
 describe("ora deplasării e ora României", () => {
   it("15:00 tastat pleacă spre bază ca 12:00 UTC (ora de vară)", () => {

@@ -8,7 +8,14 @@ import { buton } from "@/components/ui/buton";
 import { getEnabledFeatures } from "@/lib/auth/features";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { formatDate, formatDateTime, oraInBucharest, todayInBucharest } from "@/lib/format/date";
+import {
+  formatDate,
+  formatDateTime,
+  formatInterval,
+  oraInBucharest,
+  todayInBucharest,
+} from "@/lib/format/date";
+import { textZile } from "@/lib/format/numar";
 import { citestePerioada, setariPontaj, setariPontareRapida } from "@/lib/queries/attendance";
 import { configZiDin, intervalulPropus } from "@/domain/attendance/calcul-ore";
 import { stareaCeasului } from "@/domain/attendance/ceas";
@@ -25,6 +32,7 @@ import {
 } from "@/lib/queries/portal";
 import { citesteFluturasulPropriu, perioadaInregistrarii } from "@/lib/queries/payroll";
 import { meritaPontata } from "@/domain/attendance/zi-de-pontat";
+import { totalurileZilelor, ziDeTotalizat } from "@/domain/attendance/totaluri";
 import { zileNepontate } from "@/domain/attendance/zile-nepontate";
 import { configPontareRapida, sePonteazaPeZi } from "@/domain/attendance/pontare-rapida";
 import { urmatoareaZiLibera, zilePanaLa } from "@/domain/calendar/urmatoarea-zi-libera";
@@ -184,8 +192,12 @@ export default async function PaginaPortal() {
   const stareCeas = stareaCeasului(ziDeAzi, oraInBucharest(new Date()));
   const intervalPropus =
     pontare.programStart === null ? null : intervalulPropus(pontare.programStart, configZi);
-  const oreLuna = zile.reduce((total, z) => total + (z.ore_lucrate ?? 0), 0);
-  const suplimentareLuna = zile.reduce((total, z) => total + (z.ore_suplimentare ?? 0), 0);
+  // Aceeași regulă ca în foaia colectivă și în „Pontajul meu” (HR-013): ziua
+  // respinsă de aprobator nu intră în „Luna aceasta” — i se cere o corecție,
+  // nu i se numără orele.
+  const { lucrate: oreLuna, suplimentare: suplimentareLuna } = totalurileZilelor(
+    zile.map(ziDeTotalizat),
+  );
 
   /*
    * Se lucrează azi? `meritaPontata` a păzit până acum doar CULOAREA cardului —
@@ -603,8 +615,8 @@ export default async function PaginaPortal() {
                         {tipuri.get(cerere.leave_type_id)?.denumire ?? "Concediu"}
                       </p>
                       <p className="text-muted-foreground text-corp">
-                        {formatDate(cerere.data_inceput)} – {formatDate(cerere.data_sfarsit)} ·
-                        ciornă netrimisă
+                        {formatInterval(cerere.data_inceput, cerere.data_sfarsit)} · ciornă
+                        netrimisă
                       </p>
                     </div>
                     <Badge className="shrink-0" ton="ciorna">
@@ -658,10 +670,10 @@ export default async function PaginaPortal() {
                         {tipuri.get(cerere.leave_type_id)?.denumire ?? "Concediu"}
                       </p>
                       <p className="text-muted-foreground text-corp">
-                        {formatDate(cerere.data_inceput)} – {formatDate(cerere.data_sfarsit)}
+                        {formatInterval(cerere.data_inceput, cerere.data_sfarsit)}
                         {cerere.zile_lucratoare === null
                           ? null
-                          : ` · ${cerere.zile_lucratoare.toLocaleString("ro-RO")} zile`}
+                          : ` · ${textZile(cerere.zile_lucratoare)}`}
                       </p>
                     </div>
                     <Badge
@@ -731,7 +743,7 @@ export default async function PaginaPortal() {
                 ? null
                 : panaLaZiLibera === 1
                   ? " · mâine"
-                  : ` · peste ${panaLaZiLibera.toLocaleString("ro-RO")} zile`}
+                  : ` · peste ${textZile(panaLaZiLibera)}`}
             </p>
           </section>
         )}

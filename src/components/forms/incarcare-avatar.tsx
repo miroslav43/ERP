@@ -117,9 +117,9 @@ export function IncarcareAvatar({
           eticheta="Schimbă fotografia"
           accept={ACCEPT}
           maxOcteti={LIMITA_AVATAR_BYTES}
-          mesajPreaMare="Fotografia depășește 2 MB. Alege una mai mică."
+          mesajPreaMare="Fotografia depășește 2 MB. Alegeți una mai mică."
           mesajTipRespins="Acceptăm doar imagini JPG, PNG sau WEBP."
-          restrictii="JPG, PNG sau WEBP, până în 2 MB. Se încarcă imediat ce ai ales."
+          restrictii="JPG, PNG sau WEBP, până în 2 MB. Se încarcă imediat ce ați ales."
           textAlegere="Alege fotografia"
           etichetaScoate="Renunță la fotografia aleasă"
           laSchimbare={(fisier) => {

@@ -77,7 +77,9 @@ export function DecizieCerere({
 
   return (
     <div className="border-border bg-surface rounded-panou space-y-3 border p-4">
-      <p className="text-foreground text-corp font-medium">Cererea așteaptă decizia ta</p>
+      <p className="text-foreground text-corp font-medium">
+        Cererea așteaptă decizia dumneavoastră
+      </p>
 
       {respinge ? (
         <>
@@ -119,11 +121,23 @@ export function DecizieCerere({
 /**
  * Butoanele de schimbare a stării. Lista vine de la server, calculată cu
  * `tranzitiiOferite` — ce nu e permis nu se afișează, iar baza verifică oricum.
+ *
+ * `etichete` dă textul BUTONULUI pentru solicitant („Confirm rezolvarea” în
+ * loc de „Închis”): eticheta stării nu spune ce face apăsarea. Unde harta nu
+ * are verb, rămâne eticheta stării. `intro` e o propoziție deasupra butoanelor
+ * — de ce i se oferă acum, nu ce sunt.
  */
 export function SchimbaStatus({
   ticketId,
   optiuni,
-}: Readonly<{ ticketId: string; optiuni: readonly StatusTichet[] }>) {
+  etichete,
+  intro,
+}: Readonly<{
+  ticketId: string;
+  optiuni: readonly StatusTichet[];
+  etichete?: Readonly<Partial<Record<StatusTichet, string>>>;
+  intro?: string;
+}>) {
   const router = useRouter();
   const [eroare, setEroare] = useState<string | null>(null);
   const [inCurs, porneste] = useTransition();
@@ -144,10 +158,11 @@ export function SchimbaStatus({
 
   return (
     <div className="space-y-2">
+      {intro === undefined ? null : <p className="text-muted-foreground text-corp">{intro}</p>}
       <div className="flex flex-wrap gap-2">
         {optiuni.map((status) => (
           <Buton key={status} varianta="secundar" disabled={inCurs} onClick={() => schimba(status)}>
-            {ETICHETE_STATUS[status]}
+            {etichete?.[status] ?? ETICHETE_STATUS[status]}
           </Buton>
         ))}
       </div>

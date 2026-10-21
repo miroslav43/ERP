@@ -68,6 +68,9 @@ export async function cereResetareParola(formData: FormData): Promise<void> {
       db: admin,
       to: validat.data.email,
       entityId: link.data.user.id,
+      // Resetarea e a contului, nu a unei firme — omul poate fi membru în mai
+      // multe; rândul din jurnal rămâne vizibil doar platformei.
+      organizationId: null,
       template: "resetare-parola",
       data: {
         nume: profil?.full_name ?? "",

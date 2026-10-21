@@ -108,9 +108,14 @@ async function trimiteDeplasarea(date: FormData): Promise<ActionResult<Deplasare
  * „pentru angajatul”, care în portal n-are sens.
  *
  * Câmpurile care hrănesc previzualizarea din dreapta sau deschid alte câmpuri
- * (țara, datele, cursul, avansul, detașarea) rămân CONTROLATE: starea lor
- * supraviețuiește oricum unei erori de validare. Restul sunt necontrolate și
- * își reiau valoarea din `stare.valoriTrimise`.
+ * (țara, datele, cursul, avansul, detașarea) rămân CONTROLATE, ca
+ * previzualizarea să urmeze fiecare tastă. Starea lor de React supraviețuiește
+ * unei erori de validare, dar DOM-ul NU neapărat: `form.reset()` de după
+ * acțiune duce un `<select>` controlat pe PRIMA opțiune (Austria în loc de
+ * Germania — ADM-036), iar pe cel necontrolat („pentru angajatul”) îl lasă pe
+ * implicit, fiindcă `defaultValue` e citit doar la montare. Le pune la loc
+ * `<Formular>`, după refuz — capcana #54; aici nu e nimic de făcut. Restul
+ * sunt necontrolate și își reiau valoarea din `stare.valoriTrimise`.
  */
 export function FormularDeplasare({
   tari,

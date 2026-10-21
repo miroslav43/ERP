@@ -5,9 +5,10 @@ import { MailPlus, RotateCw, Users } from "lucide-react";
 import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
-import { requirePlatformAdmin } from "@/lib/auth/platform";
+import { metadataPlatforma, requirePlatformAdmin } from "@/lib/auth/platform";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/format/date";
+import { idDinRuta } from "@/lib/rute/parametri";
 import {
   ETICHETE_ROL,
   ETICHETE_STATUS_MEMBRU,
@@ -17,6 +18,9 @@ import {
 
 import { SELECT_PROFIL, numeAfisat, type RandProfil } from "../../../_lib/platform";
 import { ActiuniInvitatie, ActiuniMembru, FormularInvitatie } from "./panou-membri";
+
+// Titlul doar pentru administratorul de platformă: altfel 404-ul l-ar trăda (PRM-007).
+export const generateMetadata = metadataPlatforma("Membri · Panou de platformă");
 
 type StatusMembru = "active" | "suspended" | "inactive";
 
@@ -45,7 +49,8 @@ const CLASA_ANTET =
 
 export default async function PaginaMembri({ params }: { params: Promise<{ orgId: string }> }) {
   const actor = await requirePlatformAdmin();
-  const { orgId } = await params;
+  const { orgId: orgIdBrut } = await params;
+  const orgId = idDinRuta(orgIdBrut);
   const supabase = await createServerSupabase();
   const acum = new Date().toISOString();
 
@@ -207,7 +212,7 @@ export default async function PaginaMembri({ params }: { params: Promise<{ orgId
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className="w-full min-w-[52rem] border-collapse">
               <caption className="sr-only">Lista membrilor organizației {org.name}</caption>
               <thead className="border-border border-b">

@@ -12,6 +12,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import type { OnboardeazaOrganizatieInput } from "@/schemas/organization";
 
 import { AsistentFirma } from "./asistent-firma";
+import { cheiaCiornei } from "./ciorna";
 
 export const metadata: Metadata = {
   title: "Bun venit",
@@ -107,5 +108,13 @@ export default async function PaginaBunVenit() {
     seats_limit: 10,
   } as Partial<OnboardeazaOrganizatieInput>;
 
-  return <AsistentFirma numeFirma={tenant.name} valoriInitiale={valoriInitiale} />;
+  return (
+    <AsistentFirma
+      numeFirma={tenant.name}
+      valoriInitiale={valoriInitiale}
+      // Ciorna din `sessionStorage` e per utilizator ȘI per firmă: alt cont în
+      // aceeași filă, sau același cont în altă firmă, nu o vede.
+      cheieCiorna={cheiaCiornei(rezolvare.user.id, tenant.organizationId)}
+    />
+  );
 }

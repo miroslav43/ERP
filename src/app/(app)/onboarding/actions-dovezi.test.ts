@@ -4,7 +4,7 @@
 // înregistrarea rândului), linkul de descărcare și confirmarea citirii unui
 // material. Ce nu se crede de la client: calea, tipul și mărimea fișierului.
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/headers", async () => (await import("@/lib/teste/actiune")).falsuri.nextHeaders());
 vi.mock("next/server", async (orig) =>
@@ -39,6 +39,7 @@ import {
   ORG_ID,
 } from "@/lib/teste/actiune";
 import { BUCKET_CHECKLISTS, LIMITA_DOVADA_BYTES } from "@/lib/onboarding/cale";
+import { OCTETI_PDF, OCTETI_PNG, OCTETI_ZEROURI, octetiUrcati } from "@/lib/teste/octeti";
 import { areFiltru, eroarePostgrest } from "@/lib/teste/supabase-fals";
 
 import { confirmaCitire, linkDovada, pregatesteIncarcareDovada, salveazaDovada } from "./actions";
@@ -154,6 +155,10 @@ describe("pregatesteIncarcareDovada", () => {
 
 // ── salveazaDovada ─────────────────────────────────────────────────────────
 
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe("salveazaDovada", () => {
   const CALE = `${PREFIX}0f0f-contract.pdf`;
   const intrare = {
@@ -178,13 +183,19 @@ describe("salveazaDovada", () => {
     server.raspundeStocare(BUCKET_CHECKLISTS, "info", {
       data: { size: 123_456, contentType: "image/png" },
     });
+    server.raspundeStocare(BUCKET_CHECKLISTS, "createSignedUrl", {
+      data: { signedUrl: "https://semnat/obj" },
+    });
+    octetiUrcati(OCTETI_PNG);
     server.raspunde("checklist_instance_items", "update", { data: { id: ID_1 } });
 
     const r = await salveazaDovada(intrare);
 
     expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+    // Măsurat, apoi capul citit printr-un URL semnat sub sesiunea angajatului.
     expect(server.apeluriStocare).toEqual([
       { bucket: BUCKET_CHECKLISTS, metoda: "info", argumente: [CALE] },
+      { bucket: BUCKET_CHECKLISTS, metoda: "createSignedUrl", argumente: [CALE, 60] },
     ]);
     const [scriere] = server.apeluriPe("checklist_instance_items", "update");
     expect(scriere?.payload).toEqual({
@@ -253,9 +264,34 @@ describe("salveazaDovada", () => {
     server.raspundeStocare(BUCKET_CHECKLISTS, "info", {
       data: { size: LIMITA_DOVADA_BYTES, contentType: "application/pdf" },
     });
+    server.raspundeStocare(BUCKET_CHECKLISTS, "createSignedUrl", {
+      data: { signedUrl: "https://semnat/obj" },
+    });
+    octetiUrcati(OCTETI_PDF);
     server.raspunde("checklist_instance_items", "update", { data: { id: ID_1 } });
     const r = await salveazaDovada(intrare);
     expect(r.ok).toBe(true);
+  });
+
+  it("fișier de zerouri declarat PDF: VALIDARE pe `cale` după conținut, fără scriere", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("checklist_instance_items", "select", pasVizibil);
+    server.raspundeStocare(BUCKET_CHECKLISTS, "info", {
+      data: { size: 1024, contentType: "application/pdf" },
+    });
+    server.raspundeStocare(BUCKET_CHECKLISTS, "createSignedUrl", {
+      data: { signedUrl: "https://semnat/obj" },
+    });
+    octetiUrcati(OCTETI_ZEROURI);
+
+    const r = await salveazaDovada(intrare);
+
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error.code).toBe("VALIDARE");
+    expect(r.error.fieldErrors).toHaveProperty("cale");
+    expect(r.error.message).toContain("conținutul tipului declarat");
+    expect(server.apeluriPe("checklist_instance_items", "update")).toHaveLength(0);
   });
 
   it("UPDATE cu zero rânduri: CONFLICT „nu a putut fi atașată”", async () => {
@@ -264,6 +300,10 @@ describe("salveazaDovada", () => {
     server.raspundeStocare(BUCKET_CHECKLISTS, "info", {
       data: { size: 100, contentType: "application/pdf" },
     });
+    server.raspundeStocare(BUCKET_CHECKLISTS, "createSignedUrl", {
+      data: { signedUrl: "https://semnat/obj" },
+    });
+    octetiUrcati(OCTETI_PDF);
     server.raspunde("checklist_instance_items", "update", { data: null });
     const r = await salveazaDovada(intrare);
     expect(r).toMatchObject({
@@ -279,6 +319,10 @@ describe("salveazaDovada", () => {
     server.raspundeStocare(BUCKET_CHECKLISTS, "info", {
       data: { size: 100, contentType: "application/pdf" },
     });
+    server.raspundeStocare(BUCKET_CHECKLISTS, "createSignedUrl", {
+      data: { signedUrl: "https://semnat/obj" },
+    });
+    octetiUrcati(OCTETI_PDF);
     server.raspunde("checklist_instance_items", "update", { data: { id: ID_1 } });
     await salveazaDovada(intrare);
     await asteaptaDupa();

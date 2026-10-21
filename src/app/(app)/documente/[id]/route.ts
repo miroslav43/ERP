@@ -5,6 +5,7 @@
 // nouă). RLS (`hr_issued_select`, `app.can_see_employee`) decide singură cine
 // vede documentul — nicio verificare suplimentară de permisiune aici.
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
+import { esteIdDeRuta } from "@/lib/rute/parametri";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { paginaTiparibila, type DocumentGenerat } from "@/lib/documents/generator";
 import { antetOrganizatie } from "@/lib/pdf/antet-organizatie";
@@ -16,12 +17,20 @@ export const dynamic = "force-dynamic";
 const raspunsText = (mesaj: string, status: number): Response =>
   new Response(mesaj, { status, headers: { "content-type": "text/plain; charset=utf-8" } });
 
+/**
+ * Un singur text pentru „nu există" și „nu e UUID": formatul nevalid trebuie
+ * să fie indistinct de rândul inexistent. Înainte, `/documente/abc` ajungea la
+ * Postgres, 22P02 cădea în ramura de eroare și ruta răspundea 500 (PRM-003).
+ */
+const MESAJ_NEGASIT = "Documentul nu a fost găsit sau nu vă este accesibil.";
+
 interface ProprietatiRuta {
   readonly params: Promise<{ readonly id: string }>;
 }
 
 export async function GET(request: Request, { params }: ProprietatiRuta): Promise<Response> {
   const { id } = await params;
+  if (!esteIdDeRuta(id)) return raspunsText(MESAJ_NEGASIT, 404);
 
   const rezolvare = await resolveTenant();
   if (rezolvare.status === "neautentificat") return raspunsText("Trebuie să te autentifici.", 401);
@@ -36,8 +45,7 @@ export async function GET(request: Request, { params }: ProprietatiRuta): Promis
     .is("deleted_at", null)
     .maybeSingle();
   if (error !== null) return raspunsText("Documentul nu a putut fi citit.", 500);
-  if (document === null)
-    return raspunsText("Documentul nu a fost găsit sau nu îți este accesibil.", 404);
+  if (document === null) return raspunsText(MESAJ_NEGASIT, 404);
 
   const generat: DocumentGenerat = {
     id,

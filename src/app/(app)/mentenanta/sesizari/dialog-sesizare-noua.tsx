@@ -33,6 +33,8 @@ interface Proprietati {
   readonly prefillEsuat: boolean;
   readonly zona: "app" | "portal";
   readonly varianta?: VariantaButon;
+  /** Formularul de tichet IT, dacă privitorul îl poate deschide; altfel `null` (ANG-025). */
+  readonly hrefTichetNou: string | null;
 }
 
 export function DialogSesizareNoua({
@@ -41,6 +43,7 @@ export function DialogSesizareNoua({
   prefillEsuat,
   zona,
   varianta = "primar",
+  hrefTichetNou,
 }: Proprietati): ReactElement {
   const router = useRouter();
 
@@ -77,6 +80,7 @@ export function DialogSesizareNoua({
           echipamentPrefill={echipamentPrefill}
           prefillEsuat={prefillEsuat}
           radacinaSesizari={radacina}
+          hrefTichetNou={hrefTichetNou}
         />
       )}
     </FormularDialog>

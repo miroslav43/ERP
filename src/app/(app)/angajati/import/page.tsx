@@ -36,7 +36,7 @@ export default async function PaginaImportAngajati() {
     <div className={cn(LATIMI.detaliu, "flex flex-col gap-6")}>
       <AntetPagina
         titlu="Import angajați din Excel"
-        descriere="Încarci fișierul, verifici previzualizarea, apoi aplici doar rândurile corecte. Rândurile respinse se descarcă într-un raport pe care îl poți corecta și reîncărca."
+        descriere="Încărcați fișierul, verificați previzualizarea, apoi aplicați doar rândurile corecte. Rândurile respinse se descarcă într-un raport pe care îl puteți corecta și reîncărca."
       />
       <ImportAngajatiClient />
     </div>

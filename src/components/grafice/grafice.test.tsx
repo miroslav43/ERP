@@ -42,6 +42,44 @@ describe("Toate graficele — tabelul ascuns", () => {
     expect(container.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
     expect(screen.getByRole("img", { name: "Efectiv" })).toBeDefined();
   });
+
+  // HR-028: raportul scria „16.879999999999995” în tabelul pentru cititorul de
+  // ecran, fiindcă `formateaza` ajungea doar în desen și în legendă, nu și în
+  // tabel. Cifra brută a unei scăderi în virgulă mobilă nu e o cifră de citit.
+  it("tabelul ascuns scrie cifrele prin `formateaza`, nu brut", () => {
+    render(
+      <Inel
+        titlu="Cost"
+        felii={[{ eticheta: "Firmă", valoare: 16.879999999999995 }]}
+        formateaza={(v) => `${v.toFixed(2)} lei`}
+      />,
+    );
+    const tabel = screen.getByRole("table", { name: "Cost" });
+    expect(within(tabel).getByText("16.88 lei")).toBeDefined();
+    expect(within(tabel).queryByText("16.879999999999995")).toBeNull();
+  });
+
+  it("sparkline-ul, care nu scrie cifre în desen, le formatează totuși în tabel", () => {
+    render(
+      <Sparkline
+        titlu="Brut"
+        puncte={[
+          { eticheta: "ian.", valoare: 1234.5 },
+          { eticheta: "feb.", valoare: 2000 },
+        ]}
+        formateaza={(v) => `${v.toFixed(2)} lei`}
+      />,
+    );
+    const tabel = screen.getByRole("table", { name: "Brut" });
+    expect(within(tabel).getByText("1234.50 lei")).toBeDefined();
+    expect(within(tabel).getByText("2000.00 lei")).toBeDefined();
+  });
+
+  it("fără `formateaza`, tabelul ascuns rămâne cu cifra brută — landing-ul nu dă prop", () => {
+    render(<Linie titlu="Efectiv" serii={[{ nume: "Total", puncte: LUNI }]} />);
+    const tabel = screen.getByRole("table", { name: "Efectiv" });
+    expect(within(tabel).getByText("15")).toBeDefined();
+  });
 });
 
 describe("Bare — pornesc de la zero", () => {

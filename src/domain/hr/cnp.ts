@@ -1,6 +1,8 @@
 // src/domain/hr/cnp.ts
 // Validarea codului numeric personal: cifră de control, dată de naștere, cod de județ.
 
+import { todayInBucharest } from "@/lib/format/date";
+
 const CHEIE_CONTROL: readonly number[] = [2, 7, 9, 1, 4, 6, 3, 5, 8, 2, 7, 9];
 const JUDET_MAXIM = 52;
 const JUDET_BUCURESTI_STRAINI = 70;
@@ -45,7 +47,15 @@ function esteDataReala(an: number, luna: number, zi: number): boolean {
   );
 }
 
-export function validateazaCnp(valoare: string): RezultatCnp {
+/**
+ * `astazi` (AAAA-LL-ZZ) există pentru teste și pentru apelanții care au deja
+ * ziua de referință; implicit e ziua curentă din România, citită la FIECARE
+ * apel — nu la încărcarea modulului, ca un proces pornit ieri să nu valideze
+ * cu ziua de ieri.
+ */
+export type OptiuniCnp = Readonly<{ astazi?: string }>;
+
+export function validateazaCnp(valoare: string, optiuni?: OptiuniCnp): RezultatCnp {
   const cnp = normalizeazaCnp(valoare);
   if (cnp.length !== 13) {
     return { valid: false, motiv: "CNP-ul trebuie să conțină exact 13 cifre." };
@@ -90,6 +100,19 @@ export function validateazaCnp(valoare: string): RezultatCnp {
       return { valid: false, motiv: "Data nașterii codificată în CNP nu există în calendar." };
     }
     dataNasterii = `${String(an)}-${String(luna).padStart(2, "0")}-${String(zi).padStart(2, "0")}`;
+
+    /*
+     * Cifra 5 sau 6 dă secolul 2000, deci „96" înseamnă 2096, nu 1996. Cifra de
+     * control nu prinde greșeala — e calculată corect pe cifrele greșite — iar
+     * CNP-ul ajunge criptat în bază, unde niciun CHECK nu-l poate citi.
+     * Comparația e lexicografică pe AAAA-LL-ZZ.
+     */
+    if (dataNasterii > (optiuni?.astazi ?? todayInBucharest())) {
+      return {
+        valid: false,
+        motiv: "Data nașterii din CNP este în viitor. Verificați cifrele 2–7.",
+      };
+    }
   }
 
   const gen: GenDinCnp = sex === 9 ? "nedeclarat" : sex % 2 === 1 ? "masculin" : "feminin";

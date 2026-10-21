@@ -20,20 +20,20 @@ export const renderBunVenit = (data: BunVenitData, ctx: TemplateContext): Render
   const bodyHtml =
     `<h1 style="margin:0 0 16px 0;font-family:Arial,Helvetica,sans-serif;font-size:20px;line-height:28px;color:#12203c;">Bun venit, ${escapeHtml(data.nume)}!</h1>` +
     renderParagraph(
-      `Contul tău este activ în organizația <strong>${escapeHtml(data.organizatie)}</strong>, cu rolul <strong>${escapeHtml(data.rolEticheta)}</strong>.`,
+      `Contul dumneavoastră este activ în organizația <strong>${escapeHtml(data.organizatie)}</strong>, cu rolul <strong>${escapeHtml(data.rolEticheta)}</strong>.`,
     ) +
     renderParagraph(
-      "În panou vezi exact modulele pe care administratorul organizației le-a activat. Dacă îți lipsește ceva, cere-i acces — modulele se pornesc din administrare, nu din contul tău.",
+      "În panou vedeți exact modulele pe care administratorul organizației le-a activat. Dacă vă lipsește ceva, cereți-i acces — modulele se pornesc din administrare, nu din contul dumneavoastră.",
     ) +
     renderButton(link, "Deschide panoul", ctx.appUrl) +
     renderParagraph(
-      "Îți recomandăm să îți completezi profilul (nume, funcție, telefon) ca să te recunoască ușor colegii.",
+      "Vă recomandăm să vă completați profilul (nume, funcție, telefon) ca să vă recunoască ușor colegii.",
     );
   const text = [
     `Bun venit, ${data.nume}!`,
     "",
-    `Contul tău este activ în organizația ${data.organizatie}, cu rolul ${data.rolEticheta}.`,
-    "În panou vezi exact modulele activate de administratorul organizației.",
+    `Contul dumneavoastră este activ în organizația ${data.organizatie}, cu rolul ${data.rolEticheta}.`,
+    "În panou vedeți exact modulele activate de administratorul organizației.",
     "",
     `Deschide panoul: ${link}`,
   ].join("\n");
@@ -41,7 +41,7 @@ export const renderBunVenit = (data: BunVenitData, ctx: TemplateContext): Render
     subject,
     html: renderLayout({
       title: subject,
-      preheader: `Contul tău din ${data.organizatie} este activ.`,
+      preheader: `Contul dumneavoastră din ${data.organizatie} este activ.`,
       bodyHtml,
       appUrl: ctx.appUrl,
     }),

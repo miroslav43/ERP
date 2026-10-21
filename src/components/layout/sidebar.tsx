@@ -166,6 +166,7 @@ export function Sidebar({
               (6,82:1). Aici marchează marca firmei; în listă, pagina activă. */}
             <Building2 className="text-accent size-5 shrink-0" aria-hidden />
             <span
+              title={organizationName}
               className={cn(
                 "text-corp min-w-0 flex-1 truncate font-semibold text-white",
                 colapsat ? "md:sr-only" : "",
@@ -183,7 +184,12 @@ export function Sidebar({
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto p-2">{children}</div>
+          {/*
+            `umbra-derulare` (globals.css): o umbră la marginea de sus/jos cât
+            timp mai e meniu nederulat (UX-001). La 900 px înălțime, „Financiar”
+            și „Administrare” stăteau sub pliu fără niciun indiciu.
+          */}
+          <div className="umbra-derulare min-h-0 flex-1 overflow-y-auto p-2">{children}</div>
 
           <div className="hidden border-t border-white/10 p-2 md:block">
             <button

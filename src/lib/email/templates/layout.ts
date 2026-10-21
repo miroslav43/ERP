@@ -77,6 +77,6 @@ export const renderLayout = (
 <tr><td style="padding:20px 32px;border-bottom:1px solid #e4e6eb;font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:bold;color:#12203c;">Administrativo</td></tr>
 <tr><td style="padding:28px 32px;">${opts.bodyHtml}</td></tr>
 <tr><td style="padding:18px 32px;border-top:1px solid #e4e6eb;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:18px;color:#6b7280;">
-Acest mesaj a fost trimis de Administrativo. Dacă nu îl așteptai, îl poți ignora în siguranță.<br />
+Acest mesaj a fost trimis de Administrativo. Dacă nu îl așteptați, îl puteți ignora în siguranță.<br />
 <a href="${escapeHtml(opts.appUrl)}" style="color:#1d4ed8;text-decoration:underline;">${escapeHtml(opts.appUrl)}</a>
 </td></tr></table></td></tr></table></body></html>`;

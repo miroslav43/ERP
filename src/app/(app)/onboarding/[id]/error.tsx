@@ -10,5 +10,5 @@ export default function Eroare({
   error: Error & { digest?: string };
   retry: () => void;
 }) {
-  return <StareEroare eroare={error} reincearca={retry} titlu="Checklistul nu a putut fi afișat" />;
+  return <StareEroare eroare={error} reincearca={retry} titlu="Parcursul nu a putut fi afișat" />;
 }

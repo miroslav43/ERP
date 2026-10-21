@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Buton } from "@/components/ui/buton";
 import { Camp, clasaBifa } from "@/components/ui/camp";
 import { Formular } from "@/components/ui/formular";
+import { IntrareData } from "@/components/ui/intrare-data";
 import type { ActionResult } from "@/lib/actions/types";
 import { cn } from "@/lib/ui/cn";
 
@@ -186,11 +187,7 @@ export function FormularSetari({
                 erori={stare.erori["valabil_de_la"] ?? []}
               >
                 {(a) => (
-                  <input
-                    {...a}
-                    type="date"
-                    defaultValue={stare.valoriTrimise["valabil_de_la"] ?? ""}
-                  />
+                  <IntrareData {...a} implicit={stare.valoriTrimise["valabil_de_la"] ?? ""} />
                 )}
               </Camp>
 

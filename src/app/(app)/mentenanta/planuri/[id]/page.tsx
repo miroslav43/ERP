@@ -23,6 +23,7 @@ import { TREPTE_MENTENANTA, stareScadentaPlan } from "@/domain/maintenance/scade
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature, getEnabledFeatures } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
+import { idDinRuta } from "@/lib/rute/parametri";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
 import {
@@ -77,7 +78,8 @@ function textProiectie(p: Proiectie | null, invechit: boolean): string {
 }
 
 export default async function PaginaPlan({ params }: ProprietatiPagina) {
-  const { id } = await params;
+  const { id: idBrut } = await params;
+  const id = idDinRuta(idBrut);
   const { tenant } = await requireTenant();
   const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "maintenance"),

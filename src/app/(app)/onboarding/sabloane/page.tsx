@@ -24,7 +24,7 @@ import { CHECKLIST_TIP, filtreSabloaneSchema } from "@/schemas/checklist";
 import { ETICHETE_TIP } from "../etichete";
 import { NavOnboarding } from "../nav-onboarding";
 
-export const metadata: Metadata = { title: "Șabloane de checklist" };
+export const metadata: Metadata = { title: "Șabloane de parcurs" };
 
 interface ProprietatiPagina {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -53,7 +53,7 @@ async function TabelSabloane({
         descriere={
           areFiltre
             ? "Ștergeți filtrele ca să vedeți toate șabloanele."
-            : "Creați primul șablon ca să puteți porni instanțe de checklist pentru angajați."
+            : "Creați primul șablon ca să puteți porni parcursuri pentru angajați."
         }
         {...(areFiltre
           ? { actiune: { eticheta: "Șterge filtrele", href: "/onboarding/sabloane" } }
@@ -112,7 +112,7 @@ async function TabelSabloane({
   return (
     <div className="flex flex-col gap-4">
       <Tabel
-        caption="Șabloanele de checklist ale organizației."
+        caption="Șabloanele de parcurs ale organizației."
         coloane={coloane}
         randuri={randuri}
         cheieRand={(s) => s.id}
@@ -156,7 +156,7 @@ export default async function PaginaSabloane({ searchParams }: ProprietatiPagina
 
   if (!can(permisiuni, "checklists:read", "own")) {
     return (
-      <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta șabloanele de checklist. Solicitați administratorului organizației rolul potrivit." />
+      <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta șabloanele de parcurs. Solicitați administratorului organizației rolul potrivit." />
     );
   }
 
@@ -168,7 +168,7 @@ export default async function PaginaSabloane({ searchParams }: ProprietatiPagina
   return (
     <div className="space-y-6">
       <AntetPagina
-        titlu="Șabloane de checklist"
+        titlu="Șabloane de parcurs"
         descriere="Structura pașilor pentru integrare, ieșire sau transfer."
         {...(poateCrea
           ? {

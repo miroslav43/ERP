@@ -17,7 +17,7 @@ import type {
 
 export const ETICHETE_TIP: Readonly<Record<ChecklistTip, string>> = {
   onboarding: "Integrare",
-  offboarding: "Ieșire din organizație",
+  offboarding: "Plecare din firmă",
   transfer: "Transfer",
   altul: "Altul",
 };

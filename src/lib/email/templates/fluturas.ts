@@ -29,26 +29,26 @@ export const renderFluturas = (data: FluturasData, ctx: TemplateContext): Render
   const subject = `Fluturașul de salariu — ${perioada}`;
   const bodyHtml =
     `<h1 style="margin:0 0 16px 0;font-family:Arial,Helvetica,sans-serif;font-size:20px;line-height:28px;color:#12203c;">Fluturașul pe ${escapeHtml(perioada)}</h1>` +
-    renderParagraph(`Bună, ${escapeHtml(data.nume)},`) +
+    renderParagraph(`Bună ziua, ${escapeHtml(data.nume)},`) +
     renderParagraph(
-      `Fluturașul tău de salariu pentru <strong>${escapeHtml(perioada)}</strong> este gata. Îl găsești atașat acestui mesaj, în format PDF.`,
+      `Fluturașul dumneavoastră de salariu pentru <strong>${escapeHtml(perioada)}</strong> este gata. Îl găsiți atașat acestui mesaj, în format PDF.`,
     ) +
     renderParagraph(
-      "Îl poți descărca oricând și din portal, împreună cu cei din lunile anterioare.",
+      "Îl puteți descărca oricând și din portal, împreună cu cei din lunile anterioare.",
     ) +
     renderButton(link, "Deschide „Salariul meu”", ctx.appUrl) +
     renderParagraph(
-      `Dacă o cifră nu îți este clară, scrie-le colegilor de la resurse umane din ${escapeHtml(data.organizatie)} — au calculul complet, pas cu pas.`,
+      `Dacă o cifră nu vă este clară, scrieți-le colegilor de la resurse umane din ${escapeHtml(data.organizatie)} — au calculul complet, pas cu pas.`,
     );
   const text = [
     `Fluturașul pe ${perioada}`,
     "",
-    `Bună, ${data.nume},`,
-    `Fluturașul tău de salariu pentru ${perioada} este atașat acestui mesaj, în format PDF.`,
+    `Bună ziua, ${data.nume},`,
+    `Fluturașul dumneavoastră de salariu pentru ${perioada} este atașat acestui mesaj, în format PDF.`,
     "",
-    `Îl poți descărca oricând și din portal: ${link}`,
+    `Îl puteți descărca oricând și din portal: ${link}`,
     "",
-    `Dacă o cifră nu îți este clară, scrie-le colegilor de la resurse umane din ${data.organizatie}.`,
+    `Dacă o cifră nu vă este clară, scrieți-le colegilor de la resurse umane din ${data.organizatie}.`,
   ].join("\n");
   return {
     subject,

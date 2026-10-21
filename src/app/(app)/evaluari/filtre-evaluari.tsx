@@ -12,6 +12,7 @@ import type { ReactElement } from "react";
 
 import { BaraFiltre, type FiltruActiv } from "@/components/ui/bara-filtre";
 import { clasaControl } from "@/components/ui/camp";
+import { IntrareData } from "@/components/ui/intrare-data";
 import { formatDate } from "@/lib/format/date";
 import { STATUSURI_EVALUARE, type FiltreEvaluariUrl } from "@/schemas/evaluation";
 
@@ -96,13 +97,11 @@ export function FiltreEvaluari({ filtre, sabloane }: PropsFiltreEvaluari): React
         <label htmlFor="filtru-evaluari-de-la" className="text-corp font-medium">
           De la
         </label>
-        <input
+        <IntrareData
           key={filtre.de_la ?? ""}
           id="filtru-evaluari-de-la"
           name="de_la"
-          type="date"
-          defaultValue={filtre.de_la ?? ""}
-          className={clasaControl()}
+          implicit={filtre.de_la ?? ""}
         />
       </div>
 
@@ -110,13 +109,11 @@ export function FiltreEvaluari({ filtre, sabloane }: PropsFiltreEvaluari): React
         <label htmlFor="filtru-evaluari-pana-la" className="text-corp font-medium">
           Până la
         </label>
-        <input
+        <IntrareData
           key={filtre.pana_la ?? ""}
           id="filtru-evaluari-pana-la"
           name="pana_la"
-          type="date"
-          defaultValue={filtre.pana_la ?? ""}
-          className={clasaControl()}
+          implicit={filtre.pana_la ?? ""}
         />
       </div>
     </BaraFiltre>

@@ -76,7 +76,7 @@ export function CampManager({
         eticheta="Manager"
         fel="select"
         erori={erori}
-        ajutor="Managerul desemnat este repartizat și ca membru al departamentului."
+        ajutor="Managerul desemnat este repartizat și ca membru al departamentului; dacă e deja în altul, vi se cere confirmarea."
       >
         {(a) => (
           <select
@@ -104,6 +104,16 @@ export function CampManager({
               {ales.departamentDenumire ?? "alt departament"}”. Ca membru poate sta într-un singur
               departament.
             </span>
+            {/* Consecința triggerului `internal.sef_iese_din_departament` (0143):
+                cine e scos din departamentul pe care îl conduce nu-l mai conduce.
+                Bifa rămâne pornită — e un avertisment, nu un blocaj —, dar
+                efectul se citește aici, nu pe cardul rămas fără manager. */}
+            {ales.conduceDepartamentulCurent ? (
+              <span className="mt-1 block">
+                Este și managerul departamentului „{ales.departamentDenumire ?? "alt departament"}
+                ”: după mutare, acela rămâne fără manager.
+              </span>
+            ) : null}
             <span className="mt-2 flex items-start gap-2">
               <input
                 id={idBifa}

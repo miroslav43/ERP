@@ -1,13 +1,18 @@
 // src/app/(auth)/autentificare/actions.ts
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { sendEmail } from "@/lib/email/send";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { consumeRateLimit } from "@/lib/utils/rate-limit";
-import { autentificareSchema, caleInterna, linkMagicSchema } from "@/schemas/auth";
+import {
+  COOKIE_EMAIL_AUTENTIFICARE,
+  autentificareSchema,
+  caleInterna,
+  linkMagicSchema,
+} from "@/schemas/auth";
 
 /**
  * Prag de timp identic pentru TOATE răspunsurile de autentificare.
@@ -30,6 +35,22 @@ function inapoi(cod: string, catre: string): string {
   const parametri = new URLSearchParams({ eroare: cod });
   if (catre !== "/") parametri.set("redirect", catre);
   return `/autentificare?${parametri.toString()}`;
+}
+
+/**
+ * Păstrează e-mailul pentru pagina pe care o va vedea omul după `redirect`
+ * (ONB-023). Doar un e-mail care a TRECUT schema ajunge aici — unul invalid nu
+ * se pune înapoi în câmp ca să fie trimis a doua oară identic. Cookie + redirect
+ * din aceeași acțiune: precedentul e `invitatie/[token]/actions.ts`.
+ */
+async function pastreazaEmailul(email: string): Promise<void> {
+  (await cookies()).set(COOKIE_EMAIL_AUTENTIFICARE, email, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/autentificare",
+    maxAge: 60,
+  });
 }
 
 /** Limitare pe IP ȘI pe identificator: una singură se ocolește trivial. */
@@ -56,6 +77,7 @@ export async function autentificarePrinParola(formData: FormData): Promise<void>
   }
 
   if (await limitaAtinsa("login", validat.data.email)) {
+    await pastreazaEmailul(validat.data.email);
     await raspunsUniform(inceput);
     redirect(inapoi("limita", catre));
   }
@@ -68,7 +90,10 @@ export async function autentificarePrinParola(formData: FormData): Promise<void>
   await raspunsUniform(inceput);
 
   // Mesaj IDENTIC pentru „cont inexistent" și „parolă greșită".
-  if (error) redirect(inapoi("credentiale", catre));
+  if (error) {
+    await pastreazaEmailul(validat.data.email);
+    redirect(inapoi("credentiale", catre));
+  }
   redirect(catre);
 }
 
@@ -107,6 +132,9 @@ export async function trimiteLinkMagic(formData: FormData): Promise<void> {
       db: admin,
       to: validat.data.email,
       entityId: link.data.user.id,
+      // Linkul magic e al contului, nu al unei firme — același motiv ca la
+      // resetarea parolei; rândul din jurnal rămâne vizibil doar platformei.
+      organizationId: null,
       template: "link-magic",
       data: {
         tokenHash: link.data.properties.hashed_token,

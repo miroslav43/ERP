@@ -160,7 +160,10 @@ export default async function PaginaNomenclator({ searchParams }: ProprietatiPag
           }
         />
       ) : (
-        <div className="border-border bg-surface rounded-panou overflow-x-auto border">
+        // `relative`: ce e `sr-only` în tabel (`position: absolute`) își are aici
+        // blocul conținător, nu în rădăcina documentului — altfel pagina se
+        // derula lateral la 390 px (539 px), nu doar containerul.
+        <div className="border-border bg-surface rounded-panou relative overflow-x-auto border">
           <table className="w-full text-left">
             <thead className="border-border text-eticheta text-muted-foreground border-b">
               <tr>
@@ -170,7 +173,14 @@ export default async function PaginaNomenclator({ searchParams }: ProprietatiPag
                 <th className="px-3 py-2 font-medium">Tipuri clasate</th>
                 <th className="px-3 py-2 font-medium">Termen</th>
                 <th className="px-3 py-2 text-right font-medium">Documente în {an}</th>
-                {poateScrie ? <th className="sr-only px-3 py-2 font-medium">Acțiuni</th> : null}
+                {/* `sr-only` pe SPAN, nu pe `th`: un `th` cu `position: absolute`
+                    nu mai e celulă de tabel — antetul rămânea cu 6 celule la 7
+                    coloane în corp. Tiparul din `components/ui/tabel.tsx`. */}
+                {poateScrie ? (
+                  <th scope="col" className="px-3 py-2">
+                    <span className="sr-only">Acțiuni</span>
+                  </th>
+                ) : null}
               </tr>
             </thead>
             <tbody className="text-corp">

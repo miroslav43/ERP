@@ -14,6 +14,8 @@
 
 import { z } from "zod";
 
+import "./mesaje-zod";
+
 const textOptional = (max: number) =>
   z
     .string()

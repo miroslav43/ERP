@@ -24,6 +24,7 @@ import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { evaluariAngajat, listeazaSabloane } from "@/lib/queries/evaluari";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
+import { idDinRuta } from "@/lib/rute/parametri";
 import {
   ETICHETE_STATUS_EVALUARE,
   TONURI_STATUS_EVALUARE,
@@ -88,11 +89,12 @@ import { FormularInceteazaContract } from "./formular-inceteaza-contract";
 import { FormularModificaSalariu } from "./formular-modifica-salariu";
 import { FormularScutireFiscala } from "./formular-scutire-fiscala";
 import { IncarcareAvatarAdmin } from "./incarcare-avatar-admin";
-import { SectiuneConcedii } from "./sectiune-concedii";
+import { SectiuneConcedii, type ContractDeBazaPentruConcediu } from "./sectiune-concedii";
 import { SectiuneSalarizare } from "./sectiune-salarizare";
 import { TinteKpi } from "./tinte-kpi";
 import { SectiuneDependenti, type RandDependent } from "./sectiune-dependenti";
 import { InvitatieAngajat } from "./invitatie-angajat";
+import { alegeAdresaDeInvitatie } from "@/lib/invitatii/adresa";
 import { DateLipsa } from "./date-lipsa";
 import { poateDeschide, type ContextPorti } from "@/config/porti-ruta";
 import { SectiuneInAlteModule } from "./sectiune-in-alte-module";
@@ -107,6 +109,9 @@ interface ProprietatiPagina {
 }
 
 const CLASA_SECTIUNE = "rounded-panou border border-border bg-surface p-5 shadow-ridicat";
+
+/** Rezerva pentru caseta „Contract nou" dacă rândul firmei nu se citește; ca în `nou/page.tsx`. */
+const ZILE_CONCEDIU_IMPLICIT_FALLBACK = 20;
 
 function Camp({
   eticheta,
@@ -152,7 +157,8 @@ function StareGoala({ mesaj }: { readonly mesaj: string }) {
 }
 
 export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
-  const { id } = await params;
+  const { id: idBrut } = await params;
+  const id = idDinRuta(idBrut);
   const utilizator = await requireUser();
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
@@ -172,6 +178,10 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
     scope === "all" ? null : await idFisaProprie(tenant.organizationId, utilizator.id);
   const angajat = await citesteAngajat(tenant.organizationId, id, scope, propriaFisaId);
   if (angajat === null) notFound();
+  // Aceeași regulă ca în `invitaAngajatul`: caseta de confirmare a invitației
+  // spune dinainte pe ce adresă pleacă (sau că se va tipări o fișă). Calcul
+  // pur, fără citire — `seTrimiteEmail` nu ajunge la client.
+  const adresaDeInvitatie = alegeAdresaDeInvitatie(angajat, tenant.slug);
 
   /*
    * ── UN SINGUR VAL, NU OPT ─────────────────────────────────────────────
@@ -222,6 +232,9 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
    * eligibilitatea bifelor din casetă.
    */
   const poateRegenera = can(permisiuni, "employees:create", "all");
+  // Caseta „Contract nou" are aceeași poartă; decide dacă se mai citesc zilele
+  // de concediu implicite ale firmei, de care depinde doar textul și câmpul ei.
+  const poateCreaContract = can(permisiuni, "employees:create", "all");
 
   const dbFisa = await createServerSupabase();
 
@@ -243,6 +256,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
     areFisaPostului,
     documenteFirma,
     permiseMunca,
+    zileConcediuImplicit,
   ] = await Promise.all([
     // Datele sensibile nu se randează deloc dacă scope-ul nu acoperă întreaga organizație.
     scope === "all" ? citesteRezumatDateSensibile(tenant.organizationId, id) : null,
@@ -375,6 +389,17 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           .order("valabil_pana", { ascending: false })
           .then(({ data }) => data ?? [])
       : Promise.resolve([]),
+    // Zilele de concediu implicite ale firmei, pentru caseta „Contract nou":
+    // aceeași citire ca în `nou/page.tsx`. Textul casetei spunea „21 de zile"
+    // literal în timp ce regula firmei dădea 20 (QA 8 oct 2026, HR-023).
+    poateCreaContract
+      ? dbFisa
+          .from("organizations")
+          .select("zile_concediu_anual_implicit")
+          .eq("id", tenant.organizationId)
+          .maybeSingle()
+          .then(({ data }) => data?.zile_concediu_anual_implicit ?? ZILE_CONCEDIU_IMPLICIT_FALLBACK)
+      : ZILE_CONCEDIU_IMPLICIT_FALLBACK,
   ]);
 
   // Aruncat, nu înghițit cu `?? []`: o listă goală din cauza unei erori arată
@@ -483,6 +508,27 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
    * să-l țintească — ar „reuși" fără să facă ce scrie pe el.
    */
   const contracteDeBazaActive = contracteActive.filter((c) => !c.este_act_aditional);
+
+  /*
+   * Contractul de bază după care `app.drept_concediu` (0193) calculează
+   * dreptul de odihnă: cel ACTIV, altfel cel mai recent (un angajat încetat
+   * are încă un sold de explicat). Aceeași alegere ca `order by (status =
+   * 'activ') desc, valabil_de_la desc limit 1` din funcția SQL.
+   */
+  const contractDeBazaPentruConcediu = ((): ContractDeBazaPentruConcediu | null => {
+    const contract =
+      contracteDeBazaActive[0] ??
+      [...angajat.contracts]
+        .filter((c) => !c.este_act_aditional)
+        .sort((a, b) => b.valabil_de_la.localeCompare(a.valabil_de_la))[0] ??
+      null;
+    if (contract === null) return null;
+    return {
+      zileConcediuAnual: contract.zile_concediu_anual,
+      valabilDeLa: contract.valabil_de_la,
+      incetatLa: contract.incetat_la,
+    };
+  })();
 
   /*
    * Starea per document, pentru bifele casetei de regenerare.
@@ -661,7 +707,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
             ]}
             descriere={
               <>
-                {esteFisaProprie ? "Fișa dvs. · " : ""}Marca {angajat.marca}
+                {esteFisaProprie ? "Fișa dumneavoastră · " : ""}Marca {angajat.marca}
                 {angajat.functie === null ? null : (
                   <>
                     {" · "}
@@ -1003,6 +1049,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                     ? null
                     : { adresa: invitatiePendinte.email, expiraLa: invitatiePendinte.expires_at }
                 }
+                adresaPrevazuta={{ adresa: adresaDeInvitatie.adresa, fel: adresaDeInvitatie.fel }}
               />
             </div>
           ) : null}
@@ -1186,8 +1233,11 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
 
         <div className="mt-4">
           {contractPrincipal === null ? (
-            can(permisiuni, "employees:create", "all") ? (
-              <FormularContractNou employeeId={angajat.id} />
+            poateCreaContract ? (
+              <FormularContractNou
+                employeeId={angajat.id}
+                zileConcediuImplicit={zileConcediuImplicit}
+              />
             ) : null
           ) : poateEditaAngajat ? (
             <FormularModificaSalariu
@@ -1241,6 +1291,8 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
         organizationId={tenant.organizationId}
         employeeId={angajat.id}
         hiredOn={angajat.hired_on}
+        terminatedOn={angajat.terminated_on}
+        contractDeBaza={contractDeBazaPentruConcediu}
         dataNasterii={angajat.data_nasterii}
         conditiiMunca={angajat.conditii_munca}
         gradHandicap={angajat.grad_handicap}
@@ -1744,7 +1796,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                     href={`/onboarding/noua?angajat=${angajat.id}`}
                     className="text-foreground underline-offset-2 hover:underline"
                   >
-                    Pornește checklistul de ieșire
+                    Pornește parcursul de ieșire
                   </Link>
                   , dacă nu există deja.
                 </>

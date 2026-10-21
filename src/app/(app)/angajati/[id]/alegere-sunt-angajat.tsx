@@ -37,8 +37,8 @@ export function AlegereSuntAngajat({
   /** Fără dreptul de a crea contractul, îndemnul ar duce într-un refuz. */
   readonly poateCreaContract: boolean;
 }) {
-  const cine = esteFisaProprie ? "Contul dvs." : "Acest cont";
-  const posesiv = esteFisaProprie ? "dvs." : "al persoanei";
+  const cine = esteFisaProprie ? "Contul dumneavoastră" : "Acest cont";
+  const posesiv = esteFisaProprie ? "dumneavoastră" : "al persoanei";
 
   return (
     <Callout fel="informativ" titlu="Administrator, fără contract de muncă">

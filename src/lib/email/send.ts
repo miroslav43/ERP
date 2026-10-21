@@ -24,6 +24,12 @@ export type SendEmailInput = EmailMessage &
     to: string;
     /** Entitatea care a declanșat emailul (id invitație, id user, id cerere demo). Intră în cheia de idempotență. */
     entityId: string;
+    /**
+     * Firma în numele căreia pleacă mesajul; `null` = e-mail de platformă/cont
+     * (resetare de parolă, link magic), vizibil doar în consola super-admin.
+     * Obligatoriu, cu `null` explicit, ca fiecare apelant să decidă, nu să uite.
+     */
+    organizationId: string | null;
     subject?: string;
     dedupeWindowSeconds?: number;
     /**
@@ -61,6 +67,7 @@ const cheieDedupe = (template: string, entityId: string, to: string): string =>
   `email:${template}:${entityId}:${createHash("sha256").update(to).digest("hex").slice(0, 32)}`;
 
 type LogInsert = Readonly<{
+  organization_id: string | null;
   destinatar: string;
   subiect: string;
   template: string;
@@ -131,6 +138,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   const randat = renderEmail(input, { appUrl: config.appUrl });
   const subiect = input.subject ?? randat.subject;
   const logId = await insereazaLog(input.db, {
+    organization_id: input.organizationId,
     destinatar: adresa.data,
     subiect,
     template: input.template,

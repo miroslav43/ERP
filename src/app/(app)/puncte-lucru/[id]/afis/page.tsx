@@ -8,6 +8,7 @@ import { Callout } from "@/components/ui/callout";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
+import { idDinRuta } from "@/lib/rute/parametri";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { clientEnv } from "@/config/env";
 
@@ -44,7 +45,8 @@ export default async function PaginaAfisPontare({
 }: {
   readonly params: Promise<{ readonly id: string }>;
 }) {
-  const { id } = await params;
+  const { id: idBrut } = await params;
+  const id = idDinRuta(idBrut);
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.

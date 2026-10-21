@@ -330,7 +330,7 @@ export function ActiuniSesizare({
           eticheta="Preiau eu"
           pictograma={<Wrench aria-hidden="true" className="size-4" />}
           titlu="Preluați sesizarea?"
-          consecinta="Sesizarea vă e atribuită dvs.: apare în lista dvs. de lucrat, iar raportorul vede că e în grija cuiva. Starea nu se schimbă până n-o treceți „În lucru”."
+          consecinta="Sesizarea vă e atribuită: apare în lista dumneavoastră de lucrat, iar raportorul vede că e în grija cuiva. Starea nu se schimbă până n-o treceți „În lucru”."
           etichetaConfirmare="Preiau sesizarea"
           executa={() => atribuieSesizare({ id: sesizareId, atribuit_employee_id: null, eu: true })}
           mesajReusita="Sesizarea v-a fost atribuită."

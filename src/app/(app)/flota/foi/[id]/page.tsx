@@ -362,7 +362,7 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
           className="border-primary/30 bg-primary/5 rounded-panou border p-4"
         >
           <h2 id="titlu-decizie" className="text-sectiune mb-2 font-medium">
-            Decizia dvs.
+            Decizia dumneavoastră
           </h2>
           <DecizieFoaie id={foaie.id} />
         </section>

@@ -1,76 +1,122 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useState, useTransition } from "react";
+import { useCallback, useState } from "react";
+
+import { Buton } from "@/components/ui/buton";
+import { Camp, clasaBifa } from "@/components/ui/camp";
+import { Formular } from "@/components/ui/formular";
+import { cn } from "@/lib/ui/cn";
 
 import { inregistreazaFirma } from "./actions";
+import { eroriPeCamp, schemaInregistrare } from "./schema";
 
 /**
  * Formularul de înregistrare.
  *
- * ── DE CE `useTransition`, ȘI NU COMPONENTA `Formular` ────────────────────
- * `components/ui/formular.tsx` desface `ActionResult` și distribuie erorile
- * singură, dar afișează și o notificare prin `arataToast` — iar zona de
- * notificări NU e montată în `(auth)`. Aici e tiparul implicit al proiectului:
- * `useTransition` + `FormData` + `useId`.
+ * ── DE CE `Formular` + `Camp` DIN `components/ui` ─────────────────────────
+ * Până pe 12 oct 2026 stătea pe `useTransition` + `<form action>`, cu un `Camp`
+ * privat, pe motivul (greșit) că `Formular` ar afișa o notificare într-o zonă
+ * fără `ZonaToast`. `Formular` cheamă `arataToast` DOAR când primește
+ * `mesajReusita` (`formular.tsx`), iar aici nu primește. Ce dădea tiparul vechi
+ * erau exact cele trei defecte din auditul QA: validare doar pe server, deci
+ * fiecare greșeală de tastare ardea un slot din 3/oră (ONB-001); resetul
+ * React 19 al formularului la orice eroare, inclusiv bifa (ONB-002); baloanele
+ * native ale browserului, în limba browserului (ONB-003).
+ *
+ * `Formular` le rezolvă pe toate trei o singură dată, pentru toate ecranele:
+ * `noValidate`, erorile pe câmp prin `Camp` (`aria-invalid` + `aria-describedby`
+ * prin construcție), `valoriTrimise` înapoi ca `defaultValue`, focus pe primul
+ * câmp invalid.
+ *
+ * ── DE CE VALIDAREA DE CLIENT RULEAZĂ ACEEAȘI SCHEMĂ ──────────────────────
+ * `trimite` rulează `schemaInregistrare.safeParse` ÎNAINTE de Server Action și
+ * întoarce un `ActionResult` de validare cu `eroriPeCamp` — aceleași șase linii
+ * ca pe server, deci aceleași mesaje, fără un geamăn care să divergă tăcut
+ * (`cere-demo/campuri.ts` există doar pentru bundle-ul paginii de start; pagina
+ * asta nu e pe calea aceea). Serverul re-parsează oricum: clientul e confort,
+ * autoritatea rămâne acolo.
  *
  * ── DE CE ECRANUL DE CONFIRMARE ÎNLOCUIEȘTE FORMULARUL ────────────────────
  * După reușită nu se navighează nicăieri. Pasul următor nu e pe sit, e în
  * căsuța de e-mail, iar un redirect ar sugera contrariul. Formularul dispare ca
  * să nu poată fi trimis a doua oară: a doua încercare ar cădea pe CUI deja
  * înregistrat, adică pe un mesaj de eroare pentru ceva ce tocmai a mers.
+ * `laReusita` semnalează voalul până la unmount — o singură randare, sub
+ * `PRAG_VOAL`, deci invizibil; același drum îl face `FormularDialog` când
+ * închide caseta.
  */
-const CLASA_CAMP =
-  "border-border bg-background focus:border-ring rounded-control text-corp pointer-coarse:text-sectiune w-full border px-3 py-2";
+type Rezultat = Awaited<ReturnType<typeof inregistreazaFirma>>;
+type DateReusita = Extract<Rezultat, { ok: true }>["data"];
 
-type Erori = Readonly<Record<string, readonly string[]>>;
+/**
+ * Obiectul trimis acțiunii — cheile sunt EXACT cele din `schemaInregistrare`.
+ * `FormData` dă „on" pentru o bifă apăsată și NIMIC pentru una liberă; schema
+ * cere `true` literal, deci conversia se face aici, altfel mesajul de eroare ar
+ * vorbi despre tipuri, nu despre accept.
+ */
+function citesteValori(date: FormData, sursa: string | null) {
+  const text = (nume: string): string => String(date.get(nume) ?? "");
+  return {
+    firma: text("firma"),
+    cui: text("cui"),
+    prenume: text("prenume"),
+    nume: text("nume"),
+    email: text("email"),
+    telefon: text("telefon"),
+    acceptTermeni: date.get("acceptTermeni") === "on",
+    // Unealta din care a venit, citită pe server din UTM; nu e un câmp.
+    sursa,
+  };
+}
+
+/*
+ * Deliberat redundant cu regula `[data-zona]` din `globals.css`: sub 16px, iOS
+ * Safari mărește pagina la fiecare atingere într-un câmp. Vezi `(auth)/layout.tsx`.
+ */
+const CLASA_TACTIL = "pointer-coarse:text-sectiune";
+const ID_EROARE_BIFA = "camp-acceptTermeni-eroare";
 
 export function FormularInregistrare({ sursa = null }: Readonly<{ sursa?: string | null }>) {
-  const idForm = useId();
-  const [inCurs, porneste] = useTransition();
-  const [erori, setErori] = useState<Erori>({});
-  const [eroareGenerala, setEroareGenerala] = useState<string | null>(null);
   const [trimisLa, setTrimisLa] = useState<string | null>(null);
 
-  function trimite(date: FormData) {
-    porneste(async () => {
-      setErori({});
-      setEroareGenerala(null);
-
-      const rezultat = await inregistreazaFirma({
-        firma: date.get("firma"),
-        cui: date.get("cui"),
-        prenume: date.get("prenume"),
-        nume: date.get("nume"),
-        email: date.get("email"),
-        telefon: date.get("telefon") ?? "",
-        // `FormData` dă „on" pentru o bifă apăsată și NIMIC pentru una liberă.
-        // Schema cere `true` literal, deci conversia se face aici — altfel
-        // mesajul de eroare ar vorbi despre tipuri, nu despre accept.
-        acceptTermeni: date.get("acceptTermeni") === "on",
-        // Unealta din care a venit, citită pe server din UTM; nu e un câmp.
-        sursa,
-      });
-
-      if (rezultat.ok) {
-        setTrimisLa(rezultat.data.email);
-        return;
+  const trimite = useCallback(
+    async (date: FormData): Promise<Rezultat> => {
+      const valori = citesteValori(date, sursa);
+      const parsat = schemaInregistrare.safeParse(valori);
+      if (!parsat.success) {
+        // Niciun apel la server: nici cerere, nici slot de rată consumat.
+        return {
+          ok: false,
+          error: {
+            code: "VALIDARE",
+            message: "Datele introduse nu sunt valide.",
+            fieldErrors: eroriPeCamp(parsat.error),
+            requestId: "validare-client",
+          },
+        };
       }
-      setErori(rezultat.error.fieldErrors ?? {});
-      setEroareGenerala(rezultat.error.message);
-    });
-  }
+      return inregistreazaFirma(valori);
+    },
+    [sursa],
+  );
+
+  // Stabil între randări: `laReusita` intră în dependențele efectului din
+  // `Formular`, iar o funcție nouă la fiecare randare l-ar reporni.
+  const laReusita = useCallback((date: DateReusita) => {
+    setTrimisLa(date.email);
+  }, []);
 
   if (trimisLa !== null) {
     return (
       <div role="status">
         <h1 className="text-primary text-sectiune font-semibold">Contul e creat</h1>
         <p className="text-corp mt-3 leading-relaxed">
-          Ți-am trimis un e-mail la <strong className="font-medium">{trimisLa}</strong>, cu linkul
-          prin care intri prima dată. Linkul e valabil șapte zile.
+          V-am trimis un e-mail la <strong className="font-medium">{trimisLa}</strong>, cu linkul
+          prin care intrați prima dată. Linkul e valabil șapte zile.
         </p>
         <p className="text-muted-foreground text-corp mt-3 leading-relaxed">
-          Nu ajunge? Verifică și în spam. Dacă tot nu apare în câteva minute, scrie-ne și îl
+          Nu ajunge? Verificați și în spam. Dacă tot nu apare în câteva minute, scrieți-ne și îl
           retrimitem — adresa e în subsolul paginii de start.
         </p>
         <p className="text-corp mt-6">
@@ -86,120 +132,171 @@ export function FormularInregistrare({ sursa = null }: Readonly<{ sursa?: string
     <>
       <h1 className="text-primary text-sectiune font-semibold">Creează contul firmei</h1>
       <p className="text-muted-foreground text-corp mt-1">
-        Șase câmpuri. Restul datelor firmei le completezi înăuntru, când ai timp.
+        Șase câmpuri. Restul datelor firmei le completați înăuntru, când aveți timp.
       </p>
 
-      {eroareGenerala !== null && (
-        <p
-          role="alert"
-          className="text-danger border-danger/40 bg-danger/5 rounded-control text-corp mt-4 border px-3 py-2"
-        >
-          {eroareGenerala}
-        </p>
-      )}
+      <Formular actiune={trimite} laReusita={laReusita} className="mt-6">
+        {({ erori, inCurs, valoriTrimise }) => {
+          const eroareBifa = erori["acceptTermeni"]?.[0];
+          return (
+            <>
+              <Camp
+                nume="firma"
+                eticheta="Denumirea firmei"
+                obligatoriu
+                erori={erori["firma"] ?? []}
+              >
+                {(a) => (
+                  <input
+                    {...a}
+                    type="text"
+                    autoComplete="organization"
+                    defaultValue={valoriTrimise["firma"] ?? ""}
+                    className={cn(a.className, CLASA_TACTIL)}
+                  />
+                )}
+              </Camp>
+              <Camp
+                nume="cui"
+                eticheta="CUI"
+                ajutor="Doar cifrele, cu sau fără RO."
+                obligatoriu
+                erori={erori["cui"] ?? []}
+              >
+                {(a) => (
+                  <input
+                    {...a}
+                    type="text"
+                    inputMode="numeric"
+                    defaultValue={valoriTrimise["cui"] ?? ""}
+                    className={cn(a.className, CLASA_TACTIL)}
+                  />
+                )}
+              </Camp>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Camp nume="prenume" eticheta="Prenume" obligatoriu erori={erori["prenume"] ?? []}>
+                  {(a) => (
+                    <input
+                      {...a}
+                      type="text"
+                      autoComplete="given-name"
+                      defaultValue={valoriTrimise["prenume"] ?? ""}
+                      className={cn(a.className, CLASA_TACTIL)}
+                    />
+                  )}
+                </Camp>
+                <Camp nume="nume" eticheta="Nume" obligatoriu erori={erori["nume"] ?? []}>
+                  {(a) => (
+                    <input
+                      {...a}
+                      type="text"
+                      autoComplete="family-name"
+                      defaultValue={valoriTrimise["nume"] ?? ""}
+                      className={cn(a.className, CLASA_TACTIL)}
+                    />
+                  )}
+                </Camp>
+              </div>
+              <Camp
+                nume="email"
+                eticheta="Adresa dumneavoastră de e-mail"
+                ajutor="Aici primiți linkul de acces."
+                obligatoriu
+                erori={erori["email"] ?? []}
+              >
+                {(a) => (
+                  <input
+                    {...a}
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    defaultValue={valoriTrimise["email"] ?? ""}
+                    className={cn(a.className, CLASA_TACTIL)}
+                  />
+                )}
+              </Camp>
+              <Camp
+                nume="telefon"
+                eticheta="Telefon"
+                ajutor="Opțional."
+                erori={erori["telefon"] ?? []}
+              >
+                {(a) => (
+                  <input
+                    {...a}
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    defaultValue={valoriTrimise["telefon"] ?? ""}
+                    className={cn(a.className, CLASA_TACTIL)}
+                  />
+                )}
+              </Camp>
 
-      <form id={idForm} action={trimite} className="mt-6 flex flex-col gap-4">
-        <Camp
-          nume="firma"
-          eticheta="Denumirea firmei"
-          autoComplete="organization"
-          erori={erori.firma}
-          idForm={idForm}
-        />
-        <Camp
-          nume="cui"
-          eticheta="CUI"
-          indiciu="Doar cifrele, cu sau fără RO."
-          inputMode="numeric"
-          erori={erori.cui}
-          idForm={idForm}
-        />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Camp
-            nume="prenume"
-            eticheta="Prenume"
-            autoComplete="given-name"
-            erori={erori.prenume}
-            idForm={idForm}
-          />
-          <Camp
-            nume="nume"
-            eticheta="Nume"
-            autoComplete="family-name"
-            erori={erori.nume}
-            idForm={idForm}
-          />
-        </div>
-        <Camp
-          nume="email"
-          eticheta="Adresa ta de e-mail"
-          indiciu="Aici primești linkul de acces."
-          type="email"
-          autoComplete="email"
-          erori={erori.email}
-          idForm={idForm}
-        />
-        <Camp
-          nume="telefon"
-          eticheta="Telefon"
-          indiciu="Opțional."
-          type="tel"
-          autoComplete="tel"
-          obligatoriu={false}
-          erori={erori.telefon}
-          idForm={idForm}
-        />
+              {/*
+                Bifa nu trece prin `Camp` (eticheta ei e o propoziție cu două
+                linkuri, nu un titlu deasupra), dar respectă aceeași legătură:
+                `aria-invalid` + `aria-describedby` către mesajul de sub ea.
+                `required` rămâne pentru semantică; cu `noValidate` nu blochează
+                nimic — apărarea e `z.literal(true)` din schemă.
+              */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-corp flex items-start gap-2.5">
+                  <input
+                    type="checkbox"
+                    name="acceptTermeni"
+                    required
+                    defaultChecked={valoriTrimise["acceptTermeni"] === "on"}
+                    aria-invalid={eroareBifa === undefined ? undefined : true}
+                    aria-describedby={eroareBifa === undefined ? undefined : ID_EROARE_BIFA}
+                    className={cn(clasaBifa, "mt-0.5")}
+                  />
+                  <span>
+                    Am citit și accept{" "}
+                    <Link href="/legal/termeni" className="underline underline-offset-2">
+                      termenii și condițiile
+                    </Link>{" "}
+                    și{" "}
+                    <Link href="/legal/confidentialitate" className="underline underline-offset-2">
+                      politica de confidențialitate
+                    </Link>
+                    .
+                  </span>
+                </label>
+                {eroareBifa !== undefined && (
+                  <p id={ID_EROARE_BIFA} role="alert" className="text-danger text-nota">
+                    {eroareBifa}
+                  </p>
+                )}
+              </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label className="text-corp flex items-start gap-2.5">
-            <input
-              type="checkbox"
-              name="acceptTermeni"
-              className="border-border rounded-control mt-0.5 size-4 shrink-0 border"
-              aria-describedby={
-                erori.acceptTermeni === undefined ? undefined : `${idForm}-acceptTermeni-eroare`
-              }
-            />
-            <span>
-              Am citit și accept{" "}
-              <Link href="/legal/termeni" className="underline underline-offset-2">
-                termenii și condițiile
-              </Link>{" "}
-              și{" "}
-              <Link href="/legal/confidentialitate" className="underline underline-offset-2">
-                politica de confidențialitate
-              </Link>
-              .
-            </span>
-          </label>
-          {erori.acceptTermeni !== undefined && (
-            <p id={`${idForm}-acceptTermeni-eroare`} className="text-danger text-nota">
-              {erori.acceptTermeni[0]}
-            </p>
-          )}
-        </div>
-
-        {/*
-          Marchează TRIMITEREA, nu reușita: evenimentul pleacă la clic, iar
-          rezultatul se vede din numărul de organizații create. Diferența dintre
-          cele două cifre e chiar rata de eșec a formularului — CUI duplicat,
-          validare picată — care altfel n-ar fi vizibilă nicăieri.
-        */}
-        <button
-          type="submit"
-          data-umami-event="inregistrare-trimisa"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground rounded-control text-corp mt-2 inline-flex h-11 items-center justify-center px-5 font-medium transition-opacity hover:opacity-90 disabled:opacity-60"
-        >
-          {inCurs ? "Se creează…" : "Creează contul"}
-        </button>
-      </form>
+              {/*
+                Marchează TRIMITEREA, nu reușita: evenimentul pleacă la clic, iar
+                rezultatul se vede din numărul de organizații create. Diferența
+                dintre cele două cifre e chiar rata de eșec a formularului — CUI
+                duplicat, validare picată — care altfel n-ar fi vizibilă nicăieri.
+                Validarea de client oprește acum cererea, nu și evenimentul.
+              */}
+              <Buton
+                type="submit"
+                varianta="primar"
+                data-umami-event="inregistrare-trimisa"
+                inCurs={inCurs}
+                textInCurs="Se creează…"
+                className="mt-2"
+              >
+                Creează contul
+              </Buton>
+            </>
+          );
+        }}
+      </Formular>
 
       {/* Cele două drumuri care pleacă de aici. `/cere-demo` a ieșit din erou
           odată cu trecerea la înregistrare self-serve; fără linkul ăsta, ar fi
           rămas o pagină fără nicio intrare. */}
       <p className="text-muted-foreground text-corp mt-6">
-        Ai deja cont?{" "}
+        Aveți deja cont?{" "}
         <Link href="/autentificare" className="rounded underline">
           Autentifică-te
         </Link>
@@ -211,70 +308,5 @@ export function FormularInregistrare({ sursa = null }: Readonly<{ sursa?: string
         </Link>
       </p>
     </>
-  );
-}
-
-/** Un câmp cu eticheta, indiciul și eroarea lui, legate prin `aria-describedby`. */
-function Camp({
-  nume,
-  eticheta,
-  indiciu,
-  erori,
-  idForm,
-  obligatoriu = true,
-  type = "text",
-  autoComplete,
-  inputMode,
-}: Readonly<{
-  nume: string;
-  eticheta: string;
-  /*
-   * `| undefined` explicit pe fiecare opțional, nu doar `?`.
-   *
-   * `exactOptionalPropertyTypes: true` face din cele două lucruri DIFERITE: `?`
-   * înseamnă „proprietatea poate lipsi", nu „poate fi `undefined`". Iar
-   * `erori.firma` chiar poate fi `undefined` — e citirea unei chei dintr-un
-   * `Record`. Fără uniune, fiecare apel de mai sus cădea la `tsc`.
-   */
-  indiciu?: string | undefined;
-  erori?: readonly string[] | undefined;
-  idForm: string;
-  obligatoriu?: boolean | undefined;
-  type?: string | undefined;
-  autoComplete?: string | undefined;
-  inputMode?: "numeric" | "text" | undefined;
-}>) {
-  const idCamp = `${idForm}-${nume}`;
-  const idIndiciu = indiciu === undefined ? null : `${idCamp}-indiciu`;
-  const idEroare = erori === undefined ? null : `${idCamp}-eroare`;
-  const descrieri = [idIndiciu, idEroare].filter((x): x is string => x !== null).join(" ");
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={idCamp} className="text-corp font-medium">
-        {eticheta}
-      </label>
-      {indiciu !== undefined && (
-        <p id={idIndiciu ?? undefined} className="text-muted-foreground text-nota">
-          {indiciu}
-        </p>
-      )}
-      <input
-        id={idCamp}
-        name={nume}
-        type={type}
-        {...(autoComplete === undefined ? {} : { autoComplete })}
-        {...(inputMode === undefined ? {} : { inputMode })}
-        required={obligatoriu}
-        aria-invalid={erori === undefined ? undefined : true}
-        aria-describedby={descrieri === "" ? undefined : descrieri}
-        className={CLASA_CAMP}
-      />
-      {erori !== undefined && (
-        <p id={idEroare ?? undefined} className="text-danger text-nota">
-          {erori[0]}
-        </p>
-      )}
-    </div>
   );
 }

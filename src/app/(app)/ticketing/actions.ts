@@ -64,7 +64,7 @@ async function fisaMea(organizationId: string, userId: string): Promise<string> 
   if (error !== null) throw error;
   if (data === null) {
     throw businessRule(
-      "Contul dvs. nu este legat de o fișă de angajat activă în această organizație. Contactați administratorul.",
+      "Contul dumneavoastră nu este legat de o fișă de angajat activă în această organizație. Contactați administratorul.",
     );
   }
   return data.id;
@@ -368,6 +368,27 @@ export const asigneaza = createAction({
   },
   revalidate: CAI_DE_REIMPROSPATAT,
   handler: async (ctx, input): Promise<Readonly<{ ok: true }>> => {
+    if (input.asignat_employee_id !== null) {
+      // Cheia străină `tickets.asignat_employee_id` nu e compusă cu
+      // `organization_id`, deci baza ar primi și fișa altei firme, iar
+      // triggerul de repartizare (0192 §3) ar căuta acolo destinatarul.
+      // Admin, fiindcă operatorul poate fi un membru `employee` cu
+      // `tickets:update = all`, care prin RLS își vede doar propria fișă;
+      // filtrul explicit pe organizația tenantului ține locul RLS-ului.
+      const admin = createAdminSupabase();
+      const { data: fisa, error: eroareFisa } = await admin
+        .from("employees")
+        .select("id")
+        .eq("id", input.asignat_employee_id)
+        .eq("organization_id", ctx.tenant.organizationId)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (eroareFisa !== null) throw eroareFisa;
+      if (fisa === null) {
+        throw notFound("Angajatul ales nu există în această organizație.");
+      }
+    }
+
     const db = await createServerSupabase();
     // `asignat_employee_id` e câmp păzit, iar politica poate sări rândul
     // tăcut: fără `.select()`, ecranul ar arăta tichetul repartizat, iar în

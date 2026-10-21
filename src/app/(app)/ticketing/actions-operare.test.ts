@@ -176,11 +176,16 @@ describe("suprascriePrioritatea", () => {
 // ── asigneaza ─────────────────────────────────────────────────────────────────
 
 describe("asigneaza", () => {
-  it("succes: scrie doar persoana repartizată, pe id + organizație, cu `.select()`", async () => {
-    const { server } = configureazaActiunea({ permisiuni: OPERARE });
+  it("succes: fișa se verifică în firmă, apoi se scrie doar persoana repartizată, pe id + organizație, cu `.select()`", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: OPERARE });
+    admin.raspunde("employees", "select", { data: { id: OPERATOR } });
     server.raspunde("tickets", "update", { data: { id: TICHET } });
     const r = await asigneaza({ ticket_id: TICHET, asignat_employee_id: OPERATOR });
     expect(r).toEqual({ ok: true, data: { ok: true } });
+    const [fisa] = admin.apeluriPe("employees", "select");
+    expect(areFiltru(fisa, "eq", "id", OPERATOR)).toBe(true);
+    expect(areFiltru(fisa, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(fisa, "is", "deleted_at", null)).toBe(true);
     const [apel] = server.apeluriPe("tickets");
     expect(apel?.payload).toEqual({ asignat_employee_id: OPERATOR });
     expect(areFiltru(apel, "eq", "id", TICHET)).toBe(true);
@@ -189,16 +194,33 @@ describe("asigneaza", () => {
     expect(caiRevalidate()).toEqual(CAI);
   });
 
-  it("`null` scoate repartizarea", async () => {
-    const { server } = configureazaActiunea({ permisiuni: OPERARE });
+  it("angajat din altă firmă (sau inexistent): NEGASIT, iar tichetul nu se atinge", async () => {
+    // Un ID de fișă străin pe tichet ar face triggerul de repartizare (0192 §3)
+    // să caute un destinatar în afara firmei. Acțiunea îl oprește înainte.
+    const { server, admin } = configureazaActiunea({ permisiuni: OPERARE });
+    admin.raspunde("employees", "select", { data: null });
+    server.raspunde("tickets", "update", { data: { id: TICHET } });
+    const r = await asigneaza({ ticket_id: TICHET, asignat_employee_id: OPERATOR });
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "NEGASIT", message: expect.stringContaining("Angajatul ales") },
+    });
+    expect(server.apeluriPe("tickets", "update")).toHaveLength(0);
+    expect(caiRevalidate()).toEqual([]);
+  });
+
+  it("`null` scoate repartizarea, fără să caute vreo fișă", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: OPERARE });
     server.raspunde("tickets", "update", { data: { id: TICHET } });
     const r = await asigneaza({ ticket_id: TICHET, asignat_employee_id: null });
     expect(r.ok).toBe(true);
     expect(server.apeluriPe("tickets")[0]?.payload).toEqual({ asignat_employee_id: null });
+    expect(admin.apeluriPe("employees")).toHaveLength(0);
   });
 
   it("zero rânduri: CONFLICT, nu „repartizat”", async () => {
-    const { server } = configureazaActiunea({ permisiuni: OPERARE });
+    const { server, admin } = configureazaActiunea({ permisiuni: OPERARE });
+    admin.raspunde("employees", "select", { data: { id: OPERATOR } });
     server.raspunde("tickets", "update", { data: null });
     const r = await asigneaza({ ticket_id: TICHET, asignat_employee_id: OPERATOR });
     expect(r).toMatchObject({
@@ -212,7 +234,8 @@ describe("asigneaza", () => {
   });
 
   it("refuz de bază la UPDATE (42501): INTERZIS, nu „repartizarea nu a fost salvată”", async () => {
-    const { server } = configureazaActiunea({ permisiuni: OPERARE });
+    const { server, admin } = configureazaActiunea({ permisiuni: OPERARE });
+    admin.raspunde("employees", "select", { data: { id: OPERATOR } });
     server.raspunde("tickets", "update", { error: eroarePostgrest("42501") });
     const r = await asigneaza({ ticket_id: TICHET, asignat_employee_id: OPERATOR });
     expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });

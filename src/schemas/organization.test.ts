@@ -134,3 +134,24 @@ describe("actualizeazaOrganizatieSchema — cod_caen", () => {
     expect(rezultat.success).toBe(true);
   });
 });
+
+describe("completeazaFirmaSchema — mesaje românești pe câmpurile numerice (ONB-013)", () => {
+  const COMPLET = { ...BAZA, cod_caen: "6210", cod_caen_secundare: [] };
+  const mesajPe = (camp: string, valoare: unknown) => {
+    const rezultat = completeazaFirmaSchema.safeParse({ ...COMPLET, [camp]: valoare });
+    expect(rezultat.success).toBe(false);
+    return rezultat.error?.issues.find((i) => i.path[0] === camp)?.message ?? "";
+  };
+
+  it("ziua lichidării 40 → „între 1 și 31”, cu punct", () => {
+    const mesaj = mesajPe("ziua_plata_lichidare", 40);
+    expect(mesaj).toContain("între 1 și 31");
+    expect(mesaj).toMatch(/\.$/u);
+  });
+
+  it("zile de concediu 61 → „între 0 și 60”, cu punct", () => {
+    const mesaj = mesajPe("zile_concediu_anual_implicit", 61);
+    expect(mesaj).toContain("între 0 și 60");
+    expect(mesaj).toMatch(/\.$/u);
+  });
+});

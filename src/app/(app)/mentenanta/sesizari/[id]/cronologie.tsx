@@ -23,7 +23,7 @@ interface Proprietati {
   readonly comentarii: readonly ComentariuSesizare[];
   readonly numeAngajati: ReadonlyMap<string, AngajatRezumat>;
   readonly numeUtilizatori: ReadonlyMap<string, AngajatRezumat>;
-  /** Contul apelantului — rândurile lui spun „dvs.”, nu numele propriu. */
+  /** Contul apelantului — rândurile lui spun „Dumneavoastră”, nu numele propriu. */
   readonly userId: string;
   /** Lista de sesizări a zonei (`/mentenanta/sesizari` sau `/portal/sesizari`): „Duplicat al" devine link. */
   readonly prefixSesizare?: string;
@@ -68,7 +68,7 @@ export function Cronologie({
 
   function numeleContului(idCont: string | null): string {
     if (idCont === null) return "Sistem";
-    if (idCont === userId) return "Dvs.";
+    if (idCont === userId) return "Dumneavoastră";
     return numeUtilizatori.get(idCont)?.full_name ?? ECHIPA;
   }
 
@@ -135,8 +135,8 @@ export function Cronologie({
                 {el.rand.autor_employee_id !== null
                   ? el.rand.autor_user_id === userId ||
                     numeAngajati.get(el.rand.autor_employee_id) === undefined
-                    ? numeleContului(el.rand.autor_user_id) === "Dvs."
-                      ? "Dvs."
+                    ? numeleContului(el.rand.autor_user_id) === "Dumneavoastră"
+                      ? "Dumneavoastră"
                       : numeleFisei(el.rand.autor_employee_id)
                     : numeleFisei(el.rand.autor_employee_id)
                   : numeleContului(el.rand.autor_user_id)}

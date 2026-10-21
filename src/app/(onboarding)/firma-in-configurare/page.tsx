@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { Building2, LogOut } from "lucide-react";
+import { Building2 } from "lucide-react";
 
-import { deconecteaza } from "@/app/(app)/actions";
 import {
   RUTA_ALEGE_ORGANIZATIA,
   RUTA_AUTENTIFICARE,
@@ -10,7 +9,6 @@ import {
 } from "@/config/routes";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 import { stareFirmei } from "@/lib/tenant/stare-firma";
-import { ButonTrimite } from "@/components/incarcare/buton-trimite";
 
 export const metadata: Metadata = {
   title: "Firma se configurează",
@@ -27,6 +25,10 @@ export const dynamic = "force-dynamic";
  * reprezentantul legal — date pe care n-au cum să le știe și pe care oricum nu
  * au dreptul să le scrie. Un formular pe care nu-l poți completa e mai
  * descurajant decât o explicație.
+ *
+ * Butonul „Deconectare" a stat aici până pe 12 oct 2026; acum vine din antetul
+ * layout-ului zonei (QA ONB-021), pe ambele ecranuri. Pus și aici, ar apărea
+ * de două ori.
  */
 export default async function PaginaFirmaInConfigurare() {
   const rezolvare = await resolveTenant();
@@ -63,23 +65,6 @@ export default async function PaginaFirmaInConfigurare() {
           </p>
         </div>
       </div>
-
-      <form action={deconecteaza}>
-        {/*
-          `varianta="tertiar"` + clasele originale: `cn` le lasă pe acestea să
-          câștige, deci butonul arată exact ca înainte — discret, cum se cuvine
-          pe un ecran de așteptare. Ce se schimbă e doar că acum se blochează și
-          spune „Se deconectează…" cât timp GoTrue lucrează.
-        */}
-        <ButonTrimite
-          varianta="tertiar"
-          textInCurs="Se deconectează…"
-          className="border-border text-muted-foreground hover:bg-surface hover:text-foreground rounded-control text-corp flex w-full items-center justify-center gap-2 border px-4 py-2 font-medium transition"
-        >
-          <LogOut aria-hidden="true" className="size-4" />
-          Deconectare
-        </ButonTrimite>
-      </form>
     </div>
   );
 }

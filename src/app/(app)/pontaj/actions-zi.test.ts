@@ -80,13 +80,22 @@ const ZI = {
   ore_noapte: 0,
 } as const;
 
-/** Programează drumul obișnuit până la citirea zilei existente. */
+/**
+ * Programează drumul obișnuit până la citirea zilei existente.
+ *
+ * Fișa se citește cu clientul admin pentru AMBELE scope-uri: pe `own` ca să
+ * afle a cui e ziua, pe `all` ca să afle de când e omul angajat (ANG-005).
+ */
 function pregatesteDrumul(
   server: ClientFals,
   admin: ClientFals,
-  { fisa = true, existenta = null as unknown }: { fisa?: boolean; existenta?: unknown } = {},
+  {
+    fisa = FISA,
+    hiredOn = null,
+    existenta = null as unknown,
+  }: { fisa?: string; hiredOn?: string | null; existenta?: unknown } = {},
 ) {
-  if (fisa) admin.raspunde("employees", "select", { data: { id: FISA } });
+  admin.raspunde("employees", "select", { data: { id: fisa, hired_on: hiredOn } });
   server.raspunde("attendance_settings", "select", { data: null });
   server.raspunde("attendance_entries", "select", { data: existenta });
 }
@@ -195,12 +204,17 @@ describe("salveazaZiPontaj — orele", () => {
 
   it("scope `all`: responsabilul scrie pentru altcineva, iar cifrele lui se păstrează", async () => {
     const { server, admin } = configureazaActiunea({ rol: "hr", permisiuni: TOT });
-    pregatesteDrumul(server, admin, { fisa: false });
+    pregatesteDrumul(server, admin, { fisa: ID_2 });
     server.raspunde("attendance_entries", "insert", { data: { id: ID_1 } });
 
     await salveazaZiPontaj({ ...ZI, employee_id: ID_2, ore_lucrate: 10, ore_suplimentare: 2 });
 
-    expect(admin.apeluriPe("employees")).toHaveLength(0);
+    // Fișa ALEASĂ, nu a lui: se citește data angajării, filtrată pe organizație.
+    const [fisa] = admin.apeluriPe("employees");
+    expect(areFiltru(fisa, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(fisa, "eq", "id", ID_2)).toBe(true);
+    expect(areFiltru(fisa, "is", "deleted_at", null)).toBe(true);
+    expect(areFiltru(fisa, "eq", "user_id")).toBe(false);
     const [insert] = server.apeluriPe("attendance_entries", "insert");
     expect(insert?.payload).toMatchObject({
       employee_id: ID_2,
@@ -371,6 +385,97 @@ describe("salveazaZiPontaj — scrierea", () => {
   });
 });
 
+/*
+  Ziua care nu se pontează (ANG-004, ANG-005).
+
+  `ACUM` e 15 iulie 2026. O zi din viitor n-are ce înregistra — planificarea
+  are fișa săptămânii; o zi dinaintea angajării nu era a firmei. Refuzul vine
+  ÎNAINTE de orice citire de setări sau de zi, și pentru TOATE scope-urile:
+  responsabilul de pontaj corectează ce s-a întâmplat, nu scrie ce va fi.
+*/
+describe("salveazaZiPontaj — ziua care nu se pontează", () => {
+  it("ziua din viitor ⇒ CONFLICT, fără INSERT și fără citirea setărilor", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    admin.raspunde("employees", "select", { data: { id: FISA, hired_on: null } });
+
+    const r = await salveazaZiPontaj({ ...ZI, data: "2026-07-20" });
+
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "CONFLICT", message: expect.stringContaining("nu a venit încă") },
+    });
+    expect(server.apeluriPe("attendance_entries")).toHaveLength(0);
+    expect(server.apeluriPe("attendance_settings")).toHaveLength(0);
+    expect(caiRevalidate()).toEqual([]);
+  });
+
+  it("ziua dinaintea angajării ⇒ CONFLICT cu data de pe fișă, fără INSERT", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    admin.raspunde("employees", "select", { data: { id: FISA, hired_on: "2026-07-10" } });
+
+    const r = await salveazaZiPontaj({ ...ZI, data: "2026-07-01" });
+
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "CONFLICT", message: expect.stringContaining("angajat din 10.07.2026") },
+    });
+    expect(server.apeluriPe("attendance_entries")).toHaveLength(0);
+  });
+
+  it("scope `all` e refuzat la fel: responsabilul nu scrie zile din viitor", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "hr", permisiuni: TOT });
+    admin.raspunde("employees", "select", { data: { id: ID_2, hired_on: null } });
+
+    const r = await salveazaZiPontaj({ ...ZI, employee_id: ID_2, data: "2026-07-20" });
+
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(server.apeluriPe("attendance_entries")).toHaveLength(0);
+  });
+
+  it("scope `all` pe o fișă dinaintea angajării ⇒ CONFLICT", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "hr", permisiuni: TOT });
+    admin.raspunde("employees", "select", { data: { id: ID_2, hired_on: "2026-07-10" } });
+
+    const r = await salveazaZiPontaj({ ...ZI, employee_id: ID_2, data: "2026-07-09" });
+
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "CONFLICT", message: expect.stringContaining("10.07.2026") },
+    });
+    expect(server.apeluriPe("attendance_entries")).toHaveLength(0);
+  });
+
+  it("scope `all` pe o fișă inexistentă în organizație ⇒ NEGASIT, fără scriere", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "hr", permisiuni: TOT });
+    admin.raspunde("employees", "select", { data: null });
+
+    const r = await salveazaZiPontaj({ ...ZI, employee_id: ID_2 });
+
+    expect(r).toMatchObject({ ok: false, error: { code: "NEGASIT" } });
+    expect(server.apeluriPe("attendance_entries")).toHaveLength(0);
+  });
+
+  it("ziua angajării trece", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    pregatesteDrumul(server, admin, { hiredOn: "2026-07-15" });
+    server.raspunde("attendance_entries", "insert", { data: { id: ID_1 } });
+
+    const r = await salveazaZiPontaj(ZI);
+
+    expect(r).toMatchObject({ ok: true, data: { id: ID_1 } });
+  });
+
+  it("ziua de azi trece, iar fișa fără dată de angajare nu blochează trecutul", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    pregatesteDrumul(server, admin);
+    server.raspunde("attendance_entries", "insert", { data: { id: ID_1 } });
+
+    const r = await salveazaZiPontaj({ ...ZI, data: "2026-07-01" });
+
+    expect(r).toMatchObject({ ok: true, data: { id: ID_1 } });
+  });
+});
+
 describe("salveazaZiPontaj — sediul declarat (0163)", () => {
   const SEDIU = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
@@ -447,6 +552,7 @@ describe("salveazaZiPontaj — contractul suspendat pentru absențe", () => {
 
   it("ore > 0 pe contract suspendat, neconfirmat ⇒ întrebare, NIMIC scris", async () => {
     const { server, admin } = configureazaActiunea({ rol: "hr", permisiuni: TOT });
+    admin.raspunde("employees", "select", { data: { id: ID_3, hired_on: null } });
     server.raspunde("attendance_settings", "select", { data: null });
     colaboratori.suspendareaDinAbsente.mockResolvedValue(SUSPENDARE);
 
@@ -463,7 +569,7 @@ describe("salveazaZiPontaj — contractul suspendat pentru absențe", () => {
 
   it("confirmat: suspendarea se închide ÎNAINTE de scriere, iar avertismentul ei iese în rezultat", async () => {
     const { server, admin } = configureazaActiunea({ rol: "hr", permisiuni: TOT });
-    pregatesteDrumul(server, admin, { fisa: false });
+    pregatesteDrumul(server, admin, { fisa: ID_3 });
     server.raspunde("attendance_entries", "insert", { data: { id: ID_2 } });
     colaboratori.suspendareaDinAbsente.mockResolvedValue(SUSPENDARE);
     // Câte scrieri pe ziua de pontaj existau în clipa închiderii suspendării.
@@ -494,7 +600,7 @@ describe("salveazaZiPontaj — contractul suspendat pentru absențe", () => {
 
   it("zi fără ore (absență) nu verifică suspendarea", async () => {
     const { server, admin } = configureazaActiunea({ rol: "hr", permisiuni: TOT });
-    pregatesteDrumul(server, admin, { fisa: false });
+    pregatesteDrumul(server, admin, { fisa: ID_3 });
     server.raspunde("attendance_entries", "insert", { data: { id: ID_2 } });
     await salveazaZiPontaj({
       employee_id: ID_3,
@@ -625,8 +731,9 @@ describe("varianta săptămânală (0165)", () => {
 
   // Varianta privește cum se pontează OMUL, nu corecturile din foaia colectivă.
   it("responsabilul cu `create = all` corectează în continuare ziua altcuiva", async () => {
-    const { server } = configureazaActiunea({ permisiuni: TOT });
+    const { server, admin } = configureazaActiunea({ permisiuni: TOT });
     colaboratori.setariPontareRapida.mockResolvedValue(PE_SAPTAMANA);
+    admin.raspunde("employees", "select", { data: { id: ID_2, hired_on: null } });
     server.raspunde("attendance_settings", "select", { data: null });
     server.raspunde("attendance_entries", "select", { data: null });
     server.raspunde("attendance_entries", "insert", { data: { id: ID_1 } });

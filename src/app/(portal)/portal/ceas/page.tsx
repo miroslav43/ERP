@@ -139,7 +139,7 @@ export default async function PaginaCeas() {
           fel="restrictionata"
           pictograma={Lock}
           titlu="Luna a fost blocată"
-          descriere="Luna e închisă definitiv, iar pontajul ei nu se mai poate modifica. Anunțați responsabilul de pontaj."
+          descriere="Luna a fost blocată de responsabilul de pontaj, iar pontajul ei nu se mai poate modifica. Anunțați-l dacă aveți de corectat ceva."
         />
       </div>
     );

@@ -477,6 +477,45 @@ describe("decideDeplasare", () => {
     expect(r).toEqual({ ok: true, data: { id: ID_1 } });
   });
 
+  it("decizia închide notificările „de aprobat” ale aprobatorilor, în firma curentă", async () => {
+    // QA 8 oct 2026, MGR-021 / FLX-011: contorul de necitite ținea la nesfârșit
+    // „Deplasare de aprobat" pentru deplasări deja decise. Deplasările n-au
+    // `approval_tasks`, deci triggerul generic din 0192 nu le prinde — se
+    // închid de aici, best-effort, fără `.select()`: zero rânduri înseamnă că
+    // nimeni n-avea notificarea, nu un refuz.
+    const { server, admin } = configureazaActiunea({ permisiuni: { "per_diem:approve": "all" } });
+    admin.raspunde("employees", "select", { data: null });
+    admin.raspunde("employees", "select", { data: { user_id: ID_3 } });
+    admin.raspunde("notifications", "insert", { data: null });
+    admin.raspunde("notifications", "update", { data: null });
+    server.raspunde("business_trips", "select", { data: { employee_id: ID_3 } });
+    server.raspunde("business_trips", "update", { data: { id: ID_1, employee_id: ID_3 } });
+
+    const r = await decideDeplasare({ id: ID_1, decizie: "aprobata" });
+
+    expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+    const [inchidere] = admin.apeluriPe("notifications", "update");
+    expect(inchidere?.payload).toEqual({ read_at: ACUM });
+    expect(areFiltru(inchidere, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(inchidere, "eq", "entity_type", "business_trip")).toBe(true);
+    expect(areFiltru(inchidere, "eq", "entity_id", ID_1)).toBe(true);
+    expect(areFiltru(inchidere, "eq", "kind", "task")).toBe(true);
+    expect(areFiltru(inchidere, "is", "read_at", null)).toBe(true);
+    expect(inchidere?.selectDupaScriere).toBeUndefined();
+  });
+
+  it("închiderea picată nu desface decizia", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: { "per_diem:approve": "all" } });
+    admin.raspunde("employees", "select", { data: null });
+    admin.raspunde("employees", "select", { data: { user_id: ID_3 } });
+    admin.raspunde("notifications", "insert", { data: null });
+    admin.raspunde("notifications", "update", { error: eroarePostgrest("XX000", "cade") });
+    server.raspunde("business_trips", "select", { data: { employee_id: ID_3 } });
+    server.raspunde("business_trips", "update", { data: { id: ID_1, employee_id: ID_3 } });
+    const r = await decideDeplasare({ id: ID_1, decizie: "respinsa" });
+    expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+  });
+
   it("zero rânduri (decisă deja din altă parte): CONFLICT, audit `failure`", async () => {
     const { server, admin } = configureazaActiunea({ permisiuni: { "per_diem:approve": "team" } });
     admin.raspunde("employees", "select", { data: { id: ID_2 } });

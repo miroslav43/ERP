@@ -25,18 +25,18 @@ export const schemaInregistrare = z.object({
   firma: z
     .string()
     .trim()
-    .min(2, "Scrie denumirea firmei.")
+    .min(2, "Completați denumirea firmei.")
     .max(200, "Denumirea firmei poate avea cel mult 200 de caractere."),
   cui: cuiSchema,
   prenume: z
     .string()
     .trim()
-    .min(2, "Scrie-ți prenumele.")
+    .min(2, "Completați prenumele.")
     .max(120, "Prenumele poate avea cel mult 120 de caractere."),
   nume: z
     .string()
     .trim()
-    .min(2, "Scrie-ți numele de familie.")
+    .min(2, "Completați numele de familie.")
     .max(120, "Numele poate avea cel mult 120 de caractere."),
   email: emailSchema,
   telefon: z
@@ -56,7 +56,7 @@ export const schemaInregistrare = z.object({
    * formular, înainte de parsare.
    */
   acceptTermeni: z.literal(true, {
-    error: "Trebuie să accepți termenii ca să putem crea contul.",
+    error: "Trebuie să acceptați termenii ca să putem crea contul.",
   }),
   /*
    * Unealta din care a venit vizitatorul (`utm_campaign` pe adresele puse de
@@ -68,6 +68,30 @@ export const schemaInregistrare = z.object({
 });
 
 export type InregistrareInput = z.input<typeof schemaInregistrare>;
+
+/**
+ * `fieldErrors` exact în forma în care le întoarce serverul
+ * (`lib/actions/public-action.ts`, pasul de validare): doar câmpurile care au
+ * cel puțin un mesaj. Formularul rulează ACEEAȘI schemă pe client (ONB-001),
+ * deci trece prin aceleași șase linii — altfel clientul ar fi arătat erorile
+ * altfel decât serverul pentru aceeași greșeală.
+ *
+ * Nu se importă de acolo: `lib/actions` e `server-only`, iar fișierul ăsta
+ * trebuie să rămână importabil dintr-o componentă client.
+ */
+export function eroriPeCamp(eroare: z.ZodError): Readonly<Record<string, readonly string[]>> {
+  // `flattenError` peste o schemă generică întoarce valori lărgite; le îngustăm
+  // o singură dată, aici.
+  const flat = z.flattenError(eroare) as {
+    formErrors: readonly string[];
+    fieldErrors: Record<string, readonly string[] | undefined>;
+  };
+  const rezultat: Record<string, readonly string[]> = {};
+  for (const [camp, mesaje] of Object.entries(flat.fieldErrors)) {
+    if (mesaje !== undefined && mesaje.length > 0) rezultat[camp] = mesaje;
+  }
+  return rezultat;
+}
 
 export const CAMPURI_INREGISTRARE = [
   "firma",

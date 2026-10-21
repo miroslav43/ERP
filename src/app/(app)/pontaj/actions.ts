@@ -16,6 +16,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { formatMonthYear, oraInBucharest, todayInBucharest } from "@/lib/format/date";
 import type { ActionContext } from "@/lib/actions/types";
 import { stareaCeasului } from "@/domain/attendance/ceas";
+import { mesajRefuzZi, refuzulZilei } from "@/domain/attendance/zi-de-pontat";
 import {
   configPontareRapida,
   cumSeTrateazaCodul,
@@ -52,6 +53,7 @@ import { tipZiAutomat } from "./etichete";
 import { traduEroare } from "./erori";
 import { sincronizeazaZileleDeConcediu, type TipZiPontaj } from "./sincronizare-concediu";
 import { anuntaRespingereaZilei } from "./anunta-respingerea";
+import { anuntaAprobareaZilei, anuntaAprobareaZilelor } from "./anunta-aprobarea";
 
 const CAI_REVALIDARE = [
   "/pontaj",
@@ -85,6 +87,13 @@ function intervalulLunii(
   };
 }
 
+/** Ce trebuie știut despre fișă ca să se poată ponta o zi pe ea. */
+interface FisaDePontat {
+  readonly id: string;
+  /** `employees.hired_on` — nul când importul l-a lăsat gol; atunci nu se verifică. */
+  readonly hired_on: string | null;
+}
+
 /**
  * Fișa de angajat a utilizatorului curent, prin clientul ADMIN.
  *
@@ -98,11 +107,11 @@ function intervalulLunii(
  * cărui unică fișă nu e principală primește refuz de la bază oricum, deci mai
  * bine îl primește aici, cu un mesaj care spune ce e de făcut.
  */
-async function fisaProprie(ctx: ActionContext): Promise<string> {
+async function fisaProprie(ctx: ActionContext): Promise<FisaDePontat> {
   const admin = createAdminSupabase();
   const { data: fisa, error } = await admin
     .from("employees")
-    .select("id")
+    .select("id, hired_on")
     .eq("organization_id", ctx.tenant.organizationId)
     .eq("user_id", ctx.user.id)
     .eq("is_primary", true)
@@ -111,10 +120,39 @@ async function fisaProprie(ctx: ActionContext): Promise<string> {
   if (error !== null) throw error;
   if (fisa === null) {
     throw businessRule(
-      "Contul dvs. nu este legat de o fișă de angajat activă în această organizație. Contactați administratorul.",
+      "Contul dumneavoastră nu este legat de o fișă de angajat activă în această organizație. Contactați administratorul.",
     );
   }
-  return fisa.id;
+  return { id: fisa.id, hired_on: fisa.hired_on ?? null };
+}
+
+/**
+ * Fișa pe care se pontează ziua: cea cerută explicit (scope `all`) sau a celui
+ * autentificat.
+ *
+ * O singură cale pentru ambele scope-uri, fiindcă amândouă au nevoie de același
+ * lucru: `hired_on`, ca ziua dinaintea angajării să fie refuzată (ANG-005)
+ * oricine ar scrie-o. Tot clientul ADMIN, cu filtru explicit pe organizație,
+ * din același motiv ca la `fisaProprie`: `employees_select` (0005) nu e o
+ * poartă pe care să se poată conta pentru toate rolurile cu `attendance:create`.
+ * Fișa cerută și negăsită în organizație e NEGASIT, nu o scriere care cade
+ * abia pe FK.
+ */
+async function fisaDePontat(ctx: ActionContext, employeeId: string | null): Promise<FisaDePontat> {
+  if (employeeId === null) return fisaProprie(ctx);
+  const admin = createAdminSupabase();
+  const { data: fisa, error } = await admin
+    .from("employees")
+    .select("id, hired_on")
+    .eq("organization_id", ctx.tenant.organizationId)
+    .eq("id", employeeId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (error !== null) throw error;
+  if (fisa === null) {
+    throw notFound("Angajatul ales nu există sau a fost șters din organizație.");
+  }
+  return { id: fisa.id, hired_on: fisa.hired_on ?? null };
 }
 
 /**
@@ -236,7 +274,19 @@ export const salveazaZiPontaj = createAction({
     }
     await refuzaZiuaInVariantaSaptamanala(ctx);
 
-    const employeeId = input.employee_id ?? (await fisaProprie(ctx));
+    const fisa = await fisaDePontat(ctx, input.employee_id);
+    const employeeId = fisa.id;
+
+    /*
+      Ziua care nu se pontează (ANG-004, ANG-005): din viitor sau dinaintea
+      angajării. Pentru TOATE scope-urile — pontajul e înregistrarea a ce s-a
+      întâmplat, iar planificarea are drumul ei, fișa săptămânii
+      (`scrieSaptamanaInPontaj` scrie legitim zile viitoare din planul aprobat,
+      de aceea regula nu e un CHECK pe tabelă). Înaintea oricărei alte citiri:
+      setările și ziua existentă nu mai au rost pentru o zi refuzată.
+    */
+    const motivRefuz = refuzulZilei(input.data, todayInBucharest(), fisa.hired_on);
+    if (motivRefuz !== null) throw businessRule(mesajRefuzZi(motivRefuz, fisa.hired_on));
 
     /*
       Sediul declarat (0163). Doar pentru munca la sediu — altfel se stinge aici,
@@ -635,7 +685,7 @@ async function pregatirePontareRapida(
   }
 
   return {
-    employeeId: await fisaProprie(ctx),
+    employeeId: (await fisaProprie(ctx)).id,
     azi,
     acum: oraInBucharest(ctx.now),
     config: configZiDin(setari),
@@ -1038,7 +1088,7 @@ export const aprobaPontajBloc = createAction({
     entityType: "attendance_approval_batch",
     entityId: (
       _input,
-      data: Readonly<{ id: string; liniiAprobate: number; zileDeschise: number }>,
+      data: Readonly<{ id: string; liniiAprobate: number; zileDeschise: number; anuntati: number }>,
     ) => data.id,
     // `observatii` NU intră în audit — vezi comentariul din `deschidePerioada`.
     allow: ["period_id", "department_id", "employee_ids"],
@@ -1047,7 +1097,9 @@ export const aprobaPontajBloc = createAction({
   handler: async (
     ctx,
     input,
-  ): Promise<Readonly<{ id: string; liniiAprobate: number; zileDeschise: number }>> => {
+  ): Promise<
+    Readonly<{ id: string; liniiAprobate: number; zileDeschise: number; anuntati: number }>
+  > => {
     // (0) Firma mai cere aprobare? Fila e ascunsă, dar ruta și acțiunea rămân.
     await refuzaCandAprobareaEStinsa(ctx.tenant.organizationId);
 
@@ -1180,9 +1232,10 @@ export const aprobaPontajBloc = createAction({
      * constrângere: e calea normală, iar constrângerea e plasa de sub ea.
      */
     const deschise = inSelectie.filter((l) => l.ora_inceput !== null && l.ora_sfarsit === null);
-    const idDeAprobat = inSelectie
-      .filter((l) => !(l.ora_inceput !== null && l.ora_sfarsit === null))
-      .map((l) => l.id);
+    const liniiAprobate = inSelectie.filter(
+      (l) => !(l.ora_inceput !== null && l.ora_sfarsit === null),
+    );
+    const idDeAprobat = liniiAprobate.map((l) => l.id);
     if (idDeAprobat.length === 0) {
       throw businessRule(
         deschise.length === 0
@@ -1263,10 +1316,29 @@ export const aprobaPontajBloc = createAction({
       }
     }
 
+    // (6) Vestea către angajați — un plus, nu poarta: lotul e scris, iar o
+    // notificare picată nu-l dă înapoi. O notificare per angajat pe lună, nu
+    // per zi (QA 8 oct 2026, FLX-005: angajatul afla doar de zilele respinse).
+    // `anuntati` iese în rezultat ca ecranul să poată spune cât din veste a
+    // plecat — fișele fără cont nu primesc nimic.
+    const anuntati = await anuntaAprobareaZilelor(
+      admin,
+      ctx.tenant.organizationId,
+      lot.id,
+      liniiAprobate,
+      perioada.an,
+      perioada.luna,
+    );
+
     // `zileDeschise` NU e un detaliu tehnic: e numărul de oameni care au uitat
     // să-și închidă ziua și pe care aprobarea tocmai i-a sărit. Ecranul îl
     // afișează; tăcut, ar fi exact tiparul de defect pe care îl repară.
-    return { id: lot.id, liniiAprobate: idDeAprobat.length, zileDeschise: deschise.length };
+    return {
+      id: lot.id,
+      liniiAprobate: idDeAprobat.length,
+      zileDeschise: deschise.length,
+      anuntati,
+    };
   },
 });
 
@@ -1465,9 +1537,15 @@ export const decideZiPontaj = createAction({
       deja scrisă în bază, iar o notificare picată n-are voie s-o dea înapoi.
       `anuntat` iese în rezultat ca ecranul să poată spune dacă vestea a plecat
       — un „am respins" care tace despre asta e jumătate de adevăr.
+
+      Aprobarea își are și ea vestea, din W2-03 (QA 8 oct 2026, FLX-005):
+      până atunci angajatul afla DOAR de zilele respinse, iar cele aprobate se
+      schimbau tăcut în portal. Per zi, ca respingerea; blocul anunță o dată
+      per angajat.
     */
-    const anuntat =
-      input.aproba || input.motiv === null
+    const anuntat = input.aproba
+      ? await anuntaAprobareaZilei(createAdminSupabase(), ctx.tenant.organizationId, input.entry_id)
+      : input.motiv === null
         ? false
         : await anuntaRespingereaZilei(
             createAdminSupabase(),

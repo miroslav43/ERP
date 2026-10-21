@@ -90,32 +90,11 @@ describe("verificaSubtitrare", () => {
   });
 });
 
-describe("potrivesteSemnatura — MIME-ul din formular nu e o dovadă", () => {
-  const octeti = (...v: number[]) => Uint8Array.from(v.concat(new Array(32).fill(0)));
-
-  it("recunoaşte PDF, MP4, WebM şi WebVTT", () => {
-    expect(potrivesteSemnatura("application/pdf", octeti(0x25, 0x50, 0x44, 0x46))).toBe(true);
-    expect(potrivesteSemnatura("video/mp4", octeti(0, 0, 0, 0x20, 0x66, 0x74, 0x79, 0x70))).toBe(
-      true,
-    );
-    expect(potrivesteSemnatura("video/webm", octeti(0x1a, 0x45, 0xdf, 0xa3))).toBe(true);
-    expect(potrivesteSemnatura("text/vtt", octeti(0x57, 0x45, 0x42, 0x56, 0x54, 0x54))).toBe(true);
-  });
-
-  it("acceptă WebVTT cu marcă de ordine a octeţilor", () => {
-    expect(
-      potrivesteSemnatura("text/vtt", octeti(0xef, 0xbb, 0xbf, 0x57, 0x45, 0x42, 0x56, 0x54, 0x54)),
-    ).toBe(true);
-  });
-
-  it("respinge HTML deghizat în MP4 — vectorul de atac real", () => {
-    // "<!DOCTYPE html"
-    const html = octeti(0x3c, 0x21, 0x44, 0x4f, 0x43, 0x54, 0x59, 0x50, 0x45);
-    expect(potrivesteSemnatura("video/mp4", html)).toBe(false);
-    expect(potrivesteSemnatura("application/pdf", html)).toBe(false);
-  });
-
-  it("respinge un MIME pe care nu-l cunoaştem", () => {
-    expect(potrivesteSemnatura("image/svg+xml", octeti(0x3c, 0x73, 0x76, 0x67))).toBe(false);
+// `potrivesteSemnatura` se testează în `src/lib/storage/semnatura.test.ts`;
+// aici se verifică doar că re-exportul încă duce la ea.
+describe("potrivesteSemnatura (re-export)", () => {
+  it("e aceeași funcție ca în `@/lib/storage/semnatura`", async () => {
+    const { potrivesteSemnatura: originala } = await import("@/lib/storage/semnatura");
+    expect(potrivesteSemnatura).toBe(originala);
   });
 });

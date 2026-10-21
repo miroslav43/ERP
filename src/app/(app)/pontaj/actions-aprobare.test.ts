@@ -29,9 +29,17 @@ vi.mock("@/lib/auth/permissions", async (orig) =>
   (await import("@/lib/teste/actiune")).falsuri.permissions(await orig()),
 );
 
-const colaboratori = vi.hoisted(() => ({ anuntaRespingereaZilei: vi.fn() }));
+const colaboratori = vi.hoisted(() => ({
+  anuntaRespingereaZilei: vi.fn(),
+  anuntaAprobareaZilei: vi.fn(),
+  anuntaAprobareaZilelor: vi.fn(),
+}));
 vi.mock("./anunta-respingerea", () => ({
   anuntaRespingereaZilei: colaboratori.anuntaRespingereaZilei,
+}));
+vi.mock("./anunta-aprobarea", () => ({
+  anuntaAprobareaZilei: colaboratori.anuntaAprobareaZilei,
+  anuntaAprobareaZilelor: colaboratori.anuntaAprobareaZilelor,
 }));
 
 import {
@@ -107,6 +115,8 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(ACUM);
   colaboratori.anuntaRespingereaZilei.mockReset().mockResolvedValue(true);
+  colaboratori.anuntaAprobareaZilei.mockReset().mockResolvedValue(true);
+  colaboratori.anuntaAprobareaZilelor.mockReset().mockResolvedValue(0);
   return () => vi.useRealTimers();
 });
 
@@ -145,7 +155,10 @@ describe("aprobaPontajBloc", () => {
 
     const r = await aprobaPontajBloc({ period_id: ID_1 });
 
-    expect(r).toEqual({ ok: true, data: { id: LOT, liniiAprobate: 2, zileDeschise: 1 } });
+    expect(r).toEqual({
+      ok: true,
+      data: { id: LOT, liniiAprobate: 2, zileDeschise: 1, anuntati: 0 },
+    });
 
     const [perioada] = server.apeluriPe("attendance_periods", "select");
     expect(areFiltru(perioada, "eq", "id", ID_1)).toBe(true);
@@ -357,25 +370,93 @@ describe("aprobaPontajBloc", () => {
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
     if (!r.ok) expect(r.error.message).toContain("în aprobare");
   });
+
+  it("anunță angajații ale căror zile au fost aprobate, prin clientul admin, și îi numără", async () => {
+    // QA 8 oct 2026, FLX-005: angajatul afla doar de zilele RESPINSE. Zilele
+    // în curs sărite nu sunt aprobate, deci nu se anunță.
+    const { server, admin } = configureazaActiunea({ rol: "manager", permisiuni: PERMIS });
+    drumAprobare(server, admin, [
+      linie("a1", ANGAJAT_A),
+      linie("a2", ANGAJAT_A),
+      linie("b1", ANGAJAT_B),
+      linie("b2", ANGAJAT_B, true),
+    ]);
+    colaboratori.anuntaAprobareaZilelor.mockResolvedValue(2);
+
+    const r = await aprobaPontajBloc({ period_id: ID_1 });
+
+    expect(r).toEqual({
+      ok: true,
+      data: { id: LOT, liniiAprobate: 3, zileDeschise: 1, anuntati: 2 },
+    });
+    expect(colaboratori.anuntaAprobareaZilelor).toHaveBeenCalledTimes(1);
+    const [client, org, lot, linii, an, luna] = colaboratori.anuntaAprobareaZilelor.mock
+      .calls[0] as [
+      unknown,
+      string,
+      string,
+      readonly { id: string; employee_id: string }[],
+      number,
+      number,
+    ];
+    expect(client).toBe(admin.client);
+    expect(org).toBe(ORG_ID);
+    expect(lot).toBe(LOT);
+    expect(linii.map((l) => [l.id, l.employee_id])).toEqual([
+      ["a1", ANGAJAT_A],
+      ["a2", ANGAJAT_A],
+      ["b1", ANGAJAT_B],
+    ]);
+    expect([an, luna]).toEqual([2026, 7]);
+  });
+
+  it("vestea neplecată (fișe fără cont, insert picat) nu desface lotul", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: PERMIS });
+    drumAprobare(server, admin, [linie("a1", ANGAJAT_A)]);
+    colaboratori.anuntaAprobareaZilelor.mockResolvedValue(0);
+
+    const r = await aprobaPontajBloc({ period_id: ID_1 });
+
+    expect(r).toEqual({
+      ok: true,
+      data: { id: LOT, liniiAprobate: 1, zileDeschise: 0, anuntati: 0 },
+    });
+    expect(caiRevalidate()).toEqual(CAI);
+  });
 });
 
 describe("decideZiPontaj", () => {
-  it("aprobarea: RPC-ul cu organizația, FĂRĂ motiv, și nicio notificare", async () => {
-    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+  it("aprobarea: RPC-ul cu organizația, FĂRĂ motiv, iar angajatul e anunțat prin clientul admin", async () => {
+    // Până la W2-03 testul fixa „și nicio notificare": angajatul afla doar de
+    // zilele respinse (QA 8 oct 2026, FLX-005).
+    const { server, admin } = configureazaActiunea({ permisiuni: PERMIS });
     garda(server);
     server.raspundeRpc("decide_zi_pontaj", { data: ID_1 });
+    colaboratori.anuntaAprobareaZilei.mockResolvedValue(true);
 
     const r = await decideZiPontaj({ entry_id: ID_1, aproba: true, motiv: "" });
 
-    expect(r).toEqual({ ok: true, data: { id: ID_1, anuntat: false } });
+    expect(r).toEqual({ ok: true, data: { id: ID_1, anuntat: true } });
     const apel = server.apeluriRpc.find((a) => a.nume === "decide_zi_pontaj");
     expect(apel?.argumente).toEqual({
       p_organization_id: ORG_ID,
       p_entry_id: ID_1,
       p_aproba: true,
     });
+    expect(colaboratori.anuntaAprobareaZilei).toHaveBeenCalledWith(admin.client, ORG_ID, ID_1);
     expect(colaboratori.anuntaRespingereaZilei).not.toHaveBeenCalled();
     expect(caiRevalidate()).toEqual(CAI);
+  });
+
+  it("aprobarea cu fișă fără cont: `anuntat: false`, decizia rămâne", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    garda(server);
+    server.raspundeRpc("decide_zi_pontaj", { data: ID_1 });
+    colaboratori.anuntaAprobareaZilei.mockResolvedValue(false);
+
+    const r = await decideZiPontaj({ entry_id: ID_1, aproba: true });
+
+    expect(r).toEqual({ ok: true, data: { id: ID_1, anuntat: false } });
   });
 
   it("respingerea: motivul pleacă în RPC, iar angajatul e anunțat prin clientul admin", async () => {
