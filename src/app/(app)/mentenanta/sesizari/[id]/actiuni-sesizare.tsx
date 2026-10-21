@@ -76,7 +76,14 @@ interface Proprietati {
   readonly atribuit: string | null;
   readonly descriere: string;
   readonly urgenta: UrgentaSesizare;
+  /** Executantul intervenției: orice fișă pe care o lasă RLS. */
   readonly angajati: readonly OptiuneInterventie[];
+  /**
+   * Selectorul de tehnician: DOAR fișele care pot deschide sesizarea (cont activ
+   * și `maintenance:read` efectiv, `optiuniTehnicieni`). Baza refuză oricum
+   * restul (0212 §3b), dar omul nu trebuie să le vadă ca opțiuni.
+   */
+  readonly tehnicieni: readonly OptiuneInterventie[];
   /** Ziua României, ISO — data implicită a intervenției care rezolvă. */
   readonly azi: string;
   /** Există o oprire deschisă în jurnal: caseta de rezolvare întreabă de când merge iar. */
@@ -193,6 +200,7 @@ export function ActiuniSesizare({
   descriere,
   urgenta,
   angajati,
+  tehnicieni,
   azi,
   oprireDeschisa,
   candidatiDuplicat = [],
@@ -285,7 +293,7 @@ export function ActiuniSesizare({
             pictograma: <UserPlus aria-hidden="true" className="size-4" />,
           }}
           titlu={atribuit === null ? "Atribuiți sesizarea" : "Schimbați tehnicianul"}
-          descriere="Tehnicianul atribuit vede sesizarea în portalul lui, o poate începe, pune în așteptare și rezolva, indiferent de rolul lui în aplicație. Primește o notificare."
+          descriere="Tehnicianul atribuit vede sesizarea în portalul lui, o poate începe, pune în așteptare și rezolva. Primește o notificare. În listă apar doar angajații cu cont activ al căror rol are acces la mentenanță."
           marime="mediu"
           actiune={atribuie}
           mesajReusita="Atribuirea a fost salvată."
@@ -313,7 +321,7 @@ export function ActiuniSesizare({
                   {status === "nou" || status === "in_analiza" ? (
                     <option value="">Fără tehnician</option>
                   ) : null}
-                  {angajati.map((ang) => (
+                  {tehnicieni.map((ang) => (
                     <option key={ang.id} value={ang.id}>
                       {ang.nume}
                     </option>

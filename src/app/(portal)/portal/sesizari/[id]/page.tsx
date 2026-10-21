@@ -9,7 +9,7 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { todayInBucharest } from "@/lib/format/date";
 import { idDinRuta } from "@/lib/rute/parametri";
-import { optiuniAngajati } from "@/lib/queries/maintenance";
+import { optiuniAngajati, optiuniTehnicieni } from "@/lib/queries/maintenance";
 import { esteTerminala } from "@/domain/maintenance/sesizari";
 import {
   actorPentru,
@@ -56,9 +56,13 @@ export default async function PaginaSesizareaMea({
   const actor = actorPentru(date, poateGestiona, user.id);
   if (actor.esteRaportor !== true && actor.esteTehnician !== true) notFound();
 
-  const angajati = esteTerminala(date.sesizare.status)
-    ? []
-    : await optiuniAngajati(tenant.organizationId);
+  // Ca în aplicație: executantul din ce lasă RLS; tehnicianul doar pentru
+  // gestionar și doar dintre cei care pot deschide sesizarea (M3).
+  const vie = !esteTerminala(date.sesizare.status);
+  const [angajati, tehnicieni] = await Promise.all([
+    vie ? optiuniAngajati(tenant.organizationId) : Promise.resolve([]),
+    vie && poateGestiona ? optiuniTehnicieni(tenant.organizationId) : Promise.resolve([]),
+  ]);
 
   return (
     <div className={`${LATIMI.formular} p-4`}>
@@ -73,6 +77,7 @@ export default async function PaginaSesizareaMea({
         actor={actor}
         userId={user.id}
         angajati={angajati}
+        tehnicieni={tehnicieni}
         azi={todayInBucharest()}
         acum={new Date().toISOString()}
       />
