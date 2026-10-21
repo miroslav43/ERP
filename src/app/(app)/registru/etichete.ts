@@ -191,6 +191,7 @@ const SURSE: Readonly<Record<string, string>> = {
   inventory_allocations: "Inventar",
   trip_sheets: "Parc auto",
   vehicle_documents: "Parc auto",
+  vehicle_handovers: "Parc auto",
   maintenance_interventions: "Mentenanță",
   iscir_authorizations: "Mentenanță",
   fault_reports: "Mentenanță",

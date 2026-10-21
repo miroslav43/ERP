@@ -131,6 +131,14 @@ export function legaturaDocument({
     return { href: pdf, eticheta: "Deschide PDF-ul", inFilaNoua: true, pdf };
   }
 
+  // 0215 (F12c): procesul-verbal de predare-primire a vehiculului. Documentul e
+  // PDF-ul (numărul din registru e pe el); pagina lui cere și vehiculul, pe care
+  // rândul de registru nu-l poartă.
+  if (entitateTip === "vehicle_handovers") {
+    const pdf = `/api/export/flota/pv/${entitateId}?inline=1`;
+    return { href: pdf, eticheta: "Deschide PDF-ul", inFilaNoua: true, pdf };
+  }
+
   const peId = din(PE_ID, entitateTip);
   if (peId !== undefined) return { href: peId(entitateId), eticheta: DESCHIDE, inFilaNoua: false };
 
