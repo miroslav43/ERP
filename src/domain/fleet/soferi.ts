@@ -3,8 +3,9 @@
 /**
  * Verificările încrucișate ale șoferului (flota F9, 0204): absență aprobată în
  * ziua foii (fără tipul concediului), contract încetat, permis expirat sau fără
- * categoria vehiculului, aviz medical expirat, lipsă sau „de verificat”,
- * deplasare în altă localitate fără delegație.
+ * categoria vehiculului, aviz medical expirat sau lipsă, deplasare în altă
+ * localitate fără delegație. Ce baza nu spune (`null`: permis fără citire, aviz
+ * fără acces SSM) nu produce nicio avertizare.
  *
  * Funcții pure, fără I/O. Baza dă FAPTELE (`public.verificari_soferi`), aici se
  * decide ce se spune. Toate sunt AVERTISMENTE: nimic din ce iese de aici nu
@@ -71,13 +72,24 @@ export interface FapteSofer {
    */
   readonly concediu: string | null;
   readonly contract_incetat: boolean;
-  readonly permis_exista: boolean;
+  /**
+   * Cele trei câmpuri ale permisului (`permis_exista`, `permis_expira_la`,
+   * `permis_categorii`) ies doar pentru cine ar trece politica de SELECT pe
+   * `driver_licenses` pentru acel angajat (HR, administratorul, managerul
+   * echipei, șoferul însuși). Ceilalți primesc `null` la `permis_exista` și la
+   * `permis_categorii` = „nu se știe”, care NU e „fără permis”: ecranul nu scrie
+   * nimic despre permis. Cu `permis_exista === false` baza a putut verifica,
+   * iar omul n-are permis: `permis_expira_la` e `null` și se spune „fără permis”.
+   */
+  readonly permis_exista: boolean | null;
   readonly permis_expira_la: string | null;
-  readonly permis_categorii: readonly string[];
+  readonly permis_categorii: readonly string[] | null;
   /**
    * `apt` / `expirat` / `lipsa` doar pentru cine are acces SSM pe fișa șoferului
-   * (sau administrează parcul); ceilalți primesc `de_verificat` când avizul nu e
-   * valabil, fără să afle de ce. `null` = SSM oprit sau nu se poate afla.
+   * (sau administrează parcul). Pentru oricine altcineva, `null` = „nu se știe”:
+   * nici „apt”, nici un semnal generic (art. 9 GDPR — și „nu e valabil” ar
+   * dezvălui starea examenului). `null` mai înseamnă SSM oprit. Ecranul tratează
+   * `null` ca „fără semnal”, niciodată ca problemă.
    */
   readonly aviz: string | null;
   /** O deplasare activă acoperă ziua; `null` = diurna e oprită, deci nu se judecă. */
@@ -92,7 +104,6 @@ export type CodAvertisment =
   | "permis_categorie"
   | "aviz_expirat"
   | "aviz_lipsa"
-  | "aviz_de_verificat"
   | "fara_delegatie";
 
 export interface Avertisment {
@@ -196,7 +207,11 @@ export function avertismenteSofer(c: ContextVerificare): readonly Avertisment[] 
     });
   }
 
-  if (!f.permis_exista || f.permis_expira_la === null) {
+  // `permis_exista === null`: apelantul n-are citirea permisului, baza nu spune
+  // nimic. Nu e „fără permis” și nici „categorie greșită”: nicio avertizare.
+  if (f.permis_exista === null) {
+    // fără semnal
+  } else if (!f.permis_exista || f.permis_expira_la === null) {
     lista.push({
       cod: "permis_lipsa",
       mesaj: "Șoferul nu are un permis de conducere înregistrat pe fișă.",
@@ -208,18 +223,26 @@ export function avertismenteSofer(c: ContextVerificare): readonly Avertisment[] 
         mesaj: `Permisul de conducere al șoferului a expirat pe ${dataRo(f.permis_expira_la)}.`,
       });
     }
+    const categoriiPermis = f.permis_categorii;
     const acceptate =
       c.vehicul === undefined || c.vehicul === null ? null : categoriiAcceptate(c.vehicul);
-    if (acceptate !== null && !acceptate.some((k) => f.permis_categorii.includes(k))) {
+    if (
+      acceptate !== null &&
+      categoriiPermis !== null &&
+      !acceptate.some((k) => categoriiPermis.includes(k))
+    ) {
       lista.push({
         cod: "permis_categorie",
         mesaj: `Vehiculul cere permis de categoria ${acceptate.join(" sau ")}, iar permisul șoferului are ${
-          f.permis_categorii.length === 0 ? "alte categorii" : f.permis_categorii.join(", ")
+          categoriiPermis.length === 0 ? "alte categorii" : categoriiPermis.join(", ")
         }.`,
       });
     }
   }
 
+  // Avizul: doar „expirat” și „lipsa” sunt probleme. `null` (fără acces SSM sau
+  // SSM oprit) și orice alt text — „apt” inclusiv — nu produc nimic: ecranul nu
+  // scrie nicio frază derivată din examenele medicale pentru cine nu le poate citi.
   if (f.aviz === "expirat") {
     lista.push({
       cod: "aviz_expirat",
@@ -229,13 +252,6 @@ export function avertismenteSofer(c: ContextVerificare): readonly Avertisment[] 
     lista.push({
       cod: "aviz_lipsa",
       mesaj: "Șoferul nu are un aviz medical de aptitudine valabil.",
-    });
-  } else if (f.aviz === "de_verificat") {
-    // Fără acces la medicina muncii nu se deosebește „lipsă” de „expirat”.
-    lista.push({
-      cod: "aviz_de_verificat",
-      mesaj:
-        "Avizul medical al șoferului trebuie verificat: cereți fișa de aptitudine de la resurse umane sau de la responsabilul SSM.",
     });
   }
 
@@ -268,7 +284,6 @@ const SCURT: Readonly<Record<CodAvertisment, string>> = {
   permis_categorie: "categorie de permis nepotrivită",
   aviz_expirat: "aviz expirat",
   aviz_lipsa: "aviz lipsă",
-  aviz_de_verificat: "aviz de verificat",
   fara_delegatie: "fără delegație",
 };
 

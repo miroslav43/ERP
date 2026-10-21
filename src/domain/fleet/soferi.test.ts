@@ -103,13 +103,39 @@ describe("avertismentele șoferului", () => {
     ).toBe("Șoferul are o absență aprobată astăzi.");
   });
 
-  it("avizul „de verificat” nu spune dacă lipsește sau a expirat", () => {
-    const lista = avertismenteSofer({ fapte: { ...curat, aviz: "de_verificat" }, zi: AZI });
-    expect(lista.map((a) => a.cod)).toEqual(["aviz_de_verificat"]);
-    const mesaj = lista[0]?.mesaj.toLowerCase() ?? "";
-    expect(mesaj).not.toContain("expirat");
-    expect(mesaj).not.toContain("lipse");
-    expect(mesaj.endsWith(".")).toBe(true);
+  it("avizul fără acces SSM (`null`) e „fără semnal”, nu o problemă; la fel orice alt text în afară de expirat/lipsa", () => {
+    // Baza întoarce `null` pentru cine n-are acces SSM pe fișa șoferului: nici
+    // „apt”, nici „de verificat” (ar dezvălui că avizul nu e valabil). Ecranul
+    // nu scrie nimic. Un text necunoscut (un fapt vechi „de_verificat”) tace la fel.
+    for (const aviz of [null, "apt", "de_verificat", "ceva"]) {
+      expect(avertismenteSofer({ fapte: { ...curat, aviz }, zi: AZI })).toEqual([]);
+    }
+  });
+
+  it("permisul necunoscut (`null`: apelantul n-are citirea permisului) nu produce nimic, nici „fără permis”", () => {
+    // Pentru cine nu trece `driver_licenses_select`, baza întoarce `null` la toate
+    // trei câmpurile: „nu se știe” nu e „n-are permis” și nu e „categorie greșită”.
+    const necunoscut: FapteSofer = {
+      ...curat,
+      permis_exista: null,
+      permis_expira_la: null,
+      permis_categorii: null,
+    };
+    expect(avertismenteSofer({ fapte: necunoscut, zi: AZI })).toEqual([]);
+    expect(
+      avertismenteSofer({
+        fapte: necunoscut,
+        zi: AZI,
+        vehicul: { categorie: "camion", masa_maxima_kg: 12000, numar_locuri: 2 },
+      }),
+    ).toEqual([]);
+    // Celelalte fapte (absența, contractul) rămân.
+    expect(
+      avertismenteSofer({
+        fapte: { ...necunoscut, concediu: "absent", contract_incetat: true },
+        zi: AZI,
+      }).map((a) => a.cod),
+    ).toEqual(["absent", "contract_incetat"]);
   });
 
   it("contractul încetat, permisul expirat sau lipsă, avizul expirat sau lipsă", () => {
@@ -243,14 +269,14 @@ describe("rezumatul scurt pentru selectoare", () => {
     expect(rezumatScurt([])).toBeNull();
   });
 
-  it("absența și avizul de verificat au etichete neutre", () => {
+  it("absența are o etichetă neutră, iar avizul necunoscut nu apare în ea", () => {
     expect(
       rezumatScurt(
         avertismenteSofer({
-          fapte: { ...curat, concediu: "absent", aviz: "de_verificat" },
+          fapte: { ...curat, concediu: "absent", aviz: null },
           zi: AZI,
         }),
       ),
-    ).toBe("absent, aviz de verificat");
+    ).toBe("absent");
   });
 });

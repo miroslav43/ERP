@@ -18,9 +18,9 @@ import { ETICHETE_SCADENTA } from "./etichete";
  *
  * Avizul vine din `app.stare_aviz_sofer` prin faptele verificărilor: doar
  * apt / expirat / lipsă, niciodată rezultatul medical (art. 9 GDPR), și EXACT
- * doar pentru cine are acces SSM pe fișa omului (sau administrează parcul);
- * ceilalți primesc „de verificat”, fără să afle de ce. Cu SSM oprit, rândul de
- * aviz nu apare.
+ * doar pentru cine are acces SSM pe fișa omului (sau administrează parcul).
+ * Oricine altcineva primește `null` și rândul de aviz nu apare: nici „apt”, nici
+ * un semnal generic. La fel cu SSM oprit.
  */
 interface Proprietati {
   readonly organizationId: string;
@@ -38,7 +38,6 @@ const ETICHETE_AVIZ: Readonly<Record<string, string>> = {
   apt: "Apt — fișă de aptitudine valabilă",
   expirat: "Expirat — fișa de aptitudine trebuie refăcută",
   lipsa: "Lipsește — nu există o fișă de aptitudine valabilă",
-  de_verificat: "De verificat — cereți fișa de aptitudine de la resurse umane sau de la SSM",
 };
 
 export async function PermisSofer({
