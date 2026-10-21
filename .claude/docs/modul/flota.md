@@ -49,7 +49,7 @@ capcane: [18, 19, 21, 22, 23, 26]
 citeste_daca:
   - "foaie refuzată cu „Vehiculul ales nu vă este alocat” → [[modul/flota/roluri-si-portal]]; permis, aviz medical, șofer → [[modul/flota/soferi]]; amendă, art. 39, incident, daună → [[modul/flota/amenzi-si-daune]]"
   - "curse, foaie trimisă, numărul FP, PDF, orele foilor → [[modul/flota/foaia-zilnica]]; service, costuri, anvelope → [[modul/flota/service-si-costuri]]; rapoarte lunare, Excel, pachet pentru contabil → [[modul/flota/rapoarte]]"
-  - "alerte de scadență, /flota/setari → [[modul/flota/alerte-si-setari]]; regim fiscal, avantaj în natură, /flota/fiscal → [[modul/flota/fiscal]]"
+  - "alerte de scadență, /flota/setari → [[modul/flota/alerte-si-setari]]; regim fiscal, avantaj în natură, /flota/fiscal → [[modul/flota/fiscal]]; proces-verbal de predare, PVA, confirmarea șoferului → [[modul/flota/proces-verbal]]"
 scris_pe: b6ed2c66abe3b535c04d7993c3465e8fff1629de
 scris_la: 2026-10-13
 tags: [modul, operations]
@@ -95,6 +95,10 @@ bonului, `org-flota`): `[[modul/flota/documente-si-erori]]`.
 (`/flota?vehicul=nou`, `/flota/foi?foaie=noua`), cu `deschisInitial` + `key` (o navigare pe
 ACEEAȘI rută nu remontează). Datele casetei de foaie: `foi/date-foaie-noua.ts`, doar
 vehicule `activ` (baza refuză foaia pe unul vândut sau casat).
+
+## Extensii
+
+- F12c: [[modul/flota/proces-verbal]]
 
 ## Server Actions
 
@@ -152,7 +156,7 @@ explicit pe șofer). Service, intervenții, cheltuieli și costuri: `fleet-servi
 
 ## Ce refuză baza tăcut
 
-Citește secțiunea asta înainte de orice scriere în modul.
+Citește-o înainte de orice scriere în modul.
 
 - **Un vehicul fără șofer și fără `pool` e invizibil sub `vehicles:read` own/team.**
   Managerul vede, din 0199, mașinile echipei și pool-ul; angajatul, mașina lui și
