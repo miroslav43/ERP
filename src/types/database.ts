@@ -14180,6 +14180,187 @@ export type Database = {
           },
         ]
       }
+      vehicle_handovers: {
+        Row: {
+          alocare_predata_id: string | null
+          alocare_primita_id: string | null
+          anulat_la: string | null
+          anvelope: string | null
+          confirmat_predator_de: string | null
+          confirmat_predator_la: string | null
+          confirmat_primitor_de: string | null
+          confirmat_primitor_la: string | null
+          created_at: string
+          created_by: string | null
+          data_pv: string
+          daune: Json
+          daune_constatate: boolean | null
+          deleted_at: string | null
+          documente_bord: string[]
+          dotari: string[]
+          finalizat_de: string | null
+          finalizat_la: string | null
+          id: string
+          km_bord: number | null
+          moment: string
+          motiv_anulare: string | null
+          nivel_rezervor:
+            | Database["public"]["Enums"]["pv_nivel_rezervor"]
+            | null
+          numar: string
+          numar_chei: number | null
+          numar_registru: string | null
+          observatii: string | null
+          organization_id: string
+          predator_employee_id: string | null
+          primitor_employee_id: string | null
+          scan_path: string | null
+          snapshot: Json | null
+          sofer_employee_id: string | null
+          stare: Database["public"]["Enums"]["pv_vehicul_stare"]
+          stare_generala:
+            | Database["public"]["Enums"]["pv_stare_generala"]
+            | null
+          tip: Database["public"]["Enums"]["pv_vehicul_tip"]
+          updated_at: string
+          updated_by: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          alocare_predata_id?: string | null
+          alocare_primita_id?: string | null
+          anulat_la?: string | null
+          anvelope?: string | null
+          confirmat_predator_de?: string | null
+          confirmat_predator_la?: string | null
+          confirmat_primitor_de?: string | null
+          confirmat_primitor_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_pv?: string
+          daune?: Json
+          daune_constatate?: boolean | null
+          deleted_at?: string | null
+          documente_bord?: string[]
+          dotari?: string[]
+          finalizat_de?: string | null
+          finalizat_la?: string | null
+          id?: string
+          km_bord?: number | null
+          moment?: string
+          motiv_anulare?: string | null
+          nivel_rezervor?:
+            | Database["public"]["Enums"]["pv_nivel_rezervor"]
+            | null
+          numar?: string
+          numar_chei?: number | null
+          numar_registru?: string | null
+          observatii?: string | null
+          organization_id: string
+          predator_employee_id?: string | null
+          primitor_employee_id?: string | null
+          scan_path?: string | null
+          snapshot?: Json | null
+          sofer_employee_id?: string | null
+          stare?: Database["public"]["Enums"]["pv_vehicul_stare"]
+          stare_generala?:
+            | Database["public"]["Enums"]["pv_stare_generala"]
+            | null
+          tip?: Database["public"]["Enums"]["pv_vehicul_tip"]
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          alocare_predata_id?: string | null
+          alocare_primita_id?: string | null
+          anulat_la?: string | null
+          anvelope?: string | null
+          confirmat_predator_de?: string | null
+          confirmat_predator_la?: string | null
+          confirmat_primitor_de?: string | null
+          confirmat_primitor_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_pv?: string
+          daune?: Json
+          daune_constatate?: boolean | null
+          deleted_at?: string | null
+          documente_bord?: string[]
+          dotari?: string[]
+          finalizat_de?: string | null
+          finalizat_la?: string | null
+          id?: string
+          km_bord?: number | null
+          moment?: string
+          motiv_anulare?: string | null
+          nivel_rezervor?:
+            | Database["public"]["Enums"]["pv_nivel_rezervor"]
+            | null
+          numar?: string
+          numar_chei?: number | null
+          numar_registru?: string | null
+          observatii?: string | null
+          organization_id?: string
+          predator_employee_id?: string | null
+          primitor_employee_id?: string | null
+          scan_path?: string | null
+          snapshot?: Json | null
+          sofer_employee_id?: string | null
+          stare?: Database["public"]["Enums"]["pv_vehicul_stare"]
+          stare_generala?:
+            | Database["public"]["Enums"]["pv_stare_generala"]
+            | null
+          tip?: Database["public"]["Enums"]["pv_vehicul_tip"]
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_handovers_alocare_predata_id_fkey"
+            columns: ["alocare_predata_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_handovers_alocare_primita_id_fkey"
+            columns: ["alocare_primita_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_handovers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_handovers_predator_employee_id_fkey"
+            columns: ["predator_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_handovers_primitor_employee_id_fkey"
+            columns: ["primitor_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_handovers_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicle_incidents: {
         Row: {
           asigurator: string | null
@@ -15499,6 +15680,15 @@ export type Database = {
       platforma_mobila: "ios" | "android"
       pontaj_arhiva_motiv: "blocare" | "matura_lunara"
       pozitie_antet: "antet" | "subsol"
+      pv_nivel_rezervor:
+        | "rezerva"
+        | "sfert"
+        | "jumatate"
+        | "trei_sferturi"
+        | "plin"
+      pv_stare_generala: "buna" | "uzura_normala" | "necesita_interventie"
+      pv_vehicul_stare: "ciorna" | "finalizat"
+      pv_vehicul_tip: "predare" | "restituire" | "transfer"
       reges_directie_propunere: "trimisa" | "primita"
       reges_fel_propunere: "detasare" | "mutare"
       reges_mediu: "test" | "productie"
@@ -16124,6 +16314,16 @@ export const Constants = {
       platforma_mobila: ["ios", "android"],
       pontaj_arhiva_motiv: ["blocare", "matura_lunara"],
       pozitie_antet: ["antet", "subsol"],
+      pv_nivel_rezervor: [
+        "rezerva",
+        "sfert",
+        "jumatate",
+        "trei_sferturi",
+        "plin",
+      ],
+      pv_stare_generala: ["buna", "uzura_normala", "necesita_interventie"],
+      pv_vehicul_stare: ["ciorna", "finalizat"],
+      pv_vehicul_tip: ["predare", "restituire", "transfer"],
       reges_directie_propunere: ["trimisa", "primita"],
       reges_fel_propunere: ["detasare", "mutare"],
       reges_mediu: ["test", "productie"],
