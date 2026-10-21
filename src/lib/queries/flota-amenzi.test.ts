@@ -16,7 +16,7 @@ vi.mock("@/lib/supabase/server", async () =>
 import { configureazaActiunea, ORG_ID } from "@/lib/teste/actiune";
 import { areFiltru, type ClientFals } from "@/lib/teste/supabase-fals";
 
-import { listeazaAmenzi, rezumatAmenzi, type FiltreAmenzi } from "./flota-amenzi";
+import { declaratiileMele, listeazaAmenzi, rezumatAmenzi, type FiltreAmenzi } from "./flota-amenzi";
 
 let db: ClientFals;
 beforeEach(() => {
@@ -81,5 +81,45 @@ describe("rezumatAmenzi", () => {
     }
     expect(areFiltru(depasite, "lt", "termen_raspuns", "2026-10-12")).toBe(true);
     expect(areFiltru(toate, "lt", "termen_raspuns", "2026-10-12")).toBe(false);
+  });
+});
+
+// 0206 §F: „Incidentele declarate de mine” din portal. Filtrul pe declarant e
+// EXPLICIT: un administrator-șofer (`read = all`) ar vedea altfel tot parcul.
+describe("declaratiileMele", () => {
+  const FISA = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+
+  it("filtrează pe firmă, pe declarant și pe nesterse, pe listă și pe numărătoare", async () => {
+    db.raspunde("vehicle_incidents", "select", { data: [] });
+    db.raspunde("vehicle_incidents", "select", { data: null, count: 0 });
+
+    const r = await declaratiileMele(ORG_ID, FISA, { cursor: null, limita: 10 });
+
+    expect(r).toEqual({ randuri: [], urmatorulCursor: null, total: 0 });
+    const apeluri = db.apeluriPe("vehicle_incidents", "select");
+    expect(apeluri).toHaveLength(2);
+    for (const apel of apeluri) {
+      expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
+      expect(areFiltru(apel, "eq", "declarat_de_employee_id", FISA)).toBe(true);
+      expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
+    }
+    expect(apeluri[0]?.filtre).toContainEqual({ metoda: "limit", argumente: [11] });
+  });
+
+  it("cu un rând în plus, întoarce cursorul următoarei pagini", async () => {
+    const rand = (id: string, produs_la: string) => ({ id, produs_la });
+    db.raspunde("vehicle_incidents", "select", {
+      data: [
+        rand("11111111-1111-4111-8111-111111111111", "2026-10-02T10:00:00Z"),
+        rand("22222222-2222-4222-8222-222222222222", "2026-10-01T10:00:00Z"),
+      ],
+    });
+    db.raspunde("vehicle_incidents", "select", { data: null, count: 2 });
+
+    const r = await declaratiileMele(ORG_ID, FISA, { cursor: null, limita: 1 });
+
+    expect(r.randuri).toHaveLength(1);
+    expect(r.urmatorulCursor).not.toBeNull();
+    expect(r.total).toBe(2);
   });
 });

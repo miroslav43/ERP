@@ -74,6 +74,9 @@ describe("traduEroareAmenzi — mesajele triggerelor din 0206", () => {
     /^Incidentul nu se mută/u,
     /^Incidentul este închis/u,
     /^Un incident aflat în lucru/u,
+    // 0206 §F, declarația șoferului: nu țin de un câmp al formularului.
+    /^Declarantul unui incident/u,
+    /^Contul dumneavoastră nu e legat de o fișă de angajat/u,
   ];
 
   const mesaje = mesajeleTriggerelor();
@@ -113,6 +116,10 @@ describe("traduEroareAmenzi — mesajele triggerelor din 0206", () => {
 
   it("câmpul ales e cel potrivit pentru cele mai frecvente refuzuri", () => {
     const cazuri: readonly (readonly [string, string])[] = [
+      [
+        "Vehiculul ales nu vă era alocat în ziua incidentului și nu este o mașină comună (pool). Declarați incidentul pe mașina primită în folosință.",
+        "vehicle_id",
+      ],
       ["Alegeți șoferul pe care îl comunicați autorității.", "employee_id"],
       ["Scrieți data la care a plecat răspunsul către autoritate.", "raspuns_trimis_la"],
       ["Data trimiterii răspunsului nu poate fi în viitor.", "raspuns_trimis_la"],

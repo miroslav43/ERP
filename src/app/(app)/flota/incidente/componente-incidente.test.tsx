@@ -84,6 +84,7 @@ const INCIDENT: RandIncident = {
   work_accident_id: null,
   inchis_la: null,
   observatii: null,
+  declarat_de_employee_id: null,
 };
 
 function camp(eticheta: RegExp): HTMLInputElement {

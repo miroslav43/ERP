@@ -65,6 +65,7 @@ import { AvertismenteSofer } from "../avertismente-sofer";
 import { cuAvertismente } from "../avertismente-optiuni";
 // ── început bloc: fiscalul vehiculului (0205, F10) ──
 import { SectiuneFiscalaVehicul } from "../fiscal/sectiune-fiscala-vehicul";
+import { SectiuneAmenziVehicul } from "../amenzi/sectiune-vehicul";
 // ── sfârșit bloc: fiscalul vehiculului ──
 
 export const metadata: Metadata = { title: "Fișa vehiculului" };
@@ -834,6 +835,18 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
             />
           ) : null}
           {/* ── sfârșit bloc: fiscalul vehiculului ── */}
+
+          {/* ── început bloc: amenzile și incidentele vehiculului (0206) ──
+              Fiecare parte doar pentru cine o citește la `all` (poarta
+              politicilor); legăturile duc la listele filtrate pe vehicul. */}
+          <SectiuneAmenziVehicul
+            organizationId={tenant.organizationId}
+            vehiculId={vehicul.id}
+            vedeAmenzi={can(permisiuni, "vehicle_fines:read", "all")}
+            vedeIncidente={can(permisiuni, "vehicle_incidents:read", "all")}
+            azi={azi}
+          />
+          {/* ── sfârșit bloc: amenzile și incidentele vehiculului ── */}
         </>
       ) : null}
       {/* Cine a schimbat obiectul ăsta: jurnalul de audit, filtrat pe rândul lui (doar cu audit:read). */}

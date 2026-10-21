@@ -46,6 +46,7 @@ import { areFiltru, eroarePostgrest } from "@/lib/teste/supabase-fals";
 import {
   actualizeazaAmenda,
   actualizeazaIncident,
+  declaraIncident,
   desemneazaSofer,
   inregistreazaAmenda,
   raporteazaIncident,
@@ -543,6 +544,88 @@ describe("raporteazaIncident", () => {
       ok: false,
       error: { code: "VALIDARE", fieldErrors: { produs_la: [mesaj] } },
     });
+  });
+});
+
+// 0206 §F: șoferul își declară dauna din portal. Poarta e `create = own`;
+// declarantul și șoferul sunt fișa PRINCIPALĂ a contului, rezolvată aici, iar
+// costurile nu se trimit deloc (politica le refuză declarantului).
+describe("declaraIncident", () => {
+  const FISA = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+  const declaratie = {
+    vehicle_id: VEHICUL,
+    tip: "avarie",
+    produs_la: "2026-10-11T16:00",
+    locul: "Parcarea sediului",
+    descriere: "Oglinda stângă spartă",
+  };
+
+  it("fără cheia `vehicle_incidents:create`: INTERZIS, fără niciun drum la bază", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicle_incidents:create": "none" } });
+    const r = await declaraIncident(declaratie);
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+    expect(server.apeluri).toHaveLength(0);
+  });
+
+  it("sub `own`: INSERT cu fișa proprie ca declarant și șofer, fără costuri, cu `.select()`", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicle_incidents:create": "own" } });
+    server.raspunde("employees", "select", { data: { id: FISA } });
+    server.raspunde("vehicle_incidents", "insert", { data: { id: ID_1 } });
+
+    const r = await declaraIncident(declaratie);
+
+    expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+    const [fisa] = server.apeluriPe("employees", "select");
+    expect(areFiltru(fisa, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(fisa, "eq", "user_id", USER_ID)).toBe(true);
+    expect(areFiltru(fisa, "eq", "is_primary", true)).toBe(true);
+    expect(areFiltru(fisa, "is", "deleted_at", null)).toBe(true);
+    const [scriere] = server.apeluriPe("vehicle_incidents", "insert");
+    expect(scriere?.payload).toEqual({
+      organization_id: ORG_ID,
+      vehicle_id: VEHICUL,
+      tip: "avarie",
+      produs_la: "2026-10-11T13:00:00.000Z",
+      locul: "Parcarea sediului",
+      descriere: "Oglinda stângă spartă",
+      declarat_de_employee_id: FISA,
+      sofer_id: FISA,
+      created_by: USER_ID,
+      updated_by: USER_ID,
+    });
+    expect(scriere?.selectDupaScriere).toBe("id");
+    expect(caiRevalidate()).toEqual(["/portal/masina-mea", "/flota/incidente"]);
+  });
+
+  it("contul fără fișă de angajat: CONFLICT cu explicație, fără INSERT", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicle_incidents:create": "own" } });
+    server.raspunde("employees", "select", { data: null });
+    const r = await declaraIncident(declaratie);
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(server.apeluriPe("vehicle_incidents", "insert")).toHaveLength(0);
+  });
+
+  it("vehiculul care nu-i era alocat (P0001) ajunge pe `vehicle_id`", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicle_incidents:create": "own" } });
+    server.raspunde("employees", "select", { data: { id: FISA } });
+    const mesaj =
+      "Vehiculul ales nu vă era alocat în ziua incidentului și nu este o mașină comună (pool). Declarați incidentul pe mașina primită în folosință.";
+    server.raspunde("vehicle_incidents", "insert", { error: eroarePostgrest("P0001", mesaj) });
+    const r = await declaraIncident(declaratie);
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "VALIDARE", fieldErrors: { vehicle_id: [mesaj] } },
+    });
+  });
+
+  it("câmpurile de cost trimise din client nu ajung în INSERT", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicle_incidents:create": "own" } });
+    server.raspunde("employees", "select", { data: { id: FISA } });
+    server.raspunde("vehicle_incidents", "insert", { data: { id: ID_1 } });
+    await declaraIncident({ ...declaratie, cost_estimat: "900", asigurator: "X" } as never);
+    const [scriere] = server.apeluriPe("vehicle_incidents", "insert");
+    expect(scriere?.payload).not.toHaveProperty("cost_estimat");
+    expect(scriere?.payload).not.toHaveProperty("asigurator");
   });
 });
 
