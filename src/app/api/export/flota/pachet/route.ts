@@ -15,15 +15,14 @@
 // citire ar fi putut prinde între timp o aprobare, iar lista din Excel n-ar mai
 // fi fost cea din `foi/`.
 import { formatDateTime } from "@/lib/format/date";
-import { documentRaportFlota } from "@/lib/excel/raport-flota";
+import { documentRaportFlota, xlsxRaportFlota } from "@/lib/excel/raport-flota";
 import { antetOrganizatie } from "@/lib/pdf/antet-organizatie";
 import { pachetLunarFlota } from "@/lib/pdf/pachet-flota";
 import { intervalLuna, PLAFON_FOI_PACHET } from "@/domain/fleet/rapoarte";
 import { incarcaPachetLunar, numarFoiAprobateLuna } from "@/lib/queries/fleet-rapoarte";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { curataDocument, numeFisierSigur } from "@/lib/unelte/document-tabelar";
+import { numeFisierSigur } from "@/lib/unelte/document-tabelar";
 import { ANTET_CACHE_DESCARCARE } from "@/lib/unelte/raspuns";
-import { randeazaXlsx } from "@/lib/unelte/xlsx";
 
 import { autorizeazaExport, raspunsText } from "../cerere";
 
@@ -67,7 +66,7 @@ export async function GET(cerere: Request): Promise<Response> {
     vehicule: pachet.vehicule,
     soferi: pachet.soferi,
     aprobatori: pachet.aprobatori,
-    xlsx: { nume: `${nume}.xlsx`, octeti: await randeazaXlsx(curataDocument(document)) },
+    xlsx: { nume: `${nume}.xlsx`, octeti: await xlsxRaportFlota(document) },
     generatLa,
   });
 

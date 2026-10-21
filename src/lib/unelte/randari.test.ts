@@ -120,7 +120,7 @@ describe("Word", () => {
 
 describe("Excel", () => {
   it("randeazaXlsx produce un registru cu antetul tabelului", async () => {
-    const octeti = await randeazaXlsx(DOC);
+    const octeti = await randeazaXlsx(DOC, { subsol: "unealta" });
     const zip = await JSZip.loadAsync(octeti);
     const siruri = await zip.file("xl/sharedStrings.xml")?.async("string");
     expect(siruri).toContain("Nume și prenume");
@@ -175,7 +175,7 @@ describe("legătura din subsolul fișierului", () => {
   });
 
   it("Excel: celulă cu legătură și titlul documentului", async () => {
-    const zip = await JSZip.loadAsync(await randeazaXlsx(CU_SURSA));
+    const zip = await JSZip.loadAsync(await randeazaXlsx(CU_SURSA, { subsol: "unealta" }));
     const relatii = Object.keys(zip.files).filter((f) => f.includes("worksheets/_rels/"));
     const continut = await Promise.all(relatii.map((f) => zip.file(f)?.async("string")));
     expect(continut.join(" ")).toMatch(TINTA);

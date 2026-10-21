@@ -173,7 +173,7 @@ describe("Word: fișa de evaluare", () => {
 
 describe("Excel comun: rubrici și dată", () => {
   it("rubricile și rândul de dată apar și în foaia comună", async () => {
-    const zip = await JSZip.loadAsync(await randeazaXlsx(FISA));
+    const zip = await JSZip.loadAsync(await randeazaXlsx(FISA, { subsol: "unealta" }));
     const siruri = (await zip.file("xl/sharedStrings.xml")?.async("string")) ?? "";
     expect(siruri).toContain("Comentariile angajatului");
     expect(siruri).toContain("Raport lunar");

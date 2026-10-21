@@ -19,7 +19,8 @@ const TIP: Readonly<Record<Format, string>> = {
 const RANDARI: Readonly<Record<Format, (d: DocumentTabelar) => Promise<Uint8Array>>> = {
   pdf: randeazaPdf,
   docx: randeazaDocx,
-  xlsx: randeazaXlsx,
+  // Calea uneltelor publice: fișierul poartă „Generat gratuit cu administrativo.ro”.
+  xlsx: (d) => randeazaXlsx(d, { subsol: "unealta" }),
 };
 
 /**

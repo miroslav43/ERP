@@ -5,15 +5,12 @@
 // în pachetul lunar pentru contabil (`pachet/route.ts`).
 //
 // `?luna=AAAA-LL` e obligatoriu; `?vehicul=<uuid>` restrânge la o mașină. Poarta
-// și motivele ei sunt în `cerere.ts`. Fișierul se randează prin `randeazaXlsx`,
-// randarea comună a documentelor tabelare — vezi nota din document despre celulele
-// text.
-import { documentRaportFlota } from "@/lib/excel/raport-flota";
+// și motivele ei sunt în `cerere.ts`. Fișierul se randează prin `xlsxRaportFlota`:
+// randarea comună, cu celule numerice și fără subsolul uneltelor publice.
+import { documentRaportFlota, xlsxRaportFlota } from "@/lib/excel/raport-flota";
 import { formatDateTime } from "@/lib/format/date";
 import { incarcaRaportLunar } from "@/lib/queries/fleet-rapoarte";
-import { curataDocument } from "@/lib/unelte/document-tabelar";
 import { raspunsBinar } from "@/lib/unelte/raspuns";
-import { randeazaXlsx } from "@/lib/unelte/xlsx";
 
 import { autorizeazaExport } from "./cerere";
 
@@ -33,6 +30,6 @@ export async function GET(cerere: Request): Promise<Response> {
     generatLa: formatDateTime(new Date().toISOString()),
   });
 
-  const octeti = await randeazaXlsx(curataDocument(document));
+  const octeti = await xlsxRaportFlota(document);
   return raspunsBinar(octeti, "xlsx", document.numeFisier);
 }

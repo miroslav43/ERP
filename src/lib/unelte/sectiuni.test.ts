@@ -266,7 +266,7 @@ describe("Word cu secțiuni", () => {
 
 describe("Excel", () => {
   it("refuză un document cu secțiuni, în loc să le piardă tăcut", async () => {
-    await expect(randeazaXlsx(CU_SECTIUNI)).rejects.toThrow(/secțiuni/u);
-    await expect(randeazaXlsx(SIMPLU)).resolves.toBeInstanceOf(Uint8Array);
+    await expect(randeazaXlsx(CU_SECTIUNI, { subsol: "unealta" })).rejects.toThrow(/secțiuni/u);
+    await expect(randeazaXlsx(SIMPLU, { subsol: "unealta" })).resolves.toBeInstanceOf(Uint8Array);
   });
 });
