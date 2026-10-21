@@ -33,6 +33,7 @@ export const CODURI_PROBLEMA = [
   "SAL_ORE_IN_MOD_NEDECLARAT",
   "SAL_TICHETE_REGIM_NECONFIRMAT",
   "SAL_CAS_LA_MINIM",
+  "SAL_FACILITATE_SALARIU_MINIM",
   "SAL_AVANTAJ_NATURA_PESTE_NET",
   "SAL_CM_NECALCULAT",
   "SAL_CO_BAZA_SIMPLIFICATA",
@@ -201,6 +202,15 @@ const CATALOG: Readonly<Record<CodProblema, IntrareCatalog>> = {
       "Venitul brut al lunii e sub salariul minim, iar contribuțiile se calculează cel puțin la acesta.",
     cumSeRepara:
       "Verificați dacă angajatul se încadrează într-o excepție legală (elev sau student sub 26 de ani, pensionar, persoană cu handicap, cumul de contracte). Excepțiile nu sunt încă înregistrate în aplicație, deci motorul nu le poate aplica singur.",
+    unde: "/angajati",
+  },
+  SAL_FACILITATE_SALARIU_MINIM: {
+    severitate: "informativ",
+    mesaj: "S-a aplicat suma neimpozabilă de la salariul minim (OUG 89/2025 art. III).",
+    cauza:
+      "Salariul de bază din contract e egal cu salariul minim al lunii, contractul e cu normă întreagă, iar venitul brut nu trece de plafon. Aplicația presupune că firma e locul funcției de bază, fiindcă fișa angajatului nu are încă acest câmp.",
+    cumSeRepara:
+      "Verificați că angajatul are la firmă funcția de bază și că salariul lui de bază nu a fost micșorat în 2026. În oricare dintre cazuri suma nu se cuvine, iar calculul trebuie corectat manual.",
     unde: "/angajati",
   },
   SAL_AVANTAJ_NATURA_PESTE_NET: {
