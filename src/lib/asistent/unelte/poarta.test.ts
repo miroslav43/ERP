@@ -33,6 +33,7 @@ const context = (partial: Partial<ContextUnealta> = {}): ContextUnealta => ({
   permisiuni: new Map() as PermissionMap,
   features: new Set<FeatureKey>(["nucleu", "leave", "attendance"]),
   aziISO: "2026-08-31",
+  zona: "app",
   ...partial,
 });
 
@@ -93,6 +94,72 @@ describe("verificaAcces", () => {
     // treacă printr-o ramură scrisă pentru cealaltă.
     const absent = verificaAcces(unealta({ permission: "leave:read" }), context());
     expect(absent.permis).toBe(false);
+  });
+});
+
+describe("permisiunile suplimentare (F12e, D4)", () => {
+  // `vehicule_fara_foi`: o listă „fără foi” spusă cuiva care vede doar foile
+  // echipei ar minți despre mașinile de pool. Ambele chei, ambele la `all`.
+  const faraFoi = unealta({
+    nume: "vehicule_fara_foi",
+    featureKey: "fleet",
+    permission: "vehicles:read",
+    minScope: "all",
+    permisiuniSuplimentare: [{ permission: "trip_sheets:read", minScope: "all" }],
+  });
+  const flota = new Set<FeatureKey>(["nucleu", "fleet"]);
+
+  it("refuză când a doua cheie lipsește din hartă", () => {
+    const acces = verificaAcces(
+      faraFoi,
+      context({ features: flota, permisiuni: harta({ "vehicles:read": "all" }) }),
+    );
+    expect(acces.permis).toBe(false);
+    expect(acces.permis ? "" : acces.motiv).toContain("dreptul");
+  });
+
+  it("refuză când a doua cheie e sub prag (managerul, foile echipei)", () => {
+    const acces = verificaAcces(
+      faraFoi,
+      context({
+        features: flota,
+        permisiuni: harta({ "vehicles:read": "all", "trip_sheets:read": "team" }),
+      }),
+    );
+    expect(acces.permis).toBe(false);
+  });
+
+  it("refuză când prima e sub prag, chiar dacă a doua e îndeplinită", () => {
+    const acces = verificaAcces(
+      faraFoi,
+      context({
+        features: flota,
+        permisiuni: harta({ "vehicles:read": "team", "trip_sheets:read": "all" }),
+      }),
+    );
+    expect(acces.permis).toBe(false);
+  });
+
+  it("acceptă exact la prag pe ambele", () => {
+    const acces = verificaAcces(
+      faraFoi,
+      context({
+        features: flota,
+        permisiuni: harta({ "vehicles:read": "all", "trip_sheets:read": "all" }),
+      }),
+    );
+    expect(acces.permis).toBe(true);
+  });
+
+  it("o ascunde din lista despre care află modelul", () => {
+    const permise = uneltelePermise(
+      [unealta({ nume: "libera" }), faraFoi],
+      context({
+        features: flota,
+        permisiuni: harta({ "vehicles:read": "all", "trip_sheets:read": "team" }),
+      }),
+    );
+    expect(permise.map((u) => u.nume)).toEqual(["libera"]);
   });
 });
 

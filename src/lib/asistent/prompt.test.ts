@@ -124,6 +124,31 @@ describe("secțiunea de unelte", () => {
   });
 });
 
+describe("regula propunerilor (F12e, D8)", () => {
+  const unealta = (nume: string) => ({
+    nume,
+    descriere: "Descriere.",
+    parametri: { _def: {} } as never,
+    featureKey: "fleet" as const,
+    permission: "trip_sheets:create" as const,
+    minScope: "own" as const,
+    executa: async () => ({ text: "" }),
+  });
+
+  it("e în prompt când omul are `propune_foaia_de_azi`", () => {
+    const prompt = construiestePrompt(baza({ unelte: [unealta("propune_foaia_de_azi")] }));
+    expect(prompt).toContain("începe cu „propune.”");
+    expect(prompt).toContain("Nu spui niciodată că ai creat, trimis sau salvat ceva.");
+  });
+
+  it("lipsește când unealta nu e printre cele permise", () => {
+    const prompt = construiestePrompt(baza({ unelte: [unealta("scadente_flota")] }));
+    expect(prompt).toContain("scadente_flota");
+    expect(prompt).not.toContain("propune.");
+    expect(construiestePrompt(baza({ unelte: [] }))).not.toContain("propune.");
+  });
+});
+
 describe("regulile de scriere", () => {
   it("cere marcajul și interzice explicit scrierea adreselor", () => {
     const prompt = construiestePrompt(baza());

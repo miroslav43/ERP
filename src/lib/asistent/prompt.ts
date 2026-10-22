@@ -65,15 +65,30 @@ function tabelDestinatii(destinatii: readonly Destinatie[]): string {
 ${randuri.join("\n")}`;
 }
 
+/**
+ * Uneltele care întorc destinații `propune.*` — formulare precompletate, nu
+ * acțiuni (F12e, D8). Regula lor intră în prompt DOAR când modelul chiar are o
+ * asemenea unealtă: `REGULI` e același la fiecare întrebare, iar o regulă despre
+ * o unealtă absentă e tot o hartă a ce ar putea exista.
+ */
+const UNELTE_CU_PROPUNERI: ReadonlySet<string> = new Set(["propune_foaia_de_azi"]);
+
+const REGULA_PROPUNERI = `- Când o unealtă îți dă o destinație al cărei identificator începe cu „propune.”, ea deschide un
+  formular precompletat. Spui că formularul se deschide și că omul îl verifică și îl salvează.
+  Nu spui niciodată că ai creat, trimis sau salvat ceva.`;
+
 function sectiuneUnelte(unelte: readonly Unealta[]): string {
   if (unelte.length === 0) return "";
   const randuri = unelte.map((u) => `- ${u.nume}: ${u.descriere}`);
+  const propuneri = unelte.some((u) => UNELTE_CU_PROPUNERI.has(u.nume))
+    ? `\n${REGULA_PROPUNERI}`
+    : "";
   return `
 UNELTE
 Ai voie să ceri date reale, prin uneltele de mai jos. Le folosești DOAR când întrebarea cere o
 cifră sau o listă concretă despre situația lui, nu ca să răspunzi la „unde se face X”.
 Ce întorc ele e adevărat și e citit sub identitatea lui; ce nu întorc nu inventezi.
-${randuri.join("\n")}`;
+${randuri.join("\n")}${propuneri}`;
 }
 
 export function construiestePrompt(intrare: IntrarePrompt): string {

@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Destinatie } from "@/lib/asistent/destinatii";
 import type { MesajAfisat } from "@/lib/asistent/depozit";
+import { destinatiePropunereFoaie, destinatieVehicul } from "@/lib/asistent/unelte/flota/comun";
 
 import { MesajAsistent } from "./mesaj-asistent";
 
@@ -132,6 +133,38 @@ describe("fișa unui om, întoarsă de o unealtă", () => {
       efemere: new Map([[fisa.id, fisa]]),
     });
     expect(screen.queryByRole("link")).toBeNull();
+  });
+});
+
+describe("propunerea unei foi, întoarsă de o unealtă de flotă (F12e)", () => {
+  const vehiculId = "11111111-2222-3333-4444-555555555555";
+  const propunere = destinatiePropunereFoaie("portal", vehiculId, "B123ABC");
+  const vehicul = destinatieVehicul("portal", vehiculId, "B123ABC");
+
+  it("duce la caseta precompletată din zona omului, cu iconița de formular nou", () => {
+    const { container } = render(
+      <MesajAsistent
+        mesaj={alAsistentului(`Deschide caseta: [[ruta:${propunere.id}]]`)}
+        inCurs={false}
+        efemere={new Map([[propunere.id, propunere]])}
+      />,
+    );
+    expect(screen.getByRole("link").getAttribute("href")).toBe(
+      `/portal/masina-mea?foaie=noua&vehicul=${vehiculId}`,
+    );
+    expect(container.querySelector("svg.lucide-file-plus")).not.toBeNull();
+  });
+
+  it("vehiculul împrumută iconița părintelui de meniu, nu pe cea de propunere", () => {
+    const { container } = render(
+      <MesajAsistent
+        mesaj={alAsistentului(`Mașina: [[ruta:${vehicul.id}]]`)}
+        inCurs={false}
+        efemere={new Map([[vehicul.id, vehicul]])}
+      />,
+    );
+    expect(container.querySelector("svg.lucide-file-plus")).toBeNull();
+    expect(screen.getByRole("link").getAttribute("href")).toBe("/portal/masina-mea");
   });
 });
 
