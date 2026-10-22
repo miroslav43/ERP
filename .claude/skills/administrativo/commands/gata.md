@@ -24,7 +24,8 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/banc-migrare.sh"
 ```
 
 Apoi treci diff-ul prin cele 11 clase de defecte repetate (A–K, descrise în
-agentul `erp-santinela-tenant`). Dacă diff-ul atinge migrări sau `actions.ts`,
+agentul `erp-santinela-tenant`). Dacă diff-ul atinge migrări sau un fișier de
+acțiuni (`actions.ts`, dar și `actions-*.ts` / orice fișier `"use server"`),
 lansează agentul `erp-santinela-tenant` pentru un review adversarial.
 
 **Nu declara nimic „gata” fără ieșirea comenzilor lipită.** Istoricul acestui

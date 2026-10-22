@@ -123,7 +123,10 @@ describe("traduEroareAmenzi — mesajele triggerelor din 0206", () => {
         "Scrieți costul final al daunei (0 dacă n-a fost nimic de plătit) înainte de închidere.",
         "cost_final",
       ],
-      ["Cercetarea SSM aleasă nu aparține organizației dumneavoastră.", "work_accident_id"],
+      [
+        "Cercetarea SSM aleasă nu există în organizația dumneavoastră sau nu o puteți consulta.",
+        "work_accident_id",
+      ],
     ];
     for (const [mesaj, camp] of cazuri) {
       expect(Object.keys(prinde(pgEroare("P0001", mesaj)).fieldErrors ?? {}), mesaj).toEqual([

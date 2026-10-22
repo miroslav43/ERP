@@ -26,8 +26,8 @@ permisiuni:
   ]
 feature: fleet
 capcane: [17, 19, 26]
-scris_pe: b8fdfaeefdcd1abc6ab449bf02e078fe6b923387
-scris_la: 2026-10-21
+scris_pe: 7cbfec68d4744258ddfacdca86560a1484cd8680
+scris_la: 2026-10-22
 tags: [modul, operations, hr]
 ---
 
@@ -142,8 +142,9 @@ diacritice), etichetele scurte.
 ## Foaia legată de deplasare
 
 `trip_sheets.business_trip_id`, cu garda SEPARATĂ `internal.foi_deplasare_garda` (aceeași
-firmă, același angajat, deplasare neanulată) — nu o ramură în `foi_parcurs_inainte`, pe
-care o rescriu și alte faze. Comparațiile `to_jsonb(new) - …` de acolo acoperă coloana:
+firmă, același angajat, neanulată, și citibilă de apelant ca în `business_trips_select`:
+garda e DEFINER, deci cine n-o vede ia mesajul de „inexistentă”, nu „a altui angajat”;
+proba (16)/(16b)) — nu o ramură în `foi_parcurs_inainte`, pe care o rescriu alte faze. Comparațiile `to_jsonb(new) - …` de acolo acoperă coloana:
 pe foaia trimisă sau aprobată legătura nu se mai schimbă. `legaDeplasarea` filtrează pe
 `status = 'draft'`, deci zero rânduri = CONFLICT. Cu legătură, avertismentul „fără
 delegație” tace.

@@ -37,7 +37,8 @@
 -- D. `public.vehicle_incidents`: incidentul / dauna cu stadii (raportat →
 --    constatat → la asigurător → în reparație → închis), costul estimat și
 --    final, despăgubirea, asigurătorul, numărul dosarului de daună și legătura
---    OPȚIONALĂ spre cercetarea SSM (`work_accidents`). Un incident închis e
+--    OPȚIONALĂ spre cercetarea SSM (`work_accidents`), pe care o pune doar cine
+--    VEDE cercetarea prin regulile SSM (triggerul o judecă). Un incident închis e
 --    înghețat; la închidere se cere costul final (0 dacă n-a fost nimic de
 --    plătit).
 -- E. `app.sofer_la(org, vehicul, moment)`, SECURITY DEFINER: cine conducea
@@ -554,6 +555,15 @@ begin
       message = 'Momentul incidentului nu poate fi în viitor.';
   end if;
 
+  -- Legătura cu cercetarea SSM. Funcția rulează cu drepturile bazei, deci
+  -- vede toate cercetările: pe lângă „a firmei, neștearsă”, cere ca APELANTUL
+  -- s-o poată citi (aceeași judecată ca `work_accidents_select`: modulul `ssm`
+  -- activ și `app.ssm_acces(..., 'read', angajatul accidentat)`). Altfel cine
+  -- scrie incidente fără acces SSM putea lega orice cercetare a firmei și,
+  -- din refuz, afla ce id-uri există. Un singur mesaj pentru „nu există” și
+  -- „nu o puteți consulta”, ca refuzul să nu fie o sondă. Se judecă doar la
+  -- SCHIMBARE: o legătură pusă de altcineva se păstrează la o corectură.
+  -- Contextul de serviciu (seed, importuri) judecă doar firma.
   if new.work_accident_id is not null
      and (tg_op = 'INSERT' or new.work_accident_id is distinct from old.work_accident_id) then
     if not exists (
@@ -561,9 +571,12 @@ begin
        where w.id = new.work_accident_id
          and w.organization_id = new.organization_id
          and w.deleted_at is null
+         and (v_serviciu
+              or (app.feature_on(new.organization_id, 'ssm')
+                  and app.ssm_acces(new.organization_id, 'ssm', 'read', w.employee_id)))
     ) then
       raise exception using errcode = 'P0001',
-        message = 'Cercetarea SSM aleasă nu aparține organizației dumneavoastră.';
+        message = 'Cercetarea SSM aleasă nu există în organizația dumneavoastră sau nu o puteți consulta.';
     end if;
   end if;
 
