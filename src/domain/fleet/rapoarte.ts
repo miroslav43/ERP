@@ -101,6 +101,11 @@ export interface FoaieRaport {
   readonly vehicul_combustibil: string | null;
   readonly norma_l_100km: number | null;
   readonly alimentari: readonly AlimentareRaport[];
+  /**
+   * Codurile UIT vii ale curselor foii (0217, F12f), pentru coloana „UIT” din
+   * registru. Opțional: o citire care nu le aduce lasă coloana goală.
+   */
+  readonly uituri?: readonly Readonly<{ uit: string }>[];
 }
 
 /** Etichetele vehiculelor (numărul de înmatriculare), după id. */
@@ -369,6 +374,8 @@ export interface RandRegistru {
   readonly costCombustibil: number;
   readonly consumReal: number | null;
   readonly norma: number | null;
+  /** Codurile UIT distincte ale foii (un cod poate acoperi mai multe curse). */
+  readonly uituri: readonly string[];
 }
 
 /**
@@ -395,6 +402,9 @@ export function registruFoi(
       costCombustibil: costFoaie(f),
       consumReal: consumLa100Km(litri, km(f)),
       norma: f.norma_l_100km,
+      uituri: [...new Set((f.uituri ?? []).map((u) => u.uit))].sort((a, b) =>
+        a < b ? -1 : a > b ? 1 : 0,
+      ),
     };
   });
   return randuri.sort((a, b) => {

@@ -5897,12 +5897,14 @@ export type Database = {
           cost: number
           created_at: string
           created_by: string | null
+          cui_statie: string | null
           deleted_at: string | null
           fisier_bon_path: string | null
           id: string
           litri: number
           numar_bon: string | null
           observatii: string | null
+          ocr_propunere: Json | null
           organization_id: string
           plin: boolean
           pret_litru: number | null
@@ -5916,12 +5918,14 @@ export type Database = {
           cost: number
           created_at?: string
           created_by?: string | null
+          cui_statie?: string | null
           deleted_at?: string | null
           fisier_bon_path?: string | null
           id?: string
           litri: number
           numar_bon?: string | null
           observatii?: string | null
+          ocr_propunere?: Json | null
           organization_id: string
           plin?: boolean
           pret_litru?: number | null
@@ -5935,12 +5939,14 @@ export type Database = {
           cost?: number
           created_at?: string
           created_by?: string | null
+          cui_statie?: string | null
           deleted_at?: string | null
           fisier_bon_path?: string | null
           id?: string
           litri?: number
           numar_bon?: string | null
           observatii?: string | null
+          ocr_propunere?: Json | null
           organization_id?: string
           plin?: boolean
           pret_litru?: number | null
@@ -13746,6 +13752,7 @@ export type Database = {
           created_by: string | null
           de_la_loc: string | null
           deleted_at: string | null
+          e_transport: Database["public"]["Enums"]["e_transport_incadrare"]
           id: string
           km_parcursi: number | null
           km_plecare: number
@@ -13766,6 +13773,7 @@ export type Database = {
           created_by?: string | null
           de_la_loc?: string | null
           deleted_at?: string | null
+          e_transport?: Database["public"]["Enums"]["e_transport_incadrare"]
           id?: string
           km_parcursi?: number | null
           km_plecare: number
@@ -13786,6 +13794,7 @@ export type Database = {
           created_by?: string | null
           de_la_loc?: string | null
           deleted_at?: string | null
+          e_transport?: Database["public"]["Enums"]["e_transport_incadrare"]
           id?: string
           km_parcursi?: number | null
           km_plecare?: number
@@ -13811,6 +13820,79 @@ export type Database = {
           },
           {
             foreignKeyName: "trip_sheet_curse_trip_sheet_id_fkey"
+            columns: ["trip_sheet_id"]
+            isOneToOne: false
+            referencedRelation: "trip_sheets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_sheet_uit: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          cursa_id: string
+          data_inceput: string
+          deleted_at: string | null
+          expira_la: string | null
+          id: string
+          observatii: string | null
+          organization_id: string
+          trip_sheet_id: string
+          uit: string
+          updated_at: string
+          updated_by: string | null
+          valabilitate_zile: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          cursa_id: string
+          data_inceput: string
+          deleted_at?: string | null
+          expira_la?: string | null
+          id?: string
+          observatii?: string | null
+          organization_id: string
+          trip_sheet_id: string
+          uit: string
+          updated_at?: string
+          updated_by?: string | null
+          valabilitate_zile?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          cursa_id?: string
+          data_inceput?: string
+          deleted_at?: string | null
+          expira_la?: string | null
+          id?: string
+          observatii?: string | null
+          organization_id?: string
+          trip_sheet_id?: string
+          uit?: string
+          updated_at?: string
+          updated_by?: string | null
+          valabilitate_zile?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_sheet_uit_cursa_id_fkey"
+            columns: ["cursa_id"]
+            isOneToOne: false
+            referencedRelation: "trip_sheet_curse"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_sheet_uit_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_sheet_uit_trip_sheet_id_fkey"
             columns: ["trip_sheet_id"]
             isOneToOne: false
             referencedRelation: "trip_sheets"
@@ -16247,6 +16329,10 @@ export type Database = {
         | "rejected"
         | "spam"
       dependent_relation: "copil" | "sot_sotie" | "parinte" | "alta_ruda"
+      e_transport_incadrare:
+        | "neaplicabil"
+        | "risc_fiscal_national"
+        | "international"
       email_status:
         | "queued"
         | "sent"
@@ -16894,6 +16980,11 @@ export const Constants = {
         "spam",
       ],
       dependent_relation: ["copil", "sot_sotie", "parinte", "alta_ruda"],
+      e_transport_incadrare: [
+        "neaplicabil",
+        "risc_fiscal_national",
+        "international",
+      ],
       email_status: [
         "queued",
         "sent",

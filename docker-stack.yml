@@ -89,6 +89,8 @@ services:
       # și bula nu se randează, oricâte firme au modulul `asistent` activ.
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
       - OPENROUTER_MODEL_ASISTENT=${OPENROUTER_MODEL_ASISTENT:-google/gemini-3.7-flash}
+      # Citirea bonului de combustibil (flota, F12a): aceeași cheie, model separat.
+      - OPENROUTER_MODEL_VIZIUNE=${OPENROUTER_MODEL_VIZIUNE:-google/gemini-3.7-flash}
       # Trecerea la `docker secret`, când se decide (pași în DEPLOY.md →
       # „Ce vede docker inspect"): creezi secretul, adaugi blocul `secrets:` la
       # serviciu și la nivel de stack, apoi înlocuiești linia de mai sus cu

@@ -26,6 +26,9 @@ export function DialogAlimentare({ foaieId, alimentare }: Proprietati): ReactEle
       cost: String(date.get("cost") ?? "").trim(),
       statie: String(date.get("statie") ?? "").trim() || null,
       numar_bon: String(date.get("numar_bon") ?? "").trim() || null,
+      // Trimis mereu: schema îl ia `null` când lipsește, iar corectura ar
+      // șterge altfel CUI-ul salvat (0213).
+      cui_statie: String(date.get("cui_statie") ?? "").trim() || null,
       alimentat_la: String(date.get("alimentat_la") ?? ""),
       plin: date.get("plin") === "on",
       observatii: String(date.get("observatii") ?? "").trim() || null,
@@ -126,6 +129,22 @@ export function DialogAlimentare({ foaieId, alimentare }: Proprietati): ReactEle
                 {...a}
                 maxLength={60}
                 defaultValue={stare.valoriTrimise["numar_bon"] ?? alimentare.numar_bon ?? ""}
+              />
+            )}
+          </Camp>
+          <Camp
+            nume="cui_statie"
+            id={idc("cui_statie")}
+            eticheta="CUI stație"
+            ajutor="Codul fiscal al stației, de pe bon. Opțional."
+            erori={stare.erori["cui_statie"] ?? []}
+          >
+            {(a) => (
+              <input
+                {...a}
+                maxLength={20}
+                inputMode="numeric"
+                defaultValue={stare.valoriTrimise["cui_statie"] ?? alimentare.cui_statie ?? ""}
               />
             )}
           </Camp>

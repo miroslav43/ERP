@@ -30,7 +30,8 @@ import { esteTermenDepasit, fetchCuTermen, TERMEN_ANTET_MS } from "@/lib/supabas
 import { creeazaCititorSse, SEMNAL_FINAL } from "./sse";
 import type { DeclaratieUnealta } from "./unelte";
 
-const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
+/** Exportat doar pentru clientul de viziune (`./viziune.ts`), care citește bonurile. */
+export const ENDPOINT_OPENROUTER = "https://openrouter.ai/api/v1/chat/completions";
 
 export type ApelUnealta = Readonly<{ id: string; nume: string; argumente: string }>;
 
@@ -143,7 +144,7 @@ export async function deschideFlux(intrare: IntrareFlux): Promise<RezultatFlux> 
 
   let raspuns: Response;
   try {
-    raspuns = await fetchCuTermen(TERMEN_ANTET_MS)(ENDPOINT, {
+    raspuns = await fetchCuTermen(TERMEN_ANTET_MS)(ENDPOINT_OPENROUTER, {
       method: "POST",
       cache: "no-store",
       headers: {

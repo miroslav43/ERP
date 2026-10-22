@@ -10,10 +10,28 @@ import {
   totaluriCurse,
   type SablonTraseu,
 } from "@/domain/fleet/foaie";
-import { PLAFON_CURSE_FOAIE, type Cursa } from "@/lib/queries/fleet";
+import {
+  PLAFON_CURSE_FOAIE,
+  PLAFON_UIT_FOAIE,
+  type Cursa,
+  type UitCursa,
+} from "@/lib/queries/fleet";
+import {
+  arataSectiuneaUit,
+  avertismenteCursa,
+  PRAG_MASA_E_TRANSPORT_KG,
+  type AvertismentETransport,
+} from "@/domain/fleet/uit";
 
+import {
+  AJUTOR_E_TRANSPORT,
+  ETICHETE_E_TRANSPORT_SCURT,
+  rezumatETransport,
+  textAvertismentETransport,
+} from "../../etichete";
 import { ButonStergePeFoaie } from "./buton-sterge-pe-foaie";
 import { DialogCursa } from "./dialog-cursa";
+import { UitCursa as ListaUit } from "./uit-cursa";
 
 /**
  * Foaia ca tabel de curse (0200): ora, de la → la, scopul, kilometrii.
@@ -26,6 +44,10 @@ import { DialogCursa } from "./dialog-cursa";
  * Kilometrii de bord ai zilei (ultima sosire − prima plecare) pot fi mai mulți
  * decât suma curselor: diferența e drum fără cursă scrisă. Baza n-o refuză
  * (kilometrajul trebuie să fie monoton, nu continuu), dar aprobatorul o vede.
+ *
+ * Coloana „e-Transport” (0217, F12f): încadrarea, codurile UIT cu starea lor în
+ * ziua foii și avertismentele, care NU blochează nimic (decizia I-T2). Apare pe
+ * cursele unde are sens (decizia I-f1, `arataSectiuneaUit`).
  */
 type Proprietati = Readonly<{
   foaieId: string;
@@ -34,6 +56,11 @@ type Proprietati = Readonly<{
   editabil: boolean;
   kmPlecareFoaie: number;
   sabloane: readonly SablonTraseu[];
+  /** Ziua foii, `AAAA-LL-ZZ`. */
+  ziuaFoii: string;
+  uituri: readonly UitCursa[];
+  /** Masa maximă din fișa vehiculului; `null` = necunoscută sau vehicul invizibil. */
+  masaVehiculKg: number | null;
 }>;
 
 const km = (v: number | null): string => (v === null ? "—" : `${v.toLocaleString("ro-RO")} km`);
@@ -44,11 +71,32 @@ export function SectiuneCurse({
   editabil,
   kmPlecareFoaie,
   sabloane,
+  ziuaFoii,
+  uituri,
+  masaVehiculKg,
 }: Proprietati): ReactElement {
   const ordonate = ordoneazaCurse(curse);
   const totaluri = totaluriCurse(ordonate);
   const propunere = propunereCursaNoua(ordonate, kmPlecareFoaie);
   const ora = (moment: string): string => oraInBucharest(new Date(moment));
+
+  // ── e-Transport (0217) ──
+  const uituriPeCursa = new Map<string, UitCursa[]>();
+  for (const u of uituri) {
+    const lista = uituriPeCursa.get(u.cursa_id) ?? [];
+    lista.push(u);
+    uituriPeCursa.set(u.cursa_id, lista);
+  }
+  const uituriCursei = (c: Cursa): readonly UitCursa[] => uituriPeCursa.get(c.id) ?? [];
+  const avertismente = new Map<string, readonly AvertismentETransport[]>(
+    ordonate.map((c) => [c.id, avertismenteCursa(c, uituriCursei(c), ziuaFoii, masaVehiculKg)]),
+  );
+  const arataUit = (c: Cursa): boolean =>
+    arataSectiuneaUit(masaVehiculKg, c, uituriCursei(c).length);
+  // Pe o cursă nouă selectorul apare doar după vehicul: marcajul vine abia din casetă.
+  const vehiculPestePrag = masaVehiculKg === null || masaVehiculKg >= PRAG_MASA_E_TRANSPORT_KG;
+  const coloanaETransport = ordonate.some(arataUit);
+  const rezumat = rezumatETransport([...avertismente.values()]);
 
   const coloane: Coloana<Cursa>[] = [
     {
@@ -95,6 +143,42 @@ export function SectiuneCurse({
       peTelefon: "meta",
       celula: (c) => km(c.km_parcursi),
     },
+    ...(coloanaETransport
+      ? ([
+          {
+            cheie: "etransport",
+            antet: "e-Transport",
+            peTelefon: "meta",
+            celula: (c: Cursa) =>
+              arataUit(c) ? (
+                <div className="space-y-1">
+                  {c.e_transport === "neaplicabil" ? null : (
+                    <span className="block text-xs font-medium">
+                      {ETICHETE_E_TRANSPORT_SCURT[c.e_transport]}
+                    </span>
+                  )}
+                  <ListaUit
+                    foaieId={foaieId}
+                    cursaId={c.id}
+                    ziuaFoii={ziuaFoii}
+                    uituri={uituriCursei(c)}
+                    editabil={editabil}
+                  />
+                  {(avertismente.get(c.id) ?? []).map((a) => (
+                    <span
+                      key={`${a.tip}-${"uit" in a ? a.uit : ""}`}
+                      className="text-warning block text-xs"
+                    >
+                      {textAvertismentETransport(a)}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                "—"
+              ),
+          },
+        ] satisfies Coloana<Cursa>[])
+      : []),
     ...(editabil
       ? ([
           {
@@ -103,7 +187,13 @@ export function SectiuneCurse({
             peTelefon: "actiuni",
             celula: (c: Cursa) => (
               <span className="flex justify-end gap-1">
-                <DialogCursa foaieId={foaieId} cursa={c} propunere={propunere} sabloane={[]} />
+                <DialogCursa
+                  foaieId={foaieId}
+                  cursa={c}
+                  propunere={propunere}
+                  sabloane={[]}
+                  arataETransport={arataUit(c)}
+                />
                 <ButonStergePeFoaie
                   fel="cursa"
                   id={c.id}
@@ -124,7 +214,13 @@ export function SectiuneCurse({
           Cursele zilei
         </h2>
         {editabil ? (
-          <DialogCursa foaieId={foaieId} cursa={null} propunere={propunere} sabloane={sabloane} />
+          <DialogCursa
+            foaieId={foaieId}
+            cursa={null}
+            propunere={propunere}
+            sabloane={sabloane}
+            arataETransport={vehiculPestePrag}
+          />
         ) : null}
       </div>
       {editabil && propunere.blocata ? (
@@ -132,6 +228,13 @@ export function SectiuneCurse({
           Ultima cursă e încă pe drum. Completați-i sosirea înainte de a adăuga una nouă.
         </p>
       ) : null}
+      {rezumat.length === 0 ? null : (
+        // Nemodal: foaia se salvează și se trimite oricum (decizia I-T2). Obligația
+        // de declarare e a furnizorului sau a beneficiarului, nu a șoferului.
+        <Callout fel="atentie" titlu="e-Transport">
+          {rezumat.join(" ")} {AJUTOR_E_TRANSPORT}
+        </Callout>
+      )}
       <Tabel
         caption="Cursele foii de parcurs, în ordinea zilei."
         coloane={coloane}
@@ -151,6 +254,7 @@ export function SectiuneCurse({
                 Total pe curse
               </td>
               <td className="px-4 py-3 text-right tabular-nums">{km(totaluri.kmCurse)}</td>
+              {coloanaETransport ? <td className="px-4 py-3" /> : null}
               {editabil ? <td className="px-4 py-3" /> : null}
             </tr>
           )
@@ -168,6 +272,11 @@ export function SectiuneCurse({
       {curse.length >= PLAFON_CURSE_FOAIE ? (
         <Callout fel="atentie" titlu="Lista e trunchiată">
           Foaia are cel puțin {PLAFON_CURSE_FOAIE} de curse și doar atâtea se arată.
+        </Callout>
+      ) : null}
+      {uituri.length >= PLAFON_UIT_FOAIE ? (
+        <Callout fel="atentie" titlu="Codurile UIT sunt trunchiate">
+          Foaia are cel puțin {PLAFON_UIT_FOAIE} de coduri UIT și doar atâtea se arată.
         </Callout>
       ) : null}
     </section>

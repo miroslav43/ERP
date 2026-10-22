@@ -48,7 +48,7 @@ feature: fleet
 capcane: [18, 19, 21, 22, 23, 26]
 citeste_daca:
   - "foaie refuzată cu „Vehiculul ales nu vă este alocat” → [[modul/flota/roluri-si-portal]]; permis, aviz medical, șofer → [[modul/flota/soferi]]; amendă, art. 39, incident, daună → [[modul/flota/amenzi-si-daune]]; declarația șoferului din portal, amenzile în rezumatul zilnic și pe fișa vehiculului → [[modul/flota/declaratia-soferului]]"
-  - "curse, foaie trimisă, numărul FP, PDF, orele foilor → [[modul/flota/foaia-zilnica]]; service, costuri, anvelope → [[modul/flota/service-si-costuri]]; rapoarte lunare, Excel, pachet pentru contabil → [[modul/flota/rapoarte]]"
+  - "curse, foaie trimisă, numărul FP, PDF, orele foilor → [[modul/flota/foaia-zilnica]]; service, costuri, anvelope → [[modul/flota/service-si-costuri]]; rapoarte lunare, Excel, pachet pentru contabil → [[modul/flota/rapoarte]]; Saga, WinMentor, notă contabilă → [[modul/flota/export-contabil]]"
   - "alerte de scadență, /flota/setari → [[modul/flota/alerte-si-setari]]; regim fiscal, avantaj în natură, /flota/fiscal → [[modul/flota/fiscal]]; proces-verbal de predare, PVA, confirmarea șoferului → [[modul/flota/proces-verbal]]"
 scris_pe: b6ed2c66abe3b535c04d7993c3465e8fff1629de
 scris_la: 2026-10-13
@@ -95,14 +95,6 @@ bonului, `org-flota`): `[[modul/flota/documente-si-erori]]`.
 (`/flota?vehicul=nou`, `/flota/foi?foaie=noua`), cu `deschisInitial` + `key` (o navigare pe
 ACEEAȘI rută nu remontează). Datele casetei de foaie: `foi/date-foaie-noua.ts`, doar
 vehicule `activ` (baza refuză foaia pe unul vândut sau casat).
-
-## Extensii (F12)
-
-- b, carduri de combustibil (0214): `[[modul/flota/carduri]]`
-- c, proces-verbal de predare-primire (0215): `[[modul/flota/proces-verbal]]`
-- d, rezervări pe mașinile de pool (0216): `[[modul/flota/rezervari]]`
-- e, unelte de flotă în asistent: `[[modul/asistent/unelte-flota]]`
-- h, ieșirea din parc (0218): `[[modul/flota/iesire]]`
 
 ## Server Actions
 
@@ -225,8 +217,16 @@ capcane tăcute stau acolo, prinse de `valori-vehicul.test.ts` și `valori-docum
 `Number("")` e `0`, nu `NaN` (un cost necompletat s-ar salva ca „0 lei"), iar bifa
 `pool` nebifată LIPSEȘTE din `FormData`, deci absența ei înseamnă `false`.
 
-Trimiterea și alimentarea (`foi/[id]/actiuni-foaie.tsx`) sunt două `<Formular>` separate:
-un refuz la alimentare nu înroșește trimiterea, iar valorile tastate rămân (ADM-022).
+## Extensii
+
+- F12a, bon OCR (0213): `[[modul/flota/bon-ocr]]`.
+- F12b, carduri (0214): `[[modul/flota/carduri]]`.
+- F12c, proces-verbal de predare-primire (0215): `[[modul/flota/proces-verbal]]`.
+- F12d, rezervări pe pool (0216): `[[modul/flota/rezervari]]`.
+- F12e, unelte de flotă în asistent: `[[modul/asistent/unelte-flota]]`.
+- F12f, UIT pe cursă (0217): `[[modul/flota/uit]]`.
+- F12g, export contabil (Saga, WinMentor): `[[modul/flota/export-contabil]]`.
+- F12h, ieșirea din parc (0218): `[[modul/flota/iesire]]`.
 
 ## Ce NU e aici
 

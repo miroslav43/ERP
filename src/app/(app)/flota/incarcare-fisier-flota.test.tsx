@@ -18,10 +18,17 @@ const actiuni = vi.hoisted(() => ({
 }));
 const urcaPeUrlSemnat = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
+// F12a: poza de bon trece prin re-encodarea în JPEG (canvas). happy-dom n-are
+// canvas real, deci conversia e mimată; implicit întoarce fișierul neschimbat.
+const pregatesteFotoBon = vi.hoisted(() => vi.fn());
 
 vi.mock("./actions-fisiere", () => actiuni);
 vi.mock("@/lib/storage/urca-semnat", () => ({ urcaPeUrlSemnat }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
+vi.mock("@/lib/documents/foto-bon-pregatire", async (orig) => ({
+  ...(await orig<typeof import("@/lib/documents/foto-bon-pregatire")>()),
+  pregatesteFotoBon,
+}));
 
 const { IncarcareFisierFlota } = await import("./incarcare-fisier-flota");
 
@@ -34,6 +41,8 @@ beforeEach(() => {
   for (const f of Object.values(actiuni)) f.mockReset();
   urcaPeUrlSemnat.mockReset();
   refresh.mockReset();
+  pregatesteFotoBon.mockReset();
+  pregatesteFotoBon.mockImplementation(async (f: File) => f);
 });
 
 function poza(): File {
@@ -174,5 +183,85 @@ describe("IncarcareFisierFlota", () => {
 
     expect((await screen.findByRole("alert")).textContent).toMatch(/conexiunea/u);
     expect(actiuni.confirmaBon).not.toHaveBeenCalled();
+  });
+
+  it("F12a: poza bonului se re-encodează în JPEG înainte de urcare (fără EXIF)", async () => {
+    const jpeg = new File([new Uint8Array(512)], "IMG_1.jpg", { type: "image/jpeg" });
+    pregatesteFotoBon.mockResolvedValue(jpeg);
+    actiuni.pregatesteBon.mockResolvedValue({
+      ok: true,
+      data: { cale: `org/trip_sheets/${FOAIE}/x-IMG_1.jpg`, urlSemnat: "https://s/u" },
+    });
+    urcaPeUrlSemnat.mockResolvedValue(true);
+    actiuni.confirmaBon.mockResolvedValue({ ok: true, data: { id: ALIM } });
+
+    render(
+      <IncarcareFisierFlota
+        tinta={{ fel: "bon", alimentareId: ALIM, foaieId: FOAIE }}
+        descriere="25 l"
+        areFisier={false}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Atașează poza bonului/u }));
+    const png = new File([new Uint8Array(4096)], "IMG_1.png", { type: "image/png" });
+    await userEvent.upload(screen.getByLabelText(/Poza bonului/u), png);
+
+    await waitFor(() => {
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+    expect(pregatesteFotoBon).toHaveBeenCalledWith(png);
+    expect(actiuni.pregatesteBon).toHaveBeenCalledWith(
+      expect.objectContaining({ numeFisier: "IMG_1.jpg", dimensiune: 512, mime: "image/jpeg" }),
+    );
+    expect(urcaPeUrlSemnat).toHaveBeenCalledWith("https://s/u", jpeg);
+  });
+
+  it("F12a: o poză pe care browserul n-o decodează se urcă originală, ca înainte", async () => {
+    pregatesteFotoBon.mockRejectedValue(new Error("HEIC"));
+    actiuni.pregatesteBon.mockResolvedValue({
+      ok: true,
+      data: { cale: `org/trip_sheets/${FOAIE}/x.heic`, urlSemnat: "https://s/u" },
+    });
+    urcaPeUrlSemnat.mockResolvedValue(true);
+    actiuni.confirmaBon.mockResolvedValue({ ok: true, data: { id: ALIM } });
+
+    render(
+      <IncarcareFisierFlota
+        tinta={{ fel: "bon", alimentareId: ALIM, foaieId: FOAIE }}
+        descriere="25 l"
+        areFisier={false}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Atașează poza bonului/u }));
+    const heic = new File([new Uint8Array(2048)], "IMG_2.heic", { type: "image/heic" });
+    await userEvent.upload(screen.getByLabelText(/Poza bonului/u), heic);
+
+    await waitFor(() => {
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+    expect(urcaPeUrlSemnat).toHaveBeenCalledWith("https://s/u", heic);
+  });
+
+  it("F12a: scanarea (PDF) nu trece prin conversie", async () => {
+    actiuni.pregatesteScanareDocument.mockResolvedValue({
+      ok: true,
+      data: { cale: `org/vehicles/${VEH}/x.pdf`, urlSemnat: "https://s/v" },
+    });
+    urcaPeUrlSemnat.mockResolvedValue(true);
+    actiuni.confirmaScanareDocument.mockResolvedValue({ ok: true, data: { id: DOC } });
+    render(
+      <IncarcareFisierFlota
+        tinta={{ fel: "scanare", documentId: DOC, vehiculId: VEH }}
+        descriere="RCA"
+        areFisier={false}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Atașează scanarea: RCA/u }));
+    const pdf = new File([new Uint8Array(4096)], "rca.pdf", { type: "application/pdf" });
+    await userEvent.upload(screen.getByLabelText(/Fișierul scanat/u), pdf);
+    await waitFor(() => {
+      expect(actiuni.confirmaScanareDocument).toHaveBeenCalled();
+    });
+    expect(pregatesteFotoBon).not.toHaveBeenCalled();
   });
 });

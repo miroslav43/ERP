@@ -10,7 +10,8 @@ import { Callout } from "@/components/ui/callout";
 import { ListaDefinitii } from "@/components/ui/lista-definitii";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
+import { citireaBonuluiDisponibila } from "@/lib/fleet/citire-bon";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, formatDateTime } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
@@ -22,6 +23,7 @@ import {
   citesteFoaie,
   curseleFoii,
   sabloaneTraseu,
+  uiturileFoii,
   urlSemnateFlota,
   vehiculeDupaId,
 } from "@/lib/queries/fleet";
@@ -38,6 +40,7 @@ import { DialogAntetFoaie } from "@/app/(app)/flota/foi/[id]/dialog-antet-foaie"
 import { SectiuneCurse } from "@/app/(app)/flota/foi/[id]/sectiune-curse";
 import { IncarcareFisierFlota } from "@/app/(app)/flota/incarcare-fisier-flota";
 import { LinkBon } from "@/app/(app)/flota/foi/[id]/link-bon";
+import { PastileBon } from "@/app/(app)/flota/foi/[id]/pastile-bon";
 import { SoferulFoii } from "@/app/(app)/flota/foi/[id]/soferul-foii";
 
 import { FaraFisa } from "../../../fara-fisa";
@@ -62,9 +65,10 @@ export default async function PaginaFoaiaMea({ params }: ProprietatiPagina) {
   const id = idDinRuta((await params).id);
 
   const { tenant, user } = await requireTenant();
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "fleet"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
 
   if (!can(permisiuni, "trip_sheets:read", "own")) {
@@ -81,11 +85,12 @@ export default async function PaginaFoaiaMea({ params }: ProprietatiPagina) {
   const foaie = await citesteFoaie(tenant.organizationId, id);
   if (foaie === null || foaie.employee_id !== stare.fisa.id) notFound();
 
-  const [alimentari, vehicule, anomalii, curse] = await Promise.all([
+  const [alimentari, vehicule, anomalii, curse, uituri] = await Promise.all([
     alimentarileFoii(foaie.id),
     vehiculeDupaId(tenant.organizationId, [foaie.vehicle_id]),
     anomaliiPeFoi(tenant.organizationId, [foaie.id]),
     curseleFoii(tenant.organizationId, foaie.id),
+    uiturileFoii(tenant.organizationId, foaie.id),
   ]);
   const vehicul = vehicule.get(foaie.vehicle_id);
   const poateScrie = can(permisiuni, "trip_sheets:update", "own");
@@ -116,6 +121,7 @@ export default async function PaginaFoaiaMea({ params }: ProprietatiPagina) {
           {a.statie ?? "—"}
           {a.plin ? <span className="text-muted-foreground"> · plin</span> : null}
           <LinkBon cale={a.fisier_bon_path} urluri={urlBonuri} />
+          <PastileBon alimentare={a} />
         </>
       ),
     },
@@ -241,12 +247,16 @@ export default async function PaginaFoaiaMea({ params }: ProprietatiPagina) {
         bazaDeplasare="/portal/diurna-mea"
       />
 
+      {/* ── flota F12f (0217): codurile UIT, aceleași ca pe /flota/foi/[id] ── */}
       <SectiuneCurse
         foaieId={foaie.id}
         curse={curse}
         editabil={editabil}
         kmPlecareFoaie={foaie.km_plecare ?? 0}
         sabloane={sabloane}
+        ziuaFoii={foaie.data}
+        uituri={uituri}
+        masaVehiculKg={vehicul?.masa_maxima_kg ?? null}
       />
 
       <section aria-label="Kilometraj și consum" className="border-border rounded-panou border p-4">
@@ -339,6 +349,7 @@ export default async function PaginaFoaiaMea({ params }: ProprietatiPagina) {
           sosireLa={foaie.sosire_la}
           areCurse={curse.length > 0}
           bazaFoi="/portal/masina-mea"
+          poateCitiBonul={citireaBonuluiDisponibila(module, permisiuni)}
         />
       ) : null}
     </div>

@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { ButonCitesteBonul, type PropunereCitita } from "@/components/flota/buton-citeste-bonul";
 import { Buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
 import { Camp } from "@/components/ui/camp";
@@ -20,6 +21,7 @@ import {
   stergeFoaie,
   trimiteFoaie,
 } from "../../actions";
+import { PozaBonAlimentare, type BonUrcat } from "./poza-bon-alimentare";
 
 type FoaieInchisa = Readonly<{ id: string; anomalie: string | null }>;
 type AlimentareAdaugata = Readonly<{ id: string }>;
@@ -51,9 +53,28 @@ const CAMPURI_ALIMENTARE: ReadonlySet<string> = new Set([
   "cost",
   "statie",
   "numar_bon",
+  "cui_statie",
   "observatii",
   "plin",
 ]);
+
+/** Câmpurile pe care le poate completa citirea bonului (F12a), în ordinea formularului. */
+const CAMPURI_DIN_BON = [
+  "alimentat_la",
+  "litri",
+  "cost",
+  "statie",
+  "numar_bon",
+  "cui_statie",
+] as const;
+type CampDinBon = (typeof CAMPURI_DIN_BON)[number];
+
+/** Valoarea pentru `<input>`: `type="number"` cere punct zecimal, nu virgulă. */
+function valoareCamp(propunere: PropunereCitita["propunere"], camp: CampDinBon): string | null {
+  const valoare = propunere[camp];
+  if (valoare === null) return null;
+  return typeof valoare === "number" ? String(valoare) : valoare;
+}
 
 /**
  * Erorile pe câmp care n-au casetă în formular, spuse ca mesaj general.
@@ -132,6 +153,7 @@ export function ActiuniFoaie({
   sosireLa,
   areCurse,
   bazaFoi,
+  poateCitiBonul,
 }: {
   readonly id: string;
   readonly status: StatusFoaie;
@@ -145,6 +167,11 @@ export function ActiuniFoaie({
   readonly areCurse: boolean;
   /** Unde duce lista după ștergerea ciornei: `/flota/foi` sau `/portal/masina-mea`. */
   readonly bazaFoi: string;
+  /**
+   * Citirea automată a bonului (F12a): cheia OpenRouter, modulul `asistent` și
+   * `trip_sheets:update`, calculate pe server. `serverEnv` nu ajunge în client.
+   */
+  readonly poateCitiBonul: boolean;
 }) {
   const router = useRouter();
   const [avertisment, setAvertisment] = useState<string | null>(null);
@@ -153,6 +180,14 @@ export function ActiuniFoaie({
   const [eroareRedeschidere, setEroareRedeschidere] = useState<string | null>(null);
   const [seSterge, pornesteStergerea] = useTransition();
   const [confirmaStergerea, setConfirmaStergerea] = useState(false);
+  // Poza bonului urcată înainte de salvare și, după citire, jetonul și
+  // câmpurile completate din bon (F12a). La schimbarea pozei, jetonul se
+  // golește: el e legat de calea citită.
+  const [bon, setBon] = useState<BonUrcat | null>(null);
+  const [jeton, setJeton] = useState<string | null>(null);
+  const [dinBon, setDinBon] = useState<ReadonlySet<CampDinBon>>(new Set());
+  const [rundaBon, setRundaBon] = useState(0);
+  const ancoraAlimentare = useRef<HTMLDivElement | null>(null);
 
   const sePoateTrimite = status === "draft";
   // 0200 §D1: alimentările urmează starea foii, deci doar pe ciornă.
@@ -211,9 +246,12 @@ export function ActiuniFoaie({
       cost: Number(cost),
       statie: String(formular.get("statie") ?? "").trim() || null,
       numar_bon: String(formular.get("numar_bon") ?? "").trim() || null,
+      cui_statie: String(formular.get("cui_statie") ?? "").trim() || null,
       alimentat_la: cand,
       plin: formular.get("plin") === "on",
       observatii: String(formular.get("observatii") ?? "").trim() || null,
+      fisier_bon_path: bon?.cale ?? null,
+      ocr_jeton: jeton,
     });
     /*
      * Reîmprospătarea pleacă DE AICI, nu din `laReusita`. `<Formular>` aprinde
@@ -223,9 +261,51 @@ export function ActiuniFoaie({
      * tot `draft`/`trimis`, deci formularul rămâne pe ecran. Voalul ar fi stat
      * aprins, înghițind clicurile, până la plafonul de 30 s.
      */
-    if (rezultat.ok) router.refresh();
+    if (rezultat.ok) {
+      // Formularul se golește singur; poza, jetonul și etichetele „din bon” țin
+      // de alimentarea salvată, nu de următoarea.
+      setBon(null);
+      setJeton(null);
+      setDinBon(new Set());
+      setRundaBon((r) => r + 1);
+      router.refresh();
+    }
     return rezultat;
   }
+
+  function schimbaPoza(nou: BonUrcat | null): void {
+    setBon(nou);
+    setJeton(null);
+    setDinBon(new Set());
+  }
+
+  /*
+   * Propunerea citită completează DOAR câmpurile goale (F12a D10): ce a scris
+   * omul nu se suprascrie. Câmpurile sunt necontrolate (`Camp` +
+   * `defaultValue`), deci scrierea directă în DOM e corectă; un remount cu
+   * `key` ar pierde ce s-a tastat.
+   */
+  function aplicaPropunerea(citit: PropunereCitita): void {
+    setJeton(citit.jeton);
+    const formular = ancoraAlimentare.current?.closest("form") ?? null;
+    if (formular === null) return;
+    const completate = new Set<CampDinBon>();
+    for (const camp of CAMPURI_DIN_BON) {
+      const valoare = valoareCamp(citit.propunere, camp);
+      const element = formular.elements.namedItem(camp);
+      if (valoare === null || !(element instanceof HTMLInputElement)) continue;
+      if (element.value !== "") continue;
+      element.value = valoare;
+      completate.add(camp);
+    }
+    // Se ADAUGĂ la ce a completat o citire anterioară a ACELEIAȘI poze: la a
+    // doua apăsare câmpurile sunt deja pline, deci `completate` iese gol, dar
+    // valorile tot de pe bon vin. La schimbarea pozei, `schimbaPoza` golește.
+    setDinBon((anterioare) => new Set([...anterioare, ...completate]));
+  }
+
+  const eticheta = (text: string, camp: CampDinBon): string =>
+    dinBon.has(camp) ? `${text} (din bon)` : text;
 
   // Stabil între randări: `laReusita` intră în dependențele efectului din
   // `<Formular>`, iar o funcție nouă la fiecare randare ar relua efectul —
@@ -403,6 +483,17 @@ export function ActiuniFoaie({
               <>
                 <p className="text-corp font-medium">Adaugă o alimentare</p>
                 <ErorileFaraCamp erori={stare.erori} campuri={CAMPURI_ALIMENTARE} />
+                <div ref={ancoraAlimentare} className="grid gap-3 sm:grid-cols-2">
+                  <PozaBonAlimentare key={rundaBon} foaieId={id} laSchimbare={schimbaPoza} />
+                  {poateCitiBonul ? (
+                    <ButonCitesteBonul
+                      key={bon?.cale ?? "fara-poza"}
+                      tripSheetId={id}
+                      cale={bon?.cale ?? null}
+                      onPropunere={aplicaPropunerea}
+                    />
+                  ) : null}
+                </div>
                 <div className="grid gap-3 sm:grid-cols-4">
                   {/* Baza respinge o alimentare din afara intervalului cursei;
                       `min` și `max` o spun din calendar, iar verificarea din
@@ -413,7 +504,7 @@ export function ActiuniFoaie({
                   <Camp
                     nume="alimentat_la"
                     id="alimentare-cand"
-                    eticheta="Când"
+                    eticheta={eticheta("Când", "alimentat_la")}
                     obligatoriu
                     erori={stare.erori["alimentat_la"] ?? []}
                   >
@@ -430,7 +521,7 @@ export function ActiuniFoaie({
                   <Camp
                     nume="litri"
                     id="alimentare-litri"
-                    eticheta="Litri"
+                    eticheta={eticheta("Litri", "litri")}
                     obligatoriu
                     erori={stare.erori["litri"] ?? []}
                   >
@@ -447,7 +538,7 @@ export function ActiuniFoaie({
                   <Camp
                     nume="cost"
                     id="alimentare-cost"
-                    eticheta="Cost (lei)"
+                    eticheta={eticheta("Cost (lei)", "cost")}
                     obligatoriu
                     erori={stare.erori["cost"] ?? []}
                   >
@@ -464,7 +555,7 @@ export function ActiuniFoaie({
                   <Camp
                     nume="statie"
                     id="alimentare-statie"
-                    eticheta="Stație"
+                    eticheta={eticheta("Stație", "statie")}
                     erori={stare.erori["statie"] ?? []}
                   >
                     {(a) => <input {...a} maxLength={120} defaultValue={trimise["statie"] ?? ""} />}
@@ -472,12 +563,28 @@ export function ActiuniFoaie({
                   <Camp
                     nume="numar_bon"
                     id="alimentare-bon"
-                    eticheta="Număr bon"
+                    eticheta={eticheta("Număr bon", "numar_bon")}
                     ajutor="Același bon nu se poate trece de două ori pe foaie."
                     erori={stare.erori["numar_bon"] ?? []}
                   >
                     {(a) => (
                       <input {...a} maxLength={60} defaultValue={trimise["numar_bon"] ?? ""} />
+                    )}
+                  </Camp>
+                  <Camp
+                    nume="cui_statie"
+                    id="alimentare-cui-statie"
+                    eticheta={eticheta("CUI stație", "cui_statie")}
+                    ajutor="Codul fiscal al stației, de pe bon. Opțional."
+                    erori={stare.erori["cui_statie"] ?? []}
+                  >
+                    {(a) => (
+                      <input
+                        {...a}
+                        maxLength={20}
+                        inputMode="numeric"
+                        defaultValue={trimise["cui_statie"] ?? ""}
+                      />
                     )}
                   </Camp>
                   <Camp

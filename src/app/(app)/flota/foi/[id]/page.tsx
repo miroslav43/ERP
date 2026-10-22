@@ -24,6 +24,7 @@ import {
   curseleFoii,
   numeleContului,
   sabloaneTraseu,
+  uiturileFoii,
   urlSemnateFlota,
   vehiculeDupaId,
 } from "@/lib/queries/fleet";
@@ -44,6 +45,8 @@ import { DecizieFoaie } from "../../aprobari/decizie-foaie";
 import { NumarRegistru } from "@/components/registru/numar-registru";
 import { IncarcareFisierFlota } from "../../incarcare-fisier-flota";
 import { LinkBon } from "./link-bon";
+import { PastileBon } from "./pastile-bon";
+import { citireaBonuluiDisponibila } from "@/lib/fleet/citire-bon";
 
 export const metadata: Metadata = { title: "Foaie de parcurs" };
 
@@ -73,13 +76,14 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
   const foaie = await citesteFoaie(tenant.organizationId, id);
   if (foaie === null) notFound();
 
-  const [alimentari, vehicule, soferi, anomalii, curse, aprobator] = await Promise.all([
+  const [alimentari, vehicule, soferi, anomalii, curse, aprobator, uituri] = await Promise.all([
     alimentarileFoii(foaie.id),
     vehiculeDupaId(tenant.organizationId, [foaie.vehicle_id]),
     angajatiDupaId(tenant.organizationId, foaie.employee_id === null ? [] : [foaie.employee_id]),
     anomaliiPeFoi(tenant.organizationId, [foaie.id]),
     curseleFoii(tenant.organizationId, foaie.id),
     foaie.aprobat_de === null ? Promise.resolve(null) : numeleContului(foaie.aprobat_de),
+    uiturileFoii(tenant.organizationId, foaie.id),
   ]);
 
   const vehicul = vehicule.get(foaie.vehicle_id);
@@ -185,6 +189,7 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
           {a.numar_bon ?? "—"}
           {a.plin ? <span className="text-muted-foreground"> · plin</span> : null}
           <LinkBon cale={a.fisier_bon_path} urluri={urlBonuri} />
+          <PastileBon alimentare={a} />
           {a.observatii === null ? null : (
             <span className="text-muted-foreground block text-xs">{a.observatii}</span>
           )}
@@ -341,12 +346,16 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
         bazaDeplasare="/diurna"
       />
 
+      {/* ── flota F12f (0217): încadrarea e-Transport și codurile UIT stau pe cursă ── */}
       <SectiuneCurse
         foaieId={foaie.id}
         curse={curse}
         editabil={editabil}
         kmPlecareFoaie={foaie.km_plecare ?? 0}
         sabloane={sabloane}
+        ziuaFoii={foaie.data}
+        uituri={uituri}
+        masaVehiculKg={vehicul?.masa_maxima_kg ?? null}
       />
 
       <section aria-label="Kilometraj și consum" className="border-border rounded-panou border p-4">
@@ -480,6 +489,7 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
           sosireLa={foaie.sosire_la}
           areCurse={curse.length > 0}
           bazaFoi="/flota/foi"
+          poateCitiBonul={citireaBonuluiDisponibila(module, permisiuni)}
         />
       ) : null}
     </div>

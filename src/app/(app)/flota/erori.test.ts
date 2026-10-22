@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { ActionDenied } from "@/lib/actions/errors";
 import { cuVirgula } from "@/lib/text/diacritice";
 
-import { traduEroare, traduEroareAlocare, traduEroareFiscal } from "./erori";
+import { traduEroare, traduEroareAlocare, traduEroareFiscal, traduEroareUit } from "./erori";
 
 function p0001(message: string) {
   return { code: "P0001", message, details: "", hint: "", name: "PostgrestError" };
@@ -56,6 +56,21 @@ describe("traduEroare — refuzurile bazei ajung pe câmpul vinovat", () => {
     "Foaia de parcurs este trimisă spre aprobare și nu se mai modifică. Retrageți-o în ciornă, corectați-o și trimiteți-o din nou.",
   ])("0199, fără câmp: %s", (mesaj) => {
     const eroare = prinde(p0001(mesaj));
+    expect(eroare.fieldErrors).toBeNull();
+    expect(eroare.message).toBe(mesaj);
+  });
+
+  it.each([
+    // 0213 (F12a): garda propunerii citite de pe bon. Banner, NU câmp: coloana
+    // `ocr_propunere` n-are casetă în formular, iar un câmp ascuns ar pierde
+    // mesajul sub „Corectați câmpurile marcate” (F12a §8.7).
+    "Propunerea citită de pe bon o scrie doar aplicația, la salvarea alimentării.",
+    "Propunerea citită de pe bon nu se mai poate modifica după salvarea alimentării.",
+    // 0202 §6, ajuns din `adaugaAlimentare` de când poza se leagă la adăugare.
+    "Poza bonului nu aparține acestei foi de parcurs. Încărcați-o din nou de pe foaie.",
+  ])("0202/0213, fără câmp: %s", (mesaj) => {
+    const eroare = prinde(p0001(mesaj));
+    expect(eroare.code).toBe("CONFLICT");
     expect(eroare.fieldErrors).toBeNull();
     expect(eroare.message).toBe(mesaj);
   });
@@ -290,5 +305,68 @@ describe("traduEroareFiscal — 0205", () => {
     expect(() => {
       traduEroareFiscal(new Error("altceva"));
     }).toThrow();
+  });
+});
+
+describe("traduEroareUit — 0217, codul UIT pe cursă", () => {
+  function prindeUit(error: unknown): ActionDenied {
+    try {
+      traduEroareUit(error);
+    } catch (e) {
+      if (e instanceof ActionDenied) return e;
+      throw e;
+    }
+    throw new Error("traduEroareUit n-a aruncat");
+  }
+
+  const restrictie = (cod: string, nume: string) => ({
+    code: cod,
+    message: `duplicate key value violates unique constraint "${nume}"`,
+    details: "",
+    hint: "",
+    name: "PostgrestError",
+  });
+
+  it("23505 pe (cursa_id, uit) spune ce e despre UIT, NU „Există deja un vehicul…”", () => {
+    const eroare = prindeUit(restrictie("23505", "tsu_cursa_uit_uq"));
+    expect(eroare.message).toBe("Codul UIT e deja trecut pe această cursă.");
+    expect(Object.keys(eroare.fieldErrors ?? {})).toEqual(["uit"]);
+    expect(eroare.message).not.toMatch(/vehicul/u);
+  });
+
+  it.each([
+    ["tsu_uit_format", "uit", /format valid/u],
+    ["tsu_valabilitate_ck", "valabilitate_zile", /între 1 și 31/u],
+    ["tsu_observatii_len", "observatii", /200 de caractere/u],
+  ])("23514 pe %s ajunge pe `%s`", (nume, camp, tipar) => {
+    const eroare = prindeUit(restrictie("23514", nume));
+    expect(Object.keys(eroare.fieldErrors ?? {})).toEqual([camp]);
+    expect(eroare.message).toMatch(tipar);
+  });
+
+  it.each([
+    "Codul UIT nu se mută pe altă cursă. Ștergeți-l și adăugați-l pe cursa corectă.",
+    "Codul UIT nu se corectează pe loc. Ștergeți-l și adăugați codul corect.",
+  ])("P0001 pe câmpul `uit`: %s", (mesaj) => {
+    const eroare = prindeUit(p0001(mesaj));
+    expect(Object.keys(eroare.fieldErrors ?? {})).toEqual(["uit"]);
+    expect(eroare.message).toBe(mesaj);
+  });
+
+  it.each([
+    "Codurile UIT se modifică doar cât foaia de parcurs este ciornă. Retrageți-o sau redeschideți-o în ciornă, apoi corectați-o.",
+    "Cursa aleasă nu aparține acestei foi de parcurs.",
+    "Cursa nu există în această organizație.",
+    "Cursa a fost ștearsă. Reîncărcați foaia.",
+  ])("P0001 fără câmp rămâne mesaj general: %s", (mesaj) => {
+    const eroare = prindeUit(p0001(mesaj));
+    expect(eroare.fieldErrors).toBeNull();
+    expect(eroare.message).toBe(mesaj);
+  });
+
+  it("o eroare necunoscută cade pe traducerea generală", () => {
+    expect(() => {
+      traduEroareUit(new Error("altceva"));
+    }).toThrow("altceva");
   });
 });

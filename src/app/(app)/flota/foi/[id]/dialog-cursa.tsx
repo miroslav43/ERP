@@ -12,8 +12,10 @@ import {
   type PropunereCursa,
   type SablonTraseu,
 } from "@/domain/fleet/foaie";
+import { E_INCADRARI, type EIncadrare } from "@/domain/fleet/uit";
 
 import { actualizeazaCursa, adaugaCursa } from "../../actions-curse";
+import { AJUTOR_E_TRANSPORT, ETICHETE_E_TRANSPORT } from "../../etichete";
 
 /**
  * Cursa nouă sau corectura uneia, pe ciorna foii zilnice (0200).
@@ -27,13 +29,20 @@ import { actualizeazaCursa, adaugaCursa } from "../../actions-curse";
  * Șablonul de traseu precompletează locurile, scopul și kilometrajul de
  * sosire estimat. Câmpurile se REMONTEAZĂ la schimbarea șablonului (`key`):
  * sunt necontrolate, iar un `defaultValue` nou nu se aplică altfel.
+ *
+ * Încadrarea RO e-Transport (0217, F12f) apare doar unde secțiunea UIT are
+ * sens (decizia I-f1: vehicul ≥ 2,5 t sau cu masa necunoscută, ori cursă deja
+ * marcată). Fără selector, câmpul lipsește din `FormData`, iar corectura nu-l
+ * trimite: încadrarea pusă înainte rămâne.
  */
 type Proprietati = Readonly<{
   foaieId: string;
   /** `null` = cursă nouă. */
-  cursa: CursaFoaie | null;
+  cursa: (CursaFoaie & Readonly<{ e_transport?: EIncadrare }>) | null;
   propunere: PropunereCursa;
   sabloane: readonly SablonTraseu[];
+  /** Arată selectorul e-Transport. Implicit nu. */
+  arataETransport?: boolean;
 }>;
 
 type Implicite = Readonly<{
@@ -86,7 +95,13 @@ function impliciteCursa(
   };
 }
 
-export function DialogCursa({ foaieId, cursa, propunere, sabloane }: Proprietati): ReactElement {
+export function DialogCursa({
+  foaieId,
+  cursa,
+  propunere,
+  sabloane,
+  arataETransport = false,
+}: Proprietati): ReactElement {
   const [sablonId, setSablonId] = useState("");
 
   async function trimite(date: FormData) {
@@ -101,6 +116,10 @@ export function DialogCursa({ foaieId, cursa, propunere, sabloane }: Proprietati
       km_plecare: String(date.get("km_plecare") ?? "").trim(),
       km_sosire: String(date.get("km_sosire") ?? "").trim(),
       observatii: String(date.get("observatii") ?? "").trim() || null,
+      // Schema validează valoarea; tipul literal e doar al compilatorului.
+      ...(arataETransport
+        ? { e_transport: String(date.get("e_transport") ?? "neaplicabil") as EIncadrare }
+        : {}),
     };
     if (cursa !== null) return actualizeazaCursa({ ...comun, id: cursa.id });
     const sablon = String(date.get("sablon_id") ?? "");
@@ -284,6 +303,32 @@ export function DialogCursa({ foaieId, cursa, propunere, sabloane }: Proprietati
                 />
               )}
             </Camp>
+            {arataETransport ? (
+              <Camp
+                nume="e_transport"
+                id={idc("e_transport")}
+                eticheta="RO e-Transport"
+                fel="select"
+                ajutor={AJUTOR_E_TRANSPORT}
+                className="sm:col-span-2"
+                erori={stare.erori["e_transport"] ?? []}
+              >
+                {(a) => (
+                  <select
+                    {...a}
+                    defaultValue={
+                      stare.valoriTrimise["e_transport"] ?? cursa?.e_transport ?? "neaplicabil"
+                    }
+                  >
+                    {E_INCADRARI.map((incadrare) => (
+                      <option key={incadrare} value={incadrare}>
+                        {ETICHETE_E_TRANSPORT[incadrare]}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Camp>
+            ) : null}
           </div>
         </div>
       )}

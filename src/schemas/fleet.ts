@@ -1,8 +1,25 @@
 // src/schemas/fleet.ts
 import { z } from "zod";
 import { LIMITE_SETARI_FLOTA, pragurileDinText } from "@/domain/fleet/setari";
+import {
+  E_INCADRARI,
+  normalizeazaUit,
+  VALABILITATE_UIT_IMPLICITA,
+  verificaUit,
+  type EIncadrare,
+  type ProblemaUit,
+} from "@/domain/fleet/uit";
+import { validateazaCui } from "@/domain/organization/cui";
 
-import { dataOraRomania, enumOptional, numarObligatoriu, numarOptional, optional } from "./comun";
+import {
+  dataOraRomania,
+  enumOptional,
+  numarCuImplicit,
+  numarObligatoriu,
+  numarOptional,
+  optional,
+  textOptional,
+} from "./comun";
 
 /**
  * Kilometrajul de bord, obligatoriu.
@@ -464,22 +481,102 @@ function sosireIntreaga(
   }
 }
 
+/**
+ * Încadrarea cursei în RO e-Transport (0217, F12f). Lista are o singură sursă,
+ * `@/domain/fleet/uit`; aici e reexportată pentru formulare și acțiuni.
+ */
+export const E_TRANSPORT_INCADRARI = E_INCADRARI;
+export type ETransportIncadrare = EIncadrare;
+
 export const cursaSchema = z
   .object({
     trip_sheet_id: z.uuid(),
     /** Șablonul din care s-a pornit, doar pentru audit. Locurile vin oricum din formular. */
     sablon_id: z.uuid().nullable().default(null),
     ...campuriCursa,
+    e_transport: z.enum(E_TRANSPORT_INCADRARI).default("neaplicabil"),
   })
   .superRefine(sosireIntreaga);
 export type CursaNoua = z.output<typeof cursaSchema>;
 
+/**
+ * Corectura cursei. `e_transport` e OPȚIONAL, nu cu implicit: pe un vehicul sub
+ * pragul de 2,5 t caseta nu arată selectorul (decizia I-f1), iar un implicit
+ * „neaplicabil” ar fi șters tăcut încadrarea pusă înainte.
+ */
 export const actualizeazaCursaSchema = z
-  .object({ id: z.uuid(), trip_sheet_id: z.uuid(), ...campuriCursa })
+  .object({
+    id: z.uuid(),
+    trip_sheet_id: z.uuid(),
+    ...campuriCursa,
+    e_transport: z.enum(E_TRANSPORT_INCADRARI).optional(),
+  })
   .superRefine(sosireIntreaga);
 export type ActualizeazaCursa = z.output<typeof actualizeazaCursaSchema>;
 
 export const stergeCursaSchema = z.object({ id: z.uuid(), trip_sheet_id: z.uuid() });
+
+// ── Codul UIT pe cursă (0217, F12f) ─────────────────────────────────────────
+
+const MESAJE_UIT: Readonly<Record<ProblemaUit, string>> = {
+  lungime: "Codul UIT are 16 caractere.",
+  caractere: "Codul UIT conține doar cifre și literele A C D E F H J K L M N P Q R T U V W X Y.",
+  control: "Ultimele două cifre nu se potrivesc. Verificați codul primit.",
+};
+
+/**
+ * Codul UIT tastat: normalizat (majuscule, fără separatori, O→0 I→1 Z→2 S→5
+ * G→6 B→8), apoi verificat pe format și pe cifrele de control ANAF. Baza
+ * refuză oricum un cod greșit (`tsu_uit_format`); aici refuzul vine pe câmp,
+ * înainte de orice drum la bază.
+ */
+const uitCamp = z
+  .string({ error: "Scrieți codul UIT primit." })
+  .trim()
+  .min(1, "Scrieți codul UIT primit.")
+  .transform(normalizeazaUit)
+  .superRefine((uit, ctx) => {
+    const verdict = verificaUit(uit);
+    if (!verdict.ok) ctx.addIssue({ code: "custom", message: MESAJE_UIT[verdict.problema] });
+  });
+
+const dataInceputUit = z.iso.date({ error: "Scrieți data de început a transportului." });
+
+const valabilitateUit = numarCuImplicit({
+  implicit: VALABILITATE_UIT_IMPLICITA,
+  min: 1,
+  max: 31,
+  intreg: true,
+  mesaj: "Valabilitatea se scrie în zile, în cifre.",
+  interval: "Valabilitatea codului UIT e între 1 și 31 de zile (de regulă 5 sau 15).",
+});
+
+/** UIT-ul nou pe o cursă. `expira_la` NU se trimite: e GENERATED (capcana #22). */
+export const adaugaUitSchema = z.object({
+  trip_sheet_id: z.uuid(),
+  cursa_id: z.uuid(),
+  uit: uitCamp,
+  data_inceput: dataInceputUit,
+  valabilitate_zile: valabilitateUit,
+  observatii: textOptional(200),
+});
+export type AdaugaUit = z.output<typeof adaugaUitSchema>;
+
+/**
+ * Corectura datei, a valabilității sau a observației. `uit` NU se modifică: un
+ * cod greșit se șterge și se adaugă din nou, ca auditul să le arate pe
+ * amândouă (baza refuză oricum rescrierea, `internal.uit_inainte` §2b).
+ */
+export const actualizeazaUitSchema = z.object({
+  id: z.uuid(),
+  trip_sheet_id: z.uuid(),
+  data_inceput: dataInceputUit,
+  valabilitate_zile: valabilitateUit,
+  observatii: textOptional(200),
+});
+export type ActualizeazaUit = z.output<typeof actualizeazaUitSchema>;
+
+export const stergeUitSchema = z.object({ id: z.uuid(), trip_sheet_id: z.uuid() });
 
 // ── Șabloanele de traseu (0200) ─────────────────────────────────────────────
 
@@ -553,7 +650,28 @@ export const decizieFoaieSchema = z.object({
   motiv_respingere: z.string().trim().max(500).nullable().default(null),
 });
 
-export const alimentareSchema = z.object({
+/**
+ * CUI-ul stației (0213): opțional, „RO 14 399 840” devine „14399840”, iar o
+ * cifră de control greșită e eroare pe câmp. Baza ține doar forma
+ * (`fuel_cui_statie_ck`), deci verificarea cifrei stă aici.
+ */
+const cuiStatie = z
+  .string()
+  .trim()
+  .max(20, "CUI-ul stației are cel mult 20 de caractere.")
+  .nullable()
+  .default(null)
+  .transform((valoare, ctx): string | null => {
+    if (valoare === null || valoare === "") return null;
+    const cui = validateazaCui(valoare);
+    if (!cui.valid) {
+      ctx.addIssue({ code: "custom", message: "CUI-ul stației nu e valid." });
+      return z.NEVER;
+    }
+    return cui.normalizat;
+  });
+
+const campuriAlimentare = {
   trip_sheet_id: z.uuid(),
   litri: z.coerce
     .number("Scrieți câți litri s-au alimentat.")
@@ -571,13 +689,35 @@ export const alimentareSchema = z.object({
     .max(60, "Numărul bonului are cel mult 60 de caractere.")
     .nullable()
     .default(null),
+  cui_statie: cuiStatie,
   alimentat_la: dataOraRomania("alimentării"),
   plin: z.boolean().default(false),
   observatii: z.string().trim().max(500).nullable().default(null),
+};
+
+/**
+ * Alimentarea nouă. Față de corectură are în plus poza bonului urcată ÎNAINTE
+ * de salvare (calea din `pregatesteBonNou`, 0202) și jetonul citirii (F12a).
+ * `ocr_jeton` NU intră în tabel: handlerul îl scoate înainte de INSERT, iar
+ * propunerea o scrie serverul, separat (0213).
+ */
+export const alimentareSchema = z.object({
+  ...campuriAlimentare,
+  fisier_bon_path: z.string().trim().min(1).max(400).nullable().default(null),
+  ocr_jeton: z.string().max(6000).nullable().default(null),
 });
 
-/** Corectura unei alimentări pe ciornă (0200: doar cât foaia e `draft`). */
-export const actualizeazaAlimentareSchema = alimentareSchema.extend({ id: z.uuid() });
+/**
+ * Corectura unei alimentări pe ciornă (0200: doar cât foaia e `draft`). Fără
+ * jeton și fără propunere: propunerea se scrie o singură dată, la adăugare.
+ */
+export const actualizeazaAlimentareSchema = z.object({ ...campuriAlimentare, id: z.uuid() });
+
+/** Citirea bonului de pe poza deja urcată (F12a). Nu scrie nimic în bază. */
+export const citesteBonulSchema = z.object({
+  trip_sheet_id: z.uuid(),
+  cale: z.string().trim().min(1).max(512),
+});
 
 /** Ștergerea logică a unei alimentări de pe ciornă. Ireversibilă (0200 §D2). */
 export const stergeAlimentareSchema = z.object({ id: z.uuid(), trip_sheet_id: z.uuid() });
@@ -737,6 +877,15 @@ export const confirmaScanareSchema = z.object({
 
 export const pregatesteBonSchema = z.object({
   alimentare_id: z.uuid(),
+  trip_sheet_id: z.uuid(),
+  ...fisierDeclarat,
+});
+
+/**
+ * Poza bonului urcată ÎNAINTE ca alimentarea să existe (F12a): calea stă tot
+ * sub `{org}/trip_sheets/{foaie}/`, iar `adaugaAlimentare` o leagă la salvare.
+ */
+export const pregatesteBonNouSchema = z.object({
   trip_sheet_id: z.uuid(),
   ...fisierDeclarat,
 });

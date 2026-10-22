@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import {
+  actualizeazaCursaSchema,
+  actualizeazaUitSchema,
+  adaugaUitSchema,
   alimentareSchema,
   cursaSchema,
   documentVehiculSchema,
@@ -232,5 +235,109 @@ describe("setările flotei (0201)", () => {
     expect(r.success).toBe(false);
     if (r.success) return;
     expect(r.error.issues[0]?.path).toEqual(["prag_salt_km"]);
+  });
+});
+
+describe("codul UIT pe cursă (0217, F12f)", () => {
+  const ID_CURSA = "55555555-5555-4555-8555-555555555555";
+  const uit = (m: Record<string, unknown> = {}) => ({
+    trip_sheet_id: ID,
+    cursa_id: ID_CURSA,
+    uit: "3V0P 0L0P 0T3J UW46",
+    data_inceput: "2026-10-20",
+    valabilitate_zile: "",
+    observatii: "",
+    ...m,
+  });
+
+  it("codul se normalizează, valabilitatea goală devine 5, observația goală null", () => {
+    expect(adaugaUitSchema.parse(uit())).toEqual({
+      trip_sheet_id: ID,
+      cursa_id: ID_CURSA,
+      uit: "3V0P0L0P0T3JUW46",
+      data_inceput: "2026-10-20",
+      valabilitate_zile: 5,
+      observatii: null,
+    });
+  });
+
+  it("literele asemănătoare tastate de pe hârtie se corectează (O → 0)", () => {
+    expect(adaugaUitSchema.parse(uit({ uit: "3vopolopot3juw46" })).uit).toBe("3V0P0L0P0T3JUW46");
+  });
+
+  it.each([
+    ["3V0P0L0P0T3JUW47", "Ultimele două cifre nu se potrivesc. Verificați codul primit."],
+    ["3V0P0L0P0T3JUW4", "Codul UIT are 16 caractere."],
+    [
+      "3V0P0L0P0T3JUWAA",
+      "Codul UIT conține doar cifre și literele A C D E F H J K L M N P Q R T U V W X Y.",
+    ],
+    ["", "Scrieți codul UIT primit."],
+  ])("codul „%s” e refuzat pe câmp, fără drum la bază", (cod, mesaj) => {
+    const r = adaugaUitSchema.safeParse(uit({ uit: cod }));
+    expect(r.success).toBe(false);
+    if (r.success) return;
+    expect(r.error.issues.map((i) => [i.path[0], i.message])).toEqual([["uit", mesaj]]);
+  });
+
+  it.each([[""], [undefined], ["24.06.2026"]])(
+    "data de început „%s” lipsă sau greșită: mesajul românesc",
+    (data) => {
+      const r = adaugaUitSchema.safeParse(uit({ data_inceput: data }));
+      expect(r.success).toBe(false);
+      if (r.success) return;
+      expect(r.error.issues[0]?.path).toEqual(["data_inceput"]);
+      expect(r.error.issues[0]?.message).toBe("Scrieți data de început a transportului.");
+    },
+  );
+
+  it.each([["0"], ["32"], ["5,5"]])("valabilitatea „%s” e în afara 1–31 de zile", (zile) => {
+    const r = adaugaUitSchema.safeParse(uit({ valabilitate_zile: zile }));
+    expect(r.success).toBe(false);
+    if (r.success) return;
+    expect(r.error.issues[0]?.path).toEqual(["valabilitate_zile"]);
+  });
+
+  it("valabilitatea de 15 zile trece", () => {
+    expect(adaugaUitSchema.parse(uit({ valabilitate_zile: "15" })).valabilitate_zile).toBe(15);
+  });
+
+  it("schema nu poartă `expira_la` (GENERATED), nici la corectură codul", () => {
+    const r = adaugaUitSchema.parse(uit({ expira_la: "2030-01-01" }));
+    expect(r).not.toHaveProperty("expira_la");
+    const c = actualizeazaUitSchema.parse({
+      id: ID_CURSA,
+      trip_sheet_id: ID,
+      uit: "4C0U0C0J0W3DDQ92",
+      data_inceput: "2026-10-21",
+      valabilitate_zile: "15",
+      observatii: "  ",
+    });
+    expect(c).toEqual({
+      id: ID_CURSA,
+      trip_sheet_id: ID,
+      data_inceput: "2026-10-21",
+      valabilitate_zile: 15,
+      observatii: null,
+    });
+  });
+
+  it("încadrarea cursei: implicit „neaplicabil” la adăugare, absentă la corectură", () => {
+    const baza = {
+      trip_sheet_id: ID,
+      plecare_la: "2026-10-05T08:00",
+      sosire_la: "",
+      de_la_loc: "Sediu",
+      pana_la_loc: "Depozit",
+      scop: "Aprovizionare",
+      km_plecare: "10000",
+      km_sosire: "",
+    };
+    expect(cursaSchema.parse(baza).e_transport).toBe("neaplicabil");
+    expect(cursaSchema.parse({ ...baza, e_transport: "international" }).e_transport).toBe(
+      "international",
+    );
+    expect(cursaSchema.safeParse({ ...baza, e_transport: "altceva" }).success).toBe(false);
+    expect(actualizeazaCursaSchema.parse({ ...baza, id: ID }).e_transport).toBeUndefined();
   });
 });

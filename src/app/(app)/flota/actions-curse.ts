@@ -62,6 +62,7 @@ export const adaugaCursa = createAction({
       "km_plecare",
       "km_sosire",
       "observatii",
+      "e_transport",
     ],
   },
   revalidate: (input) => caiFoaie(input.trip_sheet_id),
@@ -107,20 +108,24 @@ export const actualizeazaCursa = createAction({
       "km_plecare",
       "km_sosire",
       "observatii",
+      "e_transport",
     ],
   },
   revalidate: (input) => caiFoaie(input.trip_sheet_id),
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const db = await createServerSupabase();
-    const { id, trip_sheet_id, observatii, ...campuri } = input;
+    const { id, trip_sheet_id, observatii, e_transport, ...campuri } = input;
     // `.select()` obligatoriu: o cursă pe foaia altcuiva cade pe `USING` cu
     // ZERO rânduri, fără eroare (capcana 17). Observațiile goale nu șterg ce
-    // era: caseta de pe foaie nu are câmpul.
+    // era: caseta de pe foaie nu are câmpul. Nici încadrarea e-Transport
+    // (0217): caseta n-o arată pe vehiculele sub 2,5 t, deci lipsa ei nu e
+    // „neaplicabil”.
     const { data, error } = await db
       .from("trip_sheet_curse")
       .update({
         ...campuri,
         ...(observatii === null ? {} : { observatii }),
+        ...(e_transport === undefined ? {} : { e_transport }),
         updated_by: ctx.user.id,
       })
       .eq("id", id)

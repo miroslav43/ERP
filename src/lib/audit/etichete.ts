@@ -224,6 +224,11 @@ const ENTITATI: Readonly<Record<string, string>> = {
   vehicle_assignment: "Atribuire de vehicul",
   vehicle_document: "Document de vehicul",
   fuel_entry: "Alimentare cu combustibil",
+  // F12a: poza bonului trimisă la citirea automată (OpenRouter). Rândul e
+  // evidența prelucrării — cine, ce bon, când —, fără conținutul bonului.
+  fuel_receipt_ocr: "Citire automată a bonului",
+  // F12f (0217): codul UIT de pe o cursă; tabela și acțiunile poartă același nume.
+  trip_sheet_uit: "Cod UIT (e-Transport) pe cursă",
   odometer_anomaly: "Anomalie de kilometraj",
   ticket_comment: "Comentariu la tichet",
   ticket_watcher: "Urmăritor de tichet",

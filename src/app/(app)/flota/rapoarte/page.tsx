@@ -8,6 +8,7 @@ import { FileModul } from "@/components/ui/file-modul";
 import { Schelet } from "@/components/ui/schelet";
 import { FILE_FLOTA } from "@/config/file-module";
 import { poateDeschide } from "@/config/porti-ruta";
+import { lunaDinZi, lunaMutata } from "@/domain/fleet/rapoarte";
 import { requireFeature, getEnabledFeatures } from "@/lib/auth/features";
 import { getPermissionMap } from "@/lib/auth/permissions";
 import { todayInBucharest } from "@/lib/format/date";
@@ -18,6 +19,7 @@ import { filtreRaportSchema } from "@/schemas/fleet-rapoarte";
 
 import { poateExportaFlota, poateVedeaRapoarte } from "./acces";
 import { ContinutRaport } from "./continut-raport";
+import { ExportContabil } from "./export-contabil";
 import { NavigareLuna } from "./navigare-luna";
 
 export const metadata: Metadata = { title: "Rapoarte parc auto" };
@@ -34,7 +36,8 @@ interface ProprietatiPagina {
  * Rapoartele sunt agregate pe toată flota: la `team`, RLS ar tăia tăcut vehiculele
  * și foile la echipă, iar o cifră parțială arată la fel ca una întreagă. Managerul
  * nu are deci ecranul, în loc să primească jumătate de raport. Descărcările cer în
- * plus `vehicles:export`.
+ * plus `vehicles:export`; tot ele deschid exportul pentru contabilitate (F12g),
+ * care primește implicit luna trecută când pagina stă pe luna curentă.
  */
 export default async function PaginaRapoarteFlota({ searchParams }: ProprietatiPagina) {
   const { tenant } = await requireTenant();
@@ -55,6 +58,10 @@ export default async function PaginaRapoarteFlota({ searchParams }: ProprietatiP
     getEnabledFeatures(tenant.organizationId),
   ]);
 
+  const azi = todayInBucharest();
+  const poateExporta = poateExportaFlota(permisiuni);
+  const lunaContabil = luna === lunaDinZi(azi) ? lunaMutata(luna, -1) : luna;
+
   return (
     <div className="space-y-6">
       <AntetPagina
@@ -62,13 +69,20 @@ export default async function PaginaRapoarteFlota({ searchParams }: ProprietatiP
         descriere="Cât a costat flota, cât a consumat față de norma proprie și câți kilometri a făcut fiecare șofer, pe luna aleasă."
         file={<FileModul eticheta="Navigare parc auto" file={FILE_FLOTA} tenant={tenant} />}
       />
-      <NavigareLuna luna={luna} vehicul={vehicul} azi={todayInBucharest()} vehicule={vehicule} />
+      <NavigareLuna luna={luna} vehicul={vehicul} azi={azi} vehicule={vehicule} />
+      {poateExporta ? (
+        <ExportContabil
+          organizationId={tenant.organizationId}
+          azi={azi}
+          lunaImplicita={lunaContabil}
+        />
+      ) : null}
       <Suspense key={`${luna}|${vehicul ?? ""}`} fallback={<Schelet forma="tabel" coloane={6} />}>
         <ContinutRaport
           organizationId={tenant.organizationId}
           luna={luna}
           vehicul={vehicul}
-          poateExporta={poateExportaFlota(permisiuni)}
+          poateExporta={poateExporta}
           poateAproba={poateDeschide("/flota/aprobari", {
             features: moduleActive,
             permissions: permisiuni,

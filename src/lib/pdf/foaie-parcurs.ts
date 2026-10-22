@@ -124,12 +124,30 @@ export async function genereazaFoaieParcurs(p: ParametriFoaieParcurs): Promise<U
     cursor.text("Nicio cursă înregistrată.", { marime: 8, culoare: GRI, coboaraCu: 13 });
   }
   for (const c of model.curse) {
-    cursor.asiguraSpatiu(14);
+    const areETransport = c.eTransport !== null || c.uituri.length > 0;
+    // Rândul și linia lui e-Transport stau pe aceeași pagină.
+    cursor.asiguraSpatiu(areETransport ? 26 : 14);
     deseneazaRand(
       cursor,
       [c.nr, c.plecare, c.sosire, c.deLa, c.panaLa, c.scop, c.kmPlecare, c.kmSosire, c.km],
       false,
     );
+    if (areETransport) {
+      // Sub traseu (0217, F12f): încadrarea și codurile UIT ale cursei.
+      const linie = [
+        c.eTransport === null ? null : `e-Transport: ${c.eTransport}`,
+        `UIT: ${c.uituri.length === 0 ? "—" : c.uituri.join(", ")}`,
+      ]
+        .filter((v): v is string => v !== null)
+        .join(" · ");
+      const x = MARGINE + cursor.latimeUtila * (COLOANE_CURSE[0]?.[1] ?? 0);
+      cursor.text(cursor.trunchiaza(linie, cursor.latimeUtila - (x - MARGINE) - 6, 7), {
+        x,
+        marime: 7,
+        culoare: GRI,
+        coboaraCu: 11,
+      });
+    }
   }
   cursor.coboara(6);
 

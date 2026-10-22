@@ -66,8 +66,10 @@ const foaie = (id: string, m: Partial<FoaieDetaliata> = {}): FoaieDetaliata => (
       km_plecare: 1000,
       km_sosire: 1100,
       km_parcursi: 100,
+      e_transport: "neaplicabil",
     },
   ],
+  uituri: [],
   ...m,
 });
 

@@ -93,6 +93,30 @@ describe("genereazaFoaieParcurs", () => {
     expect(pdf.getTitle()).toBe("FOAIE DE PARCURS Nr. FP-2026-00012 din 05.10.2026");
   });
 
+  it(
+    "0217: linia e-Transport sub cursă se randează (încadrarea, codurile UIT)",
+    { timeout: 30_000 },
+    async () => {
+      const cuUit = {
+        ...model(3),
+        curse: model(3).curse.map((c, i) =>
+          i === 0
+            ? { ...c, eTransport: "Internațional", uituri: ["3V0P 0L0P 0T3J UW46"] }
+            : i === 1
+              ? { ...c, eTransport: "Risc fiscal (intern)", uituri: [] }
+              : c,
+        ),
+      };
+      const octeti = await genereazaFoaieParcurs({
+        organizatie: ORGANIZATIE,
+        model: cuUit,
+        generatLa: "06.10.2026, 10:00",
+      });
+      const pdf = await PDFDocument.load(octeti);
+      expect(pdf.getPageCount()).toBe(1);
+    },
+  );
+
   it("o zi cu multe curse trece pe pagina următoare", { timeout: 30_000 }, async () => {
     const octeti = await genereazaFoaieParcurs({
       organizatie: ORGANIZATIE,

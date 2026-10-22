@@ -42,7 +42,7 @@
 
 21. REÎNNOIREA documentului = un INSERT NOU, atât. NU trimite este_curent (vdoc_inainte îl forțează la false, iar politica de INSERT cere exact false), NU face UPDATE pe cel vechi și NU-l șterge întâi. internal.flota_sincronizeaza_grup alege curentul = max(expira_la) și mută și rândul din expirables. Verificat pe adm_p_oper: RCA 2026-09-01 + RCA 2027-09-01 ⇒ al doilea devine este_curent=true, expirables are un singur rând kind='rca' cu 2027-09-01.
 
-22. Coloane GENERATED ALWAYS pe care clientul nu are voie să le trimită (eroare brută de Postgres, nu validare): trip_sheets.km_parcursi, fuel_entries.pret_litru, odometer_anomalies.diferenta, trip_expenses.suma_lei, employees.full_name. La fel, aprobat_de/aprobat_la (trip_sheets) și confirmat_de (odometer_anomalies) le scrie triggerul din auth.uid() — trimise din client, fie sunt ignorate, fie cad pe WITH CHECK.
+22. Coloane GENERATED ALWAYS pe care clientul nu are voie să le trimită (eroare brută de Postgres, nu validare): trip_sheets.km_parcursi, fuel_entries.pret_litru, odometer_anomalies.diferenta, trip_expenses.suma_lei, employees.full_name, trip_sheet_uit.expira_la (0217: prima zi expirată a codului UIT; trimisă dă 428C9). La fel, aprobat_de/aprobat_la (trip_sheets) și confirmat_de (odometer_anomalies) le scrie triggerul din auth.uid() — trimise din client, fie sunt ignorate, fie cad pe WITH CHECK.
 
 23. vehicles și vehicle_documents cer created_by ȘI updated_by = auth.uid() explicit în WITH CHECK-ul politicilor de INSERT (nu există trigger care să le pună, spre deosebire de business_trips unde internal.set_actor() o face). Omiterea lor dă 42501, adică „Nu aveți dreptul…” — un mesaj care trimite investigația în direcția greșită.
 

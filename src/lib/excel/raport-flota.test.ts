@@ -166,7 +166,17 @@ describe("documentRaportFlota", () => {
 
   it("kilometrii pe șofer și registrul foilor, cu data românească și „—” la foaia fără număr", () => {
     const d = intrare(
-      raport([foaie("f1"), foaie("f2", { numar: null, data: "2026-09-03", km_parcursi: null })]),
+      raport([
+        // F12f (0217): același cod pe două curse apare o singură dată în registru.
+        foaie("f1", {
+          uituri: [
+            { uit: "4C0U0C0J0W3DDQ92" },
+            { uit: "3V0P0L0P0T3JUW46" },
+            { uit: "4C0U0C0J0W3DDQ92" },
+          ],
+        }),
+        foaie("f2", { numar: null, data: "2026-09-03", km_parcursi: null }),
+      ]),
     );
     const soferi = d.tabeleSuplimentare?.find((t) => t.titlu.startsWith("Kilometri"));
     expect(soferi?.coloane.map((c) => c.eticheta)).toEqual([
@@ -189,6 +199,7 @@ describe("documentRaportFlota", () => {
       "Cost combustibil",
       "Consum real",
       "Norma",
+      "UIT",
     ]);
     expect(registru?.randuri[0]?.slice(0, 5)).toEqual([
       "FP-2026-0001",
@@ -197,7 +208,9 @@ describe("documentRaportFlota", () => {
       "Popescu Ion",
       int(400),
     ]);
+    expect(registru?.randuri[0]?.[9]).toBe("3V0P0L0P0T3JUW46, 4C0U0C0J0W3DDQ92");
     expect(registru?.randuri[1]?.[0]).toBe("—");
+    expect(registru?.randuri[1]?.[9]).toBe("");
   });
 
   it("foile neaprobate se spun în antet, ca un total mic să nu fie luat drept consum mic", () => {

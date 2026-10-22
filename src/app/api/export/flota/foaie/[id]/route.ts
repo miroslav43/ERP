@@ -31,6 +31,7 @@ import {
   citesteFoaie,
   curseleFoii,
   numeleContului,
+  uiturileFoii,
   vehiculeDupaId,
 } from "@/lib/queries/fleet";
 import { esteIdDeRuta } from "@/lib/rute/parametri";
@@ -61,12 +62,14 @@ export async function GET(_cerere: Request, { params }: ProprietatiRuta): Promis
     return raspunsText("Foaia de parcurs nu există sau nu vă este accesibilă.", 404);
   }
 
-  const [curse, alimentari, vehicule, soferi, aprobator] = await Promise.all([
+  const [curse, alimentari, vehicule, soferi, aprobator, uituri] = await Promise.all([
     curseleFoii(tenant.organizationId, foaie.id),
     alimentarileFoii(foaie.id),
     vehiculeDupaId(tenant.organizationId, [foaie.vehicle_id]),
     angajatiDupaId(tenant.organizationId, foaie.employee_id === null ? [] : [foaie.employee_id]),
     foaie.aprobat_de === null ? Promise.resolve(null) : numeleContului(foaie.aprobat_de),
+    // F12f (0217): codurile UIT tipărite sub cursa lor.
+    uiturileFoii(tenant.organizationId, foaie.id),
   ]);
   const sofer = foaie.employee_id === null ? undefined : soferi.get(foaie.employee_id);
 
@@ -79,6 +82,7 @@ export async function GET(_cerere: Request, { params }: ProprietatiRuta): Promis
     aprobator,
     curse,
     alimentari,
+    uituri,
   });
 
   const db = await createServerSupabase();
