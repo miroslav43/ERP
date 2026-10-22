@@ -36,7 +36,7 @@ capcane: [18, 19, 26]
 citeste_daca:
   - "asistentul spune „fără foi” sau „nealocată” și omul vede altceva → „Ce refuză baza tăcut”"
   - "cine_are_masina dă alt nume decât sugestia de pe amendă → precedența, mai jos"
-scris_pe: bd6c9549d760439f142ae5a6b355e1246d6a36ce
+scris_pe: af924c99238113d5c64ff6334298116e1a49cc3c
 scris_la: 2026-10-22
 tags: [modul, nucleu]
 ---
@@ -112,7 +112,8 @@ desemnarea de la art. 39; locurile curselor nu se citesc deloc.
 - `trip_sheets.data`, `norma_l_100km`, `vehicul_nr` și cursele din 0200 cu
   `flota-asistent.ts` și cu rapoartele F8.
 - `app.sofer_la` (0206) cu `alegeSoferul`; `foi_parcurs_inainte` și caseta foii
-  (`date-foaie-noua.ts`) cu candidatele lui `propune_foaia_de_azi`.
+  (`date-foaie-noua.ts`, inclusiv plafonul ei de vehicule) cu candidatele lui
+  `propune_foaia_de_azi`: o mașină de după plafon nu e „negăsită”, iar unealta spune asta.
 - Seed-ul de permisiuni cu `context-de-test.ts` și cu `proba-asistent-flota.sql`, care
   numără ce vede fiecare rol din fiecare citire.
 

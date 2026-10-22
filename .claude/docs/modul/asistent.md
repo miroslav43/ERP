@@ -15,7 +15,7 @@ citeste_daca:
   - "bula nu apare nicăieri → verifică ÎNTÂI cele două comutatoare, secțiunea „Ce refuză baza tăcut”"
   - "bula e în DOM dar nu se vede pe ecran → învelișul flotant s-a strâns la 0×0; același loc"
   - "o pastilă duce în 404 → imposibil prin construcție; citește „Lista închisă”"
-scris_pe: bd6c9549d760439f142ae5a6b355e1246d6a36ce
+scris_pe: af924c99238113d5c64ff6334298116e1a49cc3c
 scris_la: 2026-10-22
 tags: [modul, nucleu]
 ---
