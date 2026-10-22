@@ -14311,6 +14311,215 @@ export type Database = {
           },
         ]
       }
+      vehicle_exit_obligations: {
+        Row: {
+          cod: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          depinde_de: string | null
+          exit_id: string
+          finalizat_de: string | null
+          finalizat_la: string | null
+          id: string
+          natura: string
+          nota: string | null
+          nu_se_aplica: boolean
+          ordine: number
+          organization_id: string
+          temei: string | null
+          termen: string | null
+          updated_at: string
+          updated_by: string | null
+          vehicle_id: string
+          zile_dupa_dependenta: number | null
+        }
+        Insert: {
+          cod: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          depinde_de?: string | null
+          exit_id: string
+          finalizat_de?: string | null
+          finalizat_la?: string | null
+          id?: string
+          natura: string
+          nota?: string | null
+          nu_se_aplica?: boolean
+          ordine: number
+          organization_id: string
+          temei?: string | null
+          termen?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id: string
+          zile_dupa_dependenta?: number | null
+        }
+        Update: {
+          cod?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          depinde_de?: string | null
+          exit_id?: string
+          finalizat_de?: string | null
+          finalizat_la?: string | null
+          id?: string
+          natura?: string
+          nota?: string | null
+          nu_se_aplica?: boolean
+          ordine?: number
+          organization_id?: string
+          temei?: string | null
+          termen?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id?: string
+          zile_dupa_dependenta?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_exit_obligations_exit_id_fkey"
+            columns: ["exit_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_exits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_exit_obligations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_exit_obligations_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_exits: {
+        Row: {
+          anulat_de: string | null
+          anulat_la: string | null
+          created_at: string
+          created_by: string | null
+          cumparator: string | null
+          data_iesire: string
+          deleted_at: string | null
+          destinatie_epava:
+            | Database["public"]["Enums"]["vehicle_exit_wreck"]
+            | null
+          id: string
+          incident_id: string | null
+          km_iesire: number | null
+          motiv: string
+          motiv_anulare: string | null
+          motiv_radiere:
+            | Database["public"]["Enums"]["vehicle_exit_dereg_reason"]
+            | null
+          nr_document: string | null
+          observatii: string | null
+          organization_id: string
+          pastreaza_numarul: boolean
+          preluata_din_istoric: boolean
+          pret: number | null
+          tip: Database["public"]["Enums"]["vehicle_exit_type"]
+          updated_at: string
+          updated_by: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          anulat_de?: string | null
+          anulat_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          cumparator?: string | null
+          data_iesire: string
+          deleted_at?: string | null
+          destinatie_epava?:
+            | Database["public"]["Enums"]["vehicle_exit_wreck"]
+            | null
+          id?: string
+          incident_id?: string | null
+          km_iesire?: number | null
+          motiv: string
+          motiv_anulare?: string | null
+          motiv_radiere?:
+            | Database["public"]["Enums"]["vehicle_exit_dereg_reason"]
+            | null
+          nr_document?: string | null
+          observatii?: string | null
+          organization_id: string
+          pastreaza_numarul?: boolean
+          preluata_din_istoric?: boolean
+          pret?: number | null
+          tip: Database["public"]["Enums"]["vehicle_exit_type"]
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          anulat_de?: string | null
+          anulat_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          cumparator?: string | null
+          data_iesire?: string
+          deleted_at?: string | null
+          destinatie_epava?:
+            | Database["public"]["Enums"]["vehicle_exit_wreck"]
+            | null
+          id?: string
+          incident_id?: string | null
+          km_iesire?: number | null
+          motiv?: string
+          motiv_anulare?: string | null
+          motiv_radiere?:
+            | Database["public"]["Enums"]["vehicle_exit_dereg_reason"]
+            | null
+          nr_document?: string | null
+          observatii?: string | null
+          organization_id?: string
+          pastreaza_numarul?: boolean
+          preluata_din_istoric?: boolean
+          pret?: number | null
+          tip?: Database["public"]["Enums"]["vehicle_exit_type"]
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_exits_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_exits_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_exits_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicle_expenses: {
         Row: {
           categorie: Database["public"]["Enums"]["vehicle_expense_category"]
@@ -16352,6 +16561,14 @@ export type Database = {
         | "transport_persoane_plata"
         | "servicii_plata"
         | "marfa_comerciala"
+      vehicle_exit_dereg_reason: "export" | "furt" | "retragere_depozitare"
+      vehicle_exit_type:
+        | "vanzare"
+        | "casare"
+        | "dauna_totala"
+        | "radiere"
+        | "restituire_leasing"
+      vehicle_exit_wreck: "instrainata" | "casata"
       vehicle_expense_category:
         | "combustibil_fara_foaie"
         | "parcare"
@@ -17027,6 +17244,15 @@ export const Constants = {
         "servicii_plata",
         "marfa_comerciala",
       ],
+      vehicle_exit_dereg_reason: ["export", "furt", "retragere_depozitare"],
+      vehicle_exit_type: [
+        "vanzare",
+        "casare",
+        "dauna_totala",
+        "radiere",
+        "restituire_leasing",
+      ],
+      vehicle_exit_wreck: ["instrainata", "casata"],
       vehicle_expense_category: [
         "combustibil_fara_foaie",
         "parcare",

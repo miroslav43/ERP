@@ -484,9 +484,12 @@ begin
     'cardul de rezervă (fără vehicul, fără șofer) nu ajunge la cei care nu-l văd', format('%s', v_n));
 
   -- ── (6d) vehiculul casat scoate scadența cardului ─────────────────────
+  -- Din 0218 (F12h), casarea e un INSERT în `vehicle_exits`: `status = 'casat'`
+  -- scris direct îl refuză `vehicles_iesire_garda` (P0001).
   v_r := pg_temp.ruleaza(v_u_admin, format(
-    'update public.vehicles set status = ''casat'', motiv_iesire = ''Proba carduri'', updated_by = %L where id = %L',
-    v_u_admin, v_veh_coleg));
+    'insert into public.vehicle_exits (organization_id, vehicle_id, tip, data_iesire, motiv, created_by, updated_by) '
+    || 'values (%L, %L, ''casare'', %L, ''Proba carduri'', %L, %L)',
+    v_org, v_veh_coleg, v_zi, v_u_admin, v_u_admin));
   select count(*) into v_n from public.expirables
    where entity_type = 'fuel_card' and entity_id = v_c_veh_col and deleted_at is null;
   v_t := pg_temp.ruleaza(v_u_admin, format(
