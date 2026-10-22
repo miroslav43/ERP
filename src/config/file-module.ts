@@ -32,6 +32,9 @@ export const FILE_FLOTA: readonly FilaModul[] = [
   // politicilor lor (seedate doar pentru `org_admin`).
   { href: "/flota/amenzi", eticheta: "Amenzi" },
   { href: "/flota/incidente", eticheta: "Incidente" },
+  // F12b (0214): cardurile de combustibil; fila apare pentru `vehicles:read = team`
+  // (poarta paginii). Importul și tranzacțiile se deschid din pagina cardurilor.
+  { href: "/flota/carduri", eticheta: "Carduri" },
 ];
 
 export function fileEvaluari(contoare: Readonly<{ sabloane?: number }> = {}): readonly FilaModul[] {

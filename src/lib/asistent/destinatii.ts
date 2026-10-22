@@ -924,6 +924,47 @@ const INTRARI: readonly Intrare[] = [
       "Accidente, avarii, furturi și vandalism pe vehicule: stadiile dosarului de daună, costul, despăgubirea de la asigurător și legătura cu cercetarea SSM.",
   },
   // ═══ SFÂRȘIT BLOC: flota, amenzi și daune (0206) ═══
+  // ═══ ÎNCEPUT BLOC: flota, cardurile de combustibil (F12b, 0214) ═══
+  {
+    id: "flota.carduri",
+    href: "/flota/carduri",
+    eticheta: "Carduri de combustibil",
+    zona: "app",
+    parinte: "flota",
+    fila: "Carduri",
+    featureKey: "fleet",
+    permission: "vehicles:read",
+    minScope: "team",
+    descriere:
+      "Cardurile de flotă ale firmei: emitentul, ultimele cifre, vehiculul sau șoferul pe care sunt și până când sunt valabile.",
+  },
+  {
+    id: "flota.carduri.import",
+    href: "/flota/carduri/import",
+    eticheta: "Import extras de card",
+    zona: "app",
+    parinte: "flota",
+    fila: null,
+    featureKey: "fleet",
+    permission: "vehicles:create",
+    minScope: "all",
+    descriere:
+      "Încărcarea extrasului lunar de la emitentul cardurilor (CSV sau Excel), cu previzualizare și potrivire pe foile de parcurs înainte de a scrie ceva.",
+  },
+  {
+    id: "flota.carduri.tranzactii",
+    href: "/flota/carduri/tranzactii",
+    eticheta: "Tranzacții de card",
+    zona: "app",
+    parinte: "flota",
+    fila: null,
+    featureKey: "fleet",
+    permission: "vehicles:update",
+    minScope: "all",
+    descriere:
+      "Ce au facturat cardurile, comparat cu foile: alimentări nedeclarate, zile fără foaie, diferențe de litri, raportul lunar de nepotriviri și importurile de anulat.",
+  },
+  // ═══ SFÂRȘIT BLOC: flota, cardurile de combustibil (F12b, 0214) ═══
 
   // ── Mentenanță ─────────────────────────────────────────────────────────────
   {

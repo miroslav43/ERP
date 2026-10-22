@@ -5,6 +5,10 @@
 // a numărului întreg, calculată pe server (`amprentaSensibila`). Funcțiile de
 // aici sunt pure: scot cifrele, mascheză, compară pe sufix.
 
+/** Enum-ul `fuel_card_status` (0214). Neutru: îl citesc și schema, și formularul client. */
+export const STATUSURI_CARD = ["activ", "blocat", "anulat"] as const;
+export type StatusCard = (typeof STATUSURI_CARD)[number];
+
 /** De la câte cifre un șir e un număr întreg de card (PAN-urile au 16–19). */
 export const CIFRE_NUMAR_INTREG = 12;
 /** Câte cifre finale intră în cheia de dedup și se compară cu cardul. */
