@@ -38,12 +38,17 @@ const RADACINA = join(process.cwd(), "src", "app", "(portal)");
  * · `/api/export/flota/foaie/` — foaia de parcurs proprie, în PDF (0200). Ca la
  *   fluturaș, ruta cere doar `trip_sheets:read` own, iar `foi_select`,
  *   `curse_select` și `alimentari_select` aleg rândurile; foaia altcuiva dă 404.
+ * · `/api/export/flota/pv/` — procesul-verbal de predare-primire la care omul e
+ *   parte, în PDF (0215, F12c). Ruta cere doar modulul `fleet`, fără
+ *   `vehicles:read` (decizia 3: și `hr` care conduce își descarcă PV-ul), iar
+ *   `pv_vehicul_select` alege rândul; PV-ul altcuiva dă 404.
  */
 const IESIRI_PERMISE: readonly string[] = [
   "/documente/",
   "/api/export/salarizare/fluturas",
   "/api/materiale/",
   "/api/export/flota/foaie/",
+  "/api/export/flota/pv/",
 ];
 
 function fisiereSursa(director: string): readonly string[] {

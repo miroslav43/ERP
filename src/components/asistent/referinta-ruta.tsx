@@ -1,7 +1,7 @@
 // src/components/asistent/referinta-ruta.tsx
 "use client";
 
-import { ArrowRight, FileUser, type LucideIcon } from "lucide-react";
+import { ArrowRight, FilePlus, FileUser, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { ReactElement } from "react";
 
@@ -40,10 +40,14 @@ export function ReferintaRuta({
   laNavigare,
 }: Readonly<{ destinatie: Destinatie; laNavigare?: () => void }>): ReactElement {
   // Fișele de om sunt efemere și n-au intrare de meniu; primesc o iconiță
-  // proprie, ca să nu împrumute pe cea a listei de angajați.
+  // proprie, ca să nu împrumute pe cea a listei de angajați. O propunere
+  // (`propune.*`, F12e) deschide un formular precompletat, nu o simplă pagină:
+  // iconița spune că mai e un pas, cel al omului.
   const Pictograma = destinatie.id.startsWith("fisa.")
     ? FileUser
-    : (PICTOGRAME[`${destinatie.zona}:${destinatie.parinte ?? ""}`] ?? ArrowRight);
+    : destinatie.id.startsWith("propune.")
+      ? FilePlus
+      : (PICTOGRAME[`${destinatie.zona}:${destinatie.parinte ?? ""}`] ?? ArrowRight);
   // Ultimul pas al drumului repetă eticheta pastilei; se taie, ca omul să nu
   // citească același cuvânt de două ori la un centimetru distanță.
   const drum = destinatie.drum.filter((pas) => pas !== destinatie.eticheta);

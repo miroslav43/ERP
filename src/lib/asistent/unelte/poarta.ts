@@ -33,6 +33,13 @@ export function verificaAcces(unealta: Unealta, context: ContextUnealta): Acces 
   ) {
     return { permis: false, motiv: "Nu are dreptul să vadă datele acestea." };
   }
+  // Toate, nu oricare: o singură cheie sub prag face răspunsul fals, nu doar
+  // mai scurt (vezi `Unealta.permisiuniSuplimentare`).
+  for (const cerinta of unealta.permisiuniSuplimentare ?? []) {
+    if (!meetsScope(context.permisiuni.get(cerinta.permission), cerinta.minScope)) {
+      return { permis: false, motiv: "Nu are dreptul să vadă datele acestea." };
+    }
+  }
   if (unealta.cereFisaProprie === true && context.employeeId === null) {
     // Un `org_admin` care e doar administrator, fără fișă, chiar nu are sold de
     // concediu. E o stare reală, nu o eroare, și merită spusă ca atare.

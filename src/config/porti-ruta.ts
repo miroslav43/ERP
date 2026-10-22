@@ -117,6 +117,8 @@ export const PORTI_APP: readonly PoartaRuta[] = [
   p("/evaluari/sabloane", "evaluations", "evaluations:read", "team"),
   p("/flota", "fleet", "vehicles:read"),
   p("/flota/[id]", "fleet", "vehicles:read"),
+  // F12c (0215): procesul-verbal de predare-primire, pe fișa vehiculului.
+  p("/flota/[id]/pv/[pv]", "fleet", "vehicles:read"),
   p("/flota/anomalii", "fleet", "vehicles:update", "team"),
   p("/flota/aprobari", "fleet", "trip_sheets:approve", "team"),
   p("/flota/foi", "fleet", "trip_sheets:read"),
@@ -144,6 +146,8 @@ export const PORTI_APP: readonly PoartaRuta[] = [
   p("/flota/incidente", "fleet", "vehicle_incidents:read", "all"),
   p("/flota/incidente/[id]", "fleet", "vehicle_incidents:read", "all"),
   // ── sfârșit bloc: amenzi și daune (0206) ──
+  // F12d (0216): rezervările mașinilor de pool; poarta politicii `rezervari_select`.
+  p("/flota/rezervari", "fleet", "vehicle_reservations:read"),
   p("/inventar", "inventory", "inventory:read"),
   p("/inventar/[id]", "inventory", "inventory:read"),
   p("/inventar/[id]/pv/[alocare]", "inventory", "inventory:read"),
@@ -262,8 +266,13 @@ export const PORTI_PORTAL: readonly PoartaRuta[] = [
   p("/portal/integrarea-mea/sarcini", "onboarding", "checklists:read"),
   p("/portal/kpi-ul-meu", "kpi", "evaluations:read"),
   // ── început bloc: flota pe roluri (0199) ──
-  p("/portal/masina-mea", "fleet", "trip_sheets:read"),
+  // F12c (0215), decizia 3: „Mașina mea” se deschide și omului FĂRĂ drept pe
+  // foi (de regulă `hr`) care conduce o mașină a firmei — vede vehiculul alocat
+  // lui și PV-urile la care e parte. Meniul rămâne pe `trip_sheets:read`.
+  p("/portal/masina-mea", "fleet", null),
   p("/portal/masina-mea/foi/[id]", "fleet", "trip_sheets:read"),
+  // F12d (0216): rezervările proprii ale șoferului.
+  p("/portal/masina-mea/rezervari", "fleet", "vehicle_reservations:read"),
   // ── sfârșit bloc: flota pe roluri (0199) ──
   p("/portal/notificarile-mele", null, null),
   p("/portal/pontajul-meu", "attendance", "attendance:read"),

@@ -154,6 +154,15 @@ const RUTE: readonly Ruta[] = [
     asteptari: DOAR_ADMIN,
   },
   // ── sfârșit bloc: amenzi și daune (0206) ──
+  // ── început bloc: F12d, rezervările de pool (0216) ──
+  {
+    cale: "/flota/rezervari",
+    titlu: "Rezervări",
+    poarta:
+      "fleet · vehicle_reservations:read own (org_admin all, manager team; hr nimic; cere 0216 aplicată)",
+    asteptari: { org_admin: CONTINUT, hr: ACCES, manager: CONTINUT },
+  },
+  // ── sfârșit bloc: F12d ──
   {
     cale: "/inventar",
     titlu: "Inventar",

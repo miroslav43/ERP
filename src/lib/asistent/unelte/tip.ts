@@ -32,7 +32,7 @@ import type { MinScope, PermissionKey } from "@/config/permissions";
 import type { PermissionMap } from "@/lib/auth/permissions";
 import type { AppRole } from "@/lib/tenant/types";
 
-import type { Destinatie } from "../destinatii";
+import type { Destinatie, ZonaAsistent } from "../destinatii";
 
 export type ContextUnealta = Readonly<{
   organizationId: string;
@@ -47,6 +47,13 @@ export type ContextUnealta = Readonly<{
   features: ReadonlySet<FeatureKey>;
   /** Ziua curentă la București, `AAAA-LL-ZZ`. */
   aziISO: string;
+  /**
+   * Zona în care întreabă omul, deja forțată de rută (`employee` → `portal`).
+   * Decide spre ce href trimit destinațiile efemere: aceeași foaie se deschide
+   * la `/flota/foi/<id>` în aplicație și la `/portal/masina-mea/foi/<id>` în
+   * portal, iar un buton din zona greșită ar duce într-un ecran de refuz.
+   */
+  zona: ZonaAsistent;
 }>;
 
 export type RezultatUnealta = Readonly<{
@@ -77,6 +84,16 @@ export type Unealta = Readonly<{
   featureKey: FeatureKey | null;
   permission: PermissionKey | null;
   minScope: MinScope;
+  /**
+   * Alte permisiuni cerute TOATE, pe lângă `permission`.
+   *
+   * Pentru uneltele al căror răspuns ar fi FALS, nu doar incomplet, sub un
+   * scope mai mic: „vehiculul X n-are foi luna asta”, spus cuiva care vede doar
+   * foile echipei, e o afirmație greșită despre o mașină de pool condusă și de
+   * alții. Verificate în `poarta.ts`, deci și în lista despre care află modelul:
+   * o unealtă pe care n-o poate folosi nu-i e nici măcar descrisă.
+   */
+  permisiuniSuplimentare?: readonly Readonly<{ permission: PermissionKey; minScope: MinScope }>[];
   /**
    * Unealta cere ca omul să aibă fișă de angajat.
    *

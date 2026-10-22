@@ -50,6 +50,7 @@ import { caleaDePortal } from "./notificarile-mele/legaturi";
 import { inPrimireaMea } from "@/lib/queries/inventory";
 import { deplasarileMele } from "@/lib/queries/per-diem";
 import { sarcinileMele } from "@/lib/queries/checklist";
+import { pvuriDeConfirmat } from "@/lib/queries/fleet-pv";
 import type { RolResponsabil } from "@/schemas/checklist";
 import { numeleEchipamentelorMele } from "@/app/(app)/mentenanta/actions";
 import { esteDeschisa } from "@/domain/maintenance/sesizari";
@@ -91,6 +92,9 @@ export default async function PaginaPortal() {
   const vedeSesizari =
     moduleActive.has("maintenance") && can(permisiuni, "maintenance:read", "own");
   const vedeIntegrare = moduleActive.has("onboarding") && can(permisiuni, "checklists:read", "own");
+  // 0215 (F12c): fără poartă de permisiune, doar modulul. Parte la un PV poate fi
+  // și omul fără `vehicles:read` (decizia 3); `pv_vehicul_select` alege rândurile.
+  const vedePvFlota = moduleActive.has("fleet");
 
   const [
     solduri,
@@ -109,6 +113,7 @@ export default async function PaginaPortal() {
     deplasari,
     sesizariRezultat,
     pasiIntegrare,
+    pvuriDeConfirmatAle,
   ] = await Promise.all([
     vedeConcedii ? soldurileMele(tenant.organizationId, an, fisa.id) : Promise.resolve([]),
     vedeConcedii ? cererileMele(tenant.organizationId, fisa.id, 20) : Promise.resolve([]),
@@ -149,6 +154,7 @@ export default async function PaginaPortal() {
     vedeIntegrare
       ? sarcinileMele(tenant.organizationId, fisa.id, tenant.role as RolResponsabil)
       : Promise.resolve([]),
+    vedePvFlota ? pvuriDeConfirmat(tenant.organizationId, fisa.id) : Promise.resolve([]),
   ]);
 
   /*
@@ -301,6 +307,7 @@ export default async function PaginaPortal() {
     anunturiNecitite: necitite.length,
     anuntNecititUnicId: necitite.length === 1 ? (necitite[0]?.id ?? null) : null,
     prediriNeconfirmate: inPrimire.filter((r) => r.confirmat_de_angajat_la === null).length,
+    pvuriNeconfirmate: pvuriDeConfirmatAle.length,
     // Ziua respinsă e scrisă, deci `zileNepontate` o sare; aici cere corecția.
     zileRespinse: zile.filter((z) => z.respins_la !== null).map((z) => z.data),
     sesizariDeRezolvat,

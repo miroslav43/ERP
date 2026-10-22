@@ -24,6 +24,9 @@ const RUTA_ENTITATE: Readonly<Record<string, (id: string) => string>> = {
   vehicle: (id) => `/flota/${id}`,
   trip_sheets: (id) => `/flota/foi/${id}`,
   trip_sheet: (id) => `/flota/foi/${id}`,
+  // F12d (0216): rezervările n-au pagină proprie pe id; duc la lista lor.
+  vehicle_reservations: () => "/flota/rezervari",
+  vehicle_reservation: () => "/flota/rezervari",
   payroll_periods: (id) => `/salarizare/${id}`,
   payroll_period: (id) => `/salarizare/${id}`,
   announcements: (id) => `/anunturi/${id}`,

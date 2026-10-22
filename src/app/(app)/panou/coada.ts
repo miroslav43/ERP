@@ -129,6 +129,17 @@ export function coadaDinContoare(c: ContoarePanou): readonly IntrareCoada[] {
       actiune: "Aprobă",
     });
   }
+  // F12d (0216): contorul are exact filtrul listei (`rezervariDeAprobat`).
+  if (coada.rezervari !== null && coada.rezervari > 0) {
+    intrari.push({
+      cheie: "rezervari",
+      numar: coada.rezervari,
+      titlu: "Rezervări de mașini care așteaptă aprobare",
+      detaliu: coada.rezervari === 1 ? "rezervare" : "rezervări",
+      href: "/flota/rezervari?stare=ceruta",
+      actiune: "Decide",
+    });
+  }
   if (coada.tichete !== null && coada.tichete > 0) {
     intrari.push({
       cheie: "tichete",

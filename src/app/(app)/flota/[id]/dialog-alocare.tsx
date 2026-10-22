@@ -1,6 +1,7 @@
 "use client";
 
 import { KeyRound } from "lucide-react";
+import { useRouter } from "next/navigation";
 import type { ReactElement } from "react";
 
 import { Camp } from "@/components/ui/camp";
@@ -9,6 +10,7 @@ import { oraRomanieiPentruCamp } from "@/lib/format/date";
 import type { OptiuneAngajat } from "@/lib/queries/fleet";
 
 import { alocaVehicul } from "../actions";
+import { hrefPvNou } from "./capete-pv";
 
 /**
  * Predarea vehiculului unui șofer (0173).
@@ -38,6 +40,7 @@ export function DialogAlocare({
   soferCurent,
   angajati,
 }: Proprietati): ReactElement {
+  const router = useRouter();
   async function trimite(date: FormData) {
     const deLa = String(date.get("de_la") ?? "").trim();
     return alocaVehicul({
@@ -65,6 +68,12 @@ export function DialogAlocare({
       }
       actiune={trimite}
       mesajReusita="Vehiculul a fost predat."
+      // 0215 (F12c): după predare se deschide caseta procesului-verbal. Fișa
+      // găsește singură alocarea închisă de predare (transferul), din
+      // alocările citite: `alocaVehicul` rămâne neschimbată.
+      laReusita={(data: Readonly<{ id: string }>) => {
+        router.push(hrefPvNou(vehiculId, { predata: null, primita: data.id }));
+      }}
       etichetaTrimite="Predă vehiculul"
       textInCurs="Se salvează…"
     >

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import type { ReactElement } from "react";
 
 import { Camp } from "@/components/ui/camp";
@@ -7,6 +8,7 @@ import { FormularDialog } from "@/components/ui/formular-dialog";
 import { oraRomanieiPentruCamp } from "@/lib/format/date";
 
 import { incheieAlocarea } from "../actions";
+import { hrefPvNou } from "./capete-pv";
 
 /**
  * Restituirea vehiculului: alocarea deschisă se încheie, iar mașina rămâne
@@ -30,6 +32,7 @@ export function DialogIncheieAlocare({
   deLa,
   kmCurent,
 }: Proprietati): ReactElement {
+  const router = useRouter();
   async function trimite(date: FormData) {
     return incheieAlocarea({
       id: alocareId,
@@ -47,6 +50,10 @@ export function DialogIncheieAlocare({
       descriere="Alocarea se încheie, iar vehiculul rămâne fără șofer până la următoarea predare."
       actiune={trimite}
       mesajReusita="Alocarea a fost încheiată."
+      // 0215 (F12c): după restituire se deschide caseta procesului-verbal.
+      laReusita={(data: Readonly<{ id: string }>) => {
+        router.push(hrefPvNou(vehiculId, { predata: data.id, primita: null }));
+      }}
       etichetaTrimite="Încheie alocarea"
       textInCurs="Se salvează…"
     >

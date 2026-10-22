@@ -28,6 +28,22 @@ describe("legaturaDocument", () => {
     ).toEqual({ href, eticheta: "Deschide documentul", inFilaNoua: false });
   });
 
+  it("procesul-verbal de predare a vehiculului (0215) se deschide ca PDF inline, în filă nouă", () => {
+    expect(
+      legaturaDocument({
+        entitateTip: "vehicle_handovers",
+        entitateId: ID,
+        parinteId: null,
+        angajatId: ANG,
+      }),
+    ).toEqual({
+      href: `/api/export/flota/pv/${ID}?inline=1`,
+      eticheta: "Deschide PDF-ul",
+      inFilaNoua: true,
+      pdf: `/api/export/flota/pv/${ID}?inline=1`,
+    });
+  });
+
   it("documentul emis de aplicație se deschide ca PDF, în filă nouă", () => {
     expect(
       legaturaDocument({

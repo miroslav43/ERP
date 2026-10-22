@@ -14,8 +14,14 @@ import { createAction } from "@/lib/actions/create-action";
 import { businessRule } from "@/lib/actions/errors";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { setariFlotaSchema } from "@/schemas/fleet";
+import { campuriSetariRezervari } from "@/schemas/fleet-rezervari";
 
 import { traduEroareSetari } from "./erori";
+
+// F12d (0216): cele trei setări ale rezervărilor de pool merg în același rând
+// `fleet_settings`, sub aceeași poartă. Schema le adaugă aici, nu în
+// `schemas/fleet.ts`, pe care îl editează în paralel și alte extensii.
+const setariFlotaCuRezervariSchema = setariFlotaSchema.extend(campuriSetariRezervari);
 
 // Poarta e cea a politicilor `fleet_settings_insert`/`_update`: literal
 // `vehicles:update = all`. Una mai largă ar lăsa managerul să treacă de acțiune
@@ -25,14 +31,21 @@ export const salveazaSetariFlota = createAction({
   feature: "fleet",
   permission: "vehicles:update",
   minScope: "all",
-  input: setariFlotaSchema,
+  input: setariFlotaCuRezervariSchema,
   audit: {
     action: "update",
     entityType: "fleet_settings",
     entityId: (_input, data: Readonly<{ id: string }>) => data.id,
-    allow: ["responsabili", "prag_salt_km", "praguri_alerta_zile"],
+    allow: [
+      "responsabili",
+      "prag_salt_km",
+      "praguri_alerta_zile",
+      "rezervari_cu_aprobare",
+      "rezervare_obligatorie",
+      "rezervari_max_zile",
+    ],
   },
-  revalidate: ["/flota/setari", "/flota"],
+  revalidate: ["/flota/setari", "/flota", "/flota/rezervari", "/portal/masina-mea/rezervari"],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const db = await createServerSupabase();
     const { data: existent, error: eroareCitire } = await db

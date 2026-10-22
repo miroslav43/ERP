@@ -1,9 +1,8 @@
 // src/app/(portal)/portal/masina-mea/page.tsx
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Car, ClipboardList } from "lucide-react";
+import { Car, ClipboardList, FileSignature } from "lucide-react";
 
-import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
 import { Paginare } from "@/components/ui/paginare";
@@ -38,6 +37,13 @@ import { PermisSofer } from "@/app/(app)/flota/permis-sofer";
 
 import { FaraFisa } from "../fara-fisa";
 import { DialogDeclaratieIncident } from "./dialog-declaratie-incident";
+// ── început bloc: procesele-verbale de predare (0215, F12c) ──
+import { pvurileMele } from "@/lib/queries/fleet-pv";
+import { ETICHETE_TIP_PV, citesteInstantaneu } from "@/domain/fleet/proces-verbal";
+import { ConfirmaPv } from "./confirma-pv";
+// ── sfârșit bloc: procesele-verbale de predare ──
+// F12d (0216): rezervările de pool următoare.
+import { CardRezervariUrmatoare } from "./rezervari/card-urmatoare";
 
 /** Câte declarații de incident se văd pe o pagină a portalului. */
 const DECLARATII_PE_PAGINA = 10;
@@ -50,8 +56,8 @@ interface ProprietatiPagina {
 }
 
 /**
- * „Mașina mea”: vehiculul alocat (sau mașinile comune), semaforul lui și foile
- * șoferului. Corespondentul din portal al lui `/flota/foi*` (harta din
+ * „Mașina mea”: vehiculul alocat (sau mașinile comune), semaforul lui, foile
+ * șoferului și procesele-verbale de predare-primire la care e parte (0215). Corespondentul din portal al lui `/flota/foi*` (harta din
  * `src/config/routes.ts`), pe precedentul `portal/diurna-mea/`.
  *
  * Toate citirile filtrează EXPLICIT pe fișa proprie (antetul din
@@ -65,13 +71,14 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
   ]);
 
-  if (!can(permisiuni, "trip_sheets:read", "own")) {
-    return (
-      <div className="p-4">
-        <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta foile de parcurs." />
-      </div>
-    );
-  }
+  /*
+   * Decizia 3 a lui Miro (F12c, 0215): omul FĂRĂ drept pe foi sau pe vehicule
+   * (de regulă `hr`) care conduce o mașină a firmei vede aici vehiculul alocat
+   * LUI și PV-urile la care e parte — ramura îngustă din `vehicule_select` și
+   * `pv_vehicul_select`. Nimic din restul parcului: fără semafor (documentele
+   * vehiculului rămân închise), fără mașini comune, fără foi.
+   */
+  const poateFoi = can(permisiuni, "trip_sheets:read", "own");
 
   const stare = await fisaMea(tenant.organizationId, user.id);
   if (stare.stare !== "ok") return <FaraFisa stare={stare} numeOrganizatie={tenant.name} />;
@@ -81,7 +88,7 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
   const pagina = filtreDinUrl(filtreFoiSchema, parametri);
   // `/portal/masina-mea?foaie=noua` deschide caseta, ca `/flota/foi?foaie=noua`.
   const deschideCaseta = parametri["foaie"] === "noua";
-  const poateCrea = can(permisiuni, "trip_sheets:create", "own");
+  const poateCrea = poateFoi && can(permisiuni, "trip_sheets:create", "own");
   const poateVedeaMasina = can(permisiuni, "vehicles:read", "own");
   // 0206 §F: șoferul își declară dauna. Fără `vehicle_incidents:read`: își vede
   // doar declarațiile lui (ramura `own` a politicii), nu incidentele firmei, și
@@ -92,12 +99,16 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
   const cursorDeclaratii =
     typeof cursorBrut === "string" && TIPAR_CURSOR.test(cursorBrut) ? cursorBrut : null;
 
-  const [masini, foi, tipuri, declaratii] = await Promise.all([
-    poateVedeaMasina
-      ? vehicululMeu(tenant.organizationId, fisaId)
-      : Promise.resolve({ alocate: [], pool: [] }),
-    foileMele(tenant.organizationId, fisaId, { cursor: pagina.cursor, limita: pagina.limita }),
+  const pvEvidentiat = typeof parametri["pv"] === "string" ? parametri["pv"] : null;
+
+  const [masini, foi, tipuri, pvuri, declaratii] = await Promise.all([
+    // Fără `vehicles:read`, RLS lasă doar mașina alocată LUI (decizia 3).
+    vehicululMeu(tenant.organizationId, fisaId),
+    poateFoi
+      ? foileMele(tenant.organizationId, fisaId, { cursor: pagina.cursor, limita: pagina.limita })
+      : Promise.resolve(null),
     poateVedeaMasina ? tipuriDocument(tenant.organizationId) : Promise.resolve([]),
+    pvurileMele(tenant.organizationId, fisaId),
     poateDeclara
       ? declaratiileMele(tenant.organizationId, fisaId, {
           cursor: cursorDeclaratii,
@@ -110,9 +121,9 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
   // Numărul vehiculului pe foaie se citește separat: foaia de luna trecută poate
   // fi pe o mașină care nu mai e a lui, iar `vehiculeDupaId` trece prin RLS.
   const [scadente, vehiculeFoi] = await Promise.all([
-    scadenteCurente(masini.alocate.map((v) => v.id)),
+    poateVedeaMasina ? scadenteCurente(masini.alocate.map((v) => v.id)) : Promise.resolve([]),
     vehiculeDupaId(tenant.organizationId, [
-      ...foi.randuri.map((f) => f.vehicle_id),
+      ...(foi?.randuri ?? []).map((f) => f.vehicle_id),
       ...(declaratii?.randuri ?? []).map((d) => d.vehicle_id),
     ]),
   ]);
@@ -134,7 +145,11 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
     <div className={`${LATIMI.lista} space-y-6 p-4`}>
       <AntetPagina
         titlu="Mașina mea"
-        descriere="Vehiculul primit în folosință, termenele lui și foile dumneavoastră de parcurs."
+        descriere={
+          poateFoi
+            ? "Vehiculul primit în folosință, termenele lui, foile dumneavoastră de parcurs și procesele-verbale de predare."
+            : "Vehiculul primit în folosință și procesele-verbale de predare-primire la care sunteți parte."
+        }
         {...(poateCrea
           ? {
               actiuni: (
@@ -149,6 +164,10 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
                     angajati: null,
                   }}
                   deschisInitial={deschideCaseta}
+                  // F12d (0216): „Începe foaia zilei” dintr-o rezervare aduce mașina.
+                  vehiculInitial={
+                    typeof parametri["vehicul"] === "string" ? parametri["vehicul"] : null
+                  }
                   bazaFoaie="/portal/masina-mea/foi"
                 />
               ),
@@ -188,19 +207,27 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
                       <p className="text-muted-foreground text-corp mt-0.5">
                         {v.marca} {v.model} · {v.km_curent.toLocaleString("ro-RO")} km
                       </p>
-                      <p className="text-muted-foreground text-nota mt-0.5">
-                        {semafor.tipId === null
-                          ? "Niciun document înregistrat"
-                          : `${denumireTip.get(semafor.tipId) ?? "Document"}${
-                              semafor.expiraLa === null
-                                ? ""
-                                : `, expiră la ${formatDate(semafor.expiraLa)}`
-                            }`}
-                      </p>
+                      {poateVedeaMasina ? (
+                        <p className="text-muted-foreground text-nota mt-0.5">
+                          {semafor.tipId === null
+                            ? "Niciun document înregistrat"
+                            : `${denumireTip.get(semafor.tipId) ?? "Document"}${
+                                semafor.expiraLa === null
+                                  ? ""
+                                  : `, expiră la ${formatDate(semafor.expiraLa)}`
+                              }`}
+                        </p>
+                      ) : (
+                        <p className="text-muted-foreground text-nota mt-0.5">
+                          Termenele documentelor le urmărește responsabilul de flotă.
+                        </p>
+                      )}
                     </div>
-                    <Scadenta treapta={semafor.treapta}>
-                      {ETICHETE_SCADENTA[semafor.treapta]}
-                    </Scadenta>
+                    {poateVedeaMasina ? (
+                      <Scadenta treapta={semafor.treapta}>
+                        {ETICHETE_SCADENTA[semafor.treapta]}
+                      </Scadenta>
+                    ) : null}
                   </div>
                 </li>
               );
@@ -222,6 +249,13 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
           </div>
         )}
       </section>
+
+      <CardRezervariUrmatoare
+        organizationId={tenant.organizationId}
+        fisaId={fisaId}
+        permisiuni={permisiuni}
+        azi={azi}
+      />
 
       {/* ── ÎNCEPUT BLOC: permisul meu (flota F9, 0204) ──
           Șoferul își citește permisul și avizul (`driver_licenses:read = own`);
@@ -306,64 +340,132 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
       )}
       {/* ── SFÂRȘIT BLOC: incidentele declarate de mine ── */}
 
-      <section aria-labelledby="titlu-foi" className="space-y-3">
-        <h2 id="titlu-foi" className="text-sectiune font-semibold">
-          Foile mele
+      {/* ── ÎNCEPUT BLOC: procesele-verbale de predare (0215, F12c) ──
+          Finalizatele la care omul e predător sau primitor. Confirmarea e pe
+          coloana PĂRȚII lui; o completează pe cea de pe hârtie. */}
+      <section aria-labelledby="titlu-pv" className="space-y-3">
+        <h2 id="titlu-pv" className="text-sectiune font-semibold">
+          Procese-verbale de predare-primire
         </h2>
-        {foi.randuri.length === 0 ? (
+        {pvuri.length === 0 ? (
           <StareGoala
             fel="initiala"
-            pictograma={ClipboardList}
-            titlu="Nicio foaie de parcurs"
-            descriere="Foile pe care le întocmiți apar aici, cu kilometrii și starea aprobării."
-            {...(poateCrea && toateMasinile.length > 0
-              ? { actiune: { eticheta: "Foaie nouă", href: "/portal/masina-mea?foaie=noua" } }
-              : {})}
+            pictograma={FileSignature}
+            titlu="Niciun proces-verbal"
+            descriere="Când primiți sau predați o mașină a firmei, procesul-verbal apare aici, ca să-l confirmați."
           />
         ) : (
-          <>
-            <ul className="space-y-2">
-              {foi.randuri.map((f) => (
-                <li key={f.id}>
-                  <Link
-                    href={`/portal/masina-mea/foi/${f.id}`}
-                    className="bg-surface border-border hover:border-ring rounded-panou block border p-4 transition-colors"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-foreground text-corp font-medium">
-                          {formatDateTime(new Date(f.plecare_la))}
-                        </p>
-                        <p className="text-muted-foreground text-corp mt-0.5">
-                          {numarVehicul.get(f.vehicle_id) ?? "Vehicul indisponibil"}
-                          {f.km_parcursi === null
-                            ? " · în curs"
-                            : ` · ${f.km_parcursi.toLocaleString("ro-RO")} km`}
-                        </p>
-                        {f.traseu === null ? null : (
-                          <p className="text-muted-foreground text-nota mt-0.5 truncate">
-                            {f.traseu}
-                          </p>
-                        )}
-                      </div>
-                      <Badge className="shrink-0" ton={TONURI_STATUS_FOAIE[f.status]}>
-                        {ETICHETE_STATUS_FOAIE[f.status]}
-                      </Badge>
+          <ul className="space-y-2">
+            {pvuri.map((p) => {
+              const nr = citesteInstantaneu(p.snapshot)?.vehicul.nr_inmatriculare ?? "Vehicul";
+              const suntPrimitor = p.primitor_employee_id === fisaId;
+              const confirmatLa = suntPrimitor ? p.confirmat_primitor_la : p.confirmat_predator_la;
+              return (
+                <li
+                  key={p.id}
+                  aria-current={pvEvidentiat === p.id ? "true" : undefined}
+                  className="bg-surface border-border aria-[current=true]:border-ring rounded-panou border p-4"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-foreground text-corp font-medium">
+                        <span className="font-mono">{p.numar}</span> · {nr}
+                      </p>
+                      <p className="text-muted-foreground text-corp mt-0.5">
+                        {ETICHETE_TIP_PV[p.tip]} · {formatDateTime(new Date(p.moment))}
+                      </p>
+                      <p className="mt-1">
+                        <a
+                          href={`/api/export/flota/pv/${p.id}`}
+                          className="text-corp underline underline-offset-2"
+                        >
+                          Descarcă PDF
+                        </a>
+                      </p>
                     </div>
-                  </Link>
+                    {p.anulat_la !== null ? (
+                      <Badge ton="neutru">Anulat</Badge>
+                    ) : confirmatLa !== null ? (
+                      <Badge ton="succes">
+                        Confirmat la {formatDateTime(new Date(confirmatLa))}
+                      </Badge>
+                    ) : (
+                      <ConfirmaPv
+                        pvId={p.id}
+                        numar={p.numar}
+                        ce={suntPrimitor ? "primirea" : "predarea"}
+                        vehicul={nr}
+                      />
+                    )}
+                  </div>
                 </li>
-              ))}
-            </ul>
-            <Paginare
-              afisate={foi.randuri.length}
-              total={foi.total}
-              cursorUrmator={foi.urmatorulCursor}
-              limita={pagina.limita}
-              construiesteHref={({ cursor, limita }) => adresa(cursor, limita)}
-            />
-          </>
+              );
+            })}
+          </ul>
         )}
       </section>
+      {/* ── SFÂRȘIT BLOC: procesele-verbale de predare ── */}
+
+      {foi === null ? null : (
+        <section aria-labelledby="titlu-foi" className="space-y-3">
+          <h2 id="titlu-foi" className="text-sectiune font-semibold">
+            Foile mele
+          </h2>
+          {foi.randuri.length === 0 ? (
+            <StareGoala
+              fel="initiala"
+              pictograma={ClipboardList}
+              titlu="Nicio foaie de parcurs"
+              descriere="Foile pe care le întocmiți apar aici, cu kilometrii și starea aprobării."
+              {...(poateCrea && toateMasinile.length > 0
+                ? { actiune: { eticheta: "Foaie nouă", href: "/portal/masina-mea?foaie=noua" } }
+                : {})}
+            />
+          ) : (
+            <>
+              <ul className="space-y-2">
+                {foi.randuri.map((f) => (
+                  <li key={f.id}>
+                    <Link
+                      href={`/portal/masina-mea/foi/${f.id}`}
+                      className="bg-surface border-border hover:border-ring rounded-panou block border p-4 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-foreground text-corp font-medium">
+                            {formatDateTime(new Date(f.plecare_la))}
+                          </p>
+                          <p className="text-muted-foreground text-corp mt-0.5">
+                            {numarVehicul.get(f.vehicle_id) ?? "Vehicul indisponibil"}
+                            {f.km_parcursi === null
+                              ? " · în curs"
+                              : ` · ${f.km_parcursi.toLocaleString("ro-RO")} km`}
+                          </p>
+                          {f.traseu === null ? null : (
+                            <p className="text-muted-foreground text-nota mt-0.5 truncate">
+                              {f.traseu}
+                            </p>
+                          )}
+                        </div>
+                        <Badge className="shrink-0" ton={TONURI_STATUS_FOAIE[f.status]}>
+                          {ETICHETE_STATUS_FOAIE[f.status]}
+                        </Badge>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <Paginare
+                afisate={foi.randuri.length}
+                total={foi.total}
+                cursorUrmator={foi.urmatorulCursor}
+                limita={pagina.limita}
+                construiesteHref={({ cursor, limita }) => adresa(cursor, limita)}
+              />
+            </>
+          )}
+        </section>
+      )}
     </div>
   );
 }

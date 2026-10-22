@@ -12,6 +12,8 @@ import type { FilaModul } from "@/components/ui/file-client";
 export const FILE_FLOTA: readonly FilaModul[] = [
   { href: "/flota", eticheta: "Vehicule" },
   { href: "/flota/foi", eticheta: "Foi de parcurs" },
+  // F12d (0216): rezervările mașinilor de pool; poarta `vehicle_reservations:read`.
+  { href: "/flota/rezervari", eticheta: "Rezervări" },
   { href: "/flota/aprobari", eticheta: "De aprobat" },
   { href: "/flota/anomalii", eticheta: "Anomalii de kilometraj" },
   // 0200: rutele recurente; fila apare doar pentru `trip_sheets:update = all`.

@@ -12,6 +12,12 @@ import { z } from "zod";
 
 import { unealtaCautaOm } from "./cauta-om";
 import { unealtaDeAprobat } from "./de-aprobat";
+import { unealtaCineAreMasina } from "./flota/cine-are-masina";
+import { unealtaConsumFataDeNorma } from "./flota/consum-norma";
+import { unealtaPropuneFoaia } from "./flota/propune-foaie";
+import { unealtaScadenteFlota } from "./flota/scadente-flota";
+import { unealtaScadenteSoferi } from "./flota/scadente-soferi";
+import { unealtaVehiculeFaraFoi } from "./flota/vehicule-fara-foi";
 import { unealtaSoldConcediu } from "./sold-concediu";
 import { verificaAcces } from "./poarta";
 import type { ContextUnealta, RezultatUnealta, Unealta } from "./tip";
@@ -23,6 +29,13 @@ export const TOATE_UNELTELE: readonly Unealta[] = [
   unealtaSoldConcediu,
   unealtaDeAprobat,
   unealtaCautaOm,
+  // F12e: flota. Fiecare își are poarta; un rol vede doar ce poate chema.
+  unealtaScadenteFlota,
+  unealtaVehiculeFaraFoi,
+  unealtaConsumFataDeNorma,
+  unealtaCineAreMasina,
+  unealtaPropuneFoaia,
+  unealtaScadenteSoferi,
 ];
 
 /** Forma pe care o cere OpenRouter în câmpul `tools`. */

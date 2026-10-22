@@ -54,6 +54,11 @@ export type IntrareSarcini = Readonly<{
   /** Obiecte predate omului pe care nu le-a confirmat încă (`confirmat_de_angajat_la` gol). */
   prediriNeconfirmate?: number;
   /**
+   * Procese-verbale de predare-primire a vehiculului (0215, F12c), finalizate și
+   * neanulate, pe care omul nu le-a confirmat pe coloana PĂRȚII lui.
+   */
+  pvuriNeconfirmate?: number;
+  /**
    * Zilele de pontaj RESPINSE de aprobator (`respins_la` nenul), ISO. Cer o
    * corecție, dar `zileNepontate` le sare — ziua e scrisă — deci cardul spunea
    * „tot e la zi" exact când nu era.
@@ -163,6 +168,22 @@ export function sarciniPortal(intrare: IntrareSarcini): readonly SarcinaPortal[]
           : `${String(n)} obiecte de confirmat în primire`,
       detaliu: "Confirmarea spune că ați primit obiectul în starea scrisă în proces-verbal.",
       href: "/portal/in-primirea-mea",
+      urgenta: false,
+    });
+  }
+
+  // Notificarea pleacă la finalizare, dar se citește o dată; rândul ăsta
+  // rămâne cât PV-ul așteaptă confirmarea.
+  const pvuri = intrare.pvuriNeconfirmate ?? 0;
+  if (pvuri > 0) {
+    sarcini.push({
+      id: "pv-vehicul",
+      eticheta:
+        pvuri === 1
+          ? "Confirmați procesul-verbal al mașinii"
+          : `${String(pvuri)} procese-verbale ale mașinii de confirmat`,
+      detaliu: "Confirmarea completează semnătura de pe hârtie, nu o înlocuiește.",
+      href: "/portal/masina-mea",
       urgenta: false,
     });
   }

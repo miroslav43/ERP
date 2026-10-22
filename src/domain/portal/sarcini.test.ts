@@ -19,6 +19,20 @@ describe("sarciniPortal", () => {
     expect(sarciniPortal({ ...LINISTE, prediriNeconfirmate: 0 })).toHaveLength(0);
   });
 
+  it("PV-urile mașinii neconfirmate (0215) duc la „Mașina mea”", () => {
+    const [unul] = sarciniPortal({ ...LINISTE, pvuriNeconfirmate: 1 });
+    expect(unul).toMatchObject({
+      id: "pv-vehicul",
+      eticheta: "Confirmați procesul-verbal al mașinii",
+      href: "/portal/masina-mea",
+      urgenta: false,
+    });
+    expect(sarciniPortal({ ...LINISTE, pvuriNeconfirmate: 3 })[0]?.eticheta).toBe(
+      "3 procese-verbale ale mașinii de confirmat",
+    );
+    expect(sarciniPortal({ ...LINISTE, pvuriNeconfirmate: 0 })).toHaveLength(0);
+  });
+
   it("ziua fără nimic de făcut întoarce lista goală", () => {
     expect(sarciniPortal(LINISTE)).toEqual([]);
   });

@@ -114,6 +114,7 @@ export async function POST(cerere: Request): Promise<Response> {
     permisiuni,
     features,
     aziISO,
+    zona,
   };
   const unelte = uneltelePermise(TOATE_UNELTELE, contextUnealta);
 
