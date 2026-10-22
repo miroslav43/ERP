@@ -427,9 +427,12 @@ begin
       ('INSERT vehicle_fines',
        'insert into public.vehicle_fines (organization_id, vehicle_id, numar_pv, constatata_la, fapta) values ({org}, {v1}, ''PV-PROBA'', now() - interval ''1 day'', ''Probă'')',
        'ok:1', '42501', '42501', '42501', '42501'),
+      -- 0206 §F (A5, declarația șoferului): `employee` are `vehicle_incidents:create
+      -- = own` și își declară dauna pe mașina avută în ziua incidentului (E1, pe V1);
+      -- pe mașina altuia, garda din `incidente_inainte` refuză cu P0001 (E2).
       ('INSERT vehicle_incidents',
        'insert into public.vehicle_incidents (organization_id, vehicle_id, tip, produs_la, descriere, created_by, updated_by) values ({org}, {v1}, ''avarie'', now() - interval ''1 day'', ''Probă.'', auth.uid(), auth.uid())',
-       'ok:1', '42501', '42501', '42501', '42501'),
+       'ok:1', '42501', '42501', 'ok:1', 'P0001'),
       ('INSERT odometer_anomalies',
        'insert into public.odometer_anomalies (organization_id, vehicle_id, km_asteptat, km_declarat, tip) values ({org}, {v1}, 1, 2, ''salt'')',
        '42501', '42501', '42501', '42501', '42501'),

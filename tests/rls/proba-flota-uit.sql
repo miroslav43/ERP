@@ -23,7 +23,8 @@
 -- (P15) employee: marchează cursa `risc_fiscal_national` pe ciornă ⇒ 1 rând;
 -- (P12) foaia respinsă: UIT P0001 (ca liniile, F4 = doar ciornă); redeschisă
 --       în ciornă ⇒ UIT acceptat;
--- (P13) ciorna ștearsă logic ⇒ codurile ei primesc `deleted_at` (foi_sterge_uit);
+-- (P13) ciorna numerotată: șoferul n-o șterge (P0001, 0200 §E4); anulată
+--       logic de org_admin ⇒ codurile ei primesc `deleted_at` (foi_sterge_uit);
 -- (P14) foaia aprobată, stornată de org_admin ⇒ codurile ei primesc `deleted_at`.
 -- Negative:
 --  (N1) employee pe cursa unui coleg ⇒ refuz (codul se notează empiric);
@@ -930,12 +931,31 @@ begin
     raise warning '  ✗ (P12b) după redeschidere: % (%)', sqlerrm, sqlstate;
   end;
 
-  -- (P13) ciorna ștearsă logic de șofer: codurile ei o urmează
-  v_total := v_total + 1;
+  -- (P13) ciorna ștearsă logic: codurile ei o urmează. Foaia lui Bogdan a fost
+  -- trimisă o dată (P12), deci are număr FP: din 0200 §E4 șoferul n-o mai poate
+  -- șterge (P0001), iar ștergerea logică o face cine scrie orice foaie
+  -- (`trip_sheets:update = all`, org_admin), ca anulare. Cascada e aceeași.
+  v_total := v_total + 2;
   perform set_config('request.jwt.claim.sub', v_u_b::text, true);
   set local role authenticated;
   begin
     update public.trip_sheets set deleted_at = now(), updated_by = v_u_b where id = v_foaie_b;
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (P13a) șoferul a șters o ciornă numerotată (0200 §E4 cere anularea)';
+  exception when others then
+    reset role;
+    if sqlstate = 'P0001' and sqlerrm like 'Foaia are deja numărul%' then
+      raise notice '  ✓ (P13a) ciorna numerotată: șoferul primește P0001 (0200 §E4)';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (P13a) refuzat din alt motiv: % (%)', sqlerrm, sqlstate;
+    end if;
+  end;
+  perform set_config('request.jwt.claim.sub', v_u_adm::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets set deleted_at = now(), updated_by = v_u_adm where id = v_foaie_b;
     reset role;
     select count(*) into v_n from public.trip_sheet_uit u
      where u.id = v_ub2 and u.deleted_at is not null;
