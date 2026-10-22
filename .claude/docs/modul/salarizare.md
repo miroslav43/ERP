@@ -119,8 +119,8 @@ una pe asigurat cu sumă neimpozabilă), iar butonul îl are în `ANTETE_CONTROL
 apare în notificare, dar NU cine sunt — mesajele rămân în ruta de generare.
 
 `d112` citește `calc_breakdown` și declară `A_5` (baza CAM) = brut − suma neimpozabilă.
-Tipul de asigurat 51 și `A_13S` nu se generează, iar generatorul urmează structura de
-dinainte de 2026: [[modul/salarizare/calcul]], `NOTES.md` §3.
+Tipul de asigurat 51 și `A_13S` nu se generează, iar fișierul nu trece XSD-ul ANAF, nici
+cel curent, nici cel din 2019 (validat): [[modul/salarizare/calcul]], `NOTES.md` §3.
 
 ## Ce refuză baza tăcut
 

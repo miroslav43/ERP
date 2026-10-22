@@ -199,9 +199,15 @@ consolidat cu `curl` pe 21 oct 2026:
   o notă de trimitere la art. III din OUG 89/2025. Alin. (1) lit. a)–n) definește baza
   CAM ca suma câștigurilor brute, deci suma scutită iese din `A_5` și din creanța 46.
 - Coerența cu creanța: structura ANAF definește baza CAM a declarației ca suma `A_5`
-  pe asigurați, iar valoarea CAM ca baza înmulțită cu 2,25% și rotunjită. Creanța 46 se
+  pe asigurați (`C4_baza`), iar valoarea CAM ca `Round(C4_baza × 2,25%)`. Creanța 46 se
   compară cu ea (ERR dacă e mai mare, ATT dacă diferă). `cam_angajator` e calculat de
-  motor pe aceeași bază redusă (`calc.ts`), deci cele două rămân în acord.
+  motor pe aceeași bază redusă (`calc.ts`), dar ruta declară creanța ca **sumă a CAM-ului
+  rotunjit pe fiecare rând**, nu ca CAM pe baza totală. Cu `rotunjire_lei = false`
+  (implicitul, la ban) diferența e de bani și dispare la rotunjirea creanței. ⚠ Cu
+  `rotunjire_lei = true` crește cu numărul de oameni: 3 salariați la 4.125 dau 3 × 93 =
+  279 lei, iar ANAF calculează Round(12.375 × 2,25%) = 278, adică ERR „creanța 46 mai mare
+  decât suma calculată”. Defectul nu vine de la facilitate: 2 salariați la 5.000 dau
+  2 × 113 = 226 față de 225. Contabilul decide dacă creanța se declară pe baza totală.
 - Plafonul 4.300 / 4.600 lei al facilității e confirmat și de structura ANAF (nota
   „plafonul … la tip asigurat 51, 52”), nu doar de ordonanță.
 
@@ -216,13 +222,25 @@ trecut. `A_3` trebuie să fie „N” la tipurile 51, 52, 53 (motorul dă suma d
 
 ⚠ De confirmat de contabil:
 
-- **Generatorul urmează structura A7.2.2 din 2019, nu pe cea curentă.** Schema XSD
-  `d112_0726_140826.xsd` cere pe `asiguratA`, ca `required`: `A_sal1`, `A_sal2`,
-  `A_11`–`A_14`, `A_13P`, `A_14P`, `A_11P`, `A_12P`, `A_14D`, `A_12D`, `A_13S`, `A_13C`;
-  generatorul emite doar `A_1`–`A_7`. Că fișierul ar fi respins la validarea XSD e o
-  **inferență** din cele două liste: DUKIntegrator n-a rulat pe un fișier generat aici.
-  Până la o rescriere după structura A7.2.6, exportul D112 e un schelet de verificat,
-  nu o declarație de depus.
+- **Fișierul generat nu trece schema ANAF, nici cea curentă, nici cea din 2019.**
+  Dovedit pe 22 oct 2026: XML-ul scos de `genereazaD112` a fost validat cu
+  `javax.xml.validation` (Java 17) față de `d112_0726_140826.xsd` (A7.2.6 v7) și de
+  `d112_19092019.xsd` (v5), ambele descărcate de pe `static.anaf.ro`. Pe schema curentă
+  cade de la rădăcină: `declaratieUnica` n-are spațiul de nume
+  `mfp:anaf:dgti:declaratie_unica:declaratie:v7`. Cu spațiul de nume adăugat de mână
+  rămân 23 de erori:
+  - `angajatorA` e emis lângă `angajator`, nu în el;
+  - lipsesc `totalPlata_A` pe `angajator` și `asigCI`, `asigSO`, `Timp_E3` pe `asigurat`;
+  - datele sunt `AAAA-LL-ZZ`, iar schema cere `ZZ.LL.AAAA`;
+  - pe `asiguratA` lipsesc 14 atribute obligatorii: `A_sal1`, `A_sal2`, `A_11`–`A_14`,
+    `A_13P`, `A_14P`, `A_11P`, `A_12P`, `A_14D`, `A_12D`, `A_13S`, `A_13C`;
+  - lipsește orice secțiune `asiguratC`/`E1`/`E2`/`E3`.
+
+  Pe schema din 2019 rămân 14 erori de același fel. Deci nu e o problemă de versiune:
+  generatorul n-a produs niciodată un fișier valid. DUKIntegrator tot n-a rulat. Până la
+  o rescriere după A7.2.6, exportul D112 e un schelet de verificat, nu o declarație de
+  depus.
+
 - **Rotunjirea lui `A_5` la fracțiunea de lună.** Suma are bani (ex. 183,33 lei), iar
   `A_5` = Round(brut − suma). Structura nu spune dacă baza se rotunjește ca diferență
   sau ca termeni separați.

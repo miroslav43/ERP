@@ -41,8 +41,10 @@
 //      și `d112_0726_140826.xsd`), în care `asiguratA` cere în plus, ca
 //      `required`: `A_sal1`, `A_sal2`, `A_11`–`A_14`, `A_13P`, `A_14P`,
 //      `A_11P`, `A_12P`, `A_14D`, `A_12D`, `A_13S`, `A_13C`. Generatorul emite
-//      doar `A_1`–`A_7`. Citit pe sursă pe 21 oct 2026; DUKIntegrator NU a rulat
-//      pe un fișier generat aici. Vezi `NOTES.md` §3.
+//      doar `A_1`–`A_7`. Validat pe 22 oct 2026 față de schema curentă ȘI de cea
+//      din 2019: fișierul nu trece NICIUNA. Lipsesc spațiul de nume al rădăcinii
+//      și cuibărirea `angajatorA` în `angajator`, iar datele sunt ISO, nu
+//      `ZZ.LL.AAAA`. DUKIntegrator NU a rulat. Lista completă: `NOTES.md` §3.
 //
 // Fișierul rezultat se validează cu DUKIntegrator, aplicația ANAF, ÎNAINTE de
 // depunere. Nu pretindem că îl înlocuim: pretindem că scutim contabilul de
