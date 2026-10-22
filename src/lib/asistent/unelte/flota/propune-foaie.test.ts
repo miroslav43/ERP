@@ -34,6 +34,8 @@ beforeEach(() => {
   vi.mocked(vehicululMeu).mockResolvedValue({ alocate: [v(ALOCAT, "B123ABC")], pool: [] });
   vi.mocked(listeazaVehicule).mockResolvedValue({
     randuri: [v(ALOCAT, "B123ABC"), v(POOL, "B456POL", true)],
+    urmatorulCursor: null,
+    total: 2,
   } as unknown as RezultatVehicule);
   vi.mocked(foiInInterval).mockResolvedValue([]);
   vi.mocked(ocupareaPool).mockResolvedValue([]);
@@ -176,7 +178,24 @@ describe("propune_foaia_de_azi — org_admin, în aplicație", () => {
       nr_inmatriculare: "CJ01XYZ",
     });
     expect(r.text).toContain("Nu găsesc „CJ01XYZ”");
-    expect(r.text).toContain("vehiculele active ale parcului");
+    expect(r.text).toContain("(vehiculele parcului, doar cele active)");
     expect(r.referinte).toEqual(["flota.foi"]);
+  });
+
+  it("parcul are peste 100 de vehicule active: nu afirmă că mașina lipsește, spune plafonul casetei", async () => {
+    // Caseta din aplicație oferă doar primele 100 (`date-foaie-noua.ts`); un
+    // vehicul activ de după ele nu e „negăsit”, e doar în afara casetei.
+    vi.mocked(listeazaVehicule).mockResolvedValue({
+      randuri: [v(ALOCAT, "B123ABC"), v(POOL, "B456POL", true)],
+      urmatorulCursor: "cursor-pagina-2",
+      total: 140,
+    } as unknown as RezultatVehicule);
+    const r = await unealtaPropuneFoaia.executa(contextFlota("org_admin"), {
+      nr_inmatriculare: "B999ZZZ",
+    });
+    expect(r.text).not.toContain("Nu găsesc");
+    expect(r.text).toContain("primele 100");
+    expect(r.text).toContain("„B999ZZZ”");
+    expect(r.destinatiiEfemere).toBeUndefined();
   });
 });

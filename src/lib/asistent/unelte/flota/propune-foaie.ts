@@ -39,6 +39,13 @@ import {
 /** Câte mașini se enumeră când omul n-a spus pe care. */
 const MAX_CANDIDATE = 6;
 
+/**
+ * Câte vehicule active oferă caseta din aplicație (`limita` din
+ * `date-foaie-noua.ts`). Aceeași cifră aici: o mașină de după plafon n-ar fi
+ * preselectată, iar caseta ar alege tăcut prima din listă.
+ */
+const PLAFON_CASETA = 100;
+
 const parametri = z.object({
   nr_inmatriculare: z
     .string()
@@ -88,35 +95,46 @@ async function executa(context: ContextUnealta, argument: unknown): Promise<Rezu
     };
   }
 
-  const candidati: readonly Candidat[] =
+  // `trunchiat`: parcul are mai multe vehicule active decât arată caseta. Unul
+  // de după plafon nu e „negăsit”: e activ, doar că lista casetei se oprește
+  // înaintea lui, deci afirmația categorică ar fi falsă.
+  const { candidati, trunchiat } =
     !propriu || employeeId === null
-      ? (
-          await listeazaVehicule(context.organizationId, {
-            status: "activ",
-            categorie: null,
-            conformitate: null,
-            cauta: null,
-            cursor: null,
-            limita: 100,
-          })
-        ).randuri
-      : await vehicululMeu(context.organizationId, employeeId).then(({ alocate, pool }) => [
-          ...alocate,
-          ...pool,
-        ]);
+      ? await listeazaVehicule(context.organizationId, {
+          status: "activ",
+          categorie: null,
+          conformitate: null,
+          cauta: null,
+          cursor: null,
+          limita: PLAFON_CASETA,
+        }).then((r) => ({
+          candidati: r.randuri as readonly Candidat[],
+          trunchiat: r.urmatorulCursor !== null,
+        }))
+      : await vehicululMeu(context.organizationId, employeeId).then(({ alocate, pool }) => ({
+          candidati: [...alocate, ...pool] as readonly Candidat[],
+          trunchiat: false,
+        }));
 
   const potrivite =
     cautat === null ? candidati : candidati.filter((v) => v.nr_inmatriculare.includes(cautat));
   const exact = potrivite.find((v) => v.nr_inmatriculare === cautat);
-  const unde = propriu ? "mașina alocată ție și cele comune" : "vehiculele active ale parcului";
+  const unde = propriu ? "mașina alocată ție și cele comune" : "vehiculele parcului";
 
   if (potrivite.length === 0) {
+    const referinte = referintePermise(context, ["flota.foi", "portal.masina"]);
+    if (cautat !== null && trunchiat) {
+      return {
+        text: `Caseta foii noi oferă doar primele ${String(PLAFON_CASETA)} de vehicule active, în ordinea numărului, iar „${cautat}” nu e printre ele. Nu pot deschide caseta cu mașina asta aleasă; verifică numărul în lista parcului.`,
+        referinte,
+      };
+    }
     return {
       text:
         cautat === null
           ? "Nu ai nicio mașină pe care să întocmești foaia azi: nici alocată ție, nici comună."
           : `Nu găsesc „${cautat}” printre mașinile pe care poți întocmi foaia azi (${unde}, doar cele active).`,
-      referinte: referintePermise(context, ["flota.foi", "portal.masina"]),
+      referinte,
     };
   }
   if (exact === undefined && potrivite.length > 1) {

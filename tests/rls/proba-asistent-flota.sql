@@ -29,12 +29,13 @@
 --  (4) vede mașina subordonatei și pool-ul, NU mașina lui Cristi          [POZ / NEG];
 --  (5) vede foaia și cursa subordonatei, NU foaia lui Cristi pe pool      [POZ / NEG];
 --  (6) vede alocarea subordonatei, NU pe a lui Cristi;
---  (7) vede documentele mașinii vizibile, NU pe ale mașinii lui Cristi;
+--  (7) vede documentele mașinii subordonatei ȘI ale mașinii comune, NU pe ale
+--      mașinii lui Cristi (mașină vizibilă fără documente vizibile = „lipsă” falsă);
 --  (8) vede permisele echipei, NU pe al lui Cristi                        [POZ / NEG];
 --  (9) vede planul de service al mașinii echipei                          [POZITIVĂ];
 --  (10) NU vede normele și regimurile fiscale (de aceea consumul nu le cere);
 -- employee (Ana):
---  (11) vede mașina ei și pool-ul, NU mașina lui Cristi                   [POZ / NEG];
+--  (11) vede mașina ei și pool-ul, cu documentele lor; NU mașina lui Cristi [POZ / NEG];
 --  (12) vede propria alocare, NU pe a colegului;
 --  (13) vede propria foaie, NU foaia colegului pe pool (§10, cazul-limită);
 --  (14) ocuparea de AZI a pool-ului îi arată foaia colegului, fără identitate [POZITIVĂ];
@@ -189,6 +190,9 @@ begin
                                         created_by, updated_by) values
     (v_org,   v_va, v_t_rca, v_zi - 300, v_zi + 20, v_u_adm, v_u_adm),
     (v_org,   v_vc, v_t_rca, v_zi - 300, v_zi + 25, v_u_adm, v_u_adm),
+    -- RCA-ul mașinii comune: cine vede mașina trebuie să-i vadă și documentele,
+    -- altfel `scadente_flota` ar spune „lipsește documentul obligatoriu” despre ea.
+    (v_org,   v_vp, v_t_rca, v_zi - 300, v_zi + 28, v_u_adm, v_u_adm),
     (v_org_b, v_vb, v_t_rca, v_zi - 300, v_zi + 10, null, null);
 
   insert into public.driver_licenses (organization_id, employee_id, numar, categorii, expira_la) values
@@ -257,7 +261,7 @@ begin
   -- ═══ org_admin ═══════════════════════════════════════════════════════════
   v_esecuri := v_esecuri
     + pg_temp.e(pg_temp.vede(v_u_adm, q_vehicule),  4, '(1) org_admin: tot parcul firmei')
-    + pg_temp.e(pg_temp.vede(v_u_adm, q_documente), 2, '(1) org_admin: documentele curente')
+    + pg_temp.e(pg_temp.vede(v_u_adm, q_documente), 3, '(1) org_admin: documentele curente')
     + pg_temp.e(pg_temp.vede(v_u_adm, q_foi),       2, '(1) org_admin: foile zilei')
     + pg_temp.e(pg_temp.vede(v_u_adm, q_curse),     1, '(1) org_admin: cursele')
     + pg_temp.e(pg_temp.vede(v_u_adm, q_alocari),   2, '(1) org_admin: alocările')
@@ -284,7 +288,10 @@ begin
                 '(5) managerul: NU foaia lui Cristi pe pool')
     + pg_temp.e(pg_temp.vede(v_u_mgr, q_curse), 1, '(5) managerul: cursa subordonatei')
     + pg_temp.e(pg_temp.vede(v_u_mgr, q_alocari), 1, '(6) managerul: alocarea subordonatei, nu a lui Cristi')
-    + pg_temp.e(pg_temp.vede(v_u_mgr, q_documente), 1, '(7) managerul: documentele mașinii vizibile, nu ale lui Cristi')
+    + pg_temp.e(pg_temp.vede(v_u_mgr, q_documente), 2,
+                '(7) managerul: documentele mașinii subordonatei și ale celei comune')
+    + pg_temp.e(pg_temp.vede(v_u_mgr, q_documente || format(' and vehicle_id = %L', v_vc)), 0,
+                '(7) managerul: NU documentele mașinii lui Cristi')
     + pg_temp.e(pg_temp.vede(v_u_mgr, q_permise), 2, '(8) managerul: permisele echipei, nu al lui Cristi')
     + pg_temp.e(pg_temp.vede(v_u_mgr, q_planuri), 1, '(9) managerul: planul de service al mașinii echipei')
     + pg_temp.e(pg_temp.vede(v_u_mgr, q_norme), 0, '(10) managerul: NU normele (doar `vehicles:read = all`)')
@@ -295,6 +302,10 @@ begin
     + pg_temp.e(pg_temp.vede(v_u_ana, q_vehicule), 3, '(11) angajata: mașina ei și cele două din pool')
     + pg_temp.e(pg_temp.vede(v_u_ana, q_vehicule || format(' and id = %L', v_vc)), 0,
                 '(11) angajata: NU mașina colegului')
+    + pg_temp.e(pg_temp.vede(v_u_ana, q_documente), 2,
+                '(11) angajata: documentele mașinii ei și ale celei comune')
+    + pg_temp.e(pg_temp.vede(v_u_ana, q_documente || format(' and vehicle_id = %L', v_vc)), 0,
+                '(11) angajata: NU documentele mașinii colegului')
     + pg_temp.e(pg_temp.vede(v_u_ana, q_alocari), 1, '(12) angajata: propria alocare, nu a colegului')
     + pg_temp.e(pg_temp.vede(v_u_ana, q_foi), 1, '(13) angajata: propria foaie')
     + pg_temp.e(pg_temp.vede(v_u_ana, q_foi || format(' and vehicle_id = %L', v_vp)), 0,
