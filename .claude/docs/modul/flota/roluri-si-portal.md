@@ -141,6 +141,13 @@ matricea intenționată (hr: doar permisele; manager: echipa + pool, costurile d
 echipei; angajatul: mașina lui + pool, fără costuri); firma B numără zero.
 `avantaj_natura_flota` e a salarizării (`payroll:read = all`): hr o primește.
 
+**Scrierea reală pe toate tabelele livrării**: `tests/rls/proba-livrare-roluri.sql`. Pe
+un singur fixture, fiecare tabelă și funcție `public.*` nouă din 0191, 0199–0206 și
+0210–0218, sub super_admin, org_admin, hr, manager, doi angajați și administratorul altei
+firme: SELECT numărat, INSERT și UPDATE efective (derulate înapoi), plus legarea din firma
+străină de obiectele firmei A. Defect cunoscut acolo: `flota_fiscal_luna` e SECURITY
+INVOKER peste `vehicles`, deci hr-ul cu mașină primește rândul ei (decizia 3 moștenită).
+
 **Defecte cunoscute** (rândurile „DEFECT” ale probei): `vehicle_documents.cost` și
 `vehicles.valoare_achizitie` sunt COLOANE pe rânduri pe care angajatul și managerul
 (pool) le văd. RLS-ul nu taie coloane, iar privilegiul pe coloană e al rolului
