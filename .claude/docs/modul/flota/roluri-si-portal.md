@@ -41,9 +41,12 @@ permisiuni rămâne așa. Matricea publică (`matrice-roluri.ts`) și fișa de m
 
 - **Pool-ul se vede, nu se administrează.** Sub `vehicles:read` own/team, un vehicul cu
   `pool = true` intră în listă și în documente (`app.poate_vedea_vehicul` cu trei
-  argumente și `app.poate_vedea_vehicul_dupa_id`). Anomaliile NU urmează pool-ul: se văd
-  după șoferul vehiculului sau după foaia pe care s-au produs, deci anomalia colegului pe
-  mașina comună rămâne a lui. Forma cu două argumente rămâne pentru `alocari_select`.
+  argumente și `app.poate_vedea_vehicul_dupa_id`). Anomaliile NU urmează pool-ul: cea de
+  pe o foaie se vede după FOAIE (`poate_vedea_foaie`), cea fără foaie după vehicul, fără
+  pool, iar `vehicles:read = all` le vede pe toate. Mașina primită de la un coleg nu
+  aduce anomaliile de pe foile lui. Nici service-ul și costurile (0203) nu urmează
+  pool-ul: managerul le citește doar pe mașinile echipei. Forma cu două argumente rămâne
+  pentru `alocari_select`.
 - **Foaia sub `all` cere mașina potrivită.** `internal.foi_parcurs_inainte` refuză cu
   P0001 („Vehiculul ales nu vă este alocat…”) o foaie pe un vehicul care nu e pool și nu
   are o alocare a șoferului în ziua plecării (ora României). Aceeași regulă la UPDATE,
@@ -116,6 +119,19 @@ manager, hr, org_admin și `app.can_path`, cu rânduri numărate. `tests/rls/izo
 blocul „flota pe roluri (0199)” din `(l)`: scrierile legitime ale angajatului și
 managerului. `proba-flota-integritate.sql` folosește un vehicul pool, ca verificările ei
 de RLS să nu fie umbrite de garda de vehicul.
+
+**Matricea rol × tabelă**: `tests/rls/proba-flota-matrice-roluri.sql`. Pe două
+firme, sub org_admin, hr, manager și doi angajați, numără rândurile văzute pe fiecare
+tabelă a flotei (plus `expirables`, `compliance_alerts`, `org-flota`), funcțiile
+`public.*` ale flotei și INSERT/UPDATE pe tabelele de administrare și costuri, față de
+matricea intenționată (hr: doar permisele; manager: echipa + pool, costurile doar ale
+echipei; angajatul: mașina lui + pool, fără costuri); firma B numără zero.
+`avantaj_natura_flota` e a salarizării (`payroll:read = all`): hr o primește.
+
+**Defecte cunoscute** (rândurile „DEFECT” ale probei): `vehicle_documents.cost` și
+`vehicles.valoare_achizitie` sunt COLOANE pe rânduri pe care angajatul și managerul
+(pool) le văd. RLS-ul nu taie coloane, iar privilegiul pe coloană e al rolului
+`authenticated`, comun tuturor: repararea cere o decizie de model.
 
 ## Ce NU e aici
 

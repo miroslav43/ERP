@@ -57,8 +57,9 @@
 --    vehiculului (vândut, șters, alt șofer) stă într-un trigger propriu
 --    (`vehicles_service_sync`), nu în `vehicles_dupa`.
 --  · Nu adaugă permisiuni: scrierea cere `vehicles:update = all`, citirea
---    `vehicles:read >= team` ȘI vizibilitatea vehiculului. Șoferul (`own`) nu
---    vede costurile mașinii; află de scadență din notificare.
+--    `vehicles:read >= team` ȘI vehiculul echipei (fără ramura de pool).
+--    Șoferul (`own`) nu vede costurile mașinii; află de scadență din
+--    notificare.
 --  · Nu adaugă politici DELETE (ștergerea e logică).
 --
 -- Aplicare: psql byte-exact, după bancul local; producția cere confirmare.
@@ -563,6 +564,12 @@ alter table public.vehicle_expenses force row level security;
 -- exploatare. Cine vede parcul cu `team` sau `all` (managerul pe mașinile
 -- echipei lui, administratorul pe toate) le vede; șoferul (`own`) nu — află de
 -- scadență din notificare, nu din cifrele de pe factură.
+--
+-- Vehiculul se judecă FĂRĂ ramura de pool (`poate_vedea_vehicul(…, false)`,
+-- ca anomaliile din 0199). Cu `poate_vedea_vehicul_dupa_id`, pool-ul — vizibil
+-- oricui îl poate conduce — aducea managerului facturile și cheltuielile
+-- mașinii comune a firmei, care nu e a echipei lui (sweep-ul A4, matricea
+-- `proba-flota-matrice-roluri.sql`). La `all` rezultatul e același.
 create policy vsp_select on public.vehicle_service_plans
   for select to authenticated
   using (
@@ -571,7 +578,7 @@ create policy vsp_select on public.vehicle_service_plans
       organization_id = any ((select app.current_org_ids())::uuid[])
       and app.feature_on(organization_id, 'fleet')
       and app.can(organization_id, 'vehicles', 'read', 'team')
-      and app.poate_vedea_vehicul_dupa_id(organization_id, vehicle_id)
+      and app.poate_vedea_vehicul(organization_id, app.vehicul_sofer(vehicle_id), false)
     )
   );
 
@@ -583,7 +590,7 @@ create policy vse_select on public.vehicle_service_entries
       organization_id = any ((select app.current_org_ids())::uuid[])
       and app.feature_on(organization_id, 'fleet')
       and app.can(organization_id, 'vehicles', 'read', 'team')
-      and app.poate_vedea_vehicul_dupa_id(organization_id, vehicle_id)
+      and app.poate_vedea_vehicul(organization_id, app.vehicul_sofer(vehicle_id), false)
     )
   );
 
@@ -595,7 +602,7 @@ create policy vex_select on public.vehicle_expenses
       organization_id = any ((select app.current_org_ids())::uuid[])
       and app.feature_on(organization_id, 'fleet')
       and app.can(organization_id, 'vehicles', 'read', 'team')
-      and app.poate_vedea_vehicul_dupa_id(organization_id, vehicle_id)
+      and app.poate_vedea_vehicul(organization_id, app.vehicul_sofer(vehicle_id), false)
     )
   );
 
