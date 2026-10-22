@@ -1,7 +1,8 @@
 // src/lib/pdf/pachet-flota.ts
 //
 // Pachetul lunar pentru contabil (F8): un ZIP cu Excelul raportului la rădăcină și
-// câte un PDF pe fiecare foaie de parcurs APROBATĂ a lunii, în `foi/`.
+// câte un PDF pe fiecare foaie de parcurs APROBATĂ a lunii, în `foi/`. Din F12g,
+// și jurnalul de costuri al lunii, cu conturile propuse.
 //
 // ── DE CE PDF-URILE SE GENEREAZĂ UNUL CÂTE UNUL ─────────────────────────────
 // Fiecare PDF ține în memorie un `PDFDocument` cu fonturile încorporate. Un
@@ -49,6 +50,12 @@ export interface ParametriPachet {
   /** Numele aprobatorilor, după id-ul contului (`aprobat_de`). */
   readonly aprobatori: ReadonlyMap<string, string>;
   readonly xlsx: Readonly<{ nume: string; octeti: Uint8Array }>;
+  /**
+   * Jurnalul de costuri al lunii (F12g, implicita I-g7), cu conturile PROPUSE din
+   * `CONFIGURARE_IMPLICITA`. E de citit, nu de importat: fișierele de import se
+   * descarcă din „Export pentru contabilitate”, cu conturile confirmate.
+   */
+  readonly jurnal?: Readonly<{ nume: string; continut: string }>;
   /** Momentul generării, deja formatat: pe subsolul fiecărui PDF. */
   readonly generatLa: string;
 }
@@ -57,6 +64,7 @@ export async function pachetLunarFlota(p: ParametriPachet): Promise<Uint8Array> 
   const zip = new JSZip();
   const folosite = new Set<string>();
   zip.file(numeUnic(p.xlsx.nume, folosite), p.xlsx.octeti);
+  if (p.jurnal !== undefined) zip.file(numeUnic(p.jurnal.nume, folosite), p.jurnal.continut);
 
   for (const foaie of p.foi) {
     const alimentari: readonly AlimentareFoaie[] = foaie.alimentari;

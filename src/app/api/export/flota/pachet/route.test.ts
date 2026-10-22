@@ -1,7 +1,8 @@
 // src/app/api/export/flota/pachet/route.test.ts
 //
 // Pachetul lunar pentru contabil (F8), pe clientul fals: poarta, plafonul de foi,
-// luna fără foi și arhiva care iese (Excel + câte un PDF pe foaie aprobată).
+// luna fără foi și arhiva care iese (Excel + câte un PDF pe foaie aprobată + jurnalul
+// de costuri din F12g).
 
 import JSZip from "jszip";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -100,9 +101,50 @@ function programeazaPachet(): void {
     ],
   });
   db.raspunde("trip_sheets", "select", { data: [] });
+  // Câte două: raportul (F8) și jurnalul de costuri (F12g) citesc aceleași tabele.
+  db.raspunde("vehicle_service_entries", "select", { data: [] });
   db.raspunde("vehicle_service_entries", "select", { data: [] });
   db.raspunde("vehicle_expenses", "select", { data: [] });
+  db.raspunde("vehicle_expenses", "select", { data: [] });
   db.raspunde("vehicle_documents", "select", { data: [] });
+  // Jurnalul de costuri (F12g): firma, alimentarea lunii, cardul, regimul fiscal.
+  db.raspunde("organizations", "select", {
+    data: {
+      name: "Firma Test",
+      legal_name: "Firma Test SRL",
+      cui: "RO1",
+      cui_normalizat: "1",
+      platitor_tva: true,
+    },
+  });
+  db.raspunde("fuel_entries", "select", {
+    data: [
+      {
+        id: ID_1,
+        alimentat_la: "2026-09-02T10:00:00Z",
+        cost: 252.5,
+        litri: 36,
+        numar_bon: "123",
+        statie: "Petrom",
+        cui_statie: null,
+        foaie: {
+          status: "aprobat",
+          deleted_at: null,
+          vehicle_id: ID_1,
+          vehicul_nr: "B100ABC",
+          vehicul_combustibil: "motorina",
+          vehicul: {
+            nr_inmatriculare: "B100ABC",
+            masa_maxima_kg: null,
+            tip_combustibil: "motorina",
+          },
+          sofer: { full_name: "Popescu Ion" },
+        },
+      },
+    ],
+  });
+  db.raspunde("fuel_card_transactions", "select", { data: [] });
+  db.raspunde("vehicle_fiscal_regimes", "select", { data: [] });
   db.raspunde("vehicles", "select", { data: [vehicul] });
   db.raspunde("vehicles", "select", { data: [vehicul] });
   const angajat = { id: SOFER, full_name: "Popescu Ion", marca: "M1", deleted_at: null };
@@ -185,8 +227,14 @@ describe("GET /api/export/flota/pachet", () => {
     const nume = Object.keys(zip.files).filter((n) => !zip.files[n]?.dir);
     expect(nume.sort()).toEqual([
       "foi/foaie-de-parcurs-b100abc-2026-09-02-fp-2026-0001.pdf",
+      "jurnal-costuri-flota-2026-09.csv",
       "raport-flota-2026-09.xlsx",
     ]);
+    // F12g (I-g7): jurnalul cu conturile PROPUSE, nu un fișier de import.
+    const jurnal = await zip.file("jurnal-costuri-flota-2026-09.csv")?.async("string");
+    expect(jurnal).toContain('"123"');
+    expect(jurnal).toContain("propuse — de confirmat cu contabilul");
+    expect(jurnal).toContain('"Combustibil";6022');
     const xlsx = await JSZip.loadAsync(
       (await zip.file("raport-flota-2026-09.xlsx")?.async("uint8array")) ?? new Uint8Array(),
     );
