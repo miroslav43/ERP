@@ -212,6 +212,30 @@ export async function f() { return createAdminSupabase(); }
     expect(regula(r.constatari, "A6")).toEqual([]);
   });
 
+  // ESLint (`no-restricted-imports`) nu vede `import()`, iar un `eslint-disable`
+  // îl tace și pe `import * as`: oglinda trebuie să le prindă pe amândouă.
+  it("`import * as` și `import()` dinamic al modulului admin = EROARE", () => {
+    const r = ruleaza(
+      proiect({
+        "app/(app)/flota/actions-amenzi.ts": `"use server";
+import * as admin from "@/lib/supabase/admin";
+export async function f() { return admin.createAdminSupabase(); }
+`,
+        "app/(app)/flota/actions-service.ts": `"use server";
+export async function g() {
+  const { createAdminSupabase } = await import("@/lib/supabase/admin");
+  return createAdminSupabase();
+}
+`,
+      }),
+    );
+    expect(r.cod).toBe(1);
+    expect(regula(r.constatari, "A6").map((c) => c.unde)).toEqual([
+      "src/app/(app)/flota/actions-amenzi.ts:2",
+      "src/app/(app)/flota/actions-service.ts:3",
+    ]);
+  });
+
   it("`import type { AdminSupabase }` nu construiește nimic: permis", () => {
     const r = ruleaza(
       proiect({
@@ -264,6 +288,36 @@ export const x = createAction({
       }),
     );
     expect(r.constatari).toEqual([]);
+  });
+
+  // `organization_id` doar în DATELE scrise nu filtrează nimic: rândul oricărei
+  // firme cu id-ul ăla primește valoarea. Contează doar un filtru pe coloană.
+  it("`organization_id` doar în datele scrise, nu în filtru: tot EROARE", () => {
+    const r = ruleaza(
+      proiect({
+        "app/(app)/flota/actions.ts": scriere("").replace(
+          "{ nota: input.nota }",
+          "{ nota: input.nota, organization_id: ctx.tenant.organizationId }",
+        ),
+      }),
+    );
+    expect(regula(r.constatari, "A7")).toEqual([
+      expect.objectContaining({ nivel: "EROARE", unde: "src/app/(app)/flota/actions.ts:12" }),
+    ]);
+  });
+
+  it('cu `.match({ organization_id: … })` sau `.in("organization_id", …)`: curat', () => {
+    const r = ruleaza(
+      proiect({
+        "app/(app)/flota/actions.ts": scriere(
+          "\n      .match({ organization_id: ctx.tenant.organizationId })",
+        ),
+        "app/(app)/flota/x/actions.ts": scriere(
+          '\n      .in("organization_id", [ctx.tenant.organizationId])',
+        ),
+      }),
+    );
+    expect(regula(r.constatari, "A7")).toEqual([]);
   });
 
   it("clientul utilizatorului (sub RLS) nu intră sub A7", () => {

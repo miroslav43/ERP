@@ -18,9 +18,11 @@
 //   A6 EROARE  `createAdminSupabase` importat (ca valoare) dintr-un fișier de
 //              acțiuni care NU se numește `actions.ts` și nu e în lista de
 //              excepții din `eslint.config.mjs` — oglinda regulii ESLint, care
-//              altfel poate fi tăcută cu un `eslint-disable`
-//   A7 EROARE  `.update(` / `.delete(` pe clientul ADMIN fără `organization_id`
-//              în instrucțiune: service_role ocolește RLS, iar filtrul explicit
+//              altfel poate fi tăcută cu un `eslint-disable`; prinde și
+//              `import * as x` și `import()` dinamic, pe care ESLint nu-l vede
+//   A7 EROARE  `.update(` / `.delete(` pe clientul ADMIN fără filtru pe
+//              `organization_id` (`.eq` / `.in` / `.match` / `.filter`) în
+//              instrucțiune: service_role ocolește RLS, iar filtrul explicit
 //              pe organizație e singura graniță (CLAUDE.md)
 //
 // Modulul unei acțiuni (pentru A2) se ia din `src/config/porti-ruta.ts`, după
@@ -254,6 +256,8 @@ for (const f of fisiere) {
   // A6 — clientul admin într-un fișier de acțiuni care nu se numește `actions.ts`.
   const relPosix = rel.split(sep).join("/");
   if (!numitActions && !EXCEPTII_ADMIN.has(relPosix)) {
+    const MESAJ_A6 =
+      "`createAdminSupabase` importat dintr-un fișier de acțiuni care nu se numește `actions.ts`. Regula ESLint îl permite DOAR în `actions.ts` (și în căile enumerate în `administrativo/securitate-exceptii`, fiecare cu motivul scris). Mută acțiunea care ocolește RLS în `actions.ts`, cu comentariul DE CE și cu filtru explicit pe `organization_id`, sau adaugă calea în lista de excepții, cu motivul.";
     for (const m of sursa.matchAll(
       /^import\s+(?!type\b)\{([^}]*)\}\s+from\s+["'][^"']*lib\/supabase\/admin["']/gm,
     )) {
@@ -262,14 +266,15 @@ for (const f of fisiere) {
         .map((s) => s.trim())
         .filter((s) => s && !s.startsWith("type "));
       if (valori.some((s) => /^createAdminSupabase\b/.test(s))) {
-        adauga(
-          "EROARE",
-          "A6",
-          f,
-          liniaLa(sursa, m.index),
-          "`createAdminSupabase` importat dintr-un fișier de acțiuni care nu se numește `actions.ts`. Regula ESLint îl permite DOAR în `actions.ts` (și în căile enumerate în `administrativo/securitate-exceptii`, fiecare cu motivul scris). Mută acțiunea care ocolește RLS în `actions.ts`, cu comentariul DE CE și cu filtru explicit pe `organization_id`, sau adaugă calea în lista de excepții, cu motivul.",
-        );
+        adauga("EROARE", "A6", f, liniaLa(sursa, m.index), MESAJ_A6);
       }
+    }
+    // `import * as x` (fabrica ajunge ca `x.createAdminSupabase`) și `import()`
+    // dinamic: ESLint `no-restricted-imports` nu vede importul dinamic deloc.
+    for (const m of sursa.matchAll(
+      /^\s*import\s+\*\s+as\s+\w+\s+from\s+["'][^"']*lib\/supabase\/admin["']|\bimport\(\s*["'][^"']*lib\/supabase\/admin["']\s*\)/gm,
+    )) {
+      adauga("EROARE", "A6", f, liniaLa(sursa, m.index + m[0].search(/\S/)), MESAJ_A6);
     }
   }
 
@@ -345,11 +350,13 @@ for (const f of fisiere) {
     // dar filtrul pe organizație devine OBLIGATORIU.
     const cap = inceputulLantului(linii, i);
     const clientAdmin = eAdmin(cap);
-    // Pe `organizations` firma ESTE rândul: filtrul e `.eq("id", …)`.
+    // Pe `organizations` firma ESTE rândul: filtrul e `.eq("id", …)`. Altfel
+    // contează doar un FILTRU pe coloană (`.eq` / `.in` / `.match` / `.filter`):
+    // `organization_id` scris doar în datele UPDATE-ului nu restrânge nimic.
     const peOrganizatii = /\.from\(\s*["']organizations["']\s*\)/.test(cap);
     const filtruFirma = peOrganizatii
       ? /\.eq\(\s*["']id["']/.test(fereastra)
-      : /organization_id/.test(fereastra);
+      : /\.(eq|in|match|filter)\(\s*\{?\s*["']?organization_id/.test(fereastra);
 
     // A7 — clientul admin fără filtru pe organizație. Consola de platformă
     // (`(platform)/`) e exceptată: acolo super_admin lucrează PESTE firme prin
