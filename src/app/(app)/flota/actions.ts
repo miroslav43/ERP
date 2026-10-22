@@ -83,7 +83,10 @@ export const creeazaVehicul = createAction({
 });
 
 /**
- * Modificarea unui vehicul, inclusiv ieșirea lui din parc.
+ * Modificarea unui vehicul. Ieșirea din parc NU mai trece pe aici: din 0218,
+ * garda `vehicles_iesire_garda` refuză cu P0001 orice trecere a statusului spre
+ * sau dinspre `vandut`/`casat` în afara fluxului `scoateDinParc` /
+ * `anuleazaIesirea` (`flota/[id]/iesire/actions.ts`).
  *
  * ── DE CE `minScope: "all"` ȘI NU „team" ─────────────────────────────────────
  * `vehicule_update` cere literal `app.has_permission(…,'vehicles','update') =
