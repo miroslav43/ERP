@@ -18,7 +18,7 @@ tabele: [trip_sheets, trip_sheet_curse, trip_route_templates, fuel_entries, regi
 permisiuni: [trip_sheets:read, trip_sheets:create, trip_sheets:update, trip_sheets:approve]
 feature: fleet
 capcane: [17, 22, 23]
-scris_pe: 2ba7a8bc315d1c5fd6575005b225db4ccbdf66a0
+scris_pe: 51d9f365e9618a5c1ac95a1a527079d009ab4972
 scris_la: 2026-10-22
 tags: [modul, operations]
 ---
@@ -94,6 +94,13 @@ Reproduse pe banc ca `employee` înainte de reparare; proba e `proba-flota-plafo
 - **Numere fără document**: niciunul pe drumurile normale. Retrimiterea păstrează numărul,
   registrul e idempotent pe entitate, iar o trimitere căzută derulează și contorul
   (`document_sequences` e tabelă). Golurile rămase sunt cele explicate în registru.
+  `aloca_numar_foaie` sare și peste numărul unei foi anulate (`ts_org_numar_idx`), deci
+  un contor dat înapoi de `org_admin` nu-l mai redă (§E5).
+- **Cine nu scrie foaia nu află nimic din ea** (§E5). `curse_inainte` și
+  `alimentari_inainte` sunt DEFINER și rulează înaintea WITH CHECK-ului de INSERT, deci
+  primul lucru după citirea foii e `poate_scrie_foaie`, cu 42501 (afișat generic). Înainte,
+  un coleg sau un utilizator din altă firmă care știa id-ul afla din P0001 ziua, orele și
+  starea foii și numărul foilor declarate ale șoferului.
 
 ## Paritatea stării (0200 §D, din revizia de securitate pe 20776502)
 
@@ -162,6 +169,7 @@ interogare ordonată, iar documentul trebuie să iasă la fel din ambele căi.
 `proba-flota-stare-foii.sql` (D1/D2, fără tabelele noi; pică 8/17 peste 0199) și
 `proba-flota-foaia-zilnica.sql` (curse, numerotare, unicitate, suprapuneri, șabloane,
 `hr`/`super_admin`) și `proba-flota-plafoane.sql` (plafoanele, renumerotarea, foaia
-numerotată și registrul, suprapunerile față de foile declarate, indexul GiST).
+numerotată și registrul, suprapunerile față de foile declarate, indexul GiST, contorul
+dat înapoi, refuzul fără date pentru coleg și pentru altă firmă).
 `izolare.sql`: fixture pentru cele două tabele noi și blocul „foaia zilnică cu curse (0200)”
 din `(l)`. Probele vechi de flotă își țin foile pe zile diferite.
