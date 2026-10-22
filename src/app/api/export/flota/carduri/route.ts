@@ -11,7 +11,7 @@ import { getEnabledFeatures } from "@/lib/auth/features";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { lunaValida } from "@/domain/fleet/rapoarte";
 import { etichetaEmitent } from "@/domain/fleet/carduri/emitenti";
-import { esteActionError } from "@/lib/actions/errors";
+import { ActionDenied } from "@/lib/actions/errors";
 import { vehiculeDupaId } from "@/lib/queries/fleet";
 import { nepotrivirileLunii } from "@/lib/queries/fleet-carduri";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
@@ -86,7 +86,9 @@ export async function GET(request: Request): Promise<Response> {
   try {
     randuri = await nepotrivirileLunii(tenant.organizationId, luna);
   } catch (err: unknown) {
-    if (esteActionError(err) || err instanceof Error) {
+    // DOAR plafonul (`limitExceeded` din citire). O eroare a bazei NU se
+    // deghizează în „prea multe rânduri”: urcă, ca la orice rută.
+    if (err instanceof ActionDenied && err.code === "LIMITA_DEPASITA") {
       return raspunsText(
         "Luna are prea multe tranzacții pentru un singur raport. Contactați administratorul aplicației.",
         413,
