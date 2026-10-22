@@ -13,7 +13,7 @@ tabele: [payroll_entries, payroll_settings]
 permisiuni: [payroll:create]
 feature: payroll
 capcane: []
-scris_pe: b7230e93ed7148835d36c2c155ef77fd0106b632
+scris_pe: 10f409a654a7798765a2a53ee9f9f93f0a6f12b8
 scris_la: 2026-10-22
 tags: [modul, finance]
 ---
@@ -93,12 +93,18 @@ importat doar cu norma săptămânală —, iar acela, cu 15 din 21 de zile, lua
   `listeazaInregistrari`); asistentul de angajare și fișa arată zilele deduse.
 - **Fără confirmare stocată** (decizie, 22 oct 2026): zero contracte 8/20 pe producție
   (21 oct); o bifă ar ascunde doar atenționarea și ar trebui invalidată la orice act
-  care schimbă normele; sursa vie — importul — scrie acum norma zilnică pe cinci zile
-  (`normaZilnicaPeCinciZile`); modelul corect, dacă se vrea, e programul explicit pe
-  zile (și pentru REGES), o decizie de produs, nu o coloană booleană. Prețul: un program
-  real de 2–3 zile poartă atenționarea în fiecare lună.
-- Codul vechi `NORMA_SUB_CINCI_ZILE` rămâne doar pe fluturașii calculați 12–22 oct,
-  ca text fără legătură.
+  care schimbă normele; modelul corect, dacă se vrea, e programul explicit pe zile (și
+  pentru REGES), o decizie de produs, nu o coloană booleană. Prețul: un program real de
+  2–3 zile poartă atenționarea în fiecare lună.
+- **Surse vii de 8/20, amândouă doar îngustate.** Importul scrie acum norma zilnică pe
+  cinci zile (`normaZilnicaPeCinciZile`). Asistentul de angajare îl primește și azi:
+  din 573b2d31 schema cere doar „zi ≤ săptămână” (regula „zi × 5”, 8baf375e, refuza și
+  programele legale de 2–3 zile), iar formularul pornește de la 40/8 — paza e textul cu
+  zilele deduse, sub cele două norme. Normele unui contract existent nu se pot corecta
+  din aplicație: actul adițional schimbă doar salariul.
+- Codul vechi `NORMA_SUB_CINCI_ZILE` rămâne pe fluturașii calculați 12–22 oct, ca text
+  fără legătură; `listeazaInregistrari` îl recunoaște, deci ecranul perioadei îi
+  numește și pe ei.
 
 ## Paritatea cu calculatorul public
 
