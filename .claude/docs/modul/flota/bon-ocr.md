@@ -17,7 +17,7 @@ tabele: [fuel_entries]
 permisiuni: [trip_sheets:update]
 feature: fleet
 capcane: []
-scris_pe: 15edca2d4ab3b5c7aba60de96cfe8a18fbde1914
+scris_pe: 8d3a56f02699c0f2f8f40c79e269a87df68cd056
 scris_la: 2026-10-22
 tags: [modul, operations]
 ---
@@ -60,10 +60,13 @@ decoda (HEIC pe Chrome) urcă originalul, ca înainte.
 ## Ordinea din `citesteBonul`
 
 Cheia → modulul `asistent` → limitele (`ocr-bon:utilizator:*` 20/oră, `ocr-bon:organizatie:*`
-300/zi, `ocr-bon:global` 30/min, ÎNAINTEA apelului extern) → foaia sub RLS, doar ciornă →
+300/zi, `ocr-bon:global` 30/min, ÎNAINTEA apelului extern, **în serie, cu oprire la primul
+refuz**: `rate_limit_hit` numără și refuzurile, deci în paralel un singur om în buclă ar fi
+blocat contorul global pentru toate firmele) → foaia sub RLS, doar ciornă →
 **garda de proprietar** (scope ≠ `all` ⇒ foaia trebuie să fie fișa proprie: managerul vede
 foile echipei și poarta bucketului îi dă poza, deci fără gardă ar trimite la terț bonurile
-subordonaților) → calea în folderul foii → obiectul (≤ 4 MiB) → doar JPEG (`FF D8 FF`),
+subordonaților) → calea în folderul foii → obiectul (≤ 4 MiB, măsurat din nou pe octeții
+descărcați: proprietarul îl poate rescrie între timp) → doar JPEG (`FF D8 FF`),
 apoi `faraMetadateJpeg` (taie APP1, APP13, COM) → modelul → CUI-ul firmei din
 `organizations.cui_normalizat` → avertismentul de bon dublat (aceeași foaie: „salvarea va
 fi refuzată”, prin `fuel_bon_uq`; altă foaie, aceeași stație și zi: dublură posibilă).
@@ -109,7 +112,8 @@ pe bon, AdBlue, mai multe linii de carburant, CIF de cumpărător diferit de al 
 ## Probe
 
 `tests/rls/proba-flota-bon-ocr.sql`: garda pe toate rolurile (employee și manager pe foile
-lor, serviciul o dată, hr și super_admin refuzați la scriere, izolarea). Verificarea `(l)`
+lor, serviciul o dată, hr și super_admin refuzați la scriere, izolarea), inclusiv PATCH-ul
+direct pe un rând necitit (`null` → valoare din sesiune ⇒ P0001). Verificarea `(l)`
 din `tests/rls/izolare.sql`, blocul F12a: org_admin + serviciul. Testele de acțiune rulează
 pe clientul fals, cu viziunea dublată: niciun apel real.
 
