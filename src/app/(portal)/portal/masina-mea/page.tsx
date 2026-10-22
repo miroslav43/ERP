@@ -22,7 +22,9 @@ import {
   vehicululMeu,
   type RandVehicul,
 } from "@/lib/queries/fleet";
+import { declaratiileMele } from "@/lib/queries/flota-amenzi";
 import { fisaMea } from "@/lib/queries/portal";
+import { ETICHETE_STADIU_INCIDENT, ETICHETE_TIP_INCIDENT } from "@/domain/fleet/amenzi";
 import { semaforVehicul, tipuriObligatoriiPentru } from "@/domain/fleet/scadente";
 import { filtreFoiSchema } from "@/schemas/fleet";
 import {
@@ -30,10 +32,16 @@ import {
   ETICHETE_STATUS_FOAIE,
   TONURI_STATUS_FOAIE,
 } from "@/app/(app)/flota/etichete";
+import { TON_STADIU_INCIDENT } from "@/app/(app)/flota/amenzi/etichete";
 import { DialogFoaieNoua } from "@/app/(app)/flota/foi/dialog-foaie-noua";
 import { PermisSofer } from "@/app/(app)/flota/permis-sofer";
 
 import { FaraFisa } from "../fara-fisa";
+import { DialogDeclaratieIncident } from "./dialog-declaratie-incident";
+
+/** Câte declarații de incident se văd pe o pagină a portalului. */
+const DECLARATII_PE_PAGINA = 10;
+const TIPAR_CURSOR = /^[A-Za-z0-9_-]{1,512}$/u;
 
 export const metadata: Metadata = { title: "Mașina mea" };
 
@@ -75,13 +83,27 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
   const deschideCaseta = parametri["foaie"] === "noua";
   const poateCrea = can(permisiuni, "trip_sheets:create", "own");
   const poateVedeaMasina = can(permisiuni, "vehicles:read", "own");
+  // 0206 §F: șoferul își declară dauna. Fără `vehicle_incidents:read`: își vede
+  // doar declarațiile lui (ramura `own` a politicii), nu incidentele firmei, și
+  // nicio amendă.
+  const poateDeclara = can(permisiuni, "vehicle_incidents:create", "own");
+  const deschideDeclaratia = parametri["incident"] === "nou";
+  const cursorBrut = parametri["incidente"];
+  const cursorDeclaratii =
+    typeof cursorBrut === "string" && TIPAR_CURSOR.test(cursorBrut) ? cursorBrut : null;
 
-  const [masini, foi, tipuri] = await Promise.all([
+  const [masini, foi, tipuri, declaratii] = await Promise.all([
     poateVedeaMasina
       ? vehicululMeu(tenant.organizationId, fisaId)
       : Promise.resolve({ alocate: [], pool: [] }),
     foileMele(tenant.organizationId, fisaId, { cursor: pagina.cursor, limita: pagina.limita }),
     poateVedeaMasina ? tipuriDocument(tenant.organizationId) : Promise.resolve([]),
+    poateDeclara
+      ? declaratiileMele(tenant.organizationId, fisaId, {
+          cursor: cursorDeclaratii,
+          limita: DECLARATII_PE_PAGINA,
+        })
+      : Promise.resolve(null),
   ]);
 
   const toateMasinile: readonly RandVehicul[] = [...masini.alocate, ...masini.pool];
@@ -89,10 +111,10 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
   // fi pe o mașină care nu mai e a lui, iar `vehiculeDupaId` trece prin RLS.
   const [scadente, vehiculeFoi] = await Promise.all([
     scadenteCurente(masini.alocate.map((v) => v.id)),
-    vehiculeDupaId(
-      tenant.organizationId,
-      foi.randuri.map((f) => f.vehicle_id),
-    ),
+    vehiculeDupaId(tenant.organizationId, [
+      ...foi.randuri.map((f) => f.vehicle_id),
+      ...(declaratii?.randuri ?? []).map((d) => d.vehicle_id),
+    ]),
   ]);
   const numarVehicul = new Map<string, string>([
     ...[...vehiculeFoi.values()].map((v) => [v.id, v.nr_inmatriculare] as const),
@@ -217,6 +239,72 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
         />
       ) : null}
       {/* ── SFÂRȘIT BLOC: permisul meu ── */}
+
+      {/* ── ÎNCEPUT BLOC: incidentele declarate de mine (0206 §F) ──
+          Declarația merge la responsabilul de flotă; constatarea, asigurătorul
+          și costurile le scrie el, în `/flota/incidente`. */}
+      {declaratii === null ? null : (
+        <section aria-labelledby="titlu-incidente" className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="titlu-incidente" className="text-sectiune font-semibold">
+              Incidentele declarate de mine
+            </h2>
+            {toateMasinile.length > 0 ? (
+              <DialogDeclaratieIncident
+                key={deschideDeclaratia ? "incident-nou" : "lista"}
+                vehicule={toateMasinile.map((v) => ({
+                  id: v.id,
+                  nr_inmatriculare: v.nr_inmatriculare,
+                  pool: v.pool,
+                }))}
+                deschisInitial={deschideDeclaratia}
+              />
+            ) : null}
+          </div>
+          {declaratii.randuri.length === 0 ? (
+            <p className="text-muted-foreground text-corp">
+              {toateMasinile.length > 0
+                ? "Dacă mașina a fost lovită, avariată sau furată, declarați aici: responsabilul de flotă primește declarația."
+                : "Când primiți o mașină sau folosiți una comună, aici puteți declara un incident cu ea."}
+            </p>
+          ) : (
+            <>
+              <ul className="space-y-2">
+                {declaratii.randuri.map((d) => (
+                  <li key={d.id} className="bg-surface border-border rounded-panou border p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-foreground text-corp font-medium">
+                          {ETICHETE_TIP_INCIDENT[d.tip]} · {formatDateTime(new Date(d.produs_la))}
+                        </p>
+                        <p className="text-muted-foreground text-corp mt-0.5">
+                          {numarVehicul.get(d.vehicle_id) ?? "Vehicul indisponibil"}
+                          {d.locul === null ? "" : ` · ${d.locul}`}
+                        </p>
+                        <p className="text-muted-foreground text-nota mt-0.5 line-clamp-2">
+                          {d.descriere}
+                        </p>
+                      </div>
+                      <Badge className="shrink-0" ton={TON_STADIU_INCIDENT[d.stadiu]}>
+                        {ETICHETE_STADIU_INCIDENT[d.stadiu]}
+                      </Badge>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              {declaratii.urmatorulCursor === null ? null : (
+                <Link
+                  href={`/portal/masina-mea?incidente=${encodeURIComponent(declaratii.urmatorulCursor)}`}
+                  className="text-primary text-corp underline-offset-2 hover:underline"
+                >
+                  Declarațiile mai vechi
+                </Link>
+              )}
+            </>
+          )}
+        </section>
+      )}
+      {/* ── SFÂRȘIT BLOC: incidentele declarate de mine ── */}
 
       <section aria-labelledby="titlu-foi" className="space-y-3">
         <h2 id="titlu-foi" className="text-sectiune font-semibold">

@@ -154,7 +154,7 @@ describe("tabelele suplimentare în fișiere", { timeout: 60_000 }, () => {
   });
 
   it("Excel: titlul și rândurile tabelelor, după cel principal", async () => {
-    const zip = await JSZip.loadAsync(await randeazaXlsx(BAZA));
+    const zip = await JSZip.loadAsync(await randeazaXlsx(BAZA, { subsol: "unealta" }));
     const siruri = (await zip.file("xl/sharedStrings.xml")?.async("string")) ?? "";
     for (const t of [
       "Alimentări cu combustibil",

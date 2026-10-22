@@ -35,8 +35,10 @@ interface Proprietati {
   readonly legaturaFisa?: (idFisa: string | null) => string | null;
   readonly actor: ActorSesizare;
   readonly userId: string;
-  /** Angajații pentru atribuire și pentru executantul intervenției (ce lasă RLS). */
+  /** Angajații pentru executantul intervenției (ce lasă RLS). */
   readonly angajati: readonly OptiuneSelect[];
+  /** Selectorul de tehnician: doar cine poate deschide sesizarea (`optiuniTehnicieni`). */
+  readonly tehnicieni: readonly OptiuneSelect[];
   /** Ziua României, ISO. */
   readonly azi: string;
   /** Momentul randării, ISO — pentru durata opririi deschise. */
@@ -61,6 +63,7 @@ export function FisaSesizare({
   actor,
   userId,
   angajati,
+  tehnicieni,
   azi,
   acum,
   legaturaFisa = () => null,
@@ -376,6 +379,7 @@ export function FisaSesizare({
             descriere={sesizare.descriere}
             urgenta={sesizare.urgenta}
             angajati={angajati}
+            tehnicieni={tehnicieni}
             azi={azi}
             oprireDeschisa={oprireDeschisa !== null}
             candidatiDuplicat={date.candidatiDuplicat.map((s) => ({

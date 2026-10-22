@@ -100,11 +100,15 @@ Pe `/flota/foi/[id]`, închiderea și alimentarea apar doar pe foaia proprie câ
 
 ## Portalul: `/portal/masina-mea`
 
-| Rută                            | Poartă                                       |
-| ------------------------------- | -------------------------------------------- |
-| `/portal/masina-mea`            | `trip_sheets:read` own (fleet)               |
-| `/portal/masina-mea?foaie=noua` | caseta, cu `trip_sheets:create`              |
-| `/portal/masina-mea/foi/[id]`   | `trip_sheets:read` own; foaia altcuiva → 404 |
+| Rută                              | Poartă                                                              |
+| --------------------------------- | ------------------------------------------------------------------- |
+| `/portal/masina-mea`              | `trip_sheets:read` own (fleet)                                      |
+| `/portal/masina-mea?foaie=noua`   | caseta, cu `trip_sheets:create`                                     |
+| `/portal/masina-mea/foi/[id]`     | `trip_sheets:read` own; foaia altcuiva → 404                        |
+| `/portal/masina-mea?incident=nou` | declarația de incident, cu `vehicle_incidents:create` own (0206 §F) |
+
+Declarația șoferului (mașina lui sau pool, doar declarațiile proprii, notificarea
+responsabilului): `[[modul/flota/declaratia-soferului]]`.
 
 Intrarea de meniu `portal-masina` (fără slot pe bara de jos). Citirile filtrează EXPLICIT
 pe fișa proprie (`vehicululMeu`, `foileMele` cu keyset peste `listeazaFoi`), ca la tot

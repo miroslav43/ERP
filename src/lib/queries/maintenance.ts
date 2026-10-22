@@ -826,6 +826,25 @@ export async function optiuniAngajati(organizationId: string): Promise<readonly 
   return (data ?? []).map((a) => ({ id: a.id, nume: a.full_name ?? "—" }));
 }
 
+/**
+ * Fișele care pot primi o sesizare: cont activ în firmă și `maintenance:read`
+ * EFECTIV ≠ none (cu suprascrierile pe organizație și pe membru). Vin din
+ * `public.tehnicieni_mentenanta` (0212 §3b), aceeași regulă pe care o aplică
+ * triggerul la atribuire.
+ *
+ * Nu `optiuniAngajati`: acolo intrau și angajații fără acces la modul (un `hr`),
+ * iar sesizarea atribuită lor nu se deschidea (defectul M3). Pentru cine nu
+ * gestionează mentenanța (`update` < team) baza întoarce zero rânduri.
+ */
+export async function optiuniTehnicieni(organizationId: string): Promise<readonly OptiuneSelect[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db.rpc("tehnicieni_mentenanta", {
+    p_organization_id: organizationId,
+  });
+  if (error !== null) throw error;
+  return (data ?? []).map((t) => ({ id: t.id, nume: t.full_name ?? "—" }));
+}
+
 export async function optiuniDepartamente(
   organizationId: string,
 ): Promise<readonly OptiuneSelect[]> {

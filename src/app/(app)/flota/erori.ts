@@ -499,7 +499,10 @@ export function traduEroareAmenzi(error: unknown): never {
         throw invalidInput(mesaj, Object.fromEntries(campuri.map((c) => [c, [mesaj]])));
       }
       // Refuzurile de stadiu („nu poate trece din…”, „este închisă…”) nu țin de
-      // un câmp: rămân mesaj general, cu cifrele din bază.
+      // un câmp: rămân mesaj general, cu cifrele din bază. La fel cele două ale
+      // declarației din portal (0206 §F): „Declarantul unui incident…” și
+      // „Contul dumneavoastră nu e legat de o fișă…”. Vehiculul nealocat în ziua
+      // incidentului începe cu „Vehiculul ales” și ajunge pe `vehicle_id`.
       throw businessRule(mesaj);
     }
   }

@@ -134,6 +134,8 @@ describe("GET /api/export/flota", () => {
     expect(texte).toContain("Firma Test SRL");
     expect(texte).toContain("FP-2026-0001");
     expect(texte).toContain("Popescu Ion");
+    // Export al aplicației plătite: fără subsolul uneltelor publice.
+    expect(texte).not.toContain("Generat gratuit");
   });
 
   it("pe un vehicul: numele fișierului și subtitlul îl poartă, iar un vehicul care nu se vede e 404", async () => {

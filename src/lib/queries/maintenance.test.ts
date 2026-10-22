@@ -32,6 +32,7 @@ import {
   echipamenteCuProbleme,
   optiuniAngajati,
   optiuniDepartamente,
+  optiuniTehnicieni,
   echipamenteDupaId,
   interventii,
   listeazaAutorizatiiIscir,
@@ -227,6 +228,34 @@ describe("citiri punctuale și hărți după id", () => {
       expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
       expect(apel?.filtre).toContainEqual({ metoda: "limit", argumente: [500] });
     }
+  });
+
+  // M3: selectorul de tehnician oferea orice fișă (și pe hr, fără
+  // `maintenance:read`). Lista vine acum din bază, cu drepturile EFECTIVE ale
+  // fiecărui membru (`public.tehnicieni_mentenanta`, 0212 §3b), nu din `employees`.
+  it("optiuniTehnicieni: din RPC-ul cu drepturile efective, nu din toate fișele", async () => {
+    const { server } = configureazaActiunea();
+    server.raspundeRpc("tehnicieni_mentenanta", {
+      data: [
+        { id: ID_1, full_name: "Popa Ion" },
+        { id: ID_2, full_name: null },
+      ],
+    });
+    expect(await optiuniTehnicieni(ORG_ID)).toEqual([
+      { id: ID_1, nume: "Popa Ion" },
+      { id: ID_2, nume: "—" },
+    ]);
+    expect(server.apeluriRpc).toContainEqual({
+      nume: "tehnicieni_mentenanta",
+      argumente: { p_organization_id: ORG_ID },
+    });
+    expect(server.apeluriPe("employees")).toEqual([]);
+  });
+
+  it("optiuniTehnicieni: eroarea bazei se aruncă, nu devine listă goală", async () => {
+    const { server } = configureazaActiunea();
+    server.raspundeRpc("tehnicieni_mentenanta", { error: eroarePostgrest("42883") });
+    await expect(optiuniTehnicieni(ORG_ID)).rejects.toMatchObject({ code: "42883" });
   });
 });
 

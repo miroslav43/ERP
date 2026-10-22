@@ -153,6 +153,21 @@ export const incidentNouSchema = z.object({
 });
 export type IncidentNou = z.output<typeof incidentNouSchema>;
 
+/**
+ * Declarația șoferului din portal („Mașina mea”, 0206 §F). Doar ce știe el:
+ * vehiculul, tipul, momentul, locul și ce s-a întâmplat. Șoferul și declarantul
+ * nu se trimit (îi pune baza), iar costurile, asigurătorul și dosarul le
+ * completează responsabilul de flotă (politica le refuză declarantului).
+ */
+export const declaratieIncidentSchema = z.object({
+  vehicle_id: z.uuid("Alegeți vehiculul."),
+  tip: detaliiIncident.tip,
+  produs_la: detaliiIncident.produs_la,
+  locul: detaliiIncident.locul,
+  descriere: detaliiIncident.descriere,
+});
+export type DeclaratieIncident = z.output<typeof declaratieIncidentSchema>;
+
 /** Detaliile editabile ale unui incident deschis; stadiul are acțiunea lui. */
 export const actualizeazaIncidentSchema = z.object({
   id: z.uuid("Incidentul nu este valid."),

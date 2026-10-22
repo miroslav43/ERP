@@ -35,6 +35,7 @@ import {
   actualizeazaAmendaSchema,
   actualizeazaIncidentSchema,
   amendaNouaSchema,
+  declaratieIncidentSchema,
   desemneazaSoferSchema,
   incidentNouSchema,
   retrageDesemnareaSchema,
@@ -405,6 +406,68 @@ export const raporteazaIncident = createAction({
         sofer_id: input.sofer_id,
         cost_estimat: input.cost_estimat,
         observatii: input.observatii,
+        created_by: ctx.user.id,
+        updated_by: ctx.user.id,
+      })
+      .select("id")
+      .single();
+    if (error !== null) traduEroareAmenzi(error);
+    return { id: data.id };
+  },
+});
+
+/**
+ * Declarația șoferului din portal („Mașina mea”, 0206 §F).
+ *
+ * Poarta e `vehicle_incidents:create = own` (seed-ul lui `employee`). Restul îl
+ * judecă baza: triggerul pune declarantul și șoferul (fișa principală,
+ * `app.fisa_mea`) și refuză cu P0001 vehiculul care nu-i era alocat în ziua
+ * incidentului (și nu e pool); politica refuză costurile și asigurătorul.
+ * Acțiunea trimite oricum fișa proprie: un administrator-șofer (`create = all`)
+ * care declară din portal rămâne declarant, deci responsabilul e notificat.
+ *
+ * Fișa e citită prin clientul utilizatorului (`employees:read = own`, din 0023):
+ * cea PRINCIPALĂ, singura pe care o recunoaște ramura `own` a politicii.
+ */
+export const declaraIncident = createAction({
+  name: "fleet.incident.declare",
+  feature: "fleet",
+  permission: "vehicle_incidents:create",
+  minScope: "own",
+  input: declaratieIncidentSchema,
+  audit: {
+    action: "create",
+    entityType: "vehicle_incident",
+    entityId: (_input, data: Readonly<{ id: string }>) => data.id,
+    allow: ["vehicle_id", "tip", "produs_la", "locul"],
+  },
+  revalidate: ["/portal/masina-mea", "/flota/incidente"],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const fisa = await ctx.supabase
+      .from("employees")
+      .select("id")
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("user_id", ctx.user.id)
+      .eq("is_primary", true)
+      .is("deleted_at", null)
+      .maybeSingle<{ readonly id: string }>();
+    if (fisa.error !== null) traduEroareAmenzi(fisa.error);
+    if (fisa.data === null) {
+      throw businessRule(
+        "Contul dumneavoastră nu e legat de o fișă de angajat, deci nu puteți declara un incident. Anunțați responsabilul de flotă.",
+      );
+    }
+    const { data, error } = await ctx.supabase
+      .from("vehicle_incidents")
+      .insert({
+        organization_id: ctx.tenant.organizationId,
+        vehicle_id: input.vehicle_id,
+        tip: input.tip,
+        produs_la: input.produs_la,
+        locul: input.locul,
+        descriere: input.descriere,
+        declarat_de_employee_id: fisa.data.id,
+        sofer_id: fisa.data.id,
         created_by: ctx.user.id,
         updated_by: ctx.user.id,
       })

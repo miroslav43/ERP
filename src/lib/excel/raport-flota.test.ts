@@ -12,10 +12,21 @@ import {
   type FoaieRaport,
   type RaportLunar,
 } from "@/domain/fleet/rapoarte";
-import { curataDocument } from "@/lib/unelte/document-tabelar";
-import { randeazaXlsx } from "@/lib/unelte/xlsx";
+import ExcelJS from "exceljs";
 
-import { documentRaportFlota } from "./raport-flota";
+import { SEMNATURA_FISIER } from "@/lib/unelte/document-tabelar";
+import {
+  formatCuUnitate,
+  FORMAT_LEI,
+  FORMAT_NUMAR_INTREG,
+  FORMAT_PROCENT_CU_SEMN,
+  numar,
+} from "@/lib/unelte/xlsx";
+
+import { documentRaportFlota, xlsxRaportFlota } from "./raport-flota";
+
+const int = (v: number) => numar(v, FORMAT_NUMAR_INTREG);
+const lei = (v: number) => numar(v, FORMAT_LEI);
 
 const V1 = "11111111-1111-4111-8111-111111111111";
 const S1 = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -84,7 +95,7 @@ describe("documentRaportFlota", () => {
     expect(d.orientare).toBe("peisaj");
   });
 
-  it("primul tabel e costul pe vehicul, cu rând de total și lei/km în format românesc", () => {
+  it("primul tabel e costul pe vehicul, cu rând de total, iar cifrele sunt NUMERE", () => {
     const d = intrare(raport([foaie("f1")]));
     expect(d.coloane.map((c) => c.eticheta)).toEqual([
       "Vehicul",
@@ -98,28 +109,18 @@ describe("documentRaportFlota", () => {
       "Lei/km",
     ]);
     // 750 service + 252,50 combustibil = 1.002,50 lei la 400 km → 2,51 lei/km
-    expect(d.randuri[0]).toEqual([
-      "B100ABC",
-      "1",
-      "750,00",
-      "0,00",
-      "0,00",
-      "252,50",
-      "1.002,50",
-      "400",
-      "2,51",
-    ]);
-    expect(d.randuri.at(-1)).toEqual([
-      "Total flotă",
-      "1",
-      "750,00",
-      "0,00",
-      "0,00",
-      "252,50",
-      "1.002,50",
-      "400",
-      "2,51",
-    ]);
+    const asteptat = [
+      int(1),
+      lei(750),
+      lei(0),
+      lei(0),
+      lei(252.5),
+      lei(1002.5),
+      int(400),
+      lei(2.51),
+    ];
+    expect(d.randuri[0]).toEqual(["B100ABC", ...asteptat]);
+    expect(d.randuri.at(-1)).toEqual(["Total flotă", ...asteptat]);
   });
 
   it("consumul real față de normă, cu unitatea pe rând și abaterea cu semn", () => {
@@ -138,27 +139,29 @@ describe("documentRaportFlota", () => {
     // 36 l la 400 km = 9,00 l/100 km față de norma 7,00 → +28,6%
     expect(consum?.randuri[0]).toEqual([
       "B100ABC",
-      "1",
-      "400",
-      "36,00 l",
-      "9,00 l/100",
-      "7,00 l/100",
-      "+28,6%",
-      "0",
+      int(1),
+      int(400),
+      numar(36, formatCuUnitate("l")),
+      numar(9, formatCuUnitate("l/100")),
+      numar(7, formatCuUnitate("l/100")),
+      // Fracția, nu procentul: formatul Excel înmulțește cu 100 (+28,6%).
+      numar(0.286, FORMAT_PROCENT_CU_SEMN),
+      int(0),
     ]);
   });
 
   it("fără normă pe foaie, norma și abaterea sunt „—”, nu zero", () => {
     const d = intrare(raport([foaie("f1", { norma_l_100km: null })]));
     const consum = d.tabeleSuplimentare?.find((t) => t.titlu.startsWith("Consum"));
-    expect(consum?.randuri[0]?.slice(5)).toEqual(["—", "—", "1"]);
+    // „—” rămâne text: SUM îl sare, nu-l ia drept zero.
+    expect(consum?.randuri[0]?.slice(5)).toEqual(["—", "—", int(1)]);
   });
 
   it("vehiculul electric se arată în kWh", () => {
     const d = intrare(raport([foaie("f1", { vehicul_combustibil: "electric" })]));
     const consum = d.tabeleSuplimentare?.find((t) => t.titlu.startsWith("Consum"));
-    expect(consum?.randuri[0]?.[3]).toBe("36,00 kWh");
-    expect(consum?.randuri[0]?.[4]).toBe("9,00 kWh/100");
+    expect(consum?.randuri[0]?.[3]).toEqual(numar(36, formatCuUnitate("kWh")));
+    expect(consum?.randuri[0]?.[4]).toEqual(numar(9, formatCuUnitate("kWh/100")));
   });
 
   it("kilometrii pe șofer și registrul foilor, cu data românească și „—” la foaia fără număr", () => {
@@ -173,7 +176,7 @@ describe("documentRaportFlota", () => {
       "Vehicule",
       "Km",
     ]);
-    expect(soferi?.randuri[0]).toEqual(["Popescu Ion", "2", "2", "1", "400"]);
+    expect(soferi?.randuri[0]).toEqual(["Popescu Ion", int(2), int(2), int(1), int(400)]);
 
     const registru = d.tabeleSuplimentare?.find((t) => t.titlu.startsWith("Foile"));
     expect(registru?.coloane.map((c) => c.eticheta)).toEqual([
@@ -192,7 +195,7 @@ describe("documentRaportFlota", () => {
       "02.09.2026",
       "B100ABC",
       "Popescu Ion",
-      "400",
+      int(400),
     ]);
     expect(registru?.randuri[1]?.[0]).toBe("—");
   });
@@ -212,24 +215,57 @@ describe("documentRaportFlota", () => {
 
   it("o lună fără foi: documentul există, cu rânduri goale, fără cifre inventate", () => {
     const d = intrare(raport([]));
-    expect(d.randuri.at(-1)?.slice(-2)).toEqual(["0", "—"]);
+    expect(d.randuri.at(-1)?.slice(-2)).toEqual([int(0), "—"]);
     const registru = d.tabeleSuplimentare?.find((t) => t.titlu.startsWith("Foile"));
     expect(registru?.randuri).toEqual([]);
   });
 
-  it("notele spun ce intră în cifre și că sumele sunt text formatat", () => {
+  it("notele spun ce intră în cifre și că valorile se adună", () => {
     const note = intrare(raport([foaie("f1")])).note.join("\n");
     expect(note).toContain("foile APROBATE");
-    expect(note).toContain("text");
+    expect(note).toContain("se adună");
+    expect(note).not.toContain("nu se adună");
   });
 
   it("se randează în Excel: fișier valid, cu luna și vehiculul în conținut", async () => {
-    const d = curataDocument(intrare(raport([foaie("f1")])));
-    const octeti = await randeazaXlsx(d);
+    const octeti = await xlsxRaportFlota(intrare(raport([foaie("f1")])));
     const zip = await JSZip.loadAsync(octeti);
     const texte = await zip.file("xl/sharedStrings.xml")?.async("string");
     expect(texte).toContain("Raport flotă — septembrie 2026");
     expect(texte).toContain("B100ABC");
     expect(texte).toContain("FP-2026-0001");
+  });
+
+  it("export al aplicației: fără „Generat gratuit cu administrativo.ro”", async () => {
+    const octeti = await xlsxRaportFlota(intrare(raport([foaie("f1")])));
+    const zip = await JSZip.loadAsync(octeti);
+    const texte = (await zip.file("xl/sharedStrings.xml")?.async("string")) ?? "";
+    expect(texte).not.toContain(SEMNATURA_FISIER);
+    expect(texte).not.toContain("administrativo.ro");
+  });
+
+  it("în Excel, coloanele de sume sunt numere care se adună (contabilul face SUM)", async () => {
+    const octeti = await xlsxRaportFlota(
+      intrare(
+        raport([
+          foaie("f1"),
+          foaie("f2", { data: "2026-09-03", alimentari: [{ litri: 10, cost: 70.25 }] }),
+        ]),
+      ),
+    );
+    const registru = new ExcelJS.Workbook();
+    await registru.xlsx.load(new Uint8Array(octeti).buffer);
+    const fila = registru.worksheets[0];
+    // Rândurile registrului de foi: col. 1 = numărul foii, col. 7 = costul combustibilului.
+    const costuri: unknown[] = [];
+    fila?.eachRow((r) => {
+      if (r.getCell(1).value === "FP-2026-0001") costuri.push(r.getCell(7).value);
+    });
+    expect(costuri).toEqual([252.5, 70.25]);
+    expect(costuri.every((c) => typeof c === "number")).toBe(true);
+    const vehicul = fila?.getRows(1, fila.rowCount)?.find((r) => r.getCell(1).value === "B100ABC");
+    // Combustibilul foilor, pe vehicul = suma celor două foi; formatul e lei.
+    expect(vehicul?.getCell(6).value).toBe(322.75);
+    expect(vehicul?.getCell(6).numFmt).toBe(FORMAT_LEI);
   });
 });

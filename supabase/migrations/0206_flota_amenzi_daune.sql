@@ -48,6 +48,17 @@
 --    pusese în 0173, dar migrarea aceea n-a creat-o (verificat cu grep), deci
 --    se naște aici. `public.sofer_sugerat` e învelișul apelabil prin `.rpc()`,
 --    fiindcă PostgREST nu expune schema `app`.
+-- F. (decizia din 21 oct 2026) ȘOFERUL își declară dauna din portal („Mașina
+--    mea”): cheia `vehicle_incidents:create = own` pentru `employee`, coloana
+--    `declarat_de_employee_id`, ramura `own` a politicilor (inserează DOAR pe
+--    vehiculul alocat lui în ziua incidentului sau pe pool, și vede DOAR ce a
+--    declarat el) și notificarea responsabilului de flotă (§6b). Amenzile îi
+--    rămân închise: nicio cheie `vehicle_fines` în afara administratorilor.
+-- G. (decizia din 21 oct 2026) Termenul de răspuns al amenzii intră în
+--    rezumatul zilnic al flotei: `internal.flota_rezumat` rescrisă de la forma
+--    ultimă (0203 §11) cu `vehicle_fine` în lista albă (§12). Destinatarii
+--    amenzii sunt DOAR responsabilii de flotă (sau administratorii) care citesc
+--    amenzile la `all`, niciodată șoferul.
 --
 -- ── CE NU FACE ──────────────────────────────────────────────────────────────
 --  · NU recuperează nimic de la șofer. Reținerea din salariu cere o datorie
@@ -57,11 +68,8 @@
 --    254 (recuperare prin acordul părților, cu notă de constatare și
 --    evaluare, cel mult 5 salarii minime brute, alin. (3)–(4)): nu e
 --    automată, iar pagina o spune.
---  · NU trimite notificări push pentru termen. Rezumatul zilnic al flotei
---    (0201) rămâne pe `vehicle_document`; termenul se vede în lista amenzilor
---    și în `expirables`.
---  · NU atinge `internal.foi_parcurs_inainte`, `internal.flota_rezumat`,
---    `app.can_path`, triggerele alocărilor.
+--  · NU atinge `internal.foi_parcurs_inainte`, `app.can_path`, triggerele
+--    alocărilor.
 --
 -- Aplicare: psql byte-exact, după bancul local; producția cere confirmare.
 
@@ -85,7 +93,10 @@ insert into public.role_permissions (organization_id, role, resource, action, sc
   (null, 'super_admin', 'vehicle_incidents', 'update', 'all'),
   (null, 'org_admin',   'vehicle_incidents', 'read',   'all'),
   (null, 'org_admin',   'vehicle_incidents', 'create', 'all'),
-  (null, 'org_admin',   'vehicle_incidents', 'update', 'all')
+  (null, 'org_admin',   'vehicle_incidents', 'update', 'all'),
+  -- §F: șoferul își declară dauna pe mașina LUI. Fără `read`: își vede
+  -- declarațiile prin ramura `own` a politicii de SELECT, nu lista firmei.
+  (null, 'employee',    'vehicle_incidents', 'create', 'own')
 on conflict (organization_id, member_id, role, resource, action)
   where deleted_at is null do nothing;
 
@@ -229,6 +240,10 @@ create table public.vehicle_incidents (
   -- Șoferul de la momentul incidentului (sugerat de app.sofer_la). Nu înseamnă
   -- vinovăție: vinovăția și recuperarea sunt decizii omenești, în afara bazei.
   sofer_id            uuid,
+  -- §F: fișa șoferului care a DECLARAT incidentul din portal; nul pentru cele
+  -- înregistrate de administrator. O pune triggerul (`app.fisa_mea`), nu clientul,
+  -- și nu se mai schimbă. După ea șoferul își vede declarațiile.
+  declarat_de_employee_id uuid,
   stadiu              public.incident_stadiu not null default 'raportat',
   cost_estimat        numeric(12,2),
   cost_final          numeric(12,2),
@@ -245,6 +260,8 @@ create table public.vehicle_incidents (
   updated_by          uuid references auth.users (id) on delete set null,
   deleted_at          timestamptz,
   constraint vi_sofer_fk foreign key (sofer_id, organization_id)
+    references public.employees (id, organization_id) on delete restrict,
+  constraint vi_declarant_fk foreign key (declarat_de_employee_id, organization_id)
     references public.employees (id, organization_id) on delete restrict,
   constraint vi_descriere_ck check (length(descriere) between 3 and 2000),
   constraint vi_locul_ck check (locul is null or length(locul) <= 200),
@@ -278,6 +295,11 @@ create index vi_sofer_idx
 create index vi_cercetare_idx
   on public.vehicle_incidents (work_accident_id)
   where work_accident_id is not null and deleted_at is null;
+
+-- §F: „declarațiile mele” din portal, și ramura `own` a politicii de SELECT.
+create index vi_declarant_idx
+  on public.vehicle_incidents (organization_id, declarat_de_employee_id, produs_la desc)
+  where declarat_de_employee_id is not null and deleted_at is null;
 
 comment on table public.vehicle_incidents is
   'Incidentele și daunele vehiculelor (0206), cu stadii și legătură opțională spre cercetarea SSM (work_accidents). Un incident închis e înghețat. Recuperarea de la șofer NU e automată (Codul muncii art. 169 și 254).';
@@ -495,6 +517,50 @@ create trigger amenzi_scadenta
 -- ============================================================
 -- 6. Triggerul incidentului
 -- ============================================================
+-- §F: vehiculul e „al meu” în ziua `p_moment` (ora României) dacă e din pool
+-- sau dacă fișa principală a apelantului avea o alocare care atinge ziua —
+-- aceeași regulă ca foaia de parcurs (0199 §C1, 0200). Folosită de triggerul
+-- incidentului (pentru mesaj) și de politica de INSERT (pentru refuz).
+-- SECURITY DEFINER: alocările și vehiculul se judecă fără RLS-ul apelantului.
+create or replace function app.vehicul_al_meu_la(
+  p_organization_id uuid,
+  p_vehicle_id uuid,
+  p_moment timestamptz
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  with zi as (
+    select (p_moment at time zone 'Europe/Bucharest')::date as d
+  )
+  select p_organization_id is not null and p_vehicle_id is not null and p_moment is not null
+     and exists (
+       select 1 from public.vehicles v
+        where v.id = p_vehicle_id
+          and v.organization_id = p_organization_id
+          and v.deleted_at is null
+          and (
+            v.pool
+            or exists (
+              select 1
+                from public.vehicle_assignments a, zi
+               where a.vehicle_id = v.id
+                 and a.organization_id = p_organization_id
+                 and a.employee_id = app.fisa_mea(p_organization_id)
+                 and a.deleted_at is null
+                 and a.de_la < ((zi.d + 1)::timestamp at time zone 'Europe/Bucharest')
+                 and coalesce(a.pana_la, 'infinity'::timestamptz) > (zi.d::timestamp at time zone 'Europe/Bucharest')
+            )
+          )
+     );
+$$;
+
+comment on function app.vehicul_al_meu_la(uuid, uuid, timestamptz) is
+  'Vehiculul e din pool sau era alocat fișei principale a apelantului în ziua momentului dat, ora României (0206 §F). Garda declarației de incident din portal.';
+
 create or replace function internal.incidente_inainte()
 returns trigger
 language plpgsql
@@ -504,9 +570,13 @@ as $$
 declare
   v_veh_org uuid;
   v_veh_del timestamptz;
+  v_scope   public.permission_scope;
+  v_fisa    uuid;
   v_serviciu boolean := app.is_service_context();
 begin
   if tg_op = 'UPDATE' and not v_serviciu then
+    -- §F: declarantul e un fapt, nu un câmp de corectat.
+    new.declarat_de_employee_id := old.declarat_de_employee_id;
     if old.deleted_at is not null then
       raise exception using errcode = 'P0001',
         message = 'Incidentul a fost șters și nu se mai modifică.';
@@ -546,6 +616,34 @@ begin
     if v_veh_org is null or v_veh_org <> new.organization_id or v_veh_del is not null then
       raise exception using errcode = 'P0001',
         message = 'Vehiculul ales nu aparține organizației dumneavoastră.';
+    end if;
+
+    -- §F: declarația șoferului. Cine nu înregistrează incidente pe orice
+    -- vehicul (`create` ≠ all) declară doar în numele lui, ca șofer, pe mașina
+    -- alocată lui în ziua incidentului (ora României) sau pe una din pool —
+    -- aceeași regulă ca foaia de parcurs (0199 §C1). Declarantul și șoferul îi
+    -- pune baza; politica de INSERT verifică apoi aceleași coloane.
+    if not v_serviciu then
+      v_scope := app.has_permission(new.organization_id, 'vehicle_incidents', 'create');
+      v_fisa := app.fisa_mea(new.organization_id);
+      if v_scope = 'all' then
+        if new.declarat_de_employee_id is not null
+           and new.declarat_de_employee_id is distinct from v_fisa then
+          raise exception using errcode = 'P0001',
+            message = 'Declarantul unui incident e întotdeauna cel care îl declară.';
+        end if;
+      elsif v_scope in ('own', 'team') then
+        if v_fisa is null then
+          raise exception using errcode = 'P0001',
+            message = 'Contul dumneavoastră nu e legat de o fișă de angajat, deci nu puteți declara un incident.';
+        end if;
+        new.declarat_de_employee_id := v_fisa;
+        new.sofer_id := v_fisa;
+        if not app.vehicul_al_meu_la(new.organization_id, new.vehicle_id, new.produs_la) then
+          raise exception using errcode = 'P0001',
+            message = 'Vehiculul ales nu vă era alocat în ziua incidentului și nu este o mașină comună (pool). Declarați incidentul pe mașina primită în folosință.';
+        end if;
+      end if;
     end if;
   end if;
 
@@ -604,6 +702,82 @@ $$;
 create trigger incidente_inainte
   before insert or update on public.vehicle_incidents
   for each row execute function internal.incidente_inainte();
+
+-- ============================================================
+-- 6b. Destinatarii unei chei a flotei și declarația șoferului (§F, §G)
+-- ============================================================
+-- Cine primește ce ține de o cheie care se citește doar la `all` (amenzile,
+-- incidentele): responsabilii de flotă (`internal.flota_responsabili`, 0201)
+-- care o citesc efectiv, cu precedența membru > organizație > global
+-- (`internal.scope_membru`, 0189); dacă niciunul, administratorii activi care o
+-- citesc. Șoferul NU e destinatar: ar primi o legătură spre un ecran închis.
+create or replace function internal.flota_destinatari_cheie(p_org uuid, p_resursa text)
+returns table (user_id uuid)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  with responsabili as (
+    select r.user_id
+      from internal.flota_responsabili(p_org) r
+     where internal.scope_membru(p_org, r.user_id, p_resursa, 'read') = 'all'
+  )
+  select x.user_id from responsabili x
+  union
+  select m.user_id
+    from public.organization_members m
+   where m.organization_id = p_org
+     and m.role = 'org_admin'
+     and m.status = 'active'
+     and m.deleted_at is null
+     and internal.scope_membru(p_org, m.user_id, p_resursa, 'read') = 'all'
+     and not exists (select 1 from responsabili);
+$$;
+
+comment on function internal.flota_destinatari_cheie(uuid, text) is
+  'Destinatarii unei chei de flotă citite la all (vehicle_fines, vehicle_incidents): responsabilii de flotă care o citesc efectiv, altfel administratorii activi care o citesc (0206). Niciodată șoferul.';
+
+-- Declarația din portal ajunge la responsabil: o notificare per destinatar,
+-- cu legătura spre fișa incidentului. Cine declară nu-și scrie notificare.
+-- Incidentul înregistrat de administrator (fără declarant) nu notifică nimic.
+create or replace function internal.incidente_notifica()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_nr   text;
+  v_nume text;
+begin
+  if new.declarat_de_employee_id is null or new.deleted_at is not null then
+    return null;
+  end if;
+  select v.nr_inmatriculare into v_nr from public.vehicles v where v.id = new.vehicle_id;
+  select coalesce(nullif(btrim(e.full_name), ''), e.marca) into v_nume
+    from public.employees e where e.id = new.declarat_de_employee_id;
+
+  insert into public.notifications (user_id, organization_id, kind, title, body, link, entity_type, entity_id)
+  select d.user_id,
+         new.organization_id,
+         'warning'::public.notification_kind,
+         left('Flota: incident declarat pe ' || coalesce(v_nr, 'un vehicul')
+              || ' de ' || coalesce(v_nume, 'un șofer') || '.', 200),
+         left(to_char(new.produs_la at time zone 'Europe/Bucharest', 'DD.MM.YYYY HH24:MI')
+              || coalesce(' · ' || new.locul, '') || E'\n' || new.descriere, 4000),
+         '/flota/incidente/' || new.id::text,
+         'vehicle_incident',
+         new.id
+    from internal.flota_destinatari_cheie(new.organization_id, 'vehicle_incidents') d
+   where d.user_id is distinct from auth.uid();
+  return null;
+end;
+$$;
+
+create trigger incidente_notifica
+  after insert on public.vehicle_incidents
+  for each row execute function internal.incidente_notifica();
 
 -- ============================================================
 -- 7. Termenul amenzii în lista de conformitate
@@ -777,25 +951,54 @@ with check (
 alter table public.vehicle_incidents enable row level security;
 alter table public.vehicle_incidents force row level security;
 
+-- §F: ramura `own` a citirii — șoferul își vede DOAR declarațiile lui (cât are
+-- încă cheia de declarare), nu incidentele colegilor și nici pe cele
+-- înregistrate de administrator pe mașina lui.
 create policy vehicle_incidents_select on public.vehicle_incidents
 for select to authenticated
 using (
   (select app.is_platform_admin()) or (
     organization_id = any ((select app.current_org_ids())::uuid[])
     and app.feature_on(organization_id, 'fleet')
-    and app.has_permission(organization_id, 'vehicle_incidents', 'read') = 'all'
+    and (
+      app.has_permission(organization_id, 'vehicle_incidents', 'read') = 'all'
+      or (
+        declarat_de_employee_id is not null
+        and declarat_de_employee_id = app.fisa_mea(organization_id)
+        and app.has_permission(organization_id, 'vehicle_incidents', 'create') <> 'none'
+      )
+    )
   )
 );
 
+-- §F: ramura `own` a scrierii. `declarat_de_employee_id` și `sofer_id` le pune
+-- triggerul (WITH CHECK vede rândul de DUPĂ el); garda de vehicul (alocat în
+-- ziua incidentului sau pool) e tot în trigger, cu mesaj. Declarantul nu scrie
+-- costuri, asigurător, dosar sau cercetare: le completează responsabilul.
 create policy vehicle_incidents_insert on public.vehicle_incidents
 for insert to authenticated
 with check (
   organization_id = any ((select app.current_org_ids())::uuid[])
   and app.feature_on(organization_id, 'fleet')
-  and app.has_permission(organization_id, 'vehicle_incidents', 'create') = 'all'
   and stadiu = 'raportat'
   and inchis_la is null
   and deleted_at is null
+  and (
+    app.has_permission(organization_id, 'vehicle_incidents', 'create') = 'all'
+    or (
+      app.has_permission(organization_id, 'vehicle_incidents', 'create') in ('own', 'team')
+      and declarat_de_employee_id is not null
+      and declarat_de_employee_id = app.fisa_mea(organization_id)
+      and sofer_id = declarat_de_employee_id
+      and app.vehicul_al_meu_la(organization_id, vehicle_id, produs_la)
+      and cost_estimat is null
+      and cost_final is null
+      and despagubire is null
+      and asigurator is null
+      and dosar_numar is null
+      and work_accident_id is null
+    )
+  )
 );
 
 create policy vehicle_incidents_update on public.vehicle_incidents
@@ -811,6 +1014,259 @@ with check (
   and app.feature_on(organization_id, 'fleet')
   and app.has_permission(organization_id, 'vehicle_incidents', 'update') = 'all'
 );
+
+-- ============================================================
+-- 9b. Termenul amenzii în rezumatul zilnic al flotei (§G)
+-- ============================================================
+-- Rescriere de la FORMA ULTIMĂ (0203 §11; grep: nicio altă migrare n-o mai
+-- rescrie). Ce se schimbă, și doar atât:
+--  · lista albă primește `vehicle_fine`; rândul din `expirables` poartă id-ul
+--    AMENZII (`internal.amenzi_scadenta`), deci vehiculul vine prin amendă;
+--  · destinatarii unei amenzi sunt `internal.flota_destinatari_cheie(org,
+--    'vehicle_fines')`: responsabilii care citesc amenzile la `all`, altfel
+--    administratorii. Șoferul alocat NU primește amenda (n-are cheia), iar
+--    `flota_vede_vehicul` nu se aplică: cine citește amenzile le vede pe toate;
+--  · titlul numără și termenele de răspuns; legătura duce la amendă (una) sau
+--    la lista „De răspuns” (mai multe), când rezumatul are doar amenzi.
+-- Fără amenzi, textul, legătura și destinatarii sunt cei din 0203. Dedup-ul
+-- rămâne `alert_notifications` pe `canal = 'in_app'`: a doua rulare din aceeași
+-- zi nu scrie nimic.
+create or replace function internal.flota_rezumat(p_org uuid)
+returns integer
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_azi date := app.azi_local();
+  v_n   integer := 0;
+begin
+  if p_org is null then
+    return 0;
+  end if;
+
+  with
+  gestionari as (
+    select r.user_id from internal.flota_responsabili(p_org) r
+  ),
+  -- Doar alertele scadenței CURENTE, în starea potrivită zilei: fără
+  -- `curata_alerte`, un prag `nou` rămâne așa și după scadență, iar alertele
+  -- unei scadențe vechi (documentul reînnoit) rămân și ele.
+  elemente as (
+    select a.id            as alert_id,
+           x.id            as expirable_id,
+           v.id            as vehicle_id,
+           v.employee_id   as sofer_id,
+           v.pool          as pool,
+           (a.status = 'expirat') as depasita,
+           (x.entity_type = 'vehicle_service') as e_service,
+           (x.entity_type = 'vehicle_fine')    as e_amenda,
+           f.id            as amenda_id,
+           x.expires_at,
+           x.label || ': ' ||
+             case when a.status = 'expirat'
+                  then case x.entity_type
+                         when 'vehicle_service' then 'scadent din '
+                         when 'vehicle_fine'    then 'termenul de răspuns a trecut pe '
+                         else 'expirat din ' end
+                       || to_char(x.expires_at, 'DD.MM.YYYY')
+                  else case x.entity_type
+                         when 'vehicle_service' then 'scadent pe '
+                         when 'vehicle_fine'    then 'termen de răspuns pe '
+                         else 'expiră pe ' end
+                       || to_char(x.expires_at, 'DD.MM.YYYY') end as eticheta
+      from public.compliance_alerts a
+      join public.expirables x on x.id = a.expirable_id
+      left join public.vehicle_fines f
+        on x.entity_type = 'vehicle_fine'
+       and f.id = x.entity_id
+       and f.organization_id = p_org
+       and f.deleted_at is null
+      join public.vehicles v
+        on v.id = case when x.entity_type = 'vehicle_fine' then f.vehicle_id else x.entity_id end
+       and v.organization_id = p_org
+       and v.deleted_at is null
+     where a.organization_id = p_org
+       and a.deleted_at is null
+       and a.status in ('nou', 'expirat')
+       and x.organization_id = p_org
+       and x.deleted_at is null
+       and x.is_active
+       -- LISTA ALBĂ a flotei (0203: și scadențele de service pe dată; 0206: și
+       -- termenul de răspuns al amenzii). SSM și HR se adaugă aici, cu legătura lor.
+       and x.entity_type in ('vehicle_document', 'vehicle_service', 'vehicle_fine')
+       and a.due_date = x.expires_at
+       and case when a.status = 'expirat' then x.expires_at < v_azi
+                else x.expires_at >= v_azi end
+  ),
+  -- Fiecare responsabil primește DOAR vehiculele pe care le vede: unul cu
+  -- `team` sau `own` (un manager, un angajat bifat de administrator) nu află
+  -- din rezumat documentele și numerele restului parcului (revizuirea F5).
+  vizibile as (
+    select e.*, g.user_id
+      from elemente e
+      join gestionari g
+        on internal.flota_vede_vehicul(p_org, g.user_id, e.sofer_id, e.pool)
+     where not e.e_amenda
+  ),
+  -- Documentul pe care nu-l vede NICIUN responsabil nu rămâne nevăzut: merge
+  -- la administratorii activi, ca la firma fără responsabili.
+  orfane as (
+    select e.*, m.user_id
+      from elemente e
+      join public.organization_members m
+        on m.organization_id = p_org
+       and m.role = 'org_admin'
+       and m.status = 'active'
+       and m.deleted_at is null
+     where not e.e_amenda
+       and not exists (select 1 from vizibile z where z.expirable_id = e.expirable_id)
+       and internal.flota_vede_vehicul(p_org, m.user_id, e.sofer_id, e.pool)
+  ),
+  -- 0206: amenda merge DOAR la cine citește amenzile la `all`.
+  amenzi as (
+    select e.*, d.user_id
+      from elemente e
+      cross join internal.flota_destinatari_cheie(p_org, 'vehicle_fines') d
+     where e.e_amenda
+  ),
+  destinatari as (
+    select * from vizibile
+    union
+    select * from orfane
+    union
+    select * from amenzi
+    union
+    -- Șoferul alocat: documentele și service-ul mașinii lui, NU amenzile.
+    select e.*, emp.user_id
+      from elemente e
+      join public.employees emp
+        on emp.id = e.sofer_id
+       and emp.organization_id = p_org
+       and emp.deleted_at is null
+       and emp.user_id is not null
+      join public.organization_members m
+        on m.organization_id = p_org
+       and m.user_id = emp.user_id
+       and m.status = 'active'
+       and m.deleted_at is null
+     where not e.e_amenda
+  ),
+  -- Dreptul efectiv al fiecărui destinatar, o dată pe om: cine nu citește
+  -- vehiculele (o suprascriere pe firmă sau pe membru) nu primește o legătură
+  -- spre un ecran închis.
+  scopuri as (
+    select u.user_id, internal.scope_membru(p_org, u.user_id, 'vehicles', 'read') as scope
+      from (select distinct d.user_id from destinatari d) u
+  ),
+  noi as (
+    select d.*, s.scope
+      from destinatari d
+      join scopuri s on s.user_id = d.user_id
+     -- Destinatarii amenzii au trecut deja de cheia lor (`vehicle_fines` = all).
+     where (d.e_amenda or s.scope <> 'none')
+       and not exists (
+         select 1 from public.alert_notifications an
+          where an.alert_id = d.alert_id
+            and an.canal = 'in_app'
+            and an.destinatar_cheie = d.user_id::text)
+  ),
+  -- Un document = un rând per om, chiar dacă scadența are mai multe alerte (la
+  -- prima rulare, o scadență peste 5 zile atinge deodată pragurile 30, 14 și 7).
+  distincte as (
+    select distinct on (n.user_id, n.expirable_id)
+           n.user_id, n.expirable_id, n.vehicle_id, n.depasita, n.e_service, n.e_amenda,
+           n.amenda_id, n.expires_at, n.eticheta, n.scope
+      from noi n
+     order by n.user_id, n.expirable_id, n.depasita desc
+  ),
+  numerotate as (
+    select d.*,
+           row_number() over (partition by d.user_id
+                              order by d.depasita desc, d.expires_at, d.eticheta) as rn
+      from distincte d
+  ),
+  pe_om as (
+    select n.user_id,
+           min(n.scope::text)                                  as scope,
+           count(*)::integer                                   as total,
+           count(*) filter (where n.depasita and not n.e_service and not n.e_amenda)::integer     as depasite,
+           count(*) filter (where not n.depasita and not n.e_service and not n.e_amenda)::integer as apropiate,
+           count(*) filter (where n.depasita and n.e_service)::integer         as srv_depasite,
+           count(*) filter (where not n.depasita and n.e_service)::integer     as srv_apropiate,
+           count(*) filter (where n.e_service)::integer                        as srv_total,
+           count(*) filter (where n.depasita and n.e_amenda)::integer          as am_depasite,
+           count(*) filter (where not n.depasita and n.e_amenda)::integer      as am_apropiate,
+           count(*) filter (where n.e_amenda)::integer                         as am_total,
+           count(distinct n.vehicle_id)::integer               as vehicule,
+           -- Filtrul „expiră” al listei e despre documente: data lor, fără amenzi.
+           max(n.expires_at) filter (where not n.e_amenda)     as ultima_scadenta,
+           (array_agg(n.vehicle_id order by n.rn))[1]          as primul_vehicul,
+           (array_agg(n.amenda_id order by n.rn) filter (where n.e_amenda))[1] as prima_amenda,
+           string_agg('· ' || n.eticheta, E'\n' order by n.rn) filter (where n.rn <= 8) as linii
+      from numerotate n
+     group by n.user_id
+  ),
+  scrise as (
+    insert into public.notifications (user_id, organization_id, kind, title, body, link, entity_type, entity_id)
+    select o.user_id,
+           p_org,
+           'reminder'::public.notification_kind,
+           left('Flota: ' || array_to_string(array_remove(array[
+             case when o.depasite > 0 then internal.flota_numarat(o.depasite, 'document expirat', 'documente expirate') end,
+             case when o.apropiate > 0 then internal.flota_numarat(o.apropiate, 'document care expiră curând', 'documente care expiră curând') end,
+             case when o.srv_depasite > 0 then internal.flota_numarat(o.srv_depasite, 'lucrare de service întârziată', 'lucrări de service întârziate') end,
+             case when o.srv_apropiate > 0 then internal.flota_numarat(o.srv_apropiate, 'lucrare de service în curând', 'lucrări de service în curând') end,
+             case when o.am_depasite > 0 then internal.flota_numarat(o.am_depasite, 'amendă cu termenul de răspuns trecut', 'amenzi cu termenul de răspuns trecut') end,
+             case when o.am_apropiate > 0 then internal.flota_numarat(o.am_apropiate, 'amendă de răspuns în curând', 'amenzi de răspuns în curând') end
+           ], null), ', ') || '.', 200),
+           left(o.linii || case when o.total > 8
+                                then E'\n… și încă ' || case when o.am_total = 0
+                                                             then internal.flota_numarat(o.total - 8, 'document', 'documente')
+                                                             else internal.flota_numarat(o.total - 8, 'termen', 'termene') end || '.'
+                                else '' end, 4000),
+           case
+             -- 0206: doar amenzi — la amendă, sau la lista celor de răspuns.
+             when o.am_total = o.total and o.total = 1 then '/flota/amenzi/' || o.prima_amenda::text
+             when o.am_total = o.total then '/flota/amenzi?stadiu=de_raspuns'
+             when o.scope not in ('team', 'all') then '/portal/masina-mea'
+             -- Doar scadențe de service: fișa se deschide pe fila ei.
+             when o.vehicule = 1 and o.srv_total = o.total then '/flota/' || o.primul_vehicul::text || '?fila=service'
+             when o.vehicule = 1 then '/flota/' || o.primul_vehicul::text
+             -- Filtrul „expiră” al listei arată 30 de zile
+             -- (`PRAG_FLOTA_AVERTIZARE_ZILE`, src/domain/fleet/scadente.ts; îl
+             -- fixează setari.test.ts). Cu un prag al firmei mai lung (60),
+             -- vehiculele de peste 30 de zile ar lipsi din el: lista întreagă.
+             -- Filtrul „expiră” al listei e despre documente: fără ele, lista întreagă.
+             when o.total - o.srv_total - o.am_total > 0 and o.ultima_scadenta <= v_azi + 30 then '/flota?conformitate=expira'
+             else '/flota'
+           end,
+           case when o.am_total = o.total and o.total = 1 then 'vehicle_fine'
+                when o.vehicule = 1 then 'vehicle' else 'fleet_rezumat' end,
+           case when o.am_total = o.total and o.total = 1 then o.prima_amenda
+                when o.vehicule = 1 then o.primul_vehicul end
+      from pe_om o
+    returning id, user_id
+  ),
+  marcate as (
+    insert into public.alert_notifications
+      (organization_id, alert_id, canal, recipient_user_id, notification_id, status, sent_at)
+    select p_org, n.alert_id, 'in_app', n.user_id, s.id, 'trimis', now()
+      from noi n
+      join scrise s on s.user_id = n.user_id
+    on conflict (alert_id, canal, destinatar_cheie) do nothing
+    returning 1
+  )
+  -- Instrucțiunile care scriu din WITH rulează o dată și complet, citite sau nu
+  -- de interogarea principală; se numără doar notificările.
+  select count(*) into v_n from scrise;
+
+  return coalesce(v_n, 0);
+end;
+$$;
+
+comment on function internal.flota_rezumat(uuid) is
+  'Rezumatul zilnic al scadențelor de flotă pe dată (vehicle_document, din 0203 vehicle_service, din 0206 termenul de răspuns al amenzii, vehicle_fine) pentru o firmă: o notificare per destinatar, doar cu elementele netrimise lui. Amenzile merg doar la cine le citește la all (responsabil sau org_admin), niciodată la șofer. Idempotentă: a doua rulare din aceeași zi nu scrie nimic.';
 
 -- ============================================================
 -- 10. Actor, audit, drepturi
@@ -835,6 +1291,12 @@ revoke all on function internal.incident_eticheta(public.incident_stadiu) from p
 revoke all on function internal.amenzi_inainte() from public, anon, authenticated;
 revoke all on function internal.amenzi_scadenta() from public, anon, authenticated;
 revoke all on function internal.incidente_inainte() from public, anon, authenticated;
+revoke all on function internal.incidente_notifica() from public, anon, authenticated;
+revoke all on function internal.flota_destinatari_cheie(uuid, text) from public, anon, authenticated;
+revoke all on function internal.flota_rezumat(uuid) from public, anon, authenticated;
+-- Politica de INSERT pe incidente o cheamă sub rolul apelantului.
+revoke all on function app.vehicul_al_meu_la(uuid, uuid, timestamptz) from public, anon;
+grant execute on function app.vehicul_al_meu_la(uuid, uuid, timestamptz) to authenticated, service_role;
 revoke all on function app.poate_vedea_expirabil(uuid, text) from public, anon;
 grant execute on function app.poate_vedea_expirabil(uuid, text) to authenticated;
 revoke all on function app.sofer_la(uuid, uuid, timestamptz) from public, anon;
@@ -880,7 +1342,8 @@ begin
   end loop;
 
   foreach v_t in array array['vf_numar_uq', 'vf_stadiu_idx', 'vf_vehicul_idx', 'vf_sofer_idx',
-                             'vi_stadiu_idx', 'vi_vehicul_idx', 'vi_sofer_idx', 'vi_cercetare_idx'] loop
+                             'vi_stadiu_idx', 'vi_vehicul_idx', 'vi_sofer_idx', 'vi_cercetare_idx',
+                             'vi_declarant_idx'] loop
     if not exists (select 1 from pg_indexes where schemaname = 'public' and indexname = v_t
                     and indexdef ilike '%where (%deleted_at is null%') then
       v_lipsa := v_lipsa || (v_t || ' (parțial)');
@@ -899,21 +1362,34 @@ begin
 
   if (select count(*) from public.role_permissions
        where resource in ('vehicle_fines', 'vehicle_incidents')
-         and organization_id is null and member_id is null and deleted_at is null) <> 12 then
-    v_lipsa := v_lipsa || 'seed-ul vehicle_fines / vehicle_incidents (12 rânduri)';
+         and organization_id is null and member_id is null and deleted_at is null) <> 13 then
+    v_lipsa := v_lipsa || 'seed-ul vehicle_fines / vehicle_incidents (13 rânduri)';
   end if;
+  -- Singura excepție de la „doar administratorii”: declarația șoferului (§F).
   if exists (select 1 from public.role_permissions
               where resource in ('vehicle_fines', 'vehicle_incidents')
                 and organization_id is null and member_id is null and deleted_at is null
-                and role not in ('super_admin', 'org_admin')) then
-    v_lipsa := v_lipsa || 'seed-ul amenzilor acordat altui rol decât super_admin / org_admin';
+                and role not in ('super_admin', 'org_admin')
+                and not (role = 'employee' and resource = 'vehicle_incidents'
+                         and action = 'create' and scope = 'own')) then
+    v_lipsa := v_lipsa || 'seed-ul amenzilor acordat altui rol decât super_admin / org_admin (în afara declarației șoferului)';
+  end if;
+  if not exists (select 1 from pg_trigger where tgname = 'incidente_notifica'
+                  and tgrelid = 'public.vehicle_incidents'::regclass) then
+    v_lipsa := v_lipsa || 'notificarea declarației (incidente_notifica)';
+  end if;
+  if position('vehicle_fine' in pg_get_functiondef('internal.flota_rezumat(uuid)'::regprocedure)) = 0
+     or position('vehicle_service' in pg_get_functiondef('internal.flota_rezumat(uuid)'::regprocedure)) = 0 then
+    v_lipsa := v_lipsa || 'internal.flota_rezumat cu vehicle_document, vehicle_service și vehicle_fine';
   end if;
 
   if exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
               where (n.nspname, p.proname) in (('internal', 'amenzi_inainte'), ('internal', 'amenzi_scadenta'),
                                                ('internal', 'incidente_inainte'), ('internal', 'amenda_eticheta'),
                                                ('internal', 'incident_eticheta'), ('app', 'sofer_la'),
-                                               ('public', 'sofer_sugerat'))
+                                               ('public', 'sofer_sugerat'), ('internal', 'incidente_notifica'),
+                                               ('internal', 'flota_destinatari_cheie'), ('internal', 'flota_rezumat'),
+                                               ('app', 'vehicul_al_meu_la'))
                 and (p.proconfig is null or not ('search_path=""' = any (p.proconfig)))) then
     v_lipsa := v_lipsa || 'search_path gol pe funcțiile 0206';
   end if;

@@ -18,6 +18,7 @@ cai:
   - "src/lib/queries/fleet-rapoarte.ts"
   - "src/schemas/fleet-rapoarte.ts"
   - "src/lib/excel/raport-flota.ts"
+  - "src/lib/unelte/xlsx.ts"
   - "src/lib/pdf/foaie-din-date.ts"
   - "src/lib/pdf/pachet-flota.ts"
   - "tests/rls/proba-flota-rapoarte.sql"
@@ -95,20 +96,25 @@ Foile ciornă, trimise și respinse ale lunii se numără separat și se spun pe
 
 ## Excelul
 
-`documentRaportFlota` (`src/lib/excel/raport-flota.ts`) construiește un `DocumentTabelar`,
-randat de `randeazaXlsx` după `curataDocument`, ca orice unealtă. **Celulele sunt text**, în
-format românesc (`1.234,56`): modelul comun are doar șiruri, deci coloanele nu se adună
-automat în Excel (nota din fișier o spune). Un generator cu celule numerice ar fi un lucru
-nou, nu o corectură. Subsolul „Generat gratuit cu administrativo.ro" vine tot din randarea
-comună. Răspunsul trece prin `raspunsBinar`: `private, no-store`.
+`documentRaportFlota` (`src/lib/excel/raport-flota.ts`) construiește un `DocumentXlsx`, iar
+`xlsxRaportFlota` îl randează exact cum îl descarcă ambele rute: `curataDocumentXlsx` +
+`randeazaXlsx(d, { subsol: "aplicatie" })`. **Celulele de sume sunt NUMERE** (din 22 oct
+2026): lei, km, litri, consumuri și abateri sunt `CelulaNumerica` (valoarea, rotunjită la
+precizia afișată, + un cod Excel ca `#,##0.00`, pe care Excelul în română îl arată
+`1.002,50`); unitatea stă în format (`#,##0.00" l"`), abaterea e fracția cu format de
+procent. „—” rămâne text, sărit de SUM. Câmpurile de antet rămân text. `DocumentXlsx`
+lărgește DOAR celulele tabelelor, deci uneltele publice (`DocumentTabelar`, text) trec
+neschimbate. **Fără subsolul „Generat gratuit cu administrativo.ro”**: opțiunea `subsol` a
+lui `randeazaXlsx` e obligatorie; `raspunsDocument` (uneltele) trimite `"unealta"`, exporturile
+aplicației `"aplicatie"`. Testele: `src/lib/unelte/xlsx.test.ts` (ambele căi). Răspunsul
+trece prin `raspunsBinar`: `private, no-store`.
 
 ## Pachetul lunar
 
 ZIP cu `raport-flota-AAAA-LL.xlsx` la rădăcină și `foi/<nume>.pdf` pe fiecare foaie
-aprobată. Folosește `jszip`, care e **devDependency** în `package.json` (îl foloseau doar
-testele). Dockerfile-ul instalează și dev, deci pachetul există la build; că urmărirea
-standalone a lui Next îl include în imaginea finală NU s-a verificat (fără `pnpm build` pe
-acest traseu). Mutarea lui în `dependencies` e o schimbare de lockfile rămasă integrării. Pașii:
+aprobată. Folosește `jszip`, în `dependencies` din `b6ed2c66` (aceeași versiune, același
+lock); niciun alt fișier de producție din `src/` nu importă o devDependency (verificat cu grep
+pe 22 oct 2026). Pașii:
 
 1. `numarFoiAprobateLuna` numără FĂRĂ să aducă rânduri; zero → 404, peste
    `PLAFON_FOI_PACHET` → 413 cu îndemnul de a alege un vehicul. Plafonul e calibrat pe
@@ -132,8 +138,8 @@ omului înainte de clic.
 
 ## Ce NU e aici
 
-Vehiculul fără nicio foaie într-o lună (F10), formatul Saga/WinMentor (F12), Excel cu
-celule numerice și pachet pentru intervale mai lungi de o lună. Pagina nu a rulat într-un
+Vehiculul fără nicio foaie într-o lună (F10), formatul Saga/WinMentor (F12) și pachet
+pentru intervale mai lungi de o lună. Pagina nu a rulat într-un
 browser pe date reale: baza din cloud n-are încă migrările fazelor F4–F7.
 
 ## Când NU e suficientă pagina asta

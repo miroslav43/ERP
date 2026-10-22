@@ -192,6 +192,8 @@ describe("GET /api/export/flota/pachet", () => {
     );
     const texte = await xlsx.file("xl/sharedStrings.xml")?.async("string");
     expect(texte).toContain("FP-2026-0001");
+    // Excelul din pachet e tot export al aplicației: fără subsolul uneltelor.
+    expect(texte).not.toContain("Generat gratuit");
     // Tot ce s-a citit a fost cu firma explicită.
     expect(areFiltru(db.apeluriPe("trip_sheets")[1], "eq", "status", "aprobat")).toBe(true);
   });

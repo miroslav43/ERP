@@ -320,11 +320,13 @@ export interface RandIncident {
   readonly work_accident_id: string | null;
   readonly inchis_la: string | null;
   readonly observatii: string | null;
+  /** Fișa șoferului care l-a declarat din portal (0206 §F); nul = înregistrat de administrator. */
+  readonly declarat_de_employee_id: string | null;
 }
 
 const COLOANE_INCIDENT =
   "id, vehicle_id, tip, produs_la, locul, descriere, sofer_id, stadiu, cost_estimat, cost_final, " +
-  "despagubire, asigurator, dosar_numar, work_accident_id, inchis_la, observatii";
+  "despagubire, asigurator, dosar_numar, work_accident_id, inchis_la, observatii, declarat_de_employee_id";
 
 /** `deschise` = tot ce nu e închis; `null` = toate. */
 export type FiltruStadiuIncident = StadiuIncident | "deschise" | null;
@@ -383,6 +385,58 @@ export async function listeazaIncidente(
   const toate = rezultat.data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;
   const randuri = areUrmatoarea ? toate.slice(0, filtre.limita) : toate;
+  const ultim = randuri.at(-1);
+  return {
+    randuri,
+    urmatorulCursor:
+      areUrmatoarea && ultim !== undefined
+        ? codificaCursor({ valoare: ultim.produs_la, id: ultim.id })
+        : null,
+    total: numarare.count ?? randuri.length,
+  };
+}
+
+/**
+ * Incidentele declarate de șofer din portal („Mașina mea”, 0206 §F), cele mai
+ * noi întâi, cu cursor keyset pe momentul incidentului.
+ *
+ * Filtrul pe declarant e EXPLICIT, ca la tot portalul: politica îi arată
+ * angajatului doar declarațiile lui, dar un administrator care e și șofer
+ * (`read = all`) ar vedea altfel toate incidentele firmei sub „ale mele”.
+ */
+export async function declaratiileMele(
+  organizationId: string,
+  fisaId: string,
+  pagina: Readonly<{ cursor: string | null; limita: number }>,
+): Promise<RezultatIncidente> {
+  const db = await createServerSupabase();
+  let interogare = db
+    .from("vehicle_incidents")
+    .select(COLOANE_INCIDENT)
+    .eq("organization_id", organizationId)
+    .eq("declarat_de_employee_id", fisaId)
+    .is("deleted_at", null)
+    .order("produs_la", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(pagina.limita + 1);
+  if (pagina.cursor !== null) {
+    const c = decodificaCursor(pagina.cursor);
+    if (c !== null) interogare = interogare.or(predicatKeyset("produs_la", c, "desc"));
+  }
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<RandIncident[]>(),
+    db
+      .from("vehicle_incidents")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .eq("declarat_de_employee_id", fisaId)
+      .is("deleted_at", null),
+  ]);
+  if (rezultat.error !== null) throw rezultat.error;
+  if (numarare.error !== null) throw numarare.error;
+  const toate = rezultat.data ?? [];
+  const areUrmatoarea = toate.length > pagina.limita;
+  const randuri = areUrmatoarea ? toate.slice(0, pagina.limita) : toate;
   const ultim = randuri.at(-1);
   return {
     randuri,

@@ -172,7 +172,11 @@ export function textPagina(index: number, total: number): string | null {
  * UTM spun în statistici de unde a venit vizita, iar canonicul paginii îi
  * ignoră, deci nu creează adrese noi pentru motoare.
  */
-export function adresaDinFisier(d: DocumentTabelar, format: Format, site: string): string {
+export function adresaDinFisier(
+  d: Pick<DocumentTabelar, "sursa">,
+  format: Format,
+  site: string,
+): string {
   const parametri = new URLSearchParams({
     utm_source: "fisier",
     utm_medium: format,

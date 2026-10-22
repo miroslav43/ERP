@@ -8,7 +8,7 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { todayInBucharest } from "@/lib/format/date";
 import { idDinRuta } from "@/lib/rute/parametri";
-import { optiuniAngajati } from "@/lib/queries/maintenance";
+import { optiuniAngajati, optiuniTehnicieni } from "@/lib/queries/maintenance";
 import { esteTerminala } from "@/domain/maintenance/sesizari";
 
 import { actorPentru, incarcaFisaSesizare } from "./date-sesizare";
@@ -48,11 +48,15 @@ export default async function PaginaSesizare({ params }: ProprietatiPagina) {
 
   const poateGestiona = can(permisiuni, "maintenance:update", "team");
   const actor = actorPentru(date, poateGestiona, user.id);
-  // Selectoarele de tehnician și de executant — doar cât sesizarea mai e vie.
-  // Sub RLS, un angajat primește doar fișa lui; e exact ce are nevoie.
-  const angajati = esteTerminala(date.sesizare.status)
-    ? []
-    : await optiuniAngajati(tenant.organizationId);
+  // Selectoarele de executant și de tehnician — doar cât sesizarea mai e vie.
+  // Executantul: sub RLS, un angajat primește doar fișa lui; e exact ce are
+  // nevoie. Tehnicianul: doar pentru gestionar, și doar cine poate deschide
+  // sesizarea (M3: un hr apărea în listă, iar sesizarea nu i se deschidea).
+  const vie = !esteTerminala(date.sesizare.status);
+  const [angajati, tehnicieni] = await Promise.all([
+    vie ? optiuniAngajati(tenant.organizationId) : Promise.resolve([]),
+    vie && poateGestiona ? optiuniTehnicieni(tenant.organizationId) : Promise.resolve([]),
+  ]);
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -68,6 +72,7 @@ export default async function PaginaSesizare({ params }: ProprietatiPagina) {
         actor={actor}
         userId={user.id}
         angajati={angajati}
+        tehnicieni={tehnicieni}
         azi={todayInBucharest()}
         acum={new Date().toISOString()}
         legaturaFisa={(idFisa) => hrefFisaDinHarta(idFisa, date.numeAngajati, permisiuni)}
