@@ -31,7 +31,7 @@ tabele:
 permisiuni: [vehicles:read, vehicles:update]
 feature: fleet
 capcane: [18, 19, 23, 26, 59]
-scris_pe: b28ce4a8e995ccce6e737b897880df31f41fd23a
+scris_pe: 0e303a1085113be87dbcbe9a9e7c0afd49aca517
 scris_la: 2026-10-22
 tags: [modul, operations]
 ---
@@ -110,6 +110,13 @@ ascuns în casetă).
   (la păstrarea numărului, înaintea achiziției); „Nu se aplică” pe un pas cu dependenți
   deschiși (radierea din oficiu se marchează „Făcut” cu data ei). INSERT direct: 42501.
 
+Înaintea tuturor: INSERT-ul fără `vehicles:update` all în firma din rând dă **42501 din
+trigger, înaintea oricărei gărzi**. `WITH CHECK` se judecă DUPĂ triggerele BEFORE, iar
+gărzile citesc vehiculul fără RLS: fără poartă, mesajele lor dădeau oricui km-ul, data
+achiziției și starea vehiculului altei firme (proba 10b). Autorii (`finalizat_de`,
+`anulat_de`, `created_by`) au ON DELETE SET NULL: triggerele îi repun din OLD doar în afara
+contextului de serviciu, altfel ștergerea contului cade cu 23503 (proba 23).
+
 ## Ce se mișcă împreună
 
 Migrarea → `src/types/database.ts` → `src/schemas/flota-iesire.ts` → citiri → acțiuni →
@@ -118,6 +125,10 @@ termenelor există o singură dată, în SQL; caseta arată doar descrierea stat
 `iesire/etichete-iesire.ts`. Rescrierile comune din 0218, de la forma 0214:
 `app.poate_vedea_expirabil` (cu garda pe toate ramurile), `internal.flota_rezumat` (lista
 albă), `internal.flota_setari_praguri`; de la 0122: `internal.audit_campuri_excluse`.
+
+Numărul eliberat (I-h2) poate sta pe două vehicule neșterse, cel ieșit și cel nou: potrivirea
+tranzacțiilor de card (`src/domain/fleet/carduri/potrivire.ts`) alege vehiculul care purta
+numărul în ziua tranzacției, după `data_iesire` (`[[modul/flota/carduri]]`).
 
 ## Ce NU e aici
 

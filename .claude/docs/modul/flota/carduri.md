@@ -34,7 +34,7 @@ tabele:
 permisiuni: [vehicles:read, vehicles:create, vehicles:update]
 feature: fleet
 capcane: [7, 18, 19, 23, 26]
-scris_pe: 2c0b7ff16becc10e648a3e709573b5aaa95df1d4
+scris_pe: 0e303a1085113be87dbcbe9a9e7c0afd49aca517
 scris_la: 2026-10-22
 tags: [modul, operations]
 ---
@@ -82,7 +82,10 @@ declara „fără foaie” tranzacții care au foaie.
 
 Potrivirea e o funcție pură, `src/domain/fleet/carduri/potrivire.ts`: storno → card (amprentă,
 altfel cifre pe SUFIX) → vehicul (numărul din extras bate cardul) → necombustibil → foaia
-zilei → alimentarea (bonul egal bate litrii; toleranțe constante).
+zilei → alimentarea (bonul egal bate litrii; toleranțe constante). Din 0218 (I-h2), numărul
+unui vehicul ieșit se poate pune pe o mașină nouă: același număr pe două vehicule neșterse
+merge la cel care îl purta în ziua tranzacției (ieșit în ziua aceea sau după ea, altfel cel
+din parc), după `vehicles.data_iesire` din context.
 
 ## Ce refuză baza tăcut
 
