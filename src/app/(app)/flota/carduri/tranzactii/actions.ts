@@ -33,6 +33,7 @@ import {
   leagaTranzactieSchema,
   repotrivesteSchema,
 } from "@/schemas/fleet-carduri";
+import type { TablesUpdate } from "@/types/database";
 
 import { traduEroareCarduri } from "../erori";
 
@@ -117,10 +118,9 @@ export const repotrivesteTranzactii = createAction({
       alimentariDejaLegate: ocupate,
     });
 
-    let schimbate = 0;
-    for (const [i, t] of deRefacut.entries()) {
+    const schimbari = deRefacut.flatMap((t, i) => {
       const r = rezultate[i];
-      if (r === undefined) continue;
+      if (r === undefined) return [];
       const neschimbat =
         r.stare === t.stare_potrivire &&
         r.cardId === t.card_id &&
@@ -128,29 +128,64 @@ export const repotrivesteTranzactii = createAction({
         r.tripSheetId === t.trip_sheet_id &&
         r.fuelEntryId === t.fuel_entry_id &&
         r.motiv === t.motiv;
-      if (neschimbat) continue;
+      return neschimbat ? [] : [{ t, r }];
+    });
+
+    const scrie = async (id: string, valori: TablesUpdate<"fuel_card_transactions">) => {
       const { data, error } = await ctx.supabase
         .from("fuel_card_transactions")
-        .update({
-          card_id: r.cardId,
-          vehicle_id: r.vehicleId,
-          trip_sheet_id: r.tripSheetId,
-          fuel_entry_id: r.fuelEntryId,
-          stare_potrivire: r.stare,
-          categorie: r.categorie,
-          motiv: r.motiv,
-          updated_by: ctx.user.id,
-        })
-        .eq("id", t.id)
+        .update({ ...valori, updated_by: ctx.user.id })
+        .eq("id", id)
         .eq("organization_id", org)
         .is("deleted_at", null)
         .select("id")
         .maybeSingle();
       if (error !== null) traduEroareCarduri(error);
       if (data === null) throw businessRule(MESAJ_CONFLICT);
-      schimbate += 1;
+    };
+    const finala = (r: (typeof schimbari)[number]["r"]) => ({
+      card_id: r.cardId,
+      vehicle_id: r.vehicleId,
+      trip_sheet_id: r.tripSheetId,
+      fuel_entry_id: r.fuelEntryId,
+      stare_potrivire: r.stare,
+      categorie: r.categorie,
+      motiv: r.motiv,
+    });
+
+    /*
+     * Întâi se ELIBEREAZĂ alimentările pe care le ia alt rând din lot, apoi se
+     * iau. `fctx_alimentare_uq` e un index unic, judecat la fiecare UPDATE:
+     * scrisă înaintea eliberării, legarea cade pe 23505, iar ordinea e fixă (după
+     * oră), deci la fiecare reîncercare. Se întâmplă când repotrivirea (după oră)
+     * dă alimentarea altui rând decât importul (după ordinea din fișier), sau
+     * când două rânduri își schimbă alimentările între ele (niciunul nu poate
+     * scrie primul). Rândul care pierde alimentarea fără să primească alta se
+     * scrie direct în forma finală; cel care primește alta trece întâi prin
+     * „fără alimentare” (starea corectă fără legătură, `fctx_stare_ck`). Bucla nu
+     * e atomică: o cădere între pași lasă rânduri „fără alimentare”, pe care
+     * repotrivirea următoare le reia.
+     */
+    const luateDeAltii = new Set(
+      schimbari.flatMap(({ t, r }) =>
+        r.fuelEntryId !== null && r.fuelEntryId !== t.fuel_entry_id ? [r.fuelEntryId] : [],
+      ),
+    );
+    const scriseFinal = new Set<string>();
+    for (const { t, r } of schimbari) {
+      if (t.fuel_entry_id === null || r.fuelEntryId === t.fuel_entry_id) continue;
+      if (!luateDeAltii.has(t.fuel_entry_id)) continue;
+      if (r.fuelEntryId === null) {
+        await scrie(t.id, finala(r));
+        scriseFinal.add(t.id);
+      } else {
+        await scrie(t.id, { fuel_entry_id: null, stare_potrivire: "fara_alimentare" });
+      }
     }
-    return { verificate: deRefacut.length, schimbate };
+    for (const { t, r } of schimbari) {
+      if (!scriseFinal.has(t.id)) await scrie(t.id, finala(r));
+    }
+    return { verificate: deRefacut.length, schimbate: schimbari.length };
   },
 });
 

@@ -313,6 +313,223 @@ describe("repotrivesteTranzactii", () => {
     });
   });
 
+  /*
+   * `fctx_alimentare_uq` e un index unic (nu o restricție amânabilă): fiecare
+   * UPDATE e judecat pe loc. Clientul fals nu știe de el, așa că testul reface
+   * indexul peste șirul de scrieri trimise, în ordinea lor, pornind de la
+   * legăturile din bază. Prima scriere care ar lua o alimentare ținută încă de
+   * alt rând e exact 23505-ul pe care l-ar întoarce Postgres.
+   */
+  function primulConflict(
+    scrieri: ReturnType<ReturnType<typeof configureazaActiunea>["server"]["apeluriPe"]>,
+    legaturiInitiale: Readonly<Record<string, string>>,
+  ): string | null {
+    const detinator = new Map(Object.entries(legaturiInitiale));
+    for (const s of scrieri) {
+      const id = s.filtre.find((f) => f.metoda === "eq" && f.argumente[0] === "id")
+        ?.argumente[1] as string;
+      const payload = s.payload as { fuel_entry_id?: string | null };
+      if (!("fuel_entry_id" in payload)) continue;
+      for (const [alimentare, tx] of detinator) if (tx === id) detinator.delete(alimentare);
+      const noua = payload.fuel_entry_id ?? null;
+      if (noua === null) continue;
+      const alt = detinator.get(noua);
+      if (alt !== undefined && alt !== id) return `${id} ia ${noua}, ținută încă de ${alt}`;
+      detinator.set(noua, id);
+    }
+    return null;
+  }
+
+  const ALIMENTARE_2 = "88888888-8888-4888-8888-888888888888";
+
+  function contextUnei(
+    server: ReturnType<typeof configureazaActiunea>["server"],
+    alimentari: readonly Readonly<{
+      id: string;
+      litri: number;
+      cost: number;
+      ora: string;
+      bon: string | null;
+    }>[],
+    legaturi: readonly Readonly<{ id: string; fuel_entry_id: string }>[],
+  ) {
+    server.raspunde("fuel_cards", "select", {
+      data: [
+        {
+          id: "card-1",
+          emitent: "omv_petrom",
+          ultimele_cifre: "1234",
+          amprenta_numar: null,
+          vehicle_id: VEHICUL,
+          employee_id: null,
+        },
+      ],
+      count: 1,
+    });
+    server.raspunde("vehicles", "select", {
+      data: [
+        { id: VEHICUL, nr_inmatriculare: "B100XYZ", tip_combustibil: "motorina", deleted_at: null },
+      ],
+      count: 1,
+    });
+    server.raspunde("vehicle_assignments", "select", { data: [], count: 0 });
+    server.raspunde("trip_sheets", "select", {
+      data: [
+        {
+          id: FOAIE,
+          vehicle_id: VEHICUL,
+          employee_id: ID_3,
+          data: "2026-10-05",
+          status: "aprobat",
+          km_plecare: 1,
+          km_sosire: 2,
+        },
+      ],
+      count: 1,
+    });
+    server.raspunde("fuel_entries", "select", {
+      data: alimentari.map((a) => ({
+        id: a.id,
+        trip_sheet_id: FOAIE,
+        litri: a.litri,
+        cost: a.cost,
+        alimentat_la: a.ora,
+        numar_bon: a.bon,
+      })),
+      count: alimentari.length,
+    });
+    server.raspunde("fuel_card_transactions", "select", { data: legaturi });
+  }
+
+  it("alimentarea trece de la un rând refăcut la altul: întâi se eliberează, apoi se ia (fără 23505)", async () => {
+    // Importul, în ordinea fișierului (A înaintea lui B), i-a dat alimentarea
+    // lui A, pe litri, cu valoarea în afara toleranței: `diferenta`. Repotrivirea
+    // merge după oră (B, 09:50, înaintea lui A, 10:30), iar B, cu bonul egal, o
+    // câștigă. Scrisă înaintea eliberării lui A, legarea lui B cade pe
+    // `fctx_alimentare_uq` la fiecare reîncercare.
+    const { server } = configureazaActiunea({ permisiuni: PERMISIUNI });
+    const comun = { ...baza, card_id: "card-1", vehicle_id: VEHICUL, cantitate: 40 };
+    server.raspunde("fuel_card_transactions", "select", {
+      data: [
+        {
+          ...comun,
+          id: "tx-b",
+          efectuat_la: "2026-10-05T06:50:00.000Z",
+          cantitate: 40.2,
+          valoare_bruta: 281,
+          numar_bon: "123",
+          trip_sheet_id: FOAIE,
+          stare_potrivire: "fara_alimentare",
+        },
+        {
+          ...comun,
+          id: "tx-a",
+          efectuat_la: "2026-10-05T07:30:00.000Z",
+          valoare_bruta: 300,
+          trip_sheet_id: FOAIE,
+          fuel_entry_id: ALIMENTARE,
+          stare_potrivire: "diferenta",
+          motiv: "Diferență față de alimentarea declarată (valoare: card 300 lei, foaie 280 lei).",
+        },
+      ],
+      count: 2,
+    });
+    contextUnei(
+      server,
+      [{ id: ALIMENTARE, litri: 40, cost: 280, ora: "2026-10-05T07:00:00.000Z", bon: "123" }],
+      [{ id: "tx-a", fuel_entry_id: ALIMENTARE }],
+    );
+    server.raspunde("fuel_card_transactions", "update", { data: { id: "x" } });
+    server.raspunde("fuel_card_transactions", "update", { data: { id: "x" } });
+    server.raspunde("fuel_card_transactions", "update", { data: { id: "x" } });
+
+    const r = await repotrivesteTranzactii({ luna: "2026-10" });
+
+    expect(r).toEqual({ ok: true, data: { verificate: 2, schimbate: 2 } });
+    const scrieri = server.apeluriPe("fuel_card_transactions", "update");
+    expect(primulConflict(scrieri, { [ALIMENTARE]: "tx-a" })).toBeNull();
+    // A pierde alimentarea fără să primească alta: o singură scriere, direct finală.
+    expect(scrieri).toHaveLength(2);
+    const ultima = (id: string) =>
+      scrieri.filter((s) => areFiltru(s, "eq", "id", id)).at(-1)?.payload;
+    expect(ultima("tx-b")).toMatchObject({
+      fuel_entry_id: ALIMENTARE,
+      stare_potrivire: "potrivita",
+    });
+    expect(ultima("tx-a")).toMatchObject({
+      fuel_entry_id: null,
+      stare_potrivire: "fara_alimentare",
+    });
+  });
+
+  it("două rânduri refăcute își schimbă alimentările între ele: niciun 23505", async () => {
+    // Bonurile au fost corectate pe foaie după import: A ținea X și trebuie să
+    // ia Y, B ținea Y și trebuie să ia X. Oricare ar scrie primul, ar lua o
+    // alimentare ținută încă de celălalt; doar eliberarea întâi rupe cercul.
+    const { server } = configureazaActiunea({ permisiuni: PERMISIUNI });
+    const comun = {
+      ...baza,
+      card_id: "card-1",
+      vehicle_id: VEHICUL,
+      trip_sheet_id: FOAIE,
+      stare_potrivire: "diferenta",
+      motiv: "Diferență față de alimentarea declarată (litri: card 40, foaie 30).",
+    };
+    server.raspunde("fuel_card_transactions", "select", {
+      data: [
+        {
+          ...comun,
+          id: "tx-b",
+          efectuat_la: "2026-10-05T06:00:00.000Z",
+          cantitate: 40,
+          valoare_bruta: 300,
+          numar_bon: "111",
+          fuel_entry_id: ALIMENTARE_2,
+        },
+        {
+          ...comun,
+          id: "tx-a",
+          efectuat_la: "2026-10-05T10:00:00.000Z",
+          cantitate: 30,
+          valoare_bruta: 225,
+          numar_bon: "222",
+          fuel_entry_id: ALIMENTARE,
+        },
+      ],
+      count: 2,
+    });
+    contextUnei(
+      server,
+      [
+        { id: ALIMENTARE, litri: 40, cost: 300, ora: "2026-10-05T06:00:00.000Z", bon: "111" },
+        { id: ALIMENTARE_2, litri: 30, cost: 225, ora: "2026-10-05T10:00:00.000Z", bon: "222" },
+      ],
+      [
+        { id: "tx-a", fuel_entry_id: ALIMENTARE },
+        { id: "tx-b", fuel_entry_id: ALIMENTARE_2 },
+      ],
+    );
+    for (let i = 0; i < 4; i += 1) {
+      server.raspunde("fuel_card_transactions", "update", { data: { id: "x" } });
+    }
+
+    const r = await repotrivesteTranzactii({ luna: "2026-10" });
+
+    expect(r).toEqual({ ok: true, data: { verificate: 2, schimbate: 2 } });
+    const scrieri = server.apeluriPe("fuel_card_transactions", "update");
+    expect(primulConflict(scrieri, { [ALIMENTARE]: "tx-a", [ALIMENTARE_2]: "tx-b" })).toBeNull();
+    const ultima = (id: string) =>
+      scrieri.filter((s) => areFiltru(s, "eq", "id", id)).at(-1)?.payload;
+    expect(ultima("tx-b")).toMatchObject({
+      fuel_entry_id: ALIMENTARE,
+      stare_potrivire: "potrivita",
+    });
+    expect(ultima("tx-a")).toMatchObject({
+      fuel_entry_id: ALIMENTARE_2,
+      stare_potrivire: "potrivita",
+    });
+  });
+
   it("luna invalidă: VALIDARE", async () => {
     configureazaActiunea({ permisiuni: PERMISIUNI });
     expect(await repotrivesteTranzactii({ luna: "2026-13" })).toMatchObject({
