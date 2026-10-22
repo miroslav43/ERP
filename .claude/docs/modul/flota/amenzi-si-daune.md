@@ -38,8 +38,8 @@ permisiuni:
   ]
 feature: fleet
 capcane: [17, 19, 23, 26]
-scris_pe: 172da17f6038e5f5e695a4ea2a2f514419318da8
-scris_la: 2026-10-13
+scris_pe: 7cbfec68d4744258ddfacdca86560a1484cd8680
+scris_la: 2026-10-22
 tags: [modul, operations, legal]
 ---
 
@@ -128,6 +128,13 @@ fără nicio cale de a-l închide.
   dar nu pleacă notificare push. Nu presupune o alertă care nu există.
 - **`manager` și `employee` primesc zero rânduri, fără eroare.** Absența cheii e refuz. Un
   `.single()` pe o amendă invizibilă dă NEGASIT, nu INTERZIS. — capcana #17
+- **Legătura cu cercetarea SSM o pune doar cine o VEDE.** `incidente_inainte` (DEFINER)
+  cere, la schimbarea `work_accident_id`, rândul firmei, neșters ȘI citibil de apelant după
+  regulile SSM (modulul `ssm` activ, `app.ssm_acces(…, 'read', angajatul)`), cu un singur
+  mesaj pentru „nu există” și „nu o puteți consulta”: refuzul nu e sondă. Acțiunea citește
+  întâi cercetarea prin RLS; dacă n-o vede, UPDATE-ul trece doar pe rândul care o are deja
+  (legătura pusă de altcineva se păstrează), altfel VALIDARE pe câmp. Dezlegarea rămâne
+  permisă. Probele (25c)–(25e).
 - **`created_by` și `updated_by` se trimit explicit** din acțiuni, deși triggerul `set_actor`
   e atașat: păstrează tiparul flotei. — capcana #23
 - **Un UPDATE respins de USING nu ridică eroare.** Probele numără rânduri.
