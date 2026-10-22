@@ -96,6 +96,10 @@ bonului, `org-flota`): `[[modul/flota/documente-si-erori]]`.
 ACEEAȘI rută nu remontează). Datele casetei de foaie: `foi/date-foaie-noua.ts`, doar
 vehicule `activ` (baza refuză foaia pe unul vândut sau casat).
 
+## Extensii (F12)
+
+- b, carduri de combustibil (0214): `[[modul/flota/carduri]]`
+
 ## Server Actions
 
 `src/app/(app)/flota/actions.ts`.
@@ -140,8 +144,8 @@ fixate pe clientul fals: `actions-*.test.ts`, `erori-etichete.test.ts`.
 
 ## Citiri
 
-`src/lib/queries/fleet.ts` (marcat `import "server-only"`): `listeazaVehicule`,
-`citesteVehicul`, `scadenteCurente`, `documenteleVehiculului`, `tipuriDocument`,
+`src/lib/queries/fleet.ts`: `listeazaVehicule`,
+`citesteVehicul`, `scadenteCurente`, `documenteleVehiculului`,
 `nomenclatorDocumente` (tot, cu setarea firmei), `tipuriDocument(org)` (doar active),
 `urlSemnateFlota`, `listeazaFoi`, `citesteFoaie` (cu instantaneul vehiculului),
 `kmDePlecareSugerat`, `combustibilPeFoi`, `alimentarileFoii`, `anomaliiNeconfirmate`,
