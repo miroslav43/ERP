@@ -229,6 +229,10 @@ jobs:
           REPO="$GITHUB_REPOSITORY" SHA_VECHI="$VECHI" SHA_NOU="$GITHUB_SHA" \
             node scripts/docs/prompt.mjs .github/documentatie-prompt.md "$DIR/prompt.txt"
 
+          # `|| cod=$?`, nu `cod=$?` pe linia următoare: pasul rulează sub
+          # `bash -e`, deci un `claude` care iese cu non-zero oprea pasul ÎNAINTE
+          # de avertisment — 16–21 oct, jobul arăta doar „exit code 1", fără motiv.
+          cod=0
           claude -p "$(cat "$DIR/prompt.txt")" \
             --model claude-opus-5 \
             --effort high \
@@ -240,13 +244,16 @@ jobs:
             --strict-mcp-config \
             --permission-mode bypassPermissions \
             --output-format json \
-            > "$DIR/sesiune.json" 2> "$DIR/stderr.log"
-          cod=$?
+            > "$DIR/sesiune.json" 2> "$DIR/stderr.log" || cod=$?
           echo "cod=$cod" >> "$GITHUB_OUTPUT"
-          if [ "$cod" != "0" ]; then
-            echo "::warning title=Agentul a picat::$(tail -c 800 "$DIR/stderr.log")"
-          fi
           jq -r '.is_error // false' "$DIR/sesiune.json" 2>/dev/null || true
+          if [ "$cod" != "0" ]; then
+            tip=$(jq -r '.subtype // "fără subtype"' "$DIR/sesiune.json" 2>/dev/null || echo "fără JSON")
+            echo "::warning title=Agentul a picat::cod $cod, $tip — $(tail -c 800 "$DIR/stderr.log" | tr '\n' ' ')"
+            # Pasul rămâne roșu, ca înainte (`continue-on-error` lasă jobul să
+            # împacheteze ce s-a scris); acum doar își spune și motivul.
+            exit "$cod"
+          fi
 
       - name: Împachetează rezultatul
         env:
@@ -452,8 +459,15 @@ jobs:
 
       - name: Comite și publică
         if: ${{ inputs.uscat != true }}
+        # Pasul e acoperit de `scripts/docs/publicare.test.ts`, care îl extrage de
+        # aici și îl rulează ca pe runner, pe un remote bare local.
         run: |
           set -uo pipefail
+          # GitHub rulează pasul cu `bash -e {0}`, iar `set -uo pipefail` NU anulează
+          # `-e`: orice comandă care pică oprește pasul. Șase nopți (16–21 oct 2026)
+          # s-a oprit așa fără niciun rând în jurnal, cu „exit code 1" și atât.
+          # Capcana de mai jos lasă măcar linia și comanda.
+          trap 'c=$?; echo "::error title=Pasul s-a oprit::linia $LINENO, cod $c: $BASH_COMMAND"' ERR
           git config user.name "claude-documentatie[bot]"
           git config user.email "claude-documentatie[bot]@users.noreply.github.com"
 
@@ -481,7 +495,15 @@ jobs:
           # Module atinse, nu prefixe de cale: `.env.example` și `CLAUDE.md` nu
           # spun nimic într-un jurnal de documentație, iar `src/app` spune și mai
           # puțin. Ce contează e CE modul s-a mișcat și dacă s-a mișcat schema.
-          fisiere=$(git log --since="24 hours ago" --name-only --format= | grep -v '^$' | sort -u)
+          #
+          # `sed '/^$/d'`, NU `grep -v '^$'`: într-o noapte fără niciun commit pe
+          # main în ultimele 24 de ore, `grep` primea intrare goală și ieșea cu 1,
+          # `pipefail` îl propaga, iar `-e` oprea pasul AICI, înainte de commit —
+          # 16–21 oct 2026, după ce ultimul commit (al nocturnei din 15) a trecut de
+          # 24 de ore. Cum nu se mai comitea nimic, a doua zi main era iar inactiv:
+          # eșecul se întreținea singur. Mesajul „main s-a mișcat de trei ori" din
+          # jurnal era doar listarea scriptului; bucla de push nici nu pornise.
+          fisiere=$(git log --since="24 hours ago" --name-only --format= | sed '/^$/d' | sort -u)
           zone=$(echo "$fisiere" | sed -n 's|^src/app/(app)/\([^/]*\)/.*|\1|p' | sort -u | tr '\n' ' ')
           straturi=""
           echo "$fisiere" | grep -q '^supabase/migrations/' && straturi="$straturi migrări"
@@ -489,8 +511,12 @@ jobs:
           echo "$fisiere" | grep -q '^src/schemas/'        && straturi="$straturi scheme"
           echo "$fisiere" | grep -q '^src/domain/'         && straturi="$straturi domeniu"
           echo "$fisiere" | grep -q '^src/config/'         && straturi="$straturi configurație"
+          # O linie de jurnal nu are voie să oprească publicarea paginilor.
           fara=$(ZILE_ACOPERIRE=1 node scripts/docs/acoperire.mjs --json \
-            | jq -r '.fierbintiFaraPagina | join(", ")')
+            | jq -r '.fierbintiFaraPagina | join(", ")') || {
+            echo "::warning title=Acoperire indisponibilă::jurnalul iese fără linia paginilor lipsă"
+            fara=""
+          }
           {
             echo ""
             echo "## ${azi}"
@@ -530,17 +556,40 @@ jobs:
           } > "$RUNNER_TEMP/mesaj.txt"
           git commit --only -F "$RUNNER_TEMP/mesaj.txt" -- .claude/docs
 
+          # Fără `--quiet`, iar ieșirea push-ului se păstrează: eșecul își spune
+          # motivul în jurnal și în adnotare. Se reia DOAR când motivul chiar e
+          # „main s-a mișcat" (sau o cădere de rețea); un refuz al remote-ului —
+          # protecție, hook, token fără drept — nu se repară reluând, iar mesajul
+          # vechi îl raporta drept „main s-a mișcat de trei ori".
+          motiv="nicio încercare n-a ajuns la push"
           for i in 1 2 3; do
-            git fetch origin main --quiet
-            if ! git merge origin/main --no-edit --quiet; then
-              echo "::warning::conflict la încercarea $i"
+            [ "$i" = "1" ] || sleep $((i * 5))
+            if ! git fetch origin main; then
+              motiv="git fetch a eșuat"
+              echo "::warning title=Fetch eșuat::încercarea $i"
+              continue
+            fi
+            if ! git merge origin/main --no-edit; then
+              motiv="conflict de merge cu origin/main"
+              echo "::warning title=Conflict::încercarea $i — merge anulat"
               git merge --abort || true
               continue
             fi
-            if git push origin HEAD:main; then
+            if git push origin HEAD:main 2>&1 | tee "$RUNNER_TEMP/push.log"; then
               echo "::notice::Publicat."
               exit 0
             fi
+            motiv=$(grep -E '^ ! |^(error|fatal|remote): ' "$RUNNER_TEMP/push.log" \
+              | sed 's/[[:space:]]*$//' | head -4 | tr '\n' ' ' || true)
+            motiv=${motiv:-push eșuat fără mesaj}
+            if grep -qE '\[rejected\].*\((fetch first|non-fast-forward)\)' "$RUNNER_TEMP/push.log"; then
+              echo "::warning title=main s-a mișcat::încercarea $i — reiau fetch + merge"
+            elif grep -qiE 'RPC failed|returned error: 5[0-9][0-9]|Could not resolve host|Connection (timed out|reset)|early EOF' "$RUNNER_TEMP/push.log"; then
+              echo "::warning title=Push căzut în rețea::încercarea $i"
+            else
+              echo "::error title=Push refuzat::$motiv"
+              exit 1
+            fi
           done
-          echo "::error title=Publicare eșuată::main s-a mișcat de trei ori"
+          echo "::error title=Publicare eșuată::trei încercări; ultimul motiv: $motiv"
           exit 1
