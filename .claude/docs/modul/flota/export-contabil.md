@@ -25,7 +25,7 @@ tabele:
 permisiuni: [vehicles:export, vehicles:read, trip_sheets:read]
 feature: fleet
 capcane: [2, 18]
-scris_pe: b45b4fbe53ca2569ffec1ff283f7221f50951ea1
+scris_pe: 85747125ae56ecd24a40bb6be584c83dfab3098e
 scris_la: 2026-10-22
 tags: [modul, operations]
 ---
@@ -131,6 +131,12 @@ Persistența conturilor în bază (D1 b: o migrare nouă, doar după acceptanț�
 intrare WinMentor (cere coduri de articol, L3), Saga WEB, amenzile (F11) pe 6581,
 registrul de documente (L16). Acceptanța cu un contabil, într-o bază de test Saga și
 WinMentor, NU s-a făcut: se notează aici ce a mers și ce s-a corectat în constante.
+
+**Cheltuiala plătită cu cardul de flotă NU se recunoaște.** 0214 nu are
+`vehicle_expense_id` (I-b4), deci singura excludere pe card e alimentarea legată prin
+`fuel_entry_id`. O spălătorie, o taxă sau un „combustibil fără foaie” trecute de mână la
+cheltuieli și facturate și de emitentul cardului (tranzacțiile `necombustibil` /
+`fara_foaie`) intră în note de două ori, fără avertisment. Se schimbă doar cu D-b4.
 
 ## Când NU e suficientă pagina asta
 
