@@ -6,6 +6,7 @@ import "server-only";
 import { numaraZileCerere } from "@/domain/leave/zile-cerere";
 import type { TaxExemptionSnapshot } from "@/domain/payroll/calc";
 import { contractEfectiv } from "@/domain/payroll/contract";
+import type { CodProblema } from "@/domain/payroll/erori";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { citesteTot } from "@/lib/queries/citeste-tot";
 import { zileNelucratoare } from "@/lib/queries/leave";
@@ -221,11 +222,37 @@ export interface RandInregistrare {
    * trebuia să-i deschizi pe toți (analiza 2026-10-08, salarizare-L10/P7).
    */
   readonly avertismente: number;
+  /**
+   * Fluturașul poartă `SAL_PROGRAM_SUB_CINCI_ZILE` (sau, calculat 12–22 oct
+   * 2026, `NORMA_SUB_CINCI_ZILE`): programul contractului,
+   * dedus din cele două norme, are sub cinci zile pe săptămână și se cere
+   * confirmat în contract (garda „L4” din campania QA). Ecranul perioadei îi
+   * numește pe acești oameni, nu doar îi numără.
+   */
+  readonly programSubCinciZile: boolean;
 }
 
 /** Rândul așa cum vine de la PostgREST: `calc_warnings` e JSON, se numără aici. */
-type RandInregistrareCitit = Omit<RandInregistrare, "avertismente"> &
+type RandInregistrareCitit = Omit<RandInregistrare, "avertismente" | "programSubCinciZile"> &
   Readonly<{ calc_warnings: unknown }>;
+
+/**
+ * Codul din catalog, plus cel de dinaintea lui: fluturașii calculați între 12 și
+ * 22 oct 2026 poartă `NORMA_SUB_CINCI_ZILE`, același program sub cinci zile.
+ * Fără el, o perioadă aprobată atunci (deci nerecalculată) nu-și numea oamenii.
+ */
+const CODURI_PROGRAM_SUB_CINCI_ZILE: readonly string[] = [
+  "SAL_PROGRAM_SUB_CINCI_ZILE" satisfies CodProblema,
+  "NORMA_SUB_CINCI_ZILE",
+];
+
+function areCodul(avertismente: readonly unknown[], coduri: readonly string[]): boolean {
+  return avertismente.some((w) => {
+    if (typeof w !== "object" || w === null) return false;
+    const cod = (w as { cod?: unknown }).cod;
+    return typeof cod === "string" && coduri.includes(cod);
+  });
+}
 
 export interface RezultatInregistrari {
   readonly randuri: readonly RandInregistrare[];
@@ -273,10 +300,14 @@ export async function listeazaInregistrari(periodId: string): Promise<RezultatIn
 
     const { data, error } = await interogare.returns<RandInregistrareCitit[]>();
     if (error !== null) throw error;
-    const lot = (data ?? []).map(({ calc_warnings, ...rand }) => ({
-      ...rand,
-      avertismente: Array.isArray(calc_warnings) ? calc_warnings.length : 0,
-    }));
+    const lot = (data ?? []).map(({ calc_warnings, ...rand }) => {
+      const avertismente: readonly unknown[] = Array.isArray(calc_warnings) ? calc_warnings : [];
+      return {
+        ...rand,
+        avertismente: avertismente.length,
+        programSubCinciZile: areCodul(avertismente, CODURI_PROGRAM_SUB_CINCI_ZILE),
+      };
+    });
     randuri.push(...lot);
 
     if (lot.length < PAGINA_INREGISTRARI) {

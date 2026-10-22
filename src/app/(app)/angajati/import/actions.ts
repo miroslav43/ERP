@@ -22,6 +22,7 @@ import { businessRule, invalidInput } from "@/lib/actions/errors";
 import { citesteExcelDinBuffer, LOT_IMPORT, verificaFisierImport } from "@/lib/import/excel";
 import { etichetaCampImport, mapeazaColoane, mapeazaRand } from "@/domain/import/mapare";
 import { schemaLotImport, valideazaRanduri, type AngajatProtejat } from "@/domain/import/validare";
+import { normaZilnicaPeCinciZile } from "@/domain/payroll/program-saptamanal";
 import { tiparContine } from "@/lib/queries/cursor";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import {
@@ -327,7 +328,15 @@ async function importaUnRand(ctx: ActionContext, angajat: AngajatProtejat): Prom
       status: "proiect", // niciodată „activ" din import: activarea trece prin REVISAL
       ...(angajat.tip_contract === undefined ? {} : { contract_duration: angajat.tip_contract }),
       ...(angajat.contract_pana_la === undefined ? {} : { valabil_pana: angajat.contract_pana_la }),
-      ...(angajat.norma_ore === undefined ? {} : { norma_ore_saptamana: angajat.norma_ore }),
+      // Garda „L4”: fișierul are doar norma săptămânală. Fără norma zilnică pe
+      // cinci zile, baza punea 8 h/zi, iar 8/20 era pentru salarizare un
+      // program de 2,5 zile pe săptămână, nu un timp parțial de 4 h pe zi.
+      ...(angajat.norma_ore === undefined
+        ? {}
+        : {
+            norma_ore_saptamana: angajat.norma_ore,
+            norma_ore_zi: normaZilnicaPeCinciZile(angajat.norma_ore),
+          }),
       ...(angajat.zile_concediu === undefined
         ? {}
         : { zile_concediu_anual: angajat.zile_concediu }),

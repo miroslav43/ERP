@@ -528,7 +528,7 @@ describe("calculatePayrollEntry — normă în mai puțin de cinci zile pe săpt
 
   it("avertizează că baza e proporționată cu media zilelor programului", () => {
     const r = calculeaza(TREI_ZILE, pontaj(13));
-    const avertisment = r.warnings.find((w) => w.cod === "NORMA_SUB_CINCI_ZILE");
+    const avertisment = r.warnings.find((w) => w.cod === "SAL_PROGRAM_SUB_CINCI_ZILE");
     expect(avertisment?.mesaj).toContain("12,6");
   });
 
@@ -542,7 +542,7 @@ describe("calculatePayrollEntry — normă în mai puțin de cinci zile pe săpt
       deductions: [],
     });
     expect(cu).toEqual(fara);
-    expect(cu.warnings.some((w) => w.cod === "NORMA_SUB_CINCI_ZILE")).toBe(false);
+    expect(cu.warnings.some((w) => w.cod === "SAL_PROGRAM_SUB_CINCI_ZILE")).toBe(false);
   });
 
   it("norma zilnică falsă de odinioară (3,2 h/zi, 16 h/săpt., cinci zile) rămâne neatinsă", () => {

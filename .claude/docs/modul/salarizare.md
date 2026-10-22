@@ -185,8 +185,8 @@ Migrarea → `src/types/database.ts` → `src/schemas/payroll.ts` →
 `src/lib/queries/payroll.ts` → acțiuni → pagini. **Calculul propriu-zis nu e aici**: stă
 în `src/domain/payroll/`, acoperit cu teste, iar o sumă greșită se repară acolo, nu în
 pagină. Motorul, etapele lui, suma neimpozabilă de la salariul minim, lanțul
-concediului medical și felul în care avertismentele își scriu orele:
-[[modul/salarizare/calcul]].
+concediului medical, programul sub cinci zile (numit și pe ecranul perioadei) și felul
+în care avertismentele își scriu orele: [[modul/salarizare/calcul]].
 
 ## Ce NU e aici
 

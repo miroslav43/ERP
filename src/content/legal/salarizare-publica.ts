@@ -1,4 +1,8 @@
 import type { PayrollSettingsSnapshot, PragDeducerePersonala } from "@/domain/payroll/calc";
+import {
+  FACILITATE_IANUARIE_IUNIE_2026,
+  FACILITATE_IULIE_DECEMBRIE_2026,
+} from "@/domain/payroll/etape/facilitate-salariu-minim";
 
 /**
  * Valorile legale pentru calculatorul PUBLIC de salariu (`/unelte/calculator-salariu`).
@@ -32,12 +36,21 @@ import type { PayrollSettingsSnapshot, PragDeducerePersonala } from "@/domain/pa
  * Valabil pentru 2026, pe cele două perioade din `PERIOADE_2026`: la 1 ianuarie
  * 2027 facilitatea expiră (art. III alin. (6)) și valorile se reverifică.
  * `valoriExpirate()` face pagina să spună asta din prima zi a lui 2027.
+ *
+ * ── UN SINGUR LOC PENTRU CIFRE ────────────────────────────────────────────
+ * Salariul minim, suma scutită, plafonul ei și datele perioadelor NU se scriu
+ * aici: vin din tabelul motorului de salarizare
+ * (`src/domain/payroll/etape/facilitate-salariu-minim.ts`), același din care
+ * statul de plată își ia suma neimpozabilă. Scrise de două ori, o prelungire a
+ * ordonanței ar fi schimbat doar una dintre ele. `salariu.paritate.test.ts`
+ * refuză literalele.
  */
 
-export const SALARIU_MINIM_BRUT_2026_IULIE = 4325;
+/** HG 146/2026 art. 1 — din tabelul motorului. */
+export const SALARIU_MINIM_BRUT_2026_IULIE = FACILITATE_IULIE_DECEMBRIE_2026.salariuMinim;
 
 /** HG 1506/2024 art. 1: în vigoare de la 1 ianuarie 2025 până la 30 iunie 2026 (abrogată de HG 146/2026 art. 2). */
-export const SALARIU_MINIM_BRUT_2026_IANUARIE = 4050;
+export const SALARIU_MINIM_BRUT_2026_IANUARIE = FACILITATE_IANUARIE_IUNIE_2026.salariuMinim;
 
 export const VERIFICARE = {
   la: "2026-10-09",
@@ -69,12 +82,12 @@ export const VERIFICARE = {
   ],
 } as const;
 
-/** OUG 89/2025 art. III alin. (1): suma, plafonul de venit brut și perioada. */
+/** OUG 89/2025 art. III alin. (1), iulie–decembrie 2026: suma, plafonul de venit brut și perioada. */
 export const FACILITATE_SALARIU_MINIM = {
-  suma: 200,
-  plafonVenitBrut: 4600,
-  valabilDeLa: "2026-07-01",
-  valabilPana: "2026-12-31",
+  suma: FACILITATE_IULIE_DECEMBRIE_2026.suma,
+  plafonVenitBrut: FACILITATE_IULIE_DECEMBRIE_2026.plafonVenitBrut,
+  valabilDeLa: FACILITATE_IULIE_DECEMBRIE_2026.valabilDeLa,
+  valabilPana: FACILITATE_IULIE_DECEMBRIE_2026.valabilPana,
 } as const;
 
 /** Procentele de bază, în zecimi de procent, pentru 0, 1, 2, 3 și 4+ persoane în întreținere. */
@@ -171,7 +184,7 @@ function setariPentruMinim(minim: number, valabilDeLa: string): PayrollSettingsS
 
 export const SETARI_SALARIZARE_PUBLICE: PayrollSettingsSnapshot = setariPentruMinim(
   SALARIU_MINIM_BRUT_2026_IULIE,
-  "2026-07-01",
+  FACILITATE_IULIE_DECEMBRIE_2026.valabilDeLa,
 );
 
 /** Cele două perioade ale lui 2026. Cheia e și valoarea din adresă (`?perioada=`). */
@@ -199,18 +212,24 @@ export type ValoriPerioada = Readonly<{
 export const PERIOADE_2026: Readonly<Record<Perioada, ValoriPerioada>> = {
   "2026-1": {
     eticheta: "ianuarie–iunie 2026",
-    valabilDeLa: "2026-01-01",
-    valabilPana: "2026-06-30",
+    valabilDeLa: FACILITATE_IANUARIE_IUNIE_2026.valabilDeLa,
+    valabilPana: FACILITATE_IANUARIE_IUNIE_2026.valabilPana,
     salariuMinim: SALARIU_MINIM_BRUT_2026_IANUARIE,
     oreLunaMedie: "165,334",
     leiPeOra: "24,496",
     actSalariuMinim: "HG 1506/2024",
     // OUG 89/2025 art. III alin. (1): 300 de lei pe lună pentru 1 ianuarie–30 iunie
     // 2026; lit. b): venit brut, fără tichete, de cel mult 4.300 de lei.
-    facilitate: { suma: 300, plafonVenitBrut: 4300 },
+    facilitate: {
+      suma: FACILITATE_IANUARIE_IUNIE_2026.suma,
+      plafonVenitBrut: FACILITATE_IANUARIE_IUNIE_2026.plafonVenitBrut,
+    },
     // OUG 89/2025 art. III alin. (5) lit. a): baza minimă 4.050 − 300 = 3.750 de lei.
-    reducereBazaMinima: 300,
-    setari: setariPentruMinim(SALARIU_MINIM_BRUT_2026_IANUARIE, "2026-01-01"),
+    reducereBazaMinima: FACILITATE_IANUARIE_IUNIE_2026.suma,
+    setari: setariPentruMinim(
+      SALARIU_MINIM_BRUT_2026_IANUARIE,
+      FACILITATE_IANUARIE_IUNIE_2026.valabilDeLa,
+    ),
   },
   "2026-2": {
     eticheta: "iulie–decembrie 2026",
@@ -225,7 +244,7 @@ export const PERIOADE_2026: Readonly<Record<Perioada, ValoriPerioada>> = {
       plafonVenitBrut: FACILITATE_SALARIU_MINIM.plafonVenitBrut,
     },
     // Lit. b): 4.325 − 200 = 4.125 de lei.
-    reducereBazaMinima: 200,
+    reducereBazaMinima: FACILITATE_IULIE_DECEMBRIE_2026.suma,
     setari: SETARI_SALARIZARE_PUBLICE,
   },
 };

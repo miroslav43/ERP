@@ -17,10 +17,21 @@ import { calculatePayrollEntry, type PayrollCalcInput } from "@/domain/payroll/c
  * absențe, sporuri sau rețineri, într-una din cele două perioade ale lui 2026
  * (`PERIOADE_2026`: salariul minim și suma scutită diferă).
  *
- * Singurul lucru pe care motorul nu-l știe e suma neimpozabilă de la salariul
- * minim (OUG 89/2025 art. III): 300 de lei în ianuarie–iunie 2026 și 200 de lei
- * în iulie–decembrie, scoși din baza de impozit, CAS, CASS și CAM. Se aplică
- * aici, peste motor.
+ * Suma neimpozabilă de la salariul minim (OUG 89/2025 art. III: 300 de lei în
+ * ianuarie–iunie 2026, 200 în iulie–decembrie) o aplică MOTORUL, ca la statul de
+ * plată: calculatorul îi trimite luna veniturilor (prima lună a perioadei), norma
+ * zilnică și funcția de bază, iar condițiile, plafonul și bazele le decide etapa
+ * `facilitate-salariu-minim.ts`. Până în oct. 2026 calculatorul avea o copie a
+ * condițiilor și scădea suma singur; acum o copie nu mai are unde să rămână în urmă.
+ *
+ * Ce rămâne aici, deliberat, peste motor — reguli pe care `PayrollCalcInput` nu le
+ * poate primi sau pe care motorul le face altfel (⚠ NOTES.md §3):
+ *  - deducerea personală întreagă, cu partea suplimentară (art. 77 alin. (10)),
+ *    pe venitul CU tichete; motorul o primește ca un singur prag;
+ *  - scutirea pentru handicap ca impozit zero, inclusiv pe tichete; scutirea de
+ *    100% a motorului (`exemptii`) ar impozita tichetele (DEFECT fixat în test);
+ *  - diferența până la baza minimă de contribuții, plătită de firmă la timp parțial.
+ * `salariu.paritate.test.ts` ține cele două calcule lipite, lună cu lună.
  */
 
 export type OptiuniSalariu = Readonly<{
@@ -91,14 +102,24 @@ const NORMA_INTREAGA = 8;
 const margineste = (v: number, min: number, max: number) =>
   Math.min(max, Math.max(min, Number.isFinite(v) ? v : min));
 
+/**
+ * Luna veniturilor pe care o vede motorul: prima lună a perioadei („2026-01”,
+ * „2026-07”). Orice lună din perioadă dă aceeași facilitate.
+ */
+function lunaVenituri(o: OptiuniSalariu): string {
+  return PERIOADE_2026[o.perioada].valabilDeLa.slice(0, 7);
+}
+
 function intrare(
-  brutImpozabil: number,
+  brut: number,
   o: OptiuniSalariu,
   deducere: number,
   tichete: number,
 ): PayrollCalcInput {
   const setari = PERIOADE_2026[o.perioada].setari;
   return {
+    // Suma neimpozabilă o decide etapa motorului, pe aceeași lună ca statul de plată.
+    lunaVenituri: lunaVenituri(o),
     // Deducerea o calculează `deduceri()` (art. 77, cu partea suplimentară, pe care
     // grila motorului n-o are); motorul o primește ca un singur prag, valabil
     // pentru orice venit. Funcția de bază se verifică tot în `deduceri()`.
@@ -124,7 +145,14 @@ function intrare(
             ]
           : [],
     },
-    contract: { salariuBaza: brutImpozabil, nrPersoaneIntretinere: o.persoane },
+    // Norma zilnică decide „normă întreagă” pentru suma scutită (art. III alin. (1));
+    // săptămâna lipsește, deci cinci zile, ca la orice contract de calculator.
+    contract: {
+      salariuBaza: brut,
+      nrPersoaneIntretinere: o.persoane,
+      normaZilnicaOre: o.oreZi,
+      functieDeBaza: o.functieDeBaza,
+    },
     // Luna întreagă, ca O SINGURĂ zi lucrătoare. Motorul împarte salariul la
     // zilele lucrătoare și îl înmulțește înapoi cu zilele lucrate; cu 21 de zile,
     // 5.394 / 21 × 21 ieșea 5.393,999… în virgulă mobilă, iar CAS-ul de 1.348,50
@@ -133,7 +161,7 @@ function intrare(
     attendance: {
       zileLucratoareLuna: 1,
       zileLucrate: 1,
-      oreLucrate: setari.normaZilnicaOre,
+      oreLucrate: o.oreZi,
       oreSuplimentare: 0,
       oreNoapte: 0,
       zileConcediuOdihna: 0,
@@ -143,22 +171,6 @@ function intrare(
     bonuses: [],
     deductions: [],
   };
-}
-
-/**
- * Condițiile art. III alin. (1): funcția de bază, normă întreagă (presupusă de
- * calculator), salariul de bază egal cu minimul PERIOADEI, venit brut de cel
- * mult plafonul ei. Fără sporuri, brutul calculatorului ESTE salariul de bază.
- */
-function sumaNeimpozabila(brut: number, o: OptiuniSalariu): number {
-  const v = PERIOADE_2026[o.perioada];
-  // Art. III alin. (1) cere „normă întreagă”: la timp parțial, nicio sumă scutită.
-  return o.oreZi >= NORMA_INTREAGA &&
-    o.functieDeBaza &&
-    brut === v.salariuMinim &&
-    brut <= v.facilitate.plafonVenitBrut
-    ? v.facilitate.suma
-    : 0;
 }
 
 /** Baza minimă de CAS și CASS: salariul minim al perioadei, diminuat (OUG 89/2025 art. III alin. (5)). */
@@ -217,14 +229,14 @@ export function calculeazaDinBrut(brut: number, optiuni: OptiuniSalariu): Rezult
     copiiScoala: Math.round(margineste(optiuni.copiiScoala, 0, 10)),
     oreZi: Math.round(margineste(optiuni.oreZi, 1, NORMA_INTREAGA)),
   };
-  const scutit = sumaNeimpozabila(b, o);
   const tichete = valoareTichete(o);
   // ⚠ Tichetele intră în venitul brut lunar al grilei (art. 76 alin. (3) lit. h));
   // motorul produsului nu le pune acolo. Întrebare deschisă în NOTES.md §3.
   const d = deduceri(b + tichete, o);
-  // Motorul calculează impozitul și contribuțiile pe brutul FĂRĂ suma scutită;
-  // omul primește însă tot brutul, deci suma scutită se adaugă înapoi la net.
-  const r = calculatePayrollEntry(intrare(b - scutit, o, d.deBaza + d.sub26 + d.copii, tichete));
+  // Motorul primește brutul ÎNTREG și scoate singur suma scutită din bazele de
+  // impozit, CAS, CASS și CAM; netul lui o conține deja (omul o primește).
+  const r = calculatePayrollEntry(intrare(b, o, d.deBaza + d.sub26 + d.copii, tichete));
+  const scutit = r.sumaNeimpozabila;
   // Art. 77 alin. (2): deducerea se acordă „în limita venitului impozabil lunar”.
   // Motorul o plafonează deja (baza de impozit nu coboară sub zero); aici se
   // plafonează și cifra afișată — la 4,5 lei brut se afișa „Deducere 865 lei”.
@@ -242,7 +254,7 @@ export function calculeazaDinBrut(brut: number, optiuni: OptiuniSalariu): Rezult
     impozit: r.impozit,
     impozitScutit: o.scutitImpozit,
     sumaNeimpozabila: scutit,
-    net: r.net + scutit,
+    net: r.net,
     tichete,
     casSuportatAngajator: suportat.cas,
     cassSuportatAngajator: suportat.cass,

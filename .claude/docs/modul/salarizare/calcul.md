@@ -7,12 +7,14 @@ cai:
   - "src/domain/payroll/erori.ts"
   - "src/domain/payroll/etape/**"
   - "src/domain/payroll/salariu-minim.ts"
+  - "src/domain/payroll/program-saptamanal.ts"
+  - "src/lib/unelte/salariu.ts"
 tabele: [payroll_entries, payroll_settings]
 permisiuni: [payroll:create]
 feature: payroll
 capcane: []
-scris_pe: f7d4e6f1491625d4d01ef4399bf32cffed4d5626
-scris_la: 2026-10-21
+scris_pe: 10f409a654a7798765a2a53ee9f9f93f0a6f12b8
+scris_la: 2026-10-22
 tags: [modul, finance]
 ---
 
@@ -46,10 +48,10 @@ bază egal cu minimul” se compară cu minimul din tabel, nu cu `payroll_settin
 
 - **Luna vine ca dată, nu din ceas.** `lunaVenituri` („AAAA-LL”) e pusă de
   `calculeazaPerioada` din an și luna perioadei, deci decembrie recalculat în ianuarie
-  păstrează suma. Absentă, motorul se poartă ca înainte: calculatorul public din
-  `src/lib/unelte/salariu.ts` n-o trimite și aplică suma el însuși, ca să nu se scadă de
-  două ori. Cele două căi trebuie să dea aceleași cifre la salariul minim
-  (`calc.facilitate.test.ts`).
+  păstrează suma. Absentă, motorul se poartă ca înainte (nicio sumă). Calculatorul public
+  (`src/lib/unelte/salariu.ts`) trimite din 22 oct prima lună a perioadei și lasă suma
+  etapei; cifrele perioadelor (`salarizare-publica.ts`) vin din tabelul etapei, nu sunt
+  scrise a doua oară. Vezi „Paritatea cu calculatorul public” mai jos.
 - **Ce iese din ce.** Suma iese din bazele CAS, CASS, impozit și CAM; nu iese din `brut`,
   fiindcă omul o primește. Deducerea personală rămâne pe brutul întreg (art. 77 nu e
   derogat), iar baza minimă de contribuții scade cu suma pentru TOȚI, nu doar pentru
@@ -75,6 +77,49 @@ bază egal cu minimul” se compară cu minimul din tabel, nu cu `payroll_settin
 - Cazul în care salariul a fost la minim doar o parte din lună (alin. (4) lit. a)) nu e
   tratat; îl semnalează doar `SAL_CONTRACT_SCHIMBAT_IN_LUNA`.
 - Valorile legale și întrebările pentru contabil sunt în `NOTES.md` §3.
+
+## Programul sub cinci zile pe săptămână (garda L4)
+
+Contractul n-are un câmp pentru zile: `program-saptamanal.ts` le deduce, săptămâna / zi.
+Sub cinci, salariul se împarte la zilele programului din lună (21 × 2,5 / 5 = 10,5), iar
+zilele peste ele nu trec de salariul întreg. „8 h/zi, 20 h/săpt.” e însă și forma unui
+timp parțial de 4 h în cinci zile cu norma zilnică rămasă la 8 — contract vechi sau
+importat doar cu norma săptămânală —, iar acela, cu 15 din 21 de zile, lua tot salariul.
+
+- **Calculul nu se schimbă, se spune.** `SAL_PROGRAM_SUB_CINCI_ZILE` (avertisment, în
+  catalog, `unde: /angajati` ⇒ fișa omului): „Programul contractului: 2,5 zile pe
+  săptămână (…) — confirmați în contract”, plus fraza cu zilele plătite peste program.
+  Ecranul perioadei îi numește pe oameni (`programSubCinciZile` din
+  `listeazaInregistrari`); asistentul de angajare și fișa arată zilele deduse.
+- **Fără confirmare stocată** (decizie, 22 oct 2026): zero contracte 8/20 pe producție
+  (21 oct); o bifă ar ascunde doar atenționarea și ar trebui invalidată la orice act
+  care schimbă normele; modelul corect, dacă se vrea, e programul explicit pe zile (și
+  pentru REGES), o decizie de produs, nu o coloană booleană. Prețul: un program real de
+  2–3 zile poartă atenționarea în fiecare lună.
+- **Surse vii de 8/20, amândouă doar îngustate.** Importul scrie acum norma zilnică pe
+  cinci zile (`normaZilnicaPeCinciZile`). Asistentul de angajare îl primește și azi:
+  din 573b2d31 schema cere doar „zi ≤ săptămână” (regula „zi × 5”, 8baf375e, refuza și
+  programele legale de 2–3 zile), iar formularul pornește de la 40/8 — paza e textul cu
+  zilele deduse, sub cele două norme. Normele unui contract existent nu se pot corecta
+  din aplicație: actul adițional schimbă doar salariul.
+- Codul vechi `NORMA_SUB_CINCI_ZILE` rămâne pe fluturașii calculați 12–22 oct, ca text
+  fără legătură; `listeazaInregistrari` îl recunoaște, deci ecranul perioadei îi
+  numește și pe ei.
+
+## Paritatea cu calculatorul public
+
+`src/lib/unelte/salariu.paritate.test.ts` cheamă motorul ca `calculeazaPerioada`
+(`lunaVenituri`, ambele norme, handicapul ca scutire 100%) și compară, lună cu lună în
+2026: persoane, funcția de bază, deducerea suplimentară, tichetele, timpul parțial,
+handicapul. Luna intră ca o singură zi, ca în calculator. Divergențele sunt pe față:
+
+- ⚠ NOTES.md §3: tichetele intră în venitul grilei doar în calculator; cu
+  `aplica_minim_contributii`, motorul reține angajatului diferența până la baza minimă,
+  calculatorul o trece la firmă (art. 146 alin. (5^9)).
+- `it.fails("DEFECT")`: scutirea de 100% impozitează tichetele (`scutireFiscala` se ia
+  din `brut`); pe 21 de zile, 5.394 dă CAS 1.348 (virgulă mobilă în
+  `salariuZi * zilePlatiteInProgram`) — repararea e decizia 2 a utilizatorului din
+  README-ul planului de unelte.
 
 ## Orele pe ceas în avertismente
 
