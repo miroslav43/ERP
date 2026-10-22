@@ -36,7 +36,7 @@ capcane: [18, 19, 26]
 citeste_daca:
   - "asistentul spune „fără foi” sau „nealocată” și omul vede altceva → „Ce refuză baza tăcut”"
   - "cine_are_masina dă alt nume decât sugestia de pe amendă → precedența, mai jos"
-scris_pe: af924c99238113d5c64ff6334298116e1a49cc3c
+scris_pe: 0f51456b15db11afe00f7a5e7681f424d8e7e3c0
 scris_la: 2026-10-22
 tags: [modul, nucleu]
 ---
@@ -84,7 +84,8 @@ politicile de SELECT nu-l mai cer), agregări prin `citesteTot`, coloanele de fi
 - **Vizibilitatea parțială nu dă eroare, dă zero rânduri.** Managerul nu vede foaia unui
   coleg din afara echipei pe pool, nici alocarea unui ne-subordonat (`alocari_select` merge pe
   șoferul alocării). De aceea `cine_are_masina` spune „dintre cele pe care le poți vedea” sub
-  vizibilitate parțială, iar consumul spune „pe foile echipei tale”.
+  vizibilitate parțială, pe fiecare treaptă care ar nega o foaie sau o alocare, iar consumul
+  spune „pe foile echipei tale”.
 - **Normele și regimurile fiscale (F10) le vede doar `vehicles:read = all`.** Consumul nu le
   cere pentru manager; norma de rezervă e atunci consumul declarat.
 - **Planurile de service (`vsp_select`) cer `vehicles:read >= team`, amenzile cer
