@@ -159,6 +159,51 @@ describe("scadente_flota — angajatul, în portal", () => {
   });
 });
 
+describe("scadente_flota — managerul, în aplicație", () => {
+  it("cere reviziile (`vehicles:read = team`), nu și amenzile (n-are `vehicle_fines:read`)", async () => {
+    // V1 n-are nicio scadență în 5 zile (rovinieta lui e valabilă), deci intră în
+    // fraza de final: ea pomenește reviziile verificate și tace despre amenzi.
+    vi.mocked(documenteCurente).mockResolvedValue([
+      {
+        id: "x1",
+        vehicle_id: V1,
+        document_type_id: RCA,
+        expira_la: "2026-11-03",
+        este_curent: true,
+      },
+      {
+        id: "x4",
+        vehicle_id: V1,
+        document_type_id: ROV,
+        expira_la: "2027-05-01",
+        este_curent: true,
+      },
+      {
+        id: "x2",
+        vehicle_id: V2,
+        document_type_id: ITP,
+        expira_la: "2026-10-01",
+        este_curent: true,
+      },
+      {
+        id: "x3",
+        vehicle_id: V2,
+        document_type_id: ROV,
+        expira_la: "2027-05-01",
+        este_curent: true,
+      },
+    ]);
+    const r = await unealtaScadenteFlota.executa(contextFlota("manager"), { zile: 5 });
+    expect(planuriServiceActive).toHaveBeenCalledOnce();
+    expect(amenziCuTermen).not.toHaveBeenCalled();
+    expect(r.text).toContain("revizia „Schimb ulei” la 50.000 km: mai sunt 500 km");
+    expect(r.text).toContain("nicio revizie scadentă");
+    expect(r.text).not.toContain("amenzi");
+    expect(r.text).not.toContain("PV123");
+    for (const d of r.destinatiiEfemere ?? []) expect(d.href).toMatch(/^\/flota\//u);
+  });
+});
+
 describe("scadente_flota — un număr anume", () => {
   it("filtrează pe numărul normalizat", async () => {
     const r = await unealtaScadenteFlota.executa(contextFlota("org_admin"), {
