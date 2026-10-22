@@ -86,7 +86,10 @@ if (actualizata === null) throw businessRule("Starea s-a schimbat între timp.")
 Un UPDATE respins de clauza `USING` a politicii **nu produce nicio eroare** —
 afectează zero rânduri, tăcut, iar utilizatorul vede „succes” (capcana 17).
 Rulează `node .claude/skills/administrativo/scripts/audit-actiuni.mjs --diff`
-ca să confirmi că n-ai adăugat un al șaisprezecelea.
+ca să confirmi că n-ai adăugat un al șaisprezecelea. Auditul citește TOATE
+fișierele de acțiuni (`actions.ts`, `actions-*.ts`, `*-actions.ts`, orice fișier
+cu `"use server"` la nivel de modul), inclusiv funcțiile ajutătoare din afara
+lui `createAction({ … })`; până pe 22 oct 2026 citea doar `actions.ts`.
 
 ## 6. Coloane pe care clientul NU le trimite
 
