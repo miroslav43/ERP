@@ -41,7 +41,7 @@ import {
   ORG_ID,
   USER_ID,
 } from "@/lib/teste/actiune";
-import { areFiltru, eroarePostgrest } from "@/lib/teste/supabase-fals";
+import { areFiltru, eroarePostgrest, type ApelFals } from "@/lib/teste/supabase-fals";
 
 import {
   actualizeazaAmenda,
@@ -564,6 +564,7 @@ describe("actualizeazaIncident", () => {
 
   it("UPDATE pe detalii, fără stadiu și fără vehicul; legătura SSM ajunge în rând", async () => {
     const { server } = configureazaActiunea({ permisiuni: { "vehicle_incidents:update": "all" } });
+    server.raspunde("work_accidents", "select", { data: { id: ID_3 } });
     server.raspunde("vehicle_incidents", "update", { data: { id: ID_1 } });
 
     const r = await actualizeazaIncident(detalii);
@@ -587,9 +588,11 @@ describe("actualizeazaIncident", () => {
     expect(caiRevalidate()).toEqual(["/flota/incidente", `/flota/incidente/${ID_1}`]);
   });
 
-  it("cercetarea SSM din altă firmă (P0001) ajunge pe `work_accident_id`", async () => {
+  it("refuzul bazei pe cercetare (P0001) ajunge pe `work_accident_id`", async () => {
     const { server } = configureazaActiunea({ permisiuni: { "vehicle_incidents:update": "all" } });
-    const mesaj = "Cercetarea SSM aleasă nu aparține organizației dumneavoastră.";
+    const mesaj =
+      "Cercetarea SSM aleasă nu există în organizația dumneavoastră sau nu o puteți consulta.";
+    server.raspunde("work_accidents", "select", { data: { id: ID_3 } });
     server.raspunde("vehicle_incidents", "update", { error: eroarePostgrest("P0001", mesaj) });
     const r = await actualizeazaIncident(detalii);
     expect(r).toMatchObject({
@@ -598,9 +601,96 @@ describe("actualizeazaIncident", () => {
     });
   });
 
+  // ── Legătura cu cercetarea SSM: o pune doar cine VEDE cercetarea ─────────────
+  // Triggerul `incidente_inainte` rulează SECURITY DEFINER: verifică doar că
+  // rândul e al firmei, nu și că apelantul îl poate citi. Fără verificarea din
+  // acțiune, cine scrie incidente (fără acces SSM, sau cu modulul SSM oprit)
+  // putea lega orice cercetare a firmei și afla, după refuz, care id-uri există.
+
+  /** Filtrele de egalitate puse pe UPDATE, prin `.eq` sau `.match`, pe `work_accident_id`. */
+  const legaturaCeruta = (apel: ApelFals | undefined): readonly unknown[] =>
+    (apel?.filtre ?? []).flatMap((f) => {
+      if (f.metoda === "eq" && f.argumente[0] === "work_accident_id") return [f.argumente[1]];
+      const criteriu = f.argumente[0];
+      if (f.metoda === "match" && typeof criteriu === "object" && criteriu !== null) {
+        return "work_accident_id" in criteriu ? [criteriu.work_accident_id] : [];
+      }
+      return [];
+    });
+
+  it("cercetarea pe care apelantul n-o vede (RLS-ul SSM: zero rânduri) NU se leagă: VALIDARE pe `work_accident_id`", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicle_incidents:update": "all" } });
+    server.raspunde("work_accidents", "select", { data: null });
+    // Rândul nu avea deja legătura asta: filtrul pe ea nu prinde nimic.
+    server.raspunde("vehicle_incidents", "update", { data: null });
+
+    const r = await actualizeazaIncident(detalii);
+
+    expect(r).toMatchObject({
+      ok: false,
+      error: {
+        code: "VALIDARE",
+        fieldErrors: {
+          work_accident_id: [
+            "Cercetarea SSM aleasă nu există în organizația dumneavoastră sau nu o puteți consulta.",
+          ],
+        },
+      },
+    });
+    const [scriere] = server.apeluriPe("vehicle_incidents", "update");
+    expect(legaturaCeruta(scriere)).toEqual([ID_3]);
+  });
+
+  it("legătura deja pusă, pe care apelantul n-o vede, se PĂSTREAZĂ: UPDATE-ul trece doar pe rândul care o are deja", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicle_incidents:update": "all" } });
+    server.raspunde("work_accidents", "select", { data: null });
+    server.raspunde("vehicle_incidents", "update", { data: { id: ID_1 } });
+
+    const r = await actualizeazaIncident(detalii);
+
+    expect(r.ok).toBe(true);
+    const [scriere] = server.apeluriPe("vehicle_incidents", "update");
+    expect(legaturaCeruta(scriere)).toEqual([ID_3]);
+    expect(areFiltru(scriere, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(scriere?.selectDupaScriere).toBe("id");
+  });
+
+  it("cercetarea se verifică prin RLS (clientul sesiunii, pe firmă, neștearsă); cea vizibilă se leagă fără alt filtru", async () => {
+    const { server, admin } = configureazaActiunea({
+      permisiuni: { "vehicle_incidents:update": "all" },
+    });
+    server.raspunde("work_accidents", "select", { data: { id: ID_3 } });
+    server.raspunde("vehicle_incidents", "update", { data: { id: ID_1 } });
+
+    const r = await actualizeazaIncident(detalii);
+
+    expect(r.ok).toBe(true);
+    const [citire] = server.apeluriPe("work_accidents", "select");
+    expect(areFiltru(citire, "eq", "id", ID_3)).toBe(true);
+    expect(areFiltru(citire, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(citire, "is", "deleted_at", null)).toBe(true);
+    // Clientul admin ar ocoli exact RLS-ul care decide.
+    expect(admin.apeluri).toHaveLength(0);
+    const [scriere] = server.apeluriPe("vehicle_incidents", "update");
+    expect(legaturaCeruta(scriere)).toEqual([]);
+  });
+
+  it("fără legătură (gol): nicio citire SSM, iar legătura se golește", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicle_incidents:update": "all" } });
+    server.raspunde("vehicle_incidents", "update", { data: { id: ID_1 } });
+
+    const r = await actualizeazaIncident({ ...detalii, work_accident_id: "" });
+
+    expect(r.ok).toBe(true);
+    expect(server.apeluriPe("work_accidents")).toHaveLength(0);
+    const [scriere] = server.apeluriPe("vehicle_incidents", "update");
+    expect(scriere?.payload).toMatchObject({ work_accident_id: null });
+  });
+
   it("incidentul închis (P0001) rămâne mesajul bazei", async () => {
     const { server } = configureazaActiunea({ permisiuni: { "vehicle_incidents:update": "all" } });
     const mesaj = "Incidentul este închis și nu se mai modifică.";
+    server.raspunde("work_accidents", "select", { data: { id: ID_3 } });
     server.raspunde("vehicle_incidents", "update", { error: eroarePostgrest("P0001", mesaj) });
     const r = await actualizeazaIncident(detalii);
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT", message: mesaj } });

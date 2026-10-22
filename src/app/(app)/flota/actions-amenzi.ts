@@ -30,7 +30,7 @@
 
 import { STADII_AMENDA, STADII_INCIDENT, poateTrece } from "@/domain/fleet/amenzi";
 import { createAction } from "@/lib/actions/create-action";
-import { businessRule } from "@/lib/actions/errors";
+import { businessRule, invalidInput } from "@/lib/actions/errors";
 import {
   actualizeazaAmendaSchema,
   actualizeazaIncidentSchema,
@@ -61,6 +61,9 @@ const MESAJ_STADIU_AMENDA =
   "Amenda s-a schimbat între timp: nu mai e în stadiul din care se putea face această operațiune, sau nu aveți dreptul s-o modificați. Reîncărcați pagina.";
 const MESAJ_STADIU_INCIDENT =
   "Incidentul s-a schimbat între timp: nu mai e în stadiul din care se putea face această operațiune, sau nu aveți dreptul să-l modificați. Reîncărcați pagina.";
+/** Același text ca refuzul din `internal.incidente_inainte` (0206). */
+const MESAJ_CERCETARE_NEVAZUTA =
+  "Cercetarea SSM aleasă nu există în organizația dumneavoastră sau nu o puteți consulta.";
 
 // ── Amenzi ──────────────────────────────────────────────────────────────────
 
@@ -437,7 +440,31 @@ export const actualizeazaIncident = createAction({
   },
   revalidate: (input) => caiIncident(input.id),
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    // ── Legătura cu cercetarea SSM: o pune doar cine VEDE cercetarea ──────────
+    // Se citește prin clientul SESIUNII, deci prin RLS-ul SSM (modulul `ssm`
+    // activ și `ssm:read` pe angajatul accidentat). Triggerul `incidente_inainte`
+    // rulează cu drepturile bazei și, singur, verifica doar că rândul e al
+    // firmei: cine scria incidente fără acces SSM (sau cu modulul SSM oprit)
+    // putea lega orice cercetare a firmei și afla, din refuz, ce id-uri există.
+    // O legătură DEJA pusă, pe care apelantul n-o vede, se poate PĂSTRA
+    // (formularul o retrimite neschimbată), nu schimba: UPDATE-ul cere atunci
+    // ca rândul s-o aibă deja. Dezlegarea („fără legătură”) rămâne permisă.
+    let legaturaNevazuta: string | null = null;
+    if (input.work_accident_id !== null) {
+      const cercetare = await ctx.supabase
+        .from("work_accidents")
+        .select("id")
+        .eq("id", input.work_accident_id)
+        .eq("organization_id", ctx.tenant.organizationId)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (cercetare.error !== null) traduEroareAmenzi(cercetare.error);
+      if (cercetare.data === null) legaturaNevazuta = input.work_accident_id;
+    }
+
     // Stadiul nu se atinge aici. Un incident închis îl refuză baza, cu mesajul ei.
+    // `.match({})` nu adaugă niciun filtru; cu o cercetare nevăzută, cere ca
+    // rândul s-o aibă deja. O singură instrucțiune, cu `.select()` în ea.
     const { data, error } = await ctx.supabase
       .from("vehicle_incidents")
       .update({
@@ -457,10 +484,21 @@ export const actualizeazaIncident = createAction({
       .eq("id", input.id)
       .eq("organization_id", ctx.tenant.organizationId)
       .is("deleted_at", null)
+      .match(legaturaNevazuta === null ? {} : { work_accident_id: legaturaNevazuta })
       .select("id")
       .maybeSingle();
     if (error !== null) traduEroareAmenzi(error);
-    if (data === null) throw businessRule(MESAJ_STADIU_INCIDENT);
+    if (data === null) {
+      // Zero rânduri cu o cercetare nevăzută = legătura NU era deja pusă (sau
+      // incidentul a dispărut între timp): refuz pe câmp, același mesaj ca al
+      // bazei, ca să nu deosebească „nu există” de „nu o puteți consulta”.
+      if (legaturaNevazuta !== null) {
+        throw invalidInput(MESAJ_CERCETARE_NEVAZUTA, {
+          work_accident_id: [MESAJ_CERCETARE_NEVAZUTA],
+        });
+      }
+      throw businessRule(MESAJ_STADIU_INCIDENT);
+    }
     return { id: data.id };
   },
 });

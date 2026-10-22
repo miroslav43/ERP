@@ -39,6 +39,8 @@
 -- (23) la asigurător fără asigurător: P0001; închiderea fără cost final: P0001;
 -- (24) incidentul închis e înghețat: P0001;
 -- (25) cercetarea SSM din altă firmă: P0001; din aceeași firmă          [POZITIVĂ];
+--      cea pe care apelantul n-o vede (modulul SSM oprit): P0001; legătura deja
+--      pusă se păstrează la corectură                                   [POZITIVĂ];
 -- (26) incidentul în lucru nu se șterge (P0001), cel doar raportat da    [POZITIVĂ];
 -- (27) incidentul nu se mută pe alt vehicul: P0001;
 -- Lista de conformitate
@@ -137,6 +139,7 @@ declare
   v_inc2      uuid;
   v_acc       uuid;
   v_acc_alta  uuid;
+  v_acc2      uuid;
   v_foaie     uuid;
   v_foaie_r   uuid;
   v_foaie_o   uuid;
@@ -598,6 +601,34 @@ begin
     $q$update public.vehicle_incidents set work_accident_id = %L where id = %L$q$, v_acc, v_inc2));
   v_esecuri := v_esecuri + pg_temp.verifica('25b', v_text = 'ok:1',
     'cercetarea SSM din aceeași firmă se leagă', v_text);
+  -- (25c–25e) legătura o pune doar cine VEDE cercetarea. Triggerul rulează cu
+  -- drepturile bazei: fără judecata apelantului, org_admin-ul unei firme cu
+  -- modulul SSM OPRIT (deci fără nicio cercetare vizibilă) lega orice cercetare.
+  insert into public.work_accidents (id, organization_id, data_producerii, locul, imprejurari, tip, created_by, updated_by)
+  values (gen_random_uuid(), v_org, v_zi - 2, 'Atelier', 'Alunecare', 'usor', v_u_admin, v_u_admin)
+  returning id into v_acc2;
+  update public.organization_features set enabled = false
+   where organization_id = v_org and feature_key = 'ssm';
+  v_n := pg_temp.numara(v_u_admin, format(
+    $q$select count(*) from public.work_accidents where id = %L$q$, v_acc2));
+  v_text := pg_temp.ruleaza(v_u_admin, format(
+    $q$update public.vehicle_incidents set work_accident_id = %L where id = %L$q$, v_acc2, v_inc2));
+  v_esecuri := v_esecuri + pg_temp.verifica('25c',
+    v_n = 0 and v_text = 'P0001:Cercetarea SSM aleasă nu există în organizația dumneavoastră sau nu o puteți consulta.',
+    'cu modulul SSM oprit, org_admin nu vede cercetarea și nici n-o poate lega (P0001, același mesaj ca „nu există”)',
+    format('vizibile %s, %s', v_n, v_text));
+  v_text := pg_temp.ruleaza(v_u_admin, format(
+    $q$update public.vehicle_incidents set descriere = 'Corectură, legătura rămâne' where id = %L$q$, v_inc2));
+  select work_accident_id into v_sofer from public.vehicle_incidents where id = v_inc2;
+  v_esecuri := v_esecuri + pg_temp.verifica('25d', v_text = 'ok:1' and v_sofer = v_acc,
+    'legătura pusă deja (nevăzută acum) se PĂSTREAZĂ la o corectură [POZITIVĂ]',
+    format('%s, legătura %s', v_text, v_sofer));
+  update public.organization_features set enabled = true
+   where organization_id = v_org and feature_key = 'ssm';
+  v_text := pg_temp.ruleaza(v_u_admin, format(
+    $q$update public.vehicle_incidents set work_accident_id = %L where id = %L$q$, v_acc2, v_inc2));
+  v_esecuri := v_esecuri + pg_temp.verifica('25e', v_text = 'ok:1',
+    'cu modulul SSM pornit, aceeași cercetare se leagă [POZITIVĂ]', v_text);
 
   -- (26) ștergerea incidentului
   v_text := pg_temp.ruleaza(v_u_admin, format(
