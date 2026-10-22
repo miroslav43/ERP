@@ -8,23 +8,24 @@ cai:
   - "src/app/api/asistent/route.ts"
   - "src/schemas/asistent.ts"
 tabele: [features, organization_features]
-permisiuni: [leave:read, employees:read]
+permisiuni: [leave:read, employees:read, vehicles:read, trip_sheets:read, trip_sheets:create]
 feature: asistent
 capcane: []
 citeste_daca:
   - "bula nu apare nicăieri → verifică ÎNTÂI cele două comutatoare, secțiunea „Ce refuză baza tăcut”"
   - "bula e în DOM dar nu se vede pe ecran → învelișul flotant s-a strâns la 0×0; același loc"
   - "o pastilă duce în 404 → imposibil prin construcție; citește „Lista închisă”"
-scris_pe: d88200b8dc3f13fccad2ce8777662950d9c00eb8
-scris_la: 2026-10-09
+scris_pe: bd6c9549d760439f142ae5a6b355e1246d6a36ce
+scris_la: 2026-10-22
 tags: [modul, nucleu]
 ---
 
 # Asistent AI
 
 Bulă flotantă în dreapta-jos, în ambele zone. Răspunde la „unde se face X?”, explică
-drumul de click și dă butonul care duce acolo dintr-un singur clic. Pentru trei clase de
-întrebări citește și date reale, sub RLS-ul celui care întreabă.
+drumul de click și dă butonul care duce acolo dintr-un singur clic. Pentru câteva clase de
+întrebări (concediu, ce e de aprobat, fișa unui om, parcul auto) citește și date reale, sub
+RLS-ul celui care întreabă.
 
 **Read-only, prin proiectare.** Nu depune cereri, nu aprobă, nu șterge. Explică și
 trimite; omul apasă. Asta scoate din discuție toată clasa de defecte „modelul a apăsat
@@ -89,7 +90,7 @@ pagina cere `requireFeature(…, "kpi")` — KPI e modul propriu, vândut separa
 
 ## Uneltele de date
 
-Trei, în `src/lib/asistent/unelte/`. Fiecare declară modul, permisiune și prag, verificate
+În `src/lib/asistent/unelte/`. Fiecare declară modul, permisiune și prag, verificate
 de `poarta.ts` **înainte** de execuție — de două ori: o dată ca să decidă despre ce unelte
 află modelul, a doua oară imediat înainte de a rula. Prima e igienă de context, a doua e
 bariera; fără ea, autorizarea ar depinde de bunele intenții ale modelului.
@@ -99,20 +100,25 @@ lucruri: organizația vine din context și nu din parametrii modelului; poarta p
 execuția; iar `executa` întoarce **text, nu rânduri** — deci CNP-ul și IBAN-ul n-au drum
 către contextul modelului, nu doar n-au intenție să ajungă acolo.
 
+Uneltele de flotă (F12e), cu a doua cheie obligatorie (`permisiuniSuplimentare`, verificată
+tot de `poarta.ts`) și precedența „cine are mașina”: `[[modul/asistent/unelte-flota]]`.
+
 `ContextUnealta` poartă două identități distincte: `userId` — contul — și `employeeId`,
 fișa lui de angajat, care poate lipsi. Ce e „al meu” se calculează din cont:
 `contoarePanou` cere `userId` ca să scoată din coada de concedii cererea proprie a celui
 care aprobă, și `role` fiindcă pașii de integrare se atribuie și pe rol, nu doar pe fișă.
 
 `cauta_om` întoarce și destinații **efemere** (`fisa.<uuid>`), valabile doar în răspunsul
-curent. Mulțimea rămâne închisă, doar că e închisă prin proveniență: acolo ajung numai
+curent; uneltele de flotă, `vehicul.`, `foaie.` și `propune.foaie.`, cu href-ul ales după
+`ContextUnealta.zona` (o foaie se deschide altfel în aplicație și în portal). Mulțimea rămâne închisă, doar că e închisă prin proveniență: acolo ajung numai
 fișele întoarse de o citire pe care omul chiar avea dreptul să o facă.
 
 ## Citiri
 
-Niciuna nouă, nici pentru coada de pași de integrare: uneltele se sprijină exclusiv pe
-funcții existente din `src/lib/queries/portal.ts`, `src/lib/queries/panou.ts` și
-`src/lib/queries/employees.ts` — zero locuri noi în care izolarea să poată fi greșită.
+Uneltele de personal se sprijină exclusiv pe funcții existente din
+`src/lib/queries/portal.ts`, `src/lib/queries/panou.ts` și `src/lib/queries/employees.ts`.
+Flota are un fișier propriu, `src/lib/queries/flota-asistent.ts`, cu filtru explicit pe firmă
+în fiecare citire; ce vede fiecare rol din el numără `tests/rls/proba-asistent-flota.sql`.
 
 ## Ce refuză baza tăcut
 

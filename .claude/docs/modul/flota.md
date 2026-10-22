@@ -100,6 +100,7 @@ vehicule `activ` (baza refuză foaia pe unul vândut sau casat).
 
 - F12c: [[modul/flota/proces-verbal]]
 - F12d: [[modul/flota/rezervari]]
+- F12e: [[modul/asistent/unelte-flota]]
 
 ## Server Actions
 
@@ -145,8 +146,8 @@ fixate pe clientul fals: `actions-*.test.ts`, `erori-etichete.test.ts`.
 
 ## Citiri
 
-`src/lib/queries/fleet.ts` (marcat `import "server-only"`): `listeazaVehicule`,
-`citesteVehicul`, `scadenteCurente`, `documenteleVehiculului`, `tipuriDocument`,
+`src/lib/queries/fleet.ts`: `listeazaVehicule`,
+`citesteVehicul`, `scadenteCurente`, `documenteleVehiculului`,
 `nomenclatorDocumente` (tot, cu setarea firmei), `tipuriDocument(org)` (doar active),
 `urlSemnateFlota`, `listeazaFoi`, `citesteFoaie` (cu instantaneul vehiculului),
 `kmDePlecareSugerat`, `combustibilPeFoi`, `alimentarileFoii`, `anomaliiNeconfirmate`,
