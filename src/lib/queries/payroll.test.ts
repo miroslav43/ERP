@@ -199,6 +199,13 @@ describe("perioade și înregistrări", () => {
         },
         { id: "c", angajat: { full_name: "Corina", marca: "3" }, calc_warnings: null },
         { id: "d", angajat: { full_name: "Dan", marca: "4" }, calc_warnings: [{ mesaj: "vechi" }] },
+        // Fluturaș calculat între 12 și 22 oct 2026, cu codul de dinaintea catalogului:
+        // același program sub cinci zile, deci același om de numit pe ecranul perioadei.
+        {
+          id: "e",
+          angajat: { full_name: "Elena", marca: "5" },
+          calc_warnings: [{ cod: "NORMA_SUB_CINCI_ZILE", mesaj: "…" }],
+        },
       ],
     });
 
@@ -209,6 +216,7 @@ describe("perioade și înregistrări", () => {
       ["b", 1, false],
       ["c", 0, false],
       ["d", 1, false],
+      ["e", 1, true],
     ]);
   });
 

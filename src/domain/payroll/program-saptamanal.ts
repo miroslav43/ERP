@@ -5,11 +5,15 @@
 // vadă la scriere exact ce va citi calculul.
 //
 // Contractul NU are un câmp pentru zile: ele se deduc din cele două norme,
-// săptămâna împărțită la zi. Până la regula de coerență din 573b2d31 (12 oct
-// 2026) și pe importul care scria doar norma săptămânală, „8 h/zi, 20 h/săpt.”
-// putea fi un timp parțial de 4 h în cinci zile cu norma zilnică uitată la 8,
-// dar arată identic cu un program real de 2,5 zile. De aceea programul sub
-// cinci zile se spune pe față, pe fiecare fluturaș (`SAL_PROGRAM_SUB_CINCI_ZILE`).
+// săptămâna împărțită la zi. „8 h/zi, 20 h/săpt.” poate fi un timp parțial de
+// 4 h în cinci zile cu norma zilnică uitată la 8, dar arată identic cu un
+// program real de 2,5 zile. Schema îl primește și azi: din 573b2d31 (12 oct
+// 2026) regula e doar „zi ≤ săptămână” — „zi × 5 ≤ săptămână” (8baf375e, cu
+// câteva ore înainte) refuza și programele legale de 2–3 zile —, iar asistentul
+// de angajare pornește de la 40/8, deci e de ajuns să se schimbe doar
+// săptămâna. Importul scria doar norma săptămânală (baza punea 8 h/zi) până la
+// `normaZilnicaPeCinciZile`. De aceea zilele deduse se arată sub cele două
+// norme, la scriere, și se spun pe fiecare fluturaș (`SAL_PROGRAM_SUB_CINCI_ZILE`).
 
 import { formatNumar, textZile } from "@/lib/format/numar";
 

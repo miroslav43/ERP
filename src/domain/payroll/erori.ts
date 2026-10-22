@@ -142,7 +142,7 @@ const CATALOG: Readonly<Record<CodProblema, IntrareCatalog>> = {
     mesaj:
       "Contractul are un program de mai puțin de cinci zile pe săptămână, deduse din cele două norme.",
     cauza:
-      "Contractul nu are un câmp pentru zilele pe săptămână: aplicația le deduce din norma săptămânală împărțită la cea zilnică. Un timp parțial de 4 ore în cinci zile, scris cu norma zilnică rămasă la 8 ore (un contract vechi sau unul importat doar cu norma săptămânală), arată la fel ca un program real de două-trei zile.",
+      "Contractul nu are un câmp pentru zilele pe săptămână: aplicația le deduce din norma săptămânală împărțită la cea zilnică. Un timp parțial de 4 ore în cinci zile, scris cu norma zilnică rămasă la 8 ore (asistentul de angajare pornește de la 40 și 8 ore, deci e ușor să se schimbe doar săptămâna; sau un contract importat doar cu norma săptămânală), arată la fel ca un program real de două-trei zile.",
     cumSeRepara:
       "Deschideți contractul de pe fișa angajatului și verificați cele două norme. Dacă omul lucrează cinci zile pe săptămână, norma zilnică e greșită (de exemplu 4 ore pe zi la 20 de ore pe săptămână): corectați contractul, apoi recalculați perioada. Dacă programul e chiar cel convenit, calculul e corect, iar atenționarea rămâne, ca semn că programul se abate de la cele cinci zile.",
     unde: "/angajati",

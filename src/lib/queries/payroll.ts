@@ -223,7 +223,8 @@ export interface RandInregistrare {
    */
   readonly avertismente: number;
   /**
-   * Fluturașul poartă `SAL_PROGRAM_SUB_CINCI_ZILE`: programul contractului,
+   * Fluturașul poartă `SAL_PROGRAM_SUB_CINCI_ZILE` (sau, calculat 12–22 oct
+   * 2026, `NORMA_SUB_CINCI_ZILE`): programul contractului,
    * dedus din cele două norme, are sub cinci zile pe săptămână și se cere
    * confirmat în contract (garda „L4” din campania QA). Ecranul perioadei îi
    * numește pe acești oameni, nu doar îi numără.
@@ -235,12 +236,22 @@ export interface RandInregistrare {
 type RandInregistrareCitit = Omit<RandInregistrare, "avertismente" | "programSubCinciZile"> &
   Readonly<{ calc_warnings: unknown }>;
 
-const COD_PROGRAM_SUB_CINCI_ZILE: CodProblema = "SAL_PROGRAM_SUB_CINCI_ZILE";
+/**
+ * Codul din catalog, plus cel de dinaintea lui: fluturașii calculați între 12 și
+ * 22 oct 2026 poartă `NORMA_SUB_CINCI_ZILE`, același program sub cinci zile.
+ * Fără el, o perioadă aprobată atunci (deci nerecalculată) nu-și numea oamenii.
+ */
+const CODURI_PROGRAM_SUB_CINCI_ZILE: readonly string[] = [
+  "SAL_PROGRAM_SUB_CINCI_ZILE" satisfies CodProblema,
+  "NORMA_SUB_CINCI_ZILE",
+];
 
-function areCodul(avertismente: readonly unknown[], cod: string): boolean {
-  return avertismente.some(
-    (w) => typeof w === "object" && w !== null && (w as { cod?: unknown }).cod === cod,
-  );
+function areCodul(avertismente: readonly unknown[], coduri: readonly string[]): boolean {
+  return avertismente.some((w) => {
+    if (typeof w !== "object" || w === null) return false;
+    const cod = (w as { cod?: unknown }).cod;
+    return typeof cod === "string" && coduri.includes(cod);
+  });
 }
 
 export interface RezultatInregistrari {
@@ -294,7 +305,7 @@ export async function listeazaInregistrari(periodId: string): Promise<RezultatIn
       return {
         ...rand,
         avertismente: avertismente.length,
-        programSubCinciZile: areCodul(avertismente, COD_PROGRAM_SUB_CINCI_ZILE),
+        programSubCinciZile: areCodul(avertismente, CODURI_PROGRAM_SUB_CINCI_ZILE),
       };
     });
     randuri.push(...lot);

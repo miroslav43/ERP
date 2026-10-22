@@ -4,8 +4,8 @@
 // NU schimbă tăcut salariul.
 //
 // Contractul n-are un câmp pentru zilele pe săptămână: motorul le deduce din
-// norma săptămânală și cea zilnică. Un contract vechi de 8 h/zi și 20 h/săpt.
-// (făcut când asistentul pornea de la 40/8 și se schimba doar săptămâna, sau
+// norma săptămânală și cea zilnică. Un contract de 8 h/zi și 20 h/săpt.
+// (asistentul pornește de la 40/8 și se schimbă doar săptămâna, sau un contract
 // importat cu doar norma săptămânală) arată exact ca un program real de 2,5
 // zile: salariul se împarte la 21 × 2,5 / 5 = 10,5 zile, iar cine lucrează 15
 // din 21 de zile ia salariul întreg. Calculul rămâne pe programul din contract

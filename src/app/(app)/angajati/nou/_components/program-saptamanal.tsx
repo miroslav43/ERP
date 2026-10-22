@@ -18,9 +18,10 @@ import type { InroleazaAngajatInput } from "@/schemas/employee";
  * Contractul nu are un câmp pentru zile: salarizarea le deduce exact așa
  * (`domain/payroll/program-saptamanal.ts`), iar sub cinci zile împarte salariul
  * la zilele programului. Garda „L4” din campania QA: „8 h/zi, 20 h/săpt.” se
- * scria din greșeală — asistentul pornea de la 40/8 și se schimba doar
- * săptămâna — și ieșea un program de 2,5 zile pe care nimeni nu-l alesese. Aici
- * HR-ul vede ce a ales, înainte de salvare.
+ * scrie ușor din greșeală — asistentul pornește de la 40/8, se schimbă doar
+ * săptămâna, iar schema îl primește (din 573b2d31 cere doar „zi ≤ săptămână”) —
+ * și iese un program de 2,5 zile pe care nimeni nu l-a ales. Aici HR-ul vede ce
+ * a ales, înainte de salvare.
  */
 export function ProgramSaptamanal({
   control,
