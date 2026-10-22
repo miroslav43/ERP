@@ -81,6 +81,7 @@ declare
   v_link     text;
   v_tip      text;
   v_ent      uuid;
+  v_prima    uuid;
   v_n        bigint;
   v_m        bigint;
   v_esecuri  int := 0;
@@ -228,15 +229,24 @@ begin
                                     termen_raspuns, created_by, updated_by)
   values (v_org_b, v_veh_b, 'PV-RZ-B3', pg_temp.la(v_zi - 2, '12:00'), 'Centura', v_zi,
           v_zi + 4, v_u_adm_b, v_u_adm_b);
+  -- Notificarea de la (7), ca s-o deosebim de cea nouă. NU după `created_at`:
+  -- totul rulează într-o tranzacție, deci ambele au același `now()`, iar
+  -- `order by created_at desc, id desc` alegea la întâmplare (id-ul e aleator) —
+  -- proba pica cam o rulare din trei, fără nicio legătură cu funcția.
+  select n.id into v_prima from public.notifications n
+   where n.organization_id = v_org_b and n.user_id = v_u_adm_b and n.kind = 'reminder';
   perform internal.genereaza_alerte(v_org_b);
   perform internal.flota_rezumat(v_org_b);
-  select n.link into v_link from public.notifications n
+  select n.link, n.body into v_link, v_corp from public.notifications n
    where n.organization_id = v_org_b and n.user_id = v_u_adm_b and n.kind = 'reminder'
-   order by n.created_at desc, n.id desc limit 1;
+     and n.id <> v_prima;
   select count(*) into v_n from public.notifications n
    where n.organization_id = v_org_b and n.user_id = v_u_adm_b and n.kind = 'reminder';
-  v_esecuri := v_esecuri + pg_temp.verifica('7b', v_n = 2 and v_link = '/flota/amenzi?stadiu=de_raspuns',
-    'două amenzi noi: o notificare nouă, cu legătura spre lista „De răspuns”', format('%s, %s', v_n, v_link));
+  v_esecuri := v_esecuri + pg_temp.verifica('7b',
+    v_n = 2 and v_link = '/flota/amenzi?stadiu=de_raspuns'
+      and v_corp like '%PV-RZ-B2%' and v_corp like '%PV-RZ-B3%' and v_corp not like '%PV-RZ-B1%',
+    'două amenzi noi: o notificare nouă, doar cu ele, cu legătura spre lista „De răspuns”',
+    format('%s, %s, „%s”', v_n, v_link, v_corp));
 
   -- (8) după „răspuns trimis”, termenul iese din rezumat
   update public.vehicle_fines set stadiu = 'sofer_desemnat', sofer_desemnat_id = v_e_sofer where id = v_am;

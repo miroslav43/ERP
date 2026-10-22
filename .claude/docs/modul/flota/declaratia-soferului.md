@@ -106,4 +106,7 @@ colegului, ziua fără alocare, firma străină, costurile, vizibilitatea, amenz
 notificarea și căderea pe administratori, suprascrierea pe membru) și
 `tests/rls/proba-flota-rezumat-amenzi.sql` (destinatarii, a doua rulare, firma fără
 responsabili, legăturile, ieșirea după răspuns). Pe forma 0203 a rezumatului, a doua pică
-la (1), (6), (7), (7b); fără seed-ul `employee`, prima pică la nouă verificări.
+la (1), (6), (7), (7b); fără seed-ul `employee`, prima pică la nouă verificări. (7b)
+deosebește notificarea nouă după `id`, nu după `created_at`: în tranzacția probei ambele au
+același `now()`, iar `order by created_at desc, id desc` (id aleator) o pica la întâmplare,
+cam o rulare din trei, fără legătură cu funcția (revizia A5).
