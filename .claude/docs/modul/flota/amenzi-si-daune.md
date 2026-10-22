@@ -38,7 +38,7 @@ permisiuni:
   ]
 feature: fleet
 capcane: [17, 19, 23, 26]
-scris_pe: 7cbfec68d4744258ddfacdca86560a1484cd8680
+scris_pe: 59875840fcf542f696cecc8982d47c68375f2596
 scris_la: 2026-10-22
 tags: [modul, operations, legal]
 ---
@@ -134,7 +134,8 @@ fără nicio cale de a-l închide.
   mesaj pentru „nu există” și „nu o puteți consulta”: refuzul nu e sondă. Acțiunea citește
   întâi cercetarea prin RLS; dacă n-o vede, UPDATE-ul trece doar pe rândul care o are deja
   (legătura pusă de altcineva se păstrează), altfel VALIDARE pe câmp. Dezlegarea rămâne
-  permisă. Probele (25c)–(25e).
+  permisă. Probele (25c)–(25e) (modulul oprit) și (25f)–(25h) (ramura pe angajat: un manager
+  cu cheile incidentelor leagă doar cercetarea echipei lui).
 - **`created_by` și `updated_by` se trimit explicit** din acțiuni, deși triggerul `set_actor`
   e atașat: păstrează tiparul flotei. — capcana #23
 - **Un UPDATE respins de USING nu ridică eroare.** Probele numără rânduri.
