@@ -35,10 +35,13 @@
 --    verificat cu grep pe toate migrările, inclusiv 0210–0212), cu ramura
 --    `fuel_card` (același drept ca documentele vehiculului) și garda pe TOATE
 --    ramurile vechi.
--- F. Rezumatul zilnic al flotei (`internal.flota_rezumat`, forma 0203) primește
---    `fuel_card` în lista albă: cardul poate fi pe un șofer, fără vehicul, iar
---    legătura duce la `/flota/carduri?card=<id>`. Pragurile flotei
---    (`internal.flota_setari_praguri`, forma 0203) se oglindesc și pentru carduri.
+-- F. Rezumatul zilnic al flotei (`internal.flota_rezumat`, forma ultimă: 0206
+--    §G, cu amenzile) primește `fuel_card` în lista albă: cardul poate fi pe un
+--    șofer, fără vehicul, iar legătura duce la `/flota/carduri?card=<id>`. (La
+--    integrare: rescrierea pornise de la 0203 și pierdea tăcut ramura
+--    `vehicle_fine` din 0206 §G; ramura e reaplicată, iar §13 o verifică.)
+--    Pragurile flotei (`internal.flota_setari_praguri`, forma 0203) se
+--    oglindesc și pentru carduri.
 --
 -- ── DREPTURILE ──────────────────────────────────────────────────────────────
 -- Fără chei noi (F12b, Decizia 6): citirea cardului urmează vehiculul sau
@@ -698,7 +701,8 @@ select s.organization_id, 'fuel_card', '*', s.praguri_alerta_zile, true, app.azi
 on conflict (organization_id, entity_type, kind, valabil_de_la) where deleted_at is null
 do nothing;
 
--- Forma 0203, cu: `fuel_card` în lista albă; cardul se leagă de vehicul prin
+-- Forma 0206 §G (amenzile: `vehicle_fine` doar la cine citește amenzile la
+-- `all`, legătura `/flota/amenzi…`), cu: `fuel_card` în lista albă; cardul se leagă de vehicul prin
 -- `fuel_cards.vehicle_id` (nu prin `entity_id`, care e cardul) și poate fi pe un
 -- șofer fără vehicul, deci vehiculul devine LEFT JOIN, cerut în continuare pentru
 -- documente și service; două numărători noi în titlu; legătura spre
@@ -735,13 +739,21 @@ begin
            (a.status = 'expirat') as depasita,
            (x.entity_type = 'vehicle_service') as e_service,
            (x.entity_type = 'fuel_card') as e_card,
+           (x.entity_type = 'vehicle_fine')    as e_amenda,
            c.id            as card_id,
+           f.id            as amenda_id,
            x.expires_at,
            x.label || ': ' ||
              case when a.status = 'expirat'
-                  then case when x.entity_type = 'vehicle_service' then 'scadent din ' else 'expirat din ' end
+                  then case x.entity_type
+                         when 'vehicle_service' then 'scadent din '
+                         when 'vehicle_fine'    then 'termenul de răspuns a trecut pe '
+                         else 'expirat din ' end
                        || to_char(x.expires_at, 'DD.MM.YYYY')
-                  else case when x.entity_type = 'vehicle_service' then 'scadent pe ' else 'expiră pe ' end
+                  else case x.entity_type
+                         when 'vehicle_service' then 'scadent pe '
+                         when 'vehicle_fine'    then 'termen de răspuns pe '
+                         else 'expiră pe ' end
                        || to_char(x.expires_at, 'DD.MM.YYYY') end as eticheta
       from public.compliance_alerts a
       join public.expirables x on x.id = a.expirable_id
@@ -750,8 +762,16 @@ begin
        and c.id = x.entity_id
        and c.organization_id = p_org
        and c.deleted_at is null
+      left join public.vehicle_fines f
+        on x.entity_type = 'vehicle_fine'
+       and f.id = x.entity_id
+       and f.organization_id = p_org
+       and f.deleted_at is null
       left join public.vehicles v
-        on v.id = case when x.entity_type = 'fuel_card' then c.vehicle_id else x.entity_id end
+        on v.id = case x.entity_type
+                    when 'fuel_card'    then c.vehicle_id
+                    when 'vehicle_fine' then f.vehicle_id
+                    else x.entity_id end
        and v.organization_id = p_org
        and v.deleted_at is null
      where a.organization_id = p_org
@@ -760,11 +780,12 @@ begin
        and x.organization_id = p_org
        and x.deleted_at is null
        and x.is_active
-       -- LISTA ALBĂ a flotei (0203: și scadențele de service pe dată; 0214: și
-       -- valabilitatea cardurilor). SSM și HR se adaugă aici, cu legătura lor.
-       and x.entity_type in ('vehicle_document', 'vehicle_service', 'fuel_card')
-       -- Documentele și service-ul sunt ale unui vehicul din parc; cardul poate
-       -- fi pe un șofer sau de rezervă, dar cardul însuși trebuie să existe.
+       -- LISTA ALBĂ a flotei (0203: și scadențele de service pe dată; 0206: și
+       -- termenul de răspuns al amenzii; 0214: și valabilitatea cardurilor). SSM
+       -- și HR se adaugă aici, cu legătura lor.
+       and x.entity_type in ('vehicle_document', 'vehicle_service', 'vehicle_fine', 'fuel_card')
+       -- Documentele, service-ul și amenda sunt ale unui vehicul din parc; cardul
+       -- poate fi pe un șofer sau de rezervă, dar cardul însuși trebuie să existe.
        and case when x.entity_type = 'fuel_card' then c.id is not null else v.id is not null end
        and a.due_date = x.expires_at
        and case when a.status = 'expirat' then x.expires_at < v_azi
@@ -778,6 +799,7 @@ begin
       from elemente e
       join gestionari g
         on internal.flota_vede_vehicul(p_org, g.user_id, e.sofer_id, e.pool)
+     where not e.e_amenda
   ),
   -- Documentul pe care nu-l vede NICIUN responsabil nu rămâne nevăzut: merge
   -- la administratorii activi, ca la firma fără responsabili.
@@ -789,14 +811,25 @@ begin
        and m.role = 'org_admin'
        and m.status = 'active'
        and m.deleted_at is null
-     where not exists (select 1 from vizibile z where z.expirable_id = e.expirable_id)
+     where not e.e_amenda
+       and not exists (select 1 from vizibile z where z.expirable_id = e.expirable_id)
        and internal.flota_vede_vehicul(p_org, m.user_id, e.sofer_id, e.pool)
+  ),
+  -- 0206: amenda merge DOAR la cine citește amenzile la `all`.
+  amenzi as (
+    select e.*, d.user_id
+      from elemente e
+      cross join internal.flota_destinatari_cheie(p_org, 'vehicle_fines') d
+     where e.e_amenda
   ),
   destinatari as (
     select * from vizibile
     union
     select * from orfane
     union
+    select * from amenzi
+    union
+    -- Șoferul alocat: documentele și service-ul mașinii lui, NU amenzile.
     select e.*, emp.user_id
       from elemente e
       join public.employees emp
@@ -809,6 +842,7 @@ begin
        and m.user_id = emp.user_id
        and m.status = 'active'
        and m.deleted_at is null
+     where not e.e_amenda
   ),
   -- Dreptul efectiv al fiecărui destinatar, o dată pe om: cine nu citește
   -- vehiculele (o suprascriere pe firmă sau pe membru) nu primește o legătură
@@ -821,7 +855,8 @@ begin
     select d.*, s.scope
       from destinatari d
       join scopuri s on s.user_id = d.user_id
-     where s.scope <> 'none'
+     -- Destinatarii amenzii au trecut deja de cheia lor (`vehicle_fines` = all).
+     where (d.e_amenda or s.scope <> 'none')
        and not exists (
          select 1 from public.alert_notifications an
           where an.alert_id = d.alert_id
@@ -833,7 +868,7 @@ begin
   distincte as (
     select distinct on (n.user_id, n.expirable_id)
            n.user_id, n.expirable_id, n.vehicle_id, n.card_id, n.depasita, n.e_service, n.e_card,
-           n.expires_at, n.eticheta, n.scope
+           n.e_amenda, n.amenda_id, n.expires_at, n.eticheta, n.scope
       from noi n
      order by n.user_id, n.expirable_id, n.depasita desc
   ),
@@ -847,19 +882,24 @@ begin
     select n.user_id,
            min(n.scope::text)                                  as scope,
            count(*)::integer                                   as total,
-           count(*) filter (where n.depasita and not n.e_service and not n.e_card)::integer     as depasite,
-           count(*) filter (where not n.depasita and not n.e_service and not n.e_card)::integer as apropiate,
+           count(*) filter (where n.depasita and not n.e_service and not n.e_card and not n.e_amenda)::integer     as depasite,
+           count(*) filter (where not n.depasita and not n.e_service and not n.e_card and not n.e_amenda)::integer as apropiate,
            count(*) filter (where n.depasita and n.e_service)::integer         as srv_depasite,
            count(*) filter (where not n.depasita and n.e_service)::integer     as srv_apropiate,
            count(*) filter (where n.e_service)::integer                        as srv_total,
            count(*) filter (where n.depasita and n.e_card)::integer            as card_depasite,
            count(*) filter (where not n.depasita and n.e_card)::integer        as card_apropiate,
            count(*) filter (where n.e_card)::integer                           as card_total,
+           count(*) filter (where n.depasita and n.e_amenda)::integer          as am_depasite,
+           count(*) filter (where not n.depasita and n.e_amenda)::integer      as am_apropiate,
+           count(*) filter (where n.e_amenda)::integer                         as am_total,
            count(distinct n.vehicle_id)::integer               as vehicule,
            count(distinct n.card_id)::integer                  as carduri,
-           max(n.expires_at)                                   as ultima_scadenta,
+           -- Filtrul „expiră” al listei e despre documente: data lor, fără amenzi.
+           max(n.expires_at) filter (where not n.e_amenda)     as ultima_scadenta,
            (array_agg(n.vehicle_id order by n.rn) filter (where n.vehicle_id is not null))[1] as primul_vehicul,
            (array_agg(n.card_id order by n.rn) filter (where n.card_id is not null))[1]       as primul_card,
+           (array_agg(n.amenda_id order by n.rn) filter (where n.e_amenda))[1] as prima_amenda,
            string_agg('· ' || n.eticheta, E'\n' order by n.rn) filter (where n.rn <= 8) as linii
       from numerotate n
      group by n.user_id
@@ -875,12 +915,19 @@ begin
              case when o.srv_depasite > 0 then internal.flota_numarat(o.srv_depasite, 'lucrare de service întârziată', 'lucrări de service întârziate') end,
              case when o.srv_apropiate > 0 then internal.flota_numarat(o.srv_apropiate, 'lucrare de service în curând', 'lucrări de service în curând') end,
              case when o.card_depasite > 0 then internal.flota_numarat(o.card_depasite, 'card de combustibil expirat', 'carduri de combustibil expirate') end,
-             case when o.card_apropiate > 0 then internal.flota_numarat(o.card_apropiate, 'card de combustibil care expiră curând', 'carduri de combustibil care expiră curând') end
+             case when o.card_apropiate > 0 then internal.flota_numarat(o.card_apropiate, 'card de combustibil care expiră curând', 'carduri de combustibil care expiră curând') end,
+             case when o.am_depasite > 0 then internal.flota_numarat(o.am_depasite, 'amendă cu termenul de răspuns trecut', 'amenzi cu termenul de răspuns trecut') end,
+             case when o.am_apropiate > 0 then internal.flota_numarat(o.am_apropiate, 'amendă de răspuns în curând', 'amenzi de răspuns în curând') end
            ], null), ', ') || '.', 200),
            left(o.linii || case when o.total > 8
-                                then E'\n… și încă ' || internal.flota_numarat(o.total - 8, 'document', 'documente') || '.'
+                                then E'\n… și încă ' || case when o.am_total = 0
+                                                             then internal.flota_numarat(o.total - 8, 'document', 'documente')
+                                                             else internal.flota_numarat(o.total - 8, 'termen', 'termene') end || '.'
                                 else '' end, 4000),
            case
+             -- 0206: doar amenzi — la amendă, sau la lista celor de răspuns.
+             when o.am_total = o.total and o.total = 1 then '/flota/amenzi/' || o.prima_amenda::text
+             when o.am_total = o.total then '/flota/amenzi?stadiu=de_raspuns'
              when o.scope not in ('team', 'all') then '/portal/masina-mea'
              -- Doar scadențe de service: fișa se deschide pe fila ei.
              when o.card_total = 0 and o.vehicule = 1 and o.srv_total = o.total then '/flota/' || o.primul_vehicul::text || '?fila=service'
@@ -893,13 +940,15 @@ begin
              -- fixează setari.test.ts). Cu un prag al firmei mai lung (60),
              -- vehiculele de peste 30 de zile ar lipsi din el: lista întreagă.
              -- Filtrul „expiră” al listei e despre documente: fără ele, lista întreagă.
-             when o.card_total = 0 and o.srv_total < o.total and o.ultima_scadenta <= v_azi + 30 then '/flota?conformitate=expira'
+             when o.card_total = 0 and o.total - o.srv_total - o.am_total > 0 and o.ultima_scadenta <= v_azi + 30 then '/flota?conformitate=expira'
              else '/flota'
            end,
-           case when o.card_total = 0 and o.vehicule = 1 then 'vehicle'
+           case when o.am_total = o.total and o.total = 1 then 'vehicle_fine'
+                when o.card_total = 0 and o.vehicule = 1 then 'vehicle'
                 when o.card_total = o.total and o.carduri = 1 then 'fuel_card'
                 else 'fleet_rezumat' end,
-           case when o.card_total = 0 and o.vehicule = 1 then o.primul_vehicul
+           case when o.am_total = o.total and o.total = 1 then o.prima_amenda
+                when o.card_total = 0 and o.vehicule = 1 then o.primul_vehicul
                 when o.card_total = o.total and o.carduri = 1 then o.primul_card end
       from pe_om o
     returning id, user_id
@@ -922,7 +971,7 @@ end;
 $$;
 
 comment on function internal.flota_rezumat(uuid) is
-  'Rezumatul zilnic al scadențelor de flotă pe dată (vehicle_document, din 0203 vehicle_service, din 0214 fuel_card) pentru o firmă: o notificare per destinatar, doar cu elementele netrimise lui. Idempotentă: a doua rulare din aceeași zi nu scrie nimic.';
+  'Rezumatul zilnic al scadențelor de flotă pe dată (vehicle_document, din 0203 vehicle_service, din 0206 vehicle_fine doar pentru vehicle_fines:read = all, din 0214 fuel_card) pentru o firmă: o notificare per destinatar, doar cu elementele netrimise lui. Idempotentă: a doua rulare din aceeași zi nu scrie nimic.';
 
 -- ============================================================
 -- 11. RLS
@@ -952,10 +1001,13 @@ using (
     and (
       app.has_permission(organization_id, 'vehicles', 'read') = 'all'
       or (employee_id is not null and app.poate_vedea_vehicul(organization_id, employee_id, false))
-      -- Coloana calificată: în subinterogare, un `vehicle_id` nud s-ar lega de o
-      -- eventuală coloană `vehicles.vehicle_id`.
-      or (fuel_cards.vehicle_id is not null
-          and exists (select 1 from public.vehicles v where v.id = fuel_cards.vehicle_id))
+      -- Cardul vehiculului urmează vehiculul prin funcția îngustă din 0199 (ca
+      -- documentele), NU printr-o subinterogare pe `vehicles` filtrată de RLS:
+      -- aceea ar moșteni ramura „mașina alocată LUI” pe care 0215 (F12c,
+      -- decizia 3) o pune în `vehicule_select` pentru omul fără `vehicles:read`,
+      -- iar hr-ul care conduce ar vedea cardul mașinii (proba carduri, 9c).
+      or (vehicle_id is not null
+          and app.poate_vedea_vehicul_dupa_id(organization_id, vehicle_id))
     )
   )
 );
@@ -1197,8 +1249,12 @@ begin
   end if;
 
   v_def := pg_get_functiondef('internal.flota_rezumat(uuid)'::regprocedure);
-  if position('''vehicle_document'', ''vehicle_service'', ''fuel_card''' in v_def) = 0 then
-    v_lipsa := v_lipsa || 'lista albă a rezumatului (vehicle_document, vehicle_service, fuel_card)';
+  if position('''vehicle_document'', ''vehicle_service'', ''vehicle_fine'', ''fuel_card''' in v_def) = 0 then
+    v_lipsa := v_lipsa || 'lista albă a rezumatului (vehicle_document, vehicle_service, vehicle_fine, fuel_card)';
+  end if;
+  -- Ramura amenzilor din 0206 §G: destinatarii lor vin din cheia `vehicle_fines`.
+  if position('flota_destinatari_cheie' in v_def) = 0 then
+    v_lipsa := v_lipsa || 'destinatarii amenzilor din rezumat (0206 §G)';
   end if;
   if position('flota_vede_vehicul' in v_def) = 0 then
     v_lipsa := v_lipsa || 'filtrul de vizibilitate din rezumat';

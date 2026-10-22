@@ -23,6 +23,7 @@
 -- (7)  employee nu vede cardul colegului (0 rânduri, fără eroare);
 -- (8)  employee inserează un card: 42501;
 -- (9)  hr vede 0 carduri, 0 tranzacții, 0 scadențe de card;
+-- (9c) hr care conduce (0215, decizia 3) vede mașina alocată lui, nu și cardul ei;
 -- (10) manager modifică un card: 0 rânduri (USING), fără eroare;
 -- (11) card pe vehiculul altei firme: P0001;
 -- (12) UPDATE pe `valoare_bruta` unei tranzacții: P0001;
@@ -138,6 +139,9 @@ declare
   v_e_mgr      uuid := gen_random_uuid();
   v_e_ang      uuid := gen_random_uuid();
   v_e_coleg    uuid := gen_random_uuid();
+  v_e_hr       uuid := gen_random_uuid();
+  v_veh_hr     uuid := gen_random_uuid();
+  v_c_veh_hr   uuid := gen_random_uuid();
   v_veh_ang    uuid := gen_random_uuid();
   v_veh_coleg  uuid := gen_random_uuid();
   v_veh_alta   uuid := gen_random_uuid();
@@ -317,6 +321,39 @@ begin
     'select count(*) from public.expirables where organization_id = %L and entity_type = ''fuel_card''', v_org))::text;
   v_esecuri := v_esecuri + pg_temp.verifica('9', v_n = 0 and v_m = 0 and v_t = '0',
     'hr vede 0 carduri, 0 tranzacții, 0 scadențe de card', format('%s / %s / %s', v_n, v_m, v_t));
+
+  -- ── (9c) hr care conduce o mașină a firmei (0215, decizia 3) ──────────
+  -- `vehicule_select` îi arată mașina alocată LUI, fără `vehicles:read`. Cardul
+  -- mașinii nu: ramura de vehicul din `carduri_select` judecă prin
+  -- `app.poate_vedea_vehicul_dupa_id` (convenția 0199 pentru tabelele copil),
+  -- nu printr-o subinterogare pe `vehicles` filtrată de RLS, care ar moșteni
+  -- ramura deciziei 3. Montajul se derulează înapoi (P0099), ca restul probei
+  -- să numere aceleași carduri.
+  v_n := null; v_m := null;
+  begin
+    insert into public.employees (id, organization_id, marca, first_name, last_name,
+                                  hired_on, status, user_id, manager_employee_id) values
+      (v_e_hr, v_org, 'FC-H', 'Horia', 'Resurse', v_zi - 300, 'activ', v_u_hr, null);
+    insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent,
+                                 tip_combustibil, created_by, updated_by) values
+      (v_veh_hr, v_org, 'B' || (100 + (random() * 800)::int)::text || 'FCH', 'Dacia', 'Jogger', 3000,
+       'benzina', v_u_admin, v_u_admin);
+    insert into public.vehicle_assignments (organization_id, vehicle_id, employee_id, de_la, km_predare,
+                                            created_by, updated_by) values
+      (v_org, v_veh_hr, v_e_hr, pg_temp.la(v_zi - 5, '08:00'), 3000, v_u_admin, v_u_admin);
+    v_r := pg_temp.ruleaza(v_u_admin, format(
+      'insert into public.fuel_cards (id, organization_id, emitent, ultimele_cifre, vehicle_id, employee_id, '
+      || 'valabil_pana, created_by, updated_by) values (%L, %L, ''mol'', ''7777'', %L, null, %L, %L, %L)',
+      v_c_veh_hr, v_org, v_veh_hr, v_zi + 400, v_u_admin, v_u_admin));
+    v_n := pg_temp.numara(v_u_hr, format('select count(*) from public.vehicles where id = %L', v_veh_hr));
+    v_m := pg_temp.numara(v_u_hr, format('select count(*) from public.fuel_cards where id = %L', v_c_veh_hr));
+    raise exception using errcode = 'P0099', message = 'derulare (9c)';
+  exception when sqlstate 'P0099' then
+    null;
+  end;
+  v_esecuri := v_esecuri + pg_temp.verifica('9c', v_r = 'ok:1' and v_n = 1 and v_m = 0,
+    'hr care conduce vede mașina alocată lui (0215), nu și cardul ei',
+    format('card %s, vehicul %s, card văzut %s', v_r, v_n, v_m));
   -- Implicita I-b3: tranzacțiile doar pe `vehicles:read = all`. Managerul și
   -- șoferul văd cardul, dar nu și ce a facturat (nici pe foaia proprie).
   v_n := pg_temp.numara(v_u_mgr, format(
