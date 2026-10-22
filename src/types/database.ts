@@ -5473,6 +5473,9 @@ export type Database = {
           prag_salt_km: number
           praguri_alerta_zile: number[]
           responsabili: string[]
+          rezervare_obligatorie: boolean
+          rezervari_cu_aprobare: boolean
+          rezervari_max_zile: number
           updated_at: string
           updated_by: string | null
         }
@@ -5485,6 +5488,9 @@ export type Database = {
           prag_salt_km?: number
           praguri_alerta_zile?: number[]
           responsabili?: string[]
+          rezervare_obligatorie?: boolean
+          rezervari_cu_aprobare?: boolean
+          rezervari_max_zile?: number
           updated_at?: string
           updated_by?: string | null
         }
@@ -5497,6 +5503,9 @@ export type Database = {
           prag_salt_km?: number
           praguri_alerta_zile?: number[]
           responsabili?: string[]
+          rezervare_obligatorie?: boolean
+          rezervari_cu_aprobare?: boolean
+          rezervari_max_zile?: number
           updated_at?: string
           updated_by?: string | null
         }
@@ -13465,6 +13474,7 @@ export type Database = {
           updated_at: string
           updated_by: string | null
           vehicle_id: string
+          vehicle_reservation_id: string | null
           vehicul_categorie:
             | Database["public"]["Enums"]["vehicle_category"]
             | null
@@ -13498,6 +13508,7 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           vehicle_id: string
+          vehicle_reservation_id?: string | null
           vehicul_categorie?:
             | Database["public"]["Enums"]["vehicle_category"]
             | null
@@ -13531,6 +13542,7 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           vehicle_id?: string
+          vehicle_reservation_id?: string | null
           vehicul_categorie?:
             | Database["public"]["Enums"]["vehicle_category"]
             | null
@@ -13564,6 +13576,13 @@ export type Database = {
             columns: ["vehicle_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_sheets_vehicle_reservation_id_fkey"
+            columns: ["vehicle_reservation_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_reservations"
             referencedColumns: ["id"]
           },
         ]
@@ -14465,6 +14484,100 @@ export type Database = {
           },
         ]
       }
+      vehicle_reservations: {
+        Row: {
+          anulat_de: string | null
+          anulat_la: string | null
+          created_at: string
+          created_by: string | null
+          de_la: string
+          decis_de: string | null
+          decis_la: string | null
+          deleted_at: string | null
+          destinatie: string | null
+          employee_id: string
+          id: string
+          motiv_anulare: string | null
+          motiv_respingere: string | null
+          observatii: string | null
+          organization_id: string
+          pana_la: string
+          scop: string
+          status: Database["public"]["Enums"]["vehicle_reservation_status"]
+          updated_at: string
+          updated_by: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          anulat_de?: string | null
+          anulat_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          de_la: string
+          decis_de?: string | null
+          decis_la?: string | null
+          deleted_at?: string | null
+          destinatie?: string | null
+          employee_id: string
+          id?: string
+          motiv_anulare?: string | null
+          motiv_respingere?: string | null
+          observatii?: string | null
+          organization_id: string
+          pana_la: string
+          scop: string
+          status?: Database["public"]["Enums"]["vehicle_reservation_status"]
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          anulat_de?: string | null
+          anulat_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          de_la?: string
+          decis_de?: string | null
+          decis_la?: string | null
+          deleted_at?: string | null
+          destinatie?: string | null
+          employee_id?: string
+          id?: string
+          motiv_anulare?: string | null
+          motiv_respingere?: string | null
+          observatii?: string | null
+          organization_id?: string
+          pana_la?: string
+          scop?: string
+          status?: Database["public"]["Enums"]["vehicle_reservation_status"]
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_reservations_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_reservations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_reservations_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicle_service_entries: {
         Row: {
           anvelope_montate:
@@ -15156,6 +15269,18 @@ export type Database = {
         }
         Returns: string
       }
+      ocuparea_vehiculelor_pool: {
+        Args: { p_de_la: string; p_organization_id: string; p_pana_la: string }
+        Returns: {
+          a_mea: boolean
+          de_la: string
+          pana_la: string
+          rezervare_id: string | null
+          status: string | null
+          sursa: string
+          vehicle_id: string
+        }[]
+      }
       org_read_sensitive: {
         Args: { p_organization_id: string }
         Returns: {
@@ -15316,6 +15441,14 @@ export type Database = {
           p_user_id: string
         }
         Returns: undefined
+      }
+      setarile_rezervarilor: {
+        Args: { p_organization_id: string }
+        Returns: {
+          cu_aprobare: boolean
+          max_zile: number
+          obligatorie: boolean
+        }[]
       }
       seteaza_zile_concediu_implicit: {
         Args: { p_organization_id: string; p_zile: number }
@@ -15841,6 +15974,11 @@ export type Database = {
         | "integral_exclusiv_economic"
         | "exceptat_categorie"
         | "peste_3500_sau_9_locuri"
+      vehicle_reservation_status:
+        | "ceruta"
+        | "confirmata"
+        | "respinsa"
+        | "anulata"
       vehicle_service_type:
         | "revizie"
         | "reparatie"
@@ -16491,6 +16629,12 @@ export const Constants = {
         "integral_exclusiv_economic",
         "exceptat_categorie",
         "peste_3500_sau_9_locuri",
+      ],
+      vehicle_reservation_status: [
+        "ceruta",
+        "confirmata",
+        "respinsa",
+        "anulata",
       ],
       vehicle_service_type: [
         "revizie",

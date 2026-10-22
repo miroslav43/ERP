@@ -199,6 +199,12 @@ export const ETICHETE_RESURSE: Readonly<Record<ResursaPermisiune, EtichetaResurs
       "Accidentele, avariile, furturile și vandalismul de pe vehicule, cu dosarul de daună.",
     modul: "fleet",
   },
+  // F12d (0216)
+  vehicle_reservations: {
+    nume: "Rezervări de mașini",
+    descriere: "Rezervările mașinilor comune (pool) pe zile, cu aprobarea lor.",
+    modul: "fleet",
+  },
   vehicles: {
     nume: "Parc auto",
     descriere: "Vehiculele firmei și documentele lor cu termen.",
@@ -237,6 +243,8 @@ export const DESCRIERI_CHEI: Readonly<Partial<Record<PermissionKey, string>>> = 
   "registru:update": "Închide sau redeschide exercițiul financiar al registrului.",
   "tickets:approve": "Repartizează și închide tichete.",
   "trip_sheets:approve": "Aprobă foi de parcurs.",
+  // F12d (0216)
+  "vehicle_reservations:approve": "Aprobă sau respinge rezervările mașinilor de pool.",
 };
 
 export type DescrierePermisiune = Readonly<{

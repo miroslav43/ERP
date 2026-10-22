@@ -48,7 +48,7 @@ export function meetsScope(granted: PermissionScope | undefined, min: MinScope):
  * Resurse: announcements, attendance, audit, branding, checklists, compliance,
  * courses, departments, driver_licenses, employees, features, inventory, leave, maintenance,
  * organizations, payroll, per_diem, reges, registru, reports, roles, ssm,
- * trip_sheets, users, vehicle_fines, vehicle_incidents, vehicles.
+ * trip_sheets, users, vehicle_fines, vehicle_incidents, vehicle_reservations, vehicles.
  * Acțiuni: read, create, update, delete, approve, export, transmit, configure.
  */
 export const PERMISSION_KEYS = [
@@ -249,6 +249,18 @@ export const PERMISSION_KEYS = [
   "vehicle_incidents:create",
   "vehicle_incidents:update",
   // ── SFÂRȘIT BLOC: amenzi și daune ──
+  // ── ÎNCEPUT BLOC: rezervările de pool (0216, flota F12d) ──
+  // Cheie proprie, nu `trip_sheets:*`: firma poate suprascrie rezervările separat
+  // de foi (rânduri per rol sau per membru, 0063). `manager` le citește și le
+  // decide pe ale echipei (`read`/`approve` = team), dar își face doar propria
+  // rezervare (`create`/`update` = own, ca 0154 și 0161); `employee` are own pe
+  // read/create/update; `hr` nu are niciun rând (decizia 3: HR nu vede parcul).
+  // Fără `delete` și `export`: nu au consumator.
+  "vehicle_reservations:read",
+  "vehicle_reservations:create",
+  "vehicle_reservations:update",
+  "vehicle_reservations:approve",
+  // ── SFÂRȘIT BLOC: rezervările de pool ──
 ] as const;
 
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];

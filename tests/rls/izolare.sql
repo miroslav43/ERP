@@ -642,6 +642,25 @@ begin
      and va.pana_la is null and va.deleted_at is null;
   -- ═══ SFÂRȘIT BLOC: fixture procesul-verbal de predare (0215, F12c) ════════
 
+  -- ═══ ÎNCEPUT BLOC: fixture rezervările de pool (0216, F12d) ═══════════════
+  -- Câte o mașină de pool și o rezervare confirmată pe ea, per firmă, ca
+  -- verificarea (c) să aibă rânduri în AMBELE organizații. Ca superuser: calea
+  -- de sistem a triggerului păstrează statusul scris și nu trimite notificări.
+  -- Două instrucțiuni, nu un CTE care scrie: triggerul rezervării n-ar vedea
+  -- vehiculul inserat în aceeași instrucțiune.
+  insert into public.vehicles (organization_id, nr_inmatriculare, marca, model, km_curent, pool,
+                               created_by, updated_by)
+  values (v_alfa, 'CJ' || v_sufix || 'PA', 'Dacia', 'Jogger', 100, true, v_admin_alfa, v_admin_alfa),
+         (v_beta, 'TM' || v_sufix || 'PB', 'Dacia', 'Jogger', 100, true, v_admin_beta, v_admin_beta);
+  insert into public.vehicle_reservations (organization_id, vehicle_id, employee_id, de_la, pana_la, scop,
+                                           status, created_by, updated_by)
+  select v.organization_id, v.id,
+         (select val from t_ids where cheie = case when v.organization_id = v_alfa then 'ang_alfa' else 'ang_beta' end),
+         current_date + 7, current_date + 7, 'Deplasare de test', 'confirmata', v.created_by, v.created_by
+    from public.vehicles v
+   where v.nr_inmatriculare in ('CJ' || v_sufix || 'PA', 'TM' || v_sufix || 'PB');
+  -- ═══ SFÂRȘIT BLOC: fixture rezervările de pool (0216, F12d) ═══════════════
+
   -- ═══ ÎNCEPUT BLOC: fixture tipurile de document per firmă (0202) ══════════
   -- Câte o setare per firmă pe un tip de PLATFORMĂ (ADR, retras în 0116):
   -- fiecare firmă și-l activează pentru ea, fără să-l vadă cealaltă.
@@ -6435,6 +6454,86 @@ begin
   raise notice '(l) F12c: org_admin finalizează PV-ul; employee, manager și hr parte la PV îl confirmă; doar org_admin îl întocmește; super_admin îl vede ✓';
 end $$;
 -- ── sfârșit (l) F12c ──
+
+-- ── (l) F12d: rezervările mașinilor de pool (0216) ──
+-- (l), continuare — angajatul își rezervă mașina de pool, managerul aprobă
+-- cererea subordonatului, org_admin anulează cu motiv rezervarea unui angajat.
+-- Dacă vreo politică ar refuza una dintre scrieri, rolul n-ar putea lucra, iar
+-- (a)-(k) ar trece verzi. Rânduri NUMĂRATE: un UPDATE respins de USING nu ridică
+-- eroare. `hr` nu vede nimic (decizia 3).
+do $$
+declare
+  v_alfa   uuid := pg_temp.id('alfa');
+  v_admin  uuid := pg_temp.id('admin_alfa');
+  v_emp    uuid := pg_temp.id('emp_alfa');
+  v_ang    uuid := pg_temp.id('ang_alfa');
+  v_mgr    uuid := pg_temp.id('mgr_user_alfa');
+  v_sub    uuid := pg_temp.id('sub_alfa');
+  v_hr     uuid := pg_temp.id('hr_user_alfa');
+  v_pool   uuid := gen_random_uuid();
+  v_azi    date := app.azi_local();
+  v_rez    uuid;
+  v_cerere uuid;
+  v_n      int;
+begin
+  insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent, pool,
+                               created_by, updated_by) values
+    (v_pool, v_alfa, 'CJ' || left(replace(v_pool::text, '-', ''), 5) || 'RZ', 'Dacia', 'Jogger', 700, true,
+     v_admin, v_admin);
+  -- Cererea subordonatului fără cont, ca fixture (calea de sistem păstrează `ceruta`).
+  insert into public.vehicle_reservations (organization_id, vehicle_id, employee_id, de_la, pana_la, scop,
+                                           status, created_by, updated_by)
+  values (v_alfa, v_pool, v_sub, v_azi + 3, v_azi + 3, 'Livrare la client', 'ceruta', v_admin, v_admin)
+  returning id into v_cerere;
+
+  -- 1) employee își rezervă mașina de pool (fișa o completează triggerul).
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  insert into public.vehicle_reservations (organization_id, vehicle_id, employee_id, de_la, pana_la, scop,
+                                           created_by, updated_by)
+  values (v_alfa, v_pool, v_ang, v_azi + 1, v_azi + 1, 'Vizită la client', v_emp, v_emp)
+  returning id into v_rez;
+  get diagnostics v_n = row_count;
+  reset role;
+  if v_n <> 1 or (select status from public.vehicle_reservations where id = v_rez) <> 'confirmata' then
+    perform pg_temp.esueaza(format('(l) FALS-NEGATIV: employee nu-și rezervă mașina de pool (%s rânduri)', v_n));
+  end if;
+
+  -- 2) managerul aprobă cererea subordonatului (approve = team).
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  update public.vehicle_reservations set status = 'confirmata', updated_by = v_mgr
+   where id = v_cerere and status = 'ceruta';
+  get diagnostics v_n = row_count;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza(format('(l) FALS-NEGATIV: managerul nu aprobă cererea subordonatului (%s rânduri)', v_n));
+  end if;
+
+  -- 3) org_admin anulează, cu motiv, rezervarea angajatului.
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  update public.vehicle_reservations
+     set status = 'anulata', motiv_anulare = 'Mașina intră în service.', updated_by = v_admin
+   where id = v_rez and status in ('ceruta', 'confirmata');
+  get diagnostics v_n = row_count;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza(format('(l) FALS-NEGATIV: org_admin nu anulează rezervarea angajatului (%s rânduri)', v_n));
+  end if;
+
+  -- 4) hr nu vede rezervările (decizia 3: HR nu vede parcul).
+  perform set_config('request.jwt.claim.sub', v_hr::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.vehicle_reservations where id in (v_rez, v_cerere);
+  reset role;
+  if v_n <> 0 then
+    perform pg_temp.esueaza(format('(l) FALS-POZITIV: hr vede %s rezervări', v_n));
+  end if;
+
+  raise notice '(l) F12d: employee își rezervă pool-ul, managerul aprobă subordonatul, org_admin anulează cu motiv; hr nu vede nimic ✓';
+end $$;
+-- ── sfârșit (l) F12d ──
 
 
 rollback;
