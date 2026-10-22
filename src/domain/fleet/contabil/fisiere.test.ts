@@ -102,6 +102,37 @@ describe("alimentarea plătită cu cardul de flotă (F12b, I-T4)", () => {
   });
 });
 
+describe("saga: avertismentele formatului ajung în de-verificat.csv din arhivă", () => {
+  // Singurul loc în care contabilul află că plățile n-au ieșit sau că un bon a
+  // primit sufixul _2 e `de-verificat.csv`: avertismentele lui `facturiSagaXml`
+  // nu apar în jurnal, care nu intră în arhiva Saga.
+  function deVerificat(linii: Parameters<typeof construiesteArticole>[0], c = configurare()) {
+    const iesire = iesireExport("saga", construiesteArticole(linii, c, FIRMA), {
+      ...PARAMETRI,
+      configurare: c,
+    });
+    if (iesire.fel !== "zip") throw new Error("se aștepta un ZIP");
+    const fisier = iesire.fisiere.find((f) => f.nume === "de-verificat.csv");
+    if (typeof fisier?.continut !== "string") throw new Error("lipsește de-verificat.csv");
+    return { nume: iesire.fisiere.map((f) => f.nume), text: fisier.continut };
+  }
+
+  it("contul de decontare din afara clasei 5: nicio plată, iar de-verificat spune de ce", () => {
+    const { nume, text } = deVerificat(
+      [linie({ id: idTest(1) })],
+      configurare({ contDecontare: "401" }),
+    );
+    expect(nume.some((n) => n.startsWith("P_"))).toBe(false);
+    expect(text).toContain("Contul de decontare 401 nu e din clasa 5");
+  });
+
+  it("două bonuri cu același CUI, număr și dată: sufixul _2 e spus în de-verificat", () => {
+    const { nume, text } = deVerificat([linie({ id: idTest(1) }), linie({ id: idTest(2) })]);
+    expect(nume).toContain("F_1590082_4521_03.10.2026_2.xml");
+    expect(text).toContain("al doilea primește sufixul _2");
+  });
+});
+
 describe("saga la firma neplătitoare de TVA", () => {
   it("niciun XML, toate articolele în DBF, iar de-verificat spune de ce", () => {
     const firma = { ...FIRMA, platitorTva: false };
