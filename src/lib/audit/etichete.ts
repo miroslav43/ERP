@@ -145,6 +145,15 @@ const ENTITATI: Readonly<Record<string, string>> = {
   vehicle_fine: "Amendă pe vehicul",
   vehicle_incidents: "Incident / daună",
   vehicle_incident: "Incident / daună",
+  // F12b (0214): tabelele cardurilor de combustibil, scrise de triggerul de audit
+  // și de acțiunile din `flota/carduri/**`.
+  fuel_cards: "Card de combustibil",
+  fuel_card: "Card de combustibil",
+  fuel_card_imports: "Import extras card",
+  fuel_card_import: "Import extras card",
+  fuel_card_transactions: "Tranzacție card",
+  fuel_card_transaction: "Tranzacție card",
+  fuel_card_import_profiles: "Mapare extras card",
   work_accidents: "Accident de muncă",
   work_accident: "Accident de muncă",
   fire_extinguishers: "Stingător",
