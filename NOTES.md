@@ -646,6 +646,144 @@ De confirmat cu DPO-ul sau juristul firmei.
 și regresul asigurătorului NU sunt implementate și nu au fost verificate. Incidentul ține doar
 stadiile, costul estimat și final, despăgubirea primită, asigurătorul și numărul dosarului.
 
+### F12 — de confirmat de contabil/jurist · migrările `0213`–`0218`, asistentul, exportul contabil
+
+Cele opt extensii ale flotei (F12a–F12h), integrate pe 22 oct 2026. Lista strânge §5 din
+planul F12 și notele raportate de fiecare extensie. Nimic de aici nu e verificat de un
+contabil sau de un jurist; până la confirmare, termenele bazate pe interpretare rămân
+„Recomandat” (I-T3), iar marketingul nu promite nimic din ele.
+
+**F12a — bonul citit din poză (`0213_flota_bon_ocr.sql`)**
+
+- ⚠️ Contabil: bonul fiscal cu CIF-ul cumpărătorului, sub 100 €, ține loc de factură
+  simplificată (normele HG 1/2016, necitite); de aceea nu se avertizează pe CIF lipsă (E24).
+- ⚠️ Contabil: elementele obligatorii ale bonului (OUG 28/1999 art. 4) vin doar din surse
+  secundare și sunt folosite numai în prompt (E22). Intervalul de preț pe litru [4; 12] lei e
+  ales de noi, nu e o valoare de piață (M6).
+- ⚠️ Jurist (B2, înainte de livrare): DPA-ul și sub-împuterniciții OpenRouter → Google pentru
+  FOTOGRAFII, nu doar pentru textul din chat (GDPR art. 28); transferul în afara SEE pe SCC
+  (Vertex global, modelul nu e în lista UE); acordul cu clientul trebuie să acopere imagini;
+  comutatorul `asistent` îl pune platforma, nu firma; poza pleacă cu tot cadrul (poate prinde
+  CNP-ul de pe un permis); `ocr_propunere` nu se șterge automat (I-T7).
+
+**F12b — cardurile de combustibil (`0214_flota_carduri_combustibil.sql`)**
+
+- ⚠️ Contabil: arhivarea 10 ani (Legea 82/1991 art. 25) aplicată extraselor de card,
+  nereverificată pe text. Extrasul NU e document de deducere: documentul fiscal e factura
+  emitentului (art. 319 alin. 12 lit. a din Codul fiscal, verificat pe text pentru pragul de
+  100 €, concluzia de confirmat). Cursul BNR pentru tranzacțiile în valută nu se aplică
+  (valorile rămân în moneda extrasului).
+- ⚠️ Jurist: tranzacțiile leagă un șofer identificat de un loc și o oră (GDPR art. 5,
+  minimizare): se păstrează doar stația și localitatea, fără coordonate; nu există ștergere
+  automată (I-T7).
+- Tehnic: amprenta numărului de card e HMAC pe `HR_HASH_KEY`; după rotirea cheii, cardurile
+  înregistrate cu număr întreg se mai potrivesc doar pe ultimele cifre. Presetările
+  emitenților sunt necalibrate (nu există o specificație publică a coloanelor).
+
+**F12c — procesul-verbal de predare-primire (`0215_flota_proces_verbal.sql`)**
+
+- ⚠️ Contabil: dacă OMFP 2634/2015 (anexa 1 pct. 1, 11, 14–15) se aplică unui PV intern de
+  încredințare a vehiculului către salariat; formularea cu două date pe PDF („predare la …” și
+  „Întocmit la …”) când PV-ul se finalizează după predare, iar registrul îl înregistrează cu
+  data finalizării; Ordinul 217/1996 art. 8–9 și Legea 82/1991 art. 25 (10 ani, dosarul V.1),
+  preluate din cod, nereverificate.
+- ⚠️ Jurist: valoarea confirmării din portal (Legea 214/2024 art. 4 alin. 9 lit. b, art. 5
+  alin. 3–4) — aplicația o tratează ca urmă suplimentară, NU ca semnătură; formula de semnare
+  din PDF; varianta „confirmarea înlocuiește semnătura” ar cere o procedură internă scrisă.
+- Decizie asumată (Miro, B3): omul fără `vehicles:read` care conduce vede PV-urile la care e
+  parte și vehiculul alocat lui, nimic din restul parcului (nici cardul mașinii: proba
+  carduri, 9c).
+
+**F12d — rezervările mașinilor de pool (`0216_flota_rezervari.sql`)**
+
+- ⚠️ Contabil: rezervarea pe o mașină de pool NU e document justificativ fiscal; documentul
+  rămâne foaia de parcurs (HG 1/2016, Normele la Titlul II, pct. 16 alin. (2), consolidarea
+  307847 din 31.03.2026). Produsul nu are opțiune de „uz personal” pe pool, iar scopul e
+  obligatoriu, pentru exclusivitatea economică (HG 1/2016, Titlul VII, pct. 68 alin. (4);
+  Codul fiscal art. 25 alin. (3) lit. l), consolidarea 312601 din 08.08.2026). Încadrarea
+  fiscală a firmei (deducere 50% sau 100%) o confirmă contabilul.
+- ⚠️ Jurist: datele din rezervare (cine, când, unde) sunt date personale (GDPR art. 5,
+  minimizare); auditul acțiunilor NU păstrează scopul, destinația, observațiile sau motivele.
+  Ocuparea pentru angajat (`public.ocuparea_vehiculelor_pool`) arată doar de azi încolo și nu
+  dă starea foilor colegilor. Afirmația că nu există o obligație legală de registru de
+  rezervări pentru mașinile de serviciu e negativă și nu s-a putut verifica pe text.
+
+**F12e — uneltele de flotă din asistent (fără migrare)**
+
+- ⚠️ Contabil: lângă vehiculele cu regimul `integral_exclusiv_economic` în vigoare la sfârșitul
+  lunii, unealta `vehicule_fara_foi` spune: „Pentru vehiculele marcate „deducere integrală”,
+  normele Codului fiscal (HG 1/2016, titlul II pct. 16 alin. (2)) cer foaia de parcurs pentru
+  justificare. Verifică încadrarea cu contabilul.” Formularea e de validat; nu dă niciun
+  verdict și nu se pune lângă `exceptat_categorie` și `peste_3500_sau_9_locuri`, deși
+  `cereFoaie()` din F10 le tratează ca pe „integral” (I-e2).
+- ⚠️ Jurist: textul uneltelor pleacă la OpenRouter și la furnizorul modelului. Nu conține
+  locurile curselor (I-T6; Legea 190/2018 art. 5, nerecitit pe text), numărul permisului sau
+  `vehicle_exits`. `cine_are_masina` trimite numele șoferului și intervalul orar, ca sugestie
+  (OUG 195/2002 art. 39 alin. (1) cere persoana căreia i s-a încredințat vehiculul; desemnarea
+  o face omul), plus numele celor cu rezervări în ziua respectivă; `scadente_soferi` trimite
+  numele și data de expirare a permisului. CNP-ul de pe permis (§11 din specificație) e
+  neverificat.
+
+**F12f — codul UIT pe cursă (`0217_flota_uit_etransport.sql`)**
+
+- ⚠️ Contabil/jurist: OUG 41/2022 citită în consolidarea din 24.04.2025 (legislatie.just.ro
+  `296233`); poate exista o modificare ulterioară neconsolidată, cu alt termen sau alt prag.
+- ⚠️ Valabilitatea UIT numără ziua de început (24.06 + 5 zile ⇒ valabil 24–28.06, expirat din
+  29.06): interpretare susținută de definiția `data_exp_uit` din documentația API ANAF, nu de
+  textul legii. Toată stă în `intervalValabilitate` (`src/domain/fleet/uit.ts`).
+- ⚠️ Formatul (XSD `schema_ETR_v2_20230126`, `UitType`) și cifrele de control (BR-019,
+  Schematron v2.0.2 din 12.08.2024) vin din documentația tehnică ANAF, nu dintr-un act
+  normativ. Dacă ANAF le schimbă, CHECK-ul `tsu_uit_format` refuză coduri reale până la o
+  migrare nouă care rescrie `app.uit_valid` (I-f4, risc asumat).
+- ⚠️ HG 1/2016 pct. 16 și 68 și OMFP 2634/2015 (UIT-ul nu e element obligatoriu al foii),
+  nereverificate în F12f. Pragul de 2,5 t (Ordinul 1.337/1.268/2024 art. 1 alin. (4)) e doar
+  o notă: `masa_maxima_kg` poate fi masa autorizată, nu cea tehnic admisibilă.
+- ⚠️ Jurist: textul de marketing nu spune niciodată „conform e-Transport”; aplicația nu
+  declară nimic la ANAF.
+
+**F12g — exportul contabil Saga / WinMentor (fără migrare)**
+
+- ⚠️ Contabil: conturile implicite din `src/domain/fleet/contabil/configurare.ts`: 6022
+  combustibil, 611 revizie/reparații și daune, 6024 anvelope, 628 parcare și spălătorie, 635
+  taxe de drum, 6588 altele, 4426 TVA deductibil, 542 decontare (alternative 5311, 5125, 401).
+- ⚠️ Contabil: TVA-ul nedeductibil pe contul cheltuielii (implicit) sau pe 635; regimul
+  implicit `limitat_50` pentru vehiculul fără regim F10 și cu masa ≤ 3.500 kg; proxy-ul „bon
+  fără `cui_statie` ⇒ TVA nedeductibil” (art. 319 alin. 21 lit. f + art. 299 alin. 1 lit. a);
+  cheltuielile și service-ul n-au câmp de CUI, deci TVA-ul lor se separă ca deductibil, cu
+  avertisment; cota de TVA pe rovinietă și peaj (toate categoriile pornesc de la cota
+  standard); ordinul MFP din art. 319 alin. (13) (bonuri între 100 și 400 €), necitit; OMFP
+  1802/2014, citit în forma inițială.
+- ⚠️ Contabil: cheltuielile plătite cu cardul de flotă nu se recunosc. Fără
+  `fuel_card_transactions.vehicle_expense_id` (I-b4), o spălătorie, o taxă sau un „combustibil
+  fără foaie” trecute de mână la Cheltuieli și facturate și de emitentul cardului prin SPV
+  intră de două ori în nota contabilă. De decis odată cu D-b4.
+- ⚠️ Formatele Saga și WinMentor sunt verificate pe documentație, neîncercate (B4): un contabil
+  le importă într-o bază de test înainte de primul client.
+- ⚠️ Jurist: numele șoferului ajunge la un contabil adesea extern, doar în `jurnal_csv` (D11).
+
+**F12h — ieșirea din parc (`0218_flota_iesire_din_parc.sql`)**
+
+- ⚠️ Contabil: art. 471 alin. (5) din Codul fiscal aplicat vânzării (declarația de scoatere din
+  evidență la 30 de zile) e o interpretare; termenul `impozit_local_instrainare` e marcat
+  „Recomandat”. Calculul din art. 471 alin. (1^1), introdus de OUG 7/2026 (vehicul cumpărat și
+  vândut în același an), e și el „Recomandat”.
+- ⚠️ Contabil: consolidarea Codului de procedură fiscală pentru art. 159 alin. (5), (5^1) și (6):
+  forma printabilă citită n-a putut fi legată de istoric; intrarea în vigoare a OMAI 181/2024 e
+  presupusă la publicare (M.Of. nr. 1141 din 15.11.2024).
+- ⚠️ Contabil: cine notifică asigurătorul RCA la restituirea din leasing (polița e de regulă pe
+  utilizator); `rca_notificare` are ⚠ pe `restituire_leasing`. Termenul de 5 zile pentru
+  notificarea RCA și CASCO e o constantă internă, nu una legală (I-h3). Contabilitatea ieșirii
+  (PV de casare, scoaterea din gestiune, amortizare, TVA la vânzare) rămâne în afara F12h.
+- ⚠️ Jurist: numele cumpărătorului persoană fizică e dată personală; e text liber, fără CNP,
+  scos din auditul acțiunii și din `audit_logs` (`internal.audit_campuri_excluse` →
+  `vehicle_exits`: `cumparator`, `pret`) și neexpus asistentului AI (I-T6).
+
+**De corectat, semnalat de specificații (în afara F12):** eticheta din secțiunea „Foaia de
+parcurs” de mai sus, `DetaliiDocument/212504` „consolidat la 31.03.2026”, e greșită după
+F12e: 212504 e consolidarea din 12.04.2019, iar ultima consolidare citită a HG 1/2016 e
+`307847`, din 31.03.2026. Nereverificat la integrare. Garda din `0023:89` are același defect de
+spațiere pe care 0218 îl evită (datorie preexistentă).
+
 ### Retenție și arhivare · `retention_policies`
 
 ⚠️ Termenele de păstrare pentru statele de plată și documentele de vechime · pentru
