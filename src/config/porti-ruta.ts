@@ -146,6 +146,8 @@ export const PORTI_APP: readonly PoartaRuta[] = [
   p("/flota/incidente", "fleet", "vehicle_incidents:read", "all"),
   p("/flota/incidente/[id]", "fleet", "vehicle_incidents:read", "all"),
   // ── sfârșit bloc: amenzi și daune (0206) ──
+  // F12d (0216): rezervările mașinilor de pool; poarta politicii `rezervari_select`.
+  p("/flota/rezervari", "fleet", "vehicle_reservations:read"),
   p("/inventar", "inventory", "inventory:read"),
   p("/inventar/[id]", "inventory", "inventory:read"),
   p("/inventar/[id]/pv/[alocare]", "inventory", "inventory:read"),
@@ -269,6 +271,8 @@ export const PORTI_PORTAL: readonly PoartaRuta[] = [
   // lui și PV-urile la care e parte. Meniul rămâne pe `trip_sheets:read`.
   p("/portal/masina-mea", "fleet", null),
   p("/portal/masina-mea/foi/[id]", "fleet", "trip_sheets:read"),
+  // F12d (0216): rezervările proprii ale șoferului.
+  p("/portal/masina-mea/rezervari", "fleet", "vehicle_reservations:read"),
   // ── sfârșit bloc: flota pe roluri (0199) ──
   p("/portal/notificarile-mele", null, null),
   p("/portal/pontajul-meu", "attendance", "attendance:read"),

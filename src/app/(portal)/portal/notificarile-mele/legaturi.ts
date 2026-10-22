@@ -16,6 +16,8 @@
  *                          foaia lui (doar pentru șofer, vezi `idFoaieDeParcurs`);
  *   `/portal/masina-mea` — tot 0201, rezumatul de scadențe al șoferului; e deja
  *                          cale de portal.
+ *   `/flota/rezervari`  — `0216_flota_rezervari.sql`, `rezervari_notifica`, la
+ *                          decizia, anularea sau rezervarea făcută pentru el.
  *
  * Netradusă, fiecare devine un clic care îl scoate din portal și îl aduce înapoi
  * pe ecranul de start: angajatul citește „Cererea a fost respinsă”, apasă, și
@@ -173,6 +175,10 @@ const FIXE: Readonly<Record<string, string>> = {
   "/concedii": "/portal/concediile-mele",
   "/pontaj": "/portal/pontajul-meu",
   "/mentenanta/sesizari": "/portal/sesizari",
+  // F12d (0216): `rezervari_notifica`, către angajatul rezervării. Coada
+  // aprobatorilor (`/flota/rezervari?stare=ceruta`) NU se traduce: ei lucrează
+  // în aplicația mare, iar în portal rândul rămâne text.
+  "/flota/rezervari": "/portal/masina-mea/rezervari",
 };
 
 export function caleaDePortal(

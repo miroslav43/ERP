@@ -23,6 +23,8 @@ import { numarScadenteSsm } from "./ssm";
 import { PRAG_CONTRACTE_EXPIRA_ZILE } from "@/domain/hr/contracte-expira";
 import { sarcinileMele } from "./checklist";
 import type { RolResponsabil } from "@/schemas/checklist";
+import { todayInBucharest } from "@/lib/format/date";
+import { numarRezervariDeAprobat } from "./fleet-rezervari";
 
 /**
  * Citirile panoului principal.
@@ -81,6 +83,8 @@ export type CoadaPanou = Readonly<{
   pontaj: PontajDeAprobat | null;
   deplasari: Contor;
   foiParcurs: Contor;
+  /** F12d (0216): rezervările de pool `ceruta`, neexpirate, fără ale mele. */
+  rezervari: Contor;
   tichete: Contor;
   /** Când e un singur tichet: id-ul lui — rândul din coadă duce direct la obiect. */
   tichetUnicId: string | null;
@@ -318,6 +322,16 @@ export async function contorFoiDeParcurs(organizationId: string): Promise<number
     .eq("status", "trimis");
   if (error !== null) throw error;
   return count ?? 0;
+}
+
+/**
+ * F12d (0216): rezervările de pool care așteaptă decizia mea — ACELAȘI filtru ca
+ * lista `rezervariDeAprobat` din `/flota/rezervari` (memoria „Contorul urmează
+ * lista”): `ceruta`, neexpirate, fără ale mele.
+ */
+async function contorRezervariDeAprobat(organizationId: string, userId: string): Promise<number> {
+  const fisa = await idFisaProprie(organizationId, userId);
+  return numarRezervariDeAprobat(organizationId, fisa, todayInBucharest());
 }
 
 /** Tichete care așteaptă o decizie. */
@@ -581,6 +595,9 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
   const vedePontaj = areModul(porti, "attendance") && are(porti, "attendance:approve", "team");
   const vedeDiurna = areModul(porti, "per_diem") && are(porti, "per_diem:approve", "team");
   const vedeFoi = areModul(porti, "fleet") && are(porti, "trip_sheets:approve", "team");
+  // F12d (0216): poarta e a deciziei, nu a citirii — rândul duce la „Aprobă”.
+  const vedeRezervari =
+    areModul(porti, "fleet") && are(porti, "vehicle_reservations:approve", "team");
   const vedeTichete = areModul(porti, "ticketing") && are(porti, "tickets:approve", "team");
 
   const vedeSsm = areModul(porti, "ssm") && are(porti, "ssm:read", "all");
@@ -614,6 +631,7 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
     pontaj,
     deplasari,
     foiParcurs,
+    rezervari,
     tichete,
     ssm,
     mentenanta,
@@ -629,6 +647,7 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
     vedePontaj ? pontajDeAprobat(organizationId) : null,
     vedeDiurna ? contorDeplasari(organizationId) : null,
     vedeFoi ? contorFoiDeParcurs(organizationId) : null,
+    vedeRezervari ? contorRezervariDeAprobat(organizationId, porti.userId) : null,
     vedeTichete ? contorTichete(organizationId) : null,
     vedeSsm ? numarScadenteSsm(organizationId) : null,
     vedeMentenanta
@@ -654,6 +673,7 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
     pontaj,
     deplasari,
     foiParcurs,
+    rezervari,
     tichete: tichete === null ? null : tichete.numar,
     tichetUnicId: tichete?.unicId ?? null,
     anomaliiKm: anomalii,

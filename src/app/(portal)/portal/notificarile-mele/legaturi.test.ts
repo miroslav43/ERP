@@ -203,3 +203,16 @@ describe("foaia de parcurs (0201)", () => {
   });
 });
 // ── sfârșit bloc: flota, notificările foii (0201) ──
+
+// ── început bloc: F12d, rezervările de pool (0216) ──
+describe("rezervările de pool (0216)", () => {
+  it("lista rezervărilor duce la rezervările mele din portal", () => {
+    expect(caleaDePortal("/flota/rezervari")).toBe("/portal/masina-mea/rezervari");
+  });
+
+  it("coada aprobatorilor nu se traduce: ei lucrează în aplicația mare", () => {
+    expect(caleaDePortal("/flota/rezervari?stare=ceruta")).toBeNull();
+    expect(caleaDePortal("/flota/rezervari/altceva")).toBeNull();
+  });
+});
+// ── sfârșit bloc: F12d ──

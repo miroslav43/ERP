@@ -38,6 +38,8 @@ import { pvurileMele } from "@/lib/queries/fleet-pv";
 import { ETICHETE_TIP_PV, citesteInstantaneu } from "@/domain/fleet/proces-verbal";
 import { ConfirmaPv } from "./confirma-pv";
 // ── sfârșit bloc: procesele-verbale de predare ──
+// F12d (0216): rezervările de pool următoare.
+import { CardRezervariUrmatoare } from "./rezervari/card-urmatoare";
 
 export const metadata: Metadata = { title: "Mașina mea" };
 
@@ -139,6 +141,10 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
                     angajati: null,
                   }}
                   deschisInitial={deschideCaseta}
+                  // F12d (0216): „Începe foaia zilei” dintr-o rezervare aduce mașina.
+                  vehiculInitial={
+                    typeof parametri["vehicul"] === "string" ? parametri["vehicul"] : null
+                  }
                   bazaFoaie="/portal/masina-mea/foi"
                 />
               ),
@@ -220,6 +226,13 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
           </div>
         )}
       </section>
+
+      <CardRezervariUrmatoare
+        organizationId={tenant.organizationId}
+        fisaId={fisaId}
+        permisiuni={permisiuni}
+        azi={azi}
+      />
 
       {/* ── ÎNCEPUT BLOC: permisul meu (flota F9, 0204) ──
           Șoferul își citește permisul și avizul (`driver_licenses:read = own`);

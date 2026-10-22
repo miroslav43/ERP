@@ -13,6 +13,9 @@ import {
   setariFlota,
 } from "@/lib/queries/fleet";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
+// F12d (0216): setările rezervărilor și cererile încă nedecise.
+import { todayInBucharest } from "@/lib/format/date";
+import { numarRezervariDeAprobat, setarileRezervarilor } from "@/lib/queries/fleet-rezervari";
 
 import { FormularSetariFlota } from "./formular-setari-flota";
 
@@ -39,7 +42,11 @@ export default async function PaginaSetariFlota() {
     );
   }
 
-  const setari = await setariFlota(tenant.organizationId);
+  const [setari, rezervari, rezervariInAsteptare] = await Promise.all([
+    setariFlota(tenant.organizationId),
+    setarileRezervarilor(tenant.organizationId),
+    numarRezervariDeAprobat(tenant.organizationId, null, todayInBucharest()),
+  ]);
   const candidati = await candidatiResponsabiliFlota(tenant.organizationId, setari.responsabili);
 
   return (
@@ -50,7 +57,12 @@ export default async function PaginaSetariFlota() {
         file={<FileModul eticheta="Navigare parc auto" file={FILE_FLOTA} tenant={tenant} />}
       />
       <div className={LATIMI.formular}>
-        <FormularSetariFlota setari={setari} candidati={candidati} />
+        <FormularSetariFlota
+          setari={setari}
+          candidati={candidati}
+          rezervari={rezervari}
+          rezervariInAsteptare={rezervariInAsteptare}
+        />
         {candidati.length >= PLAFON_CANDIDATI_RESPONSABILI ? (
           <p className="text-muted-foreground text-corp mt-3">
             Se arată primii {PLAFON_CANDIDATI_RESPONSABILI} de angajați, în ordinea numelui.

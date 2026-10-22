@@ -72,6 +72,8 @@ import { capeteVehiculului } from "./capete-pv";
 import { CelulaPv } from "./celula-pv";
 import { DialogPvNou } from "./dialog-pv-nou";
 // ── sfârșit bloc: procesul-verbal de predare ──
+// F12d (0216): rezervările mașinii de pool.
+import { SectiuneRezervariVehicul } from "../rezervari/sectiune-vehicul";
 
 export const metadata: Metadata = { title: "Fișa vehiculului" };
 
@@ -806,6 +808,14 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
               }
             />
           </section>
+
+          <SectiuneRezervariVehicul
+            organizationId={tenant.organizationId}
+            userId={user.id}
+            vehicul={vehicul}
+            permisiuni={permisiuni}
+            azi={azi}
+          />
 
           <section aria-labelledby="documente" className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">

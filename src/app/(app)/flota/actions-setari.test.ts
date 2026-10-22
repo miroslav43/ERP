@@ -56,6 +56,10 @@ const intrare = {
   responsabili: [ID_2, ID_3],
   prag_salt_km: "800",
   praguri_alerta_zile: "7, 30, 14",
+  // F12d (0216): rezervările de pool.
+  rezervari_cu_aprobare: true,
+  rezervare_obligatorie: false,
+  rezervari_max_zile: "10",
 };
 
 describe("salveazaSetariFlota", () => {
@@ -84,11 +88,19 @@ describe("salveazaSetariFlota", () => {
       responsabili: [ID_2, ID_3],
       prag_salt_km: 800,
       praguri_alerta_zile: [30, 14, 7],
+      rezervari_cu_aprobare: true,
+      rezervare_obligatorie: false,
+      rezervari_max_zile: 10,
       organization_id: ORG_ID,
       created_by: USER_ID,
       updated_by: USER_ID,
     });
-    expect(caiRevalidate()).toEqual(["/flota/setari", "/flota"]);
+    expect(caiRevalidate()).toEqual([
+      "/flota/setari",
+      "/flota",
+      "/flota/rezervari",
+      "/portal/masina-mea/rezervari",
+    ]);
   });
 
   it("a doua salvare: UPDATE pe rândul firmei, cu `.select()` după", async () => {
@@ -104,6 +116,9 @@ describe("salveazaSetariFlota", () => {
       responsabili: [],
       prag_salt_km: 800,
       praguri_alerta_zile: [30, 14, 7],
+      rezervari_cu_aprobare: true,
+      rezervare_obligatorie: false,
+      rezervari_max_zile: 10,
       updated_by: USER_ID,
     });
     expect(areFiltru(scriere, "eq", "id", ID_1)).toBe(true);
@@ -145,6 +160,31 @@ describe("salveazaSetariFlota", () => {
     if (r.ok) return;
     expect(r.error.message).toContain("între timp");
   });
+
+  // F12d (0216): setările rezervărilor sunt OBLIGATORII în încărcătură. Cu un
+  // implicit, o salvare care le-ar omite le-ar readuce tăcut la „fără aprobare”.
+  it("fără setările rezervărilor: VALIDARE, fără drum la bază", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "all" } });
+    const r = await salveazaSetariFlota({
+      responsabili: [],
+      prag_salt_km: "800",
+      praguri_alerta_zile: "30",
+    });
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    expect(server.apeluri).toHaveLength(0);
+  });
+
+  it.each([["0"], ["93"], [""], ["2,5"]])(
+    "durata maximă „%s”: VALIDARE pe `rezervari_max_zile`",
+    async (zile) => {
+      const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "all" } });
+      const r = await salveazaSetariFlota({ ...intrare, rezervari_max_zile: zile });
+      expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+      if (r.ok) return;
+      expect(Object.keys(r.error.fieldErrors ?? {})).toEqual(["rezervari_max_zile"]);
+      expect(server.apeluri).toHaveLength(0);
+    },
+  );
 
   it("pragurile greșite se opresc în schemă, pe câmp, fără drum la bază", async () => {
     const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "all" } });

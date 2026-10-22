@@ -29,12 +29,24 @@ function etichetaCandidat(c: CandidatResponsabil): string {
  * `fieldErrors` să cadă pe câmpul potrivit. Pragurile pleacă drept text
  * („30, 14, 7”): ordonarea și dublurile le rezolvă schema, ca baza.
  */
+/** F12d (0216): cele trei setări ale rezervărilor de pool, din `setarileRezervarilor`. */
+export type SetariRezervariFormular = Readonly<{
+  cuAprobare: boolean;
+  obligatorie: boolean;
+  maxZile: number;
+}>;
+
 export function FormularSetariFlota({
   setari,
   candidati,
+  rezervari,
+  rezervariInAsteptare,
 }: Readonly<{
   setari: SetariFlota;
   candidati: readonly CandidatResponsabil[];
+  rezervari: SetariRezervariFormular;
+  /** Cererile `ceruta` neexpirate: rămân de decis și dacă aprobarea se oprește. */
+  rezervariInAsteptare: number;
 }>): ReactElement {
   const router = useRouter();
   const id = useId();
@@ -49,6 +61,10 @@ export function FormularSetariFlota({
       responsabili: date.getAll("responsabili").map(String),
       prag_salt_km: String(date.get("prag_salt_km") ?? "").trim(),
       praguri_alerta_zile: String(date.get("praguri_alerta_zile") ?? ""),
+      // O bifă nebifată LIPSEȘTE din `FormData`: absența e `false`.
+      rezervari_cu_aprobare: date.get("rezervari_cu_aprobare") === "on",
+      rezervare_obligatorie: date.get("rezervare_obligatorie") === "on",
+      rezervari_max_zile: String(date.get("rezervari_max_zile") ?? "").trim(),
     });
   }
 
@@ -146,6 +162,81 @@ export function FormularSetariFlota({
                     step="1"
                     inputMode="numeric"
                     defaultValue={v("prag_salt_km", String(setari.prag_salt_km))}
+                  />
+                )}
+              </Camp>
+            </fieldset>
+
+            {/* F12d (0216): rezervările mașinilor de pool. */}
+            <fieldset className="border-border rounded-panou space-y-3 border p-4">
+              <legend className="text-corp px-1 font-semibold">Rezervările mașinilor comune</legend>
+              <div className="flex items-start gap-2">
+                <input
+                  id={`${id}-rez-aprobare`}
+                  name="rezervari_cu_aprobare"
+                  type="checkbox"
+                  className={`${clasaBifa} mt-0.5`}
+                  defaultChecked={
+                    Object.keys(stare.valoriTrimise).length > 0
+                      ? stare.valoriTrimise["rezervari_cu_aprobare"] === "on"
+                      : rezervari.cuAprobare
+                  }
+                />
+                <label htmlFor={`${id}-rez-aprobare`} className="text-corp">
+                  Rezervările cer aprobare
+                  <span className="text-muted-foreground text-nota block">
+                    Le confirmă managerul direct al angajatului sau un responsabil de flotă cu drept
+                    de aprobare; decide primul care apucă. Rezervarea administratorului se confirmă
+                    direct.
+                  </span>
+                </label>
+              </div>
+              {rezervariInAsteptare > 0 ? (
+                <p role="status" className="text-warning text-nota">
+                  {rezervariInAsteptare === 1
+                    ? "O rezervare așteaptă decizia și rămâne de decis."
+                    : `${String(rezervariInAsteptare)} rezervări așteaptă decizia și rămân de decis.`}{" "}
+                  Oprirea aprobării nu le confirmă.
+                </p>
+              ) : null}
+              <div className="flex items-start gap-2">
+                <input
+                  id={`${id}-rez-obligatorie`}
+                  name="rezervare_obligatorie"
+                  type="checkbox"
+                  className={`${clasaBifa} mt-0.5`}
+                  defaultChecked={
+                    Object.keys(stare.valoriTrimise).length > 0
+                      ? stare.valoriTrimise["rezervare_obligatorie"] === "on"
+                      : rezervari.obligatorie
+                  }
+                />
+                <label htmlFor={`${id}-rez-obligatorie`} className="text-corp">
+                  Mașinile comune se folosesc doar cu rezervare
+                  <span className="text-muted-foreground text-nota block">
+                    Foaia de parcurs pe o mașină de pool cere o rezervare confirmată pentru ziua ei.
+                    Cine întocmește foi pentru oricine (administratorul) nu e oprit.
+                  </span>
+                </label>
+              </div>
+              <Camp
+                nume="rezervari_max_zile"
+                id={`${id}-rez-max`}
+                eticheta="Durata maximă a unei rezervări (zile)"
+                ajutor="Între 1 și 92. Peste două săptămâni, o mașină e de obicei alocată, nu rezervată."
+                obligatoriu
+                className="sm:w-80"
+                erori={stare.erori["rezervari_max_zile"] ?? []}
+              >
+                {(a) => (
+                  <input
+                    {...a}
+                    type="number"
+                    min="1"
+                    max="92"
+                    step="1"
+                    inputMode="numeric"
+                    defaultValue={v("rezervari_max_zile", String(rezervari.maxZile))}
                   />
                 )}
               </Camp>
