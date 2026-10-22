@@ -122,13 +122,16 @@ export function poateScurta(rez: RezervareDeStare, azi: string): boolean {
 export const SURSE_OCUPARE = ["rezervare", "foaie", "alocare"] as const;
 export type SursaOcupare = (typeof SURSE_OCUPARE)[number];
 
-/** Un rând din `public.ocuparea_vehiculelor_pool`. Fără identitatea colegilor. */
+/**
+ * Un rând din `public.ocuparea_vehiculelor_pool`: de azi încolo (o fereastră
+ * trecută dă zero rânduri), fără identitatea colegilor.
+ */
 export interface Ocupare {
   readonly vehicle_id: string;
   readonly de_la: string;
   readonly pana_la: string;
   readonly sursa: SursaOcupare;
-  /** Statusul rezervării sau al foii; NULL pe alocări. */
+  /** Statusul REZERVĂRII; NULL pe foi (starea foii unui coleg nu iese) și pe alocări. */
   readonly status: string | null;
   readonly a_mea: boolean;
   /** Doar pe rezervările apelantului. */

@@ -39,6 +39,10 @@
 --  (28) angajatul vede doar ale lui                                       [POZITIVĂ / 0]
 --  (29) org_admin decide cererea oricui; respingerea cere motiv            [POZITIVĂ]
 --  (30) imuabilitatea: vehiculul, prima zi și scopul nu se rescriu: P0001
+--  (31) foaia NELEGATĂ a omului (făcută cât rezervarea era `ceruta`): scurtarea
+--       sub ea și anularea dau P0001, ieșirea din pool păstrează rezervarea
+--  (32) ocuparea nu dă starea foilor colegilor și nu răspunde pentru zile
+--       trecute; ocuparea de azi încolo rămâne vizibilă                    [POZITIVĂ / 0]
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh
@@ -80,6 +84,11 @@ declare
   v_p4       uuid := gen_random_uuid();
   v_n_veh    uuid := gen_random_uuid();
   v_px       uuid := gen_random_uuid();
+  v_p5       uuid := gen_random_uuid();
+  v_p6       uuid := gen_random_uuid();
+  v_r_c5     uuid;
+  v_foaie_c5 uuid;
+  v_x        integer;
   v_r_a1     uuid;
   v_r_b      uuid;
   v_r_m      uuid;
@@ -965,6 +974,145 @@ begin
       v_esecuri := v_esecuri + 1;
       raise warning '  ✗ (30) alt mesaj: %', sqlerrm;
     end if;
+  end;
+
+  -- ── (31) foaia NELEGATĂ a omului din zilele rezervării ──────────────────
+  -- Doar o rezervare `confirmata` leagă foaia, iar legătura nu se pune
+  -- retroactiv la aprobare (specificația, „Ce NU se face”). Foaia făcută cât
+  -- cererea aștepta rămâne deci fără `vehicle_reservation_id`. Gărzile de
+  -- anulare, de scurtare și de ieșire din pool trebuie s-o vadă totuși: altfel
+  -- rezervarea apare anulată deși mașina a ieșit pe foaie în ziua ei.
+  insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent, categorie,
+                               pool, created_by, updated_by) values
+    (v_p5, v_org, 'B' || (100 + (random() * 800)::int)::text || 'RZE', 'Dacia', 'Spring', 6000, 'autoturism',
+     true, v_u_admin, v_u_admin);
+  perform set_config('request.jwt.claim.sub', v_u_admin::text, true);
+  set local role authenticated;
+  update public.fleet_settings set rezervari_cu_aprobare = true, rezervare_obligatorie = false,
+                                   updated_by = v_u_admin
+   where organization_id = v_org and deleted_at is null;
+  reset role;
+  v_k := 0;
+  begin
+    perform set_config('request.jwt.claim.sub', v_u_c::text, true);
+    set local role authenticated;
+    insert into public.vehicle_reservations (organization_id, vehicle_id, employee_id, de_la, pana_la, scop,
+                                             created_by, updated_by)
+    values (v_org, v_p5, v_e_c, v_azi, v_azi + 2, 'Teren la Ploiești', v_u_c, v_u_c)
+    returning id into v_r_c5;
+    insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, sosire_la, km_plecare, km_sosire,
+                                    status, created_by, updated_by)
+    values (v_org, v_p5, v_e_c, ((v_azi + 1)::timestamp + interval '8 hours') at time zone c_ora,
+            ((v_azi + 1)::timestamp + interval '9 hours') at time zone c_ora, 6000, 6010, 'draft', v_u_c, v_u_c)
+    returning id into v_foaie_c5;
+    reset role;
+    perform set_config('request.jwt.claim.sub', v_u_admin::text, true);
+    set local role authenticated;
+    update public.vehicle_reservations set status = 'confirmata', updated_by = v_u_admin
+     where id = v_r_c5 and status = 'ceruta';
+    get diagnostics v_n = row_count;
+    reset role;
+    if v_n = 1 and (select status from public.vehicle_reservations where id = v_r_c5) = 'confirmata'
+       and (select vehicle_reservation_id from public.trip_sheets where id = v_foaie_c5) is null then
+      v_k := v_k + 1;
+    else
+      raise warning '  ✗ (31) precondiția: aprobare % rânduri, legătura %', v_n,
+        (select vehicle_reservation_id from public.trip_sheets where id = v_foaie_c5);
+    end if;
+  exception when others then
+    reset role;
+    raise warning '  ✗ (31) FALS-NEGATIV la pregătire: % (%)', sqlerrm, sqlstate;
+  end;
+  perform set_config('request.jwt.claim.sub', v_u_c::text, true);
+  set local role authenticated;
+  begin
+    update public.vehicle_reservations set pana_la = v_azi, updated_by = v_u_c where id = v_r_c5;
+    get diagnostics v_n = row_count;
+    reset role;
+    raise warning '  ✗ (31a) FALS-POZITIV: rezervarea s-a scurtat sub foaia nelegată (% rânduri)', v_n;
+  exception when raise_exception then
+    reset role;
+    if sqlerrm like 'Rezervarea are foaie de parcurs pe%' then v_k := v_k + 1;
+    else raise warning '  ✗ (31a) alt mesaj: %', sqlerrm; end if;
+  end;
+  set local role authenticated;
+  begin
+    update public.vehicle_reservations set status = 'anulata', updated_by = v_u_c where id = v_r_c5;
+    get diagnostics v_n = row_count;
+    reset role;
+    raise warning '  ✗ (31b) FALS-POZITIV: rezervarea cu foaie nelegată s-a anulat (% rânduri)', v_n;
+  exception when raise_exception then
+    reset role;
+    if sqlerrm like 'Rezervarea are deja foi de parcurs%' then v_k := v_k + 1;
+    else raise warning '  ✗ (31b) alt mesaj: %', sqlerrm; end if;
+  end;
+  perform set_config('request.jwt.claim.sub', v_u_admin::text, true);
+  set local role authenticated;
+  begin
+    update public.vehicles set pool = false, updated_by = v_u_admin where id = v_p5;
+    reset role;
+    if (select status from public.vehicle_reservations where id = v_r_c5) = 'confirmata' then
+      v_k := v_k + 1;
+    else
+      raise warning '  ✗ (31c) ieșirea din pool a anulat rezervarea cu foaie nelegată (status %)',
+        (select status from public.vehicle_reservations where id = v_r_c5);
+    end if;
+  exception when others then
+    reset role;
+    raise warning '  ✗ (31c) FALS-NEGATIV: ieșirea din pool a eșuat: % (%)', sqlerrm, sqlstate;
+  end;
+  if v_k = 4 then
+    v_ok := v_ok + 1;
+    raise notice '  ✓ (31) foaia nelegată: scurtarea sub ea P0001, anularea P0001, ieșirea din pool o păstrează';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (31) doar % din 4', v_k;
+  end if;
+
+  -- ── (32) ocuparea: fără starea foilor colegilor, fără zile trecute ──────
+  -- Sub `trip_sheets:read = own`, C nu vede foile lui A. Ocuparea îi spune că
+  -- mașina e luată într-o zi, nu și dacă foaia colegului a fost aprobată, și
+  -- nici ce a făcut parcul în trecut (grila începe azi).
+  insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent, categorie,
+                               pool, created_by, updated_by) values
+    (v_p6, v_org, 'B' || (100 + (random() * 800)::int)::text || 'RZF', 'Toyota', 'Corolla', 7000, 'autoturism',
+     true, v_u_admin, v_u_admin);
+  begin
+    -- Foaia trecută a lui A, scrisă direct ca proprietar: proba întreabă ce
+    -- arată ocuparea, nu cine poate scrie o foaie în trecut.
+    perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+    insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, sosire_la, km_plecare, km_sosire,
+                                    status, created_by, updated_by)
+    values (v_org, v_p6, v_e_a, ((v_azi - 5)::timestamp + interval '8 hours') at time zone c_ora,
+            ((v_azi - 5)::timestamp + interval '9 hours') at time zone c_ora, 7000, 7010, 'draft', v_u_a, v_u_a);
+    set local role authenticated;
+    insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, sosire_la, km_plecare, km_sosire,
+                                    status, created_by, updated_by)
+    values (v_org, v_p6, v_e_a, ((v_azi + 3)::timestamp + interval '8 hours') at time zone c_ora,
+            ((v_azi + 3)::timestamp + interval '9 hours') at time zone c_ora, 7010, 7020, 'draft', v_u_a, v_u_a);
+    reset role;
+    perform set_config('request.jwt.claim.sub', v_u_c::text, true);
+    set local role authenticated;
+    select count(*) into v_n from public.ocuparea_vehiculelor_pool(v_org, v_azi - 10, v_azi - 1);
+    select count(*) into v_m from public.ocuparea_vehiculelor_pool(v_org, v_azi, v_azi + 13) o
+     where o.sursa = 'foaie' and not o.a_mea and o.status is not null;
+    select count(*) into v_k from public.ocuparea_vehiculelor_pool(v_org, v_azi, v_azi + 13) o
+     where o.vehicle_id = v_p6 and o.sursa = 'foaie' and not o.a_mea and o.de_la = v_azi + 3;
+    select count(*) into v_x from public.ocuparea_vehiculelor_pool(v_org, v_azi - 10, v_azi + 13) o
+     where o.de_la < v_azi;
+    reset role;
+    if v_n = 0 and v_m = 0 and v_k = 1 and v_x = 0 then
+      v_ok := v_ok + 1;
+      raise notice '  ✓ (32) ocuparea: zilele trecute 0 rânduri, starea foilor colegilor ascunsă, foaia de azi încolo vizibilă';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (32) zile trecute %, stări de foi străine %, foaia lui A vizibilă %, rânduri înainte de azi %',
+        v_n, v_m, v_k, v_x;
+    end if;
+  exception when others then
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (32) FALS-NEGATIV: % (%)', sqlerrm, sqlstate;
   end;
 
   raise notice '  ─────────────────────────────────────────────────────────';

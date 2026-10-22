@@ -309,6 +309,32 @@ as $$
   end;
 $$;
 
+-- Ultima zi cu foaie de parcurs a unei rezervări (NULL = niciuna): foile LEGATE
+-- de ea, plus foile NELEGATE ale aceluiași om, pe același vehicul, în zilele ei.
+-- Doar o rezervare `confirmata` leagă foaia, iar legătura nu se pune retroactiv
+-- (specificația, „Ce NU se face”), deci foaia făcută cât cererea aștepta sau
+-- înaintea rezervării rămâne fără ea. Gărzile de anulare, de scurtare și de
+-- ieșire din pool o privesc totuși: altfel rezervarea ar apărea anulată deși
+-- mașina a ieșit pe foaie în ziua ei.
+create or replace function internal.rezervari_ultima_foaie(
+  p_rezervare uuid, p_vehicul uuid, p_angajat uuid, p_de_la date, p_pana_la date)
+returns date
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select max(t.data)
+    from public.trip_sheets t
+   where t.deleted_at is null and t.status <> 'respins'
+     and (t.vehicle_reservation_id = p_rezervare
+          or (t.vehicle_id = p_vehicul and t.employee_id = p_angajat
+              and t.data between p_de_la and p_pana_la));
+$$;
+
+comment on function internal.rezervari_ultima_foaie(uuid, uuid, uuid, date, date) is
+  'Ultima zi cu foaie a rezervării: foile legate plus foile nelegate ale omului pe vehicul în zilele ei (0216). NULL = niciuna.';
+
 -- ============================================================
 -- 6. Triggerul BEFORE pe rezervări: `internal.rezervari_inainte()`
 -- ============================================================
@@ -495,8 +521,9 @@ begin
       if old.status = 'confirmata' and old.pana_la < app.azi_local() then
         raise exception using errcode = 'P0001', message = 'Rezervarea s-a încheiat. Nu mai are ce anula.';
       end if;
-      if exists (select 1 from public.trip_sheets t
-                  where t.vehicle_reservation_id = new.id and t.deleted_at is null and t.status <> 'respins') then
+      -- Și foaia NELEGATĂ a omului din zilele rezervării (`rezervari_ultima_foaie`).
+      if internal.rezervari_ultima_foaie(new.id, new.vehicle_id, new.employee_id, new.de_la, old.pana_la)
+         is not null then
         raise exception using errcode = 'P0001',
           message = 'Rezervarea are deja foi de parcurs. Scurtați-o până la ultima zi cu foaie, în loc s-o anulați.';
       end if;
@@ -532,9 +559,7 @@ begin
       raise exception using errcode = 'P0001',
         message = 'Rezervarea se poate scurta cel mult până astăzi și nu înaintea primei ei zile.';
     end if;
-    select max(t.data) into v_zi
-      from public.trip_sheets t
-     where t.vehicle_reservation_id = new.id and t.deleted_at is null and t.status <> 'respins';
+    v_zi := internal.rezervari_ultima_foaie(new.id, new.vehicle_id, new.employee_id, new.de_la, old.pana_la);
     if v_zi is not null and new.pana_la < v_zi then
       raise exception using errcode = 'P0001',
         message = format('Rezervarea are foaie de parcurs pe %s; nu se poate scurta înaintea acestei zile.',
@@ -786,7 +811,8 @@ create trigger alocari_rezervari
 -- ============================================================
 -- AFTER UPDATE pe `vehicles`: `pool` true → false, intrarea în `vandut`/`casat`,
 -- ștergerea logică. Anulează rezervările active care nu s-au încheiat și n-au
--- foaie legată (cele cu foaie rămân: sunt istoria foii). Precedentul:
+-- foaie, legată sau a omului în zilele ei (`rezervari_ultima_foaie`); cele cu
+-- foaie rămân: sunt istoria foii. Precedentul:
 -- `alocari_inchide_la_iesire` (0173), care scrie tot sub FORCE RLS din definer.
 -- `updated_by` nu se scrie: politica de UPDATE nu se aplică proprietarului.
 create or replace function internal.rezervari_la_iesirea_vehiculului()
@@ -810,8 +836,7 @@ begin
                               else 'Vehiculul a ieșit din parc.' end
    where r.vehicle_id = new.id and r.deleted_at is null and r.status in ('ceruta', 'confirmata')
      and r.pana_la >= app.azi_local()
-     and not exists (select 1 from public.trip_sheets t
-                      where t.vehicle_reservation_id = r.id and t.deleted_at is null and t.status <> 'respins');
+     and internal.rezervari_ultima_foaie(r.id, r.vehicle_id, r.employee_id, r.de_la, r.pana_la) is null;
   perform pg_catalog.set_config('app.flota_rezervari_sistem', '', true);
   return null;
 end;
@@ -834,7 +859,8 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_eu uuid;
+  v_eu    uuid;
+  v_de_la date;
 begin
   if p_organization_id is null
      or not (p_organization_id = any (app.current_org_ids()))
@@ -845,27 +871,36 @@ begin
   if p_de_la is null or p_pana_la is null or p_pana_la < p_de_la or p_pana_la - p_de_la > 62 then
     raise exception using errcode = '22023', message = 'Fereastra de ocupare are cel mult 63 de zile.';
   end if;
+  -- Doar de AZI încolo: se rezervă cel mai devreme azi, iar grila începe azi.
+  -- Trecutul parcului (foile și alocările colegilor) nu iese pe aici: cine are
+  -- dreptul îl citește prin RLS, din liste. O fereastră trecută dă zero rânduri.
+  v_de_la := greatest(p_de_la, app.azi_local());
+  if p_pana_la < v_de_la then
+    return;
+  end if;
   v_eu := app.current_employee_id(p_organization_id);
   return query
-    select r.vehicle_id, greatest(r.de_la, p_de_la), least(r.pana_la, p_pana_la), 'rezervare'::text,
+    select r.vehicle_id, greatest(r.de_la, v_de_la), least(r.pana_la, p_pana_la), 'rezervare'::text,
            r.status::text, coalesce(r.employee_id = v_eu, false),
            case when r.employee_id = v_eu then r.id end
       from public.vehicle_reservations r
       join public.vehicles v on v.id = r.vehicle_id
      where r.organization_id = p_organization_id and r.deleted_at is null
-       and r.status in ('ceruta', 'confirmata') and r.de_la <= p_pana_la and r.pana_la >= p_de_la
+       and r.status in ('ceruta', 'confirmata') and r.de_la <= p_pana_la and r.pana_la >= v_de_la
        and v.pool and v.deleted_at is null
     union all
-    select t.vehicle_id, t.data, t.data, 'foaie'::text, t.status::text, coalesce(t.employee_id = v_eu, false),
+    -- Starea foii NU iese (NULL): sub `trip_sheets:read = own` colegul n-o vede,
+    -- iar grilei îi ajunge că ziua e luată.
+    select t.vehicle_id, t.data, t.data, 'foaie'::text, null::text, coalesce(t.employee_id = v_eu, false),
            null::uuid
       from public.trip_sheets t
       join public.vehicles v on v.id = t.vehicle_id
      where t.organization_id = p_organization_id and t.deleted_at is null and t.status <> 'respins'
-       and t.vehicle_reservation_id is null and t.data between p_de_la and p_pana_la
+       and t.vehicle_reservation_id is null and t.data between v_de_la and p_pana_la
        and v.pool and v.deleted_at is null
     union all
     select a.vehicle_id,
-           greatest((a.de_la at time zone 'Europe/Bucharest')::date, p_de_la),
+           greatest((a.de_la at time zone 'Europe/Bucharest')::date, v_de_la),
            least(coalesce((a.pana_la at time zone 'Europe/Bucharest')::date, p_pana_la), p_pana_la),
            'alocare'::text, null::text, coalesce(a.employee_id = v_eu, false), null::uuid
       from public.vehicle_assignments a
@@ -873,12 +908,12 @@ begin
      where a.organization_id = p_organization_id and a.deleted_at is null
        and v.pool and v.deleted_at is null
        and (a.de_la at time zone 'Europe/Bucharest')::date <= p_pana_la
-       and coalesce((a.pana_la at time zone 'Europe/Bucharest')::date, p_pana_la) >= p_de_la;
+       and coalesce((a.pana_la at time zone 'Europe/Bucharest')::date, p_pana_la) >= v_de_la;
 end;
 $$;
 
 comment on function public.ocuparea_vehiculelor_pool(uuid, date, date) is
-  'Ocuparea mașinilor de pool pe o fereastră de cel mult 63 de zile (0216): intervalele, sursa (rezervare / foaie / alocare), starea și a_mea. NU întoarce identitatea colegilor; id-ul rezervării doar pe ale apelantului. În public fiindcă .rpc() nu ajunge la app. Zero rânduri pentru cine nu poate rezerva.';
+  'Ocuparea mașinilor de pool pe o fereastră de cel mult 63 de zile, tăiată la azi (0216): intervalele, sursa (rezervare / foaie / alocare), starea rezervării și a_mea. NU întoarce identitatea colegilor, starea foilor lor sau zilele trecute; id-ul rezervării doar pe ale apelantului. În public fiindcă .rpc() nu ajunge la app. Zero rânduri pentru cine nu poate rezerva.';
 
 -- `anon` explicit: 0002 revocă implicit doar de la PUBLIC, iar privilegiile
 -- implicite ale platformei pot da EXECUTE direct rolului anon.
@@ -976,6 +1011,7 @@ $$;
 revoke all on function internal.flota_setari_rezervari(uuid) from public, anon, authenticated;
 revoke all on function internal.rezervari_aprobatori(uuid, uuid) from public, anon, authenticated;
 revoke all on function internal.rezervari_interval(date, date) from public, anon, authenticated;
+revoke all on function internal.rezervari_ultima_foaie(uuid, uuid, uuid, date, date) from public, anon, authenticated;
 revoke all on function internal.rezervari_inainte() from public, anon, authenticated;
 revoke all on function internal.rezervari_notifica() from public, anon, authenticated;
 revoke all on function internal.foi_parcurs_rezervare() from public, anon, authenticated;
@@ -1078,7 +1114,8 @@ begin
   if exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
               where (n.nspname, p.proname) in (
                       ('internal', 'flota_setari_rezervari'), ('internal', 'rezervari_aprobatori'),
-                      ('internal', 'rezervari_interval'), ('internal', 'rezervari_inainte'),
+                      ('internal', 'rezervari_interval'), ('internal', 'rezervari_ultima_foaie'),
+                      ('internal', 'rezervari_inainte'),
                       ('internal', 'rezervari_notifica'), ('internal', 'foi_parcurs_rezervare'),
                       ('internal', 'alocari_rezervari'), ('internal', 'rezervari_la_iesirea_vehiculului'),
                       ('app', 'poate_rezervare'), ('public', 'ocuparea_vehiculelor_pool'),

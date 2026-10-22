@@ -294,7 +294,12 @@ export interface FoaieRezervare {
   readonly numar: string | null;
 }
 
-/** Foile legate de rezervări (legătura o pune triggerul `foi_parcurs_rezervare`). */
+/**
+ * Foile LEGATE de rezervări (legătura o pune triggerul `foi_parcurs_rezervare`).
+ * Atenție: gărzile bazei (anulare, scurtare, ieșirea din pool) privesc și foile
+ * NELEGATE ale omului pe vehicul în zilele rezervării (`internal.rezervari_ultima_foaie`):
+ * foaia făcută cât cererea aștepta nu se leagă retroactiv la aprobare.
+ */
 export async function foileRezervarii(
   organizationId: string,
   idRezervari: readonly string[],
@@ -317,8 +322,9 @@ const SURSE: ReadonlySet<string> = new Set<SursaOcupare>(["rezervare", "foaie", 
 
 /**
  * Ocuparea mașinilor de pool pe o fereastră de zile (cel mult 63, altfel
- * 22023). Fără identitatea colegilor; `rezervare_id` doar pe ale apelantului.
- * Zero rânduri, fără eroare, pentru cine nu poate rezerva.
+ * 22023), tăiată la azi: zilele trecute nu ies. Fără identitatea colegilor și
+ * fără starea foilor lor; `rezervare_id` doar pe ale apelantului. Zero rânduri,
+ * fără eroare, pentru cine nu poate rezerva.
  */
 export async function ocupareaPool(
   organizationId: string,
