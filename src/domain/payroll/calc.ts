@@ -33,9 +33,16 @@
 // `PayrollSettingsSnapshot`, niciodată hardcodată — vezi banner-ul din UI.
 
 import { sporDeNoapteSeAplica } from "../attendance/calcul-ore";
-import { formatOre } from "@/lib/format/ore";
+import { formatNumar, textZile } from "@/lib/format/numar";
+import { formatOre, formatOreCuUnitate } from "@/lib/format/ore";
 import { rotunjesteLaBani } from "../bani";
 import { descriereCompleta, problema, problemaDinEtapa, type CodProblema } from "./erori";
+import {
+  programSubCinciZile,
+  textZilePeSaptamana,
+  ZILE_SAPTAMANA_STANDARD,
+  zilePeSaptamana,
+} from "./program-saptamanal";
 import { calculeazaCompensarea, type IntrareCompensare } from "./etape/compensare-ore";
 import { calculeazaDiurna, type IntrareDiurna } from "./etape/diurna-plafoane";
 import {
@@ -152,8 +159,10 @@ export interface EmployeeContractSnapshot {
    * Norma săptămânală din contract. Contează doar când e sub `normaZilnica × 5`,
    * adică la timpul parțial lucrat în mai puțin de cinci zile pe săptămână
    * (8 h/zi, 24 h/săpt.), admis de schemă din 12 oct 2026: atunci salariul se
-   * împarte la zilele PROGRAMULUI din lună, nu la toate zilele lucrătoare.
-   * Lipsă, sau la cinci zile ori mai multe, calculul rămâne cel de până acum.
+   * împarte la zilele PROGRAMULUI din lună, nu la toate zilele lucrătoare, iar
+   * fluturașul primește `SAL_PROGRAM_SUB_CINCI_ZILE` (zilele se deduc, deci se
+   * cer confirmate). Lipsă, sau la cinci zile ori mai multe, calculul rămâne cel
+   * de până acum.
    */
   readonly normaOreSaptamana?: number;
   readonly exemptii?: readonly TaxExemptionSnapshot[];
@@ -430,20 +439,11 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
   // e tot ce se poate ști; zilele lucrate peste ea nu trec de salariul întreg.
   const normaSaptamana = contract.normaOreSaptamana;
   const zileProgramSaptamana =
-    normaSaptamana !== undefined && Number.isFinite(normaSaptamana) && normaSaptamana > 0
-      ? normaSaptamana / normaZilnica
-      : 5;
-  const subCinciZile = zileProgramSaptamana < 5 - 1e-9;
+    zilePeSaptamana(normaZilnica, normaSaptamana) ?? ZILE_SAPTAMANA_STANDARD;
+  const subCinciZile = programSubCinciZile(zileProgramSaptamana);
   const zileProgramLuna = subCinciZile
-    ? (attendance.zileLucratoareLuna * zileProgramSaptamana) / 5
+    ? (attendance.zileLucratoareLuna * zileProgramSaptamana) / ZILE_SAPTAMANA_STANDARD
     : attendance.zileLucratoareLuna;
-  if (subCinciZile) {
-    const zileText = String(rotund2(zileProgramLuna)).replace(".", ",");
-    warnings.push({
-      cod: "NORMA_SUB_CINCI_ZILE",
-      mesaj: `Contractul are o normă de ${String(normaSaptamana)} ore pe săptămână în zile de ${String(normaZilnica)} ore, adică mai puțin de cinci zile pe săptămână. Salariul de bază s-a împărțit la media zilelor programului din lună (${zileText} din ${String(attendance.zileLucratoareLuna)} zile lucrătoare). Verificați zilele din pontaj față de programul convenit.`,
-    });
-  }
 
   const salariuZi = contract.salariuBaza / zileProgramLuna;
   // Când etapa de indemnizație preia concediul de odihnă, zilele ei ies din
@@ -453,6 +453,27 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     input.concediuOdihna === undefined
       ? attendance.zileLucrate + attendance.zileConcediuOdihna
       : attendance.zileLucrate;
+
+  // Garda „L4” (QA oct 2026): programul sub cinci zile NU schimbă tăcut
+  // salariul. Contractul nu are un câmp pentru zile, deci „8 h/zi, 20 h/săpt.”
+  // poate fi un program real de 2,5 zile sau un timp parțial de 4 h în cinci
+  // zile cu norma zilnică uitată la 8 — iar al doilea, cu 15 din 21 de zile
+  // lucrate, ar lua salariul întreg. Calculul rămâne pe programul din contract
+  // (cel semnat și raportat în REGES); fluturașul spune ce program a folosit și
+  // cere confirmarea lui. O confirmare stocată ar cere o coloană nouă: decizia
+  // și motivele sunt în `.claude/docs/modul/salarizare/calcul.md`.
+  if (subCinciZile) {
+    const ziLuna = attendance.zileLucratoareLuna;
+    const zileCuPlata = attendance.zileLucrate + attendance.zileConcediuOdihna;
+    const pesteProgram =
+      zileCuPlata > zileProgramLuna + 0.01
+        ? ` În pontaj sunt ${textZile(zileCuPlata)} plătite, peste cele ${formatNumar(zileProgramLuna)} ale programului: salariul s-a plătit întreg; pe cinci zile pe săptămână ar fi fost ${formatNumar(zileCuPlata)}/${formatNumar(ziLuna)} din salariu.`
+        : "";
+    const p = problema("SAL_PROGRAM_SUB_CINCI_ZILE", {
+      detalii: `Programul contractului: ${textZilePeSaptamana(zileProgramSaptamana)} (${formatOreCuUnitate(normaSaptamana ?? 0)} pe săptămână în zile de ${formatOreCuUnitate(normaZilnica)}) — confirmați în contract. Salariul de bază s-a împărțit la ${formatNumar(zileProgramLuna)} zile ale programului din ${formatNumar(ziLuna)} lucrătoare.${pesteProgram}`,
+    });
+    warnings.push({ cod: p.cod, mesaj: descriereCompleta(p) });
+  }
   if (
     attendance.zileLucrate + attendance.zileConcediuOdihna >
     attendance.zileLucratoareLuna + 0.01

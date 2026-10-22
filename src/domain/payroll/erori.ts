@@ -26,6 +26,7 @@ export const CODURI_PROBLEMA = [
   "SAL_NORMA_INVALIDA",
   "SAL_ZILE_PESTE_LUNA",
   "SAL_CONTRACT_SCHIMBAT_IN_LUNA",
+  "SAL_PROGRAM_SUB_CINCI_ZILE",
   "SAL_PONTAJ_FARA_ZILE",
   "SAL_SPOR_SARBATOARE_NECONFIGURAT",
   "SAL_SPOR_NOAPTE_SUB_PRAG",
@@ -134,6 +135,16 @@ const CATALOG: Readonly<Record<CodProblema, IntrareCatalog>> = {
       "Un act adițional a intrat în vigoare la mijlocul lunii. Calculul folosește termenii valabili în ultima zi, deci îi aplică întregii luni.",
     cumSeRepara:
       "Verificați cu contabilul dacă diferența trebuie corectată manual pentru zilele dinaintea actului adițional.",
+    unde: "/angajati",
+  },
+  SAL_PROGRAM_SUB_CINCI_ZILE: {
+    severitate: "avertisment",
+    mesaj:
+      "Contractul are un program de mai puțin de cinci zile pe săptămână, deduse din cele două norme.",
+    cauza:
+      "Contractul nu are un câmp pentru zilele pe săptămână: aplicația le deduce din norma săptămânală împărțită la cea zilnică. Un timp parțial de 4 ore în cinci zile, scris cu norma zilnică rămasă la 8 ore (un contract vechi sau unul importat doar cu norma săptămânală), arată la fel ca un program real de două-trei zile.",
+    cumSeRepara:
+      "Deschideți contractul de pe fișa angajatului și verificați cele două norme. Dacă omul lucrează cinci zile pe săptămână, norma zilnică e greșită (de exemplu 4 ore pe zi la 20 de ore pe săptămână): corectați contractul, apoi recalculați perioada. Dacă programul e chiar cel convenit, calculul e corect, iar atenționarea rămâne, ca semn că programul se abate de la cele cinci zile.",
     unde: "/angajati",
   },
   SAL_PONTAJ_FARA_ZILE: {

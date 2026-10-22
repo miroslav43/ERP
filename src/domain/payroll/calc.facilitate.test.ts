@@ -191,7 +191,7 @@ describe("norma săptămânală: timpul parțial în zile întregi nu primește 
       },
     });
     expect(r.sumaNeimpozabila).toBe(0);
-    expect(r.warnings.map((w) => w.cod)).toContain("NORMA_SUB_CINCI_ZILE");
+    expect(r.warnings.map((w) => w.cod)).toContain("SAL_PROGRAM_SUB_CINCI_ZILE");
     expect(r.warnings.map((w) => w.cod)).not.toContain("SAL_FACILITATE_SALARIU_MINIM");
   });
 

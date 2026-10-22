@@ -770,7 +770,7 @@ describe("calculeazaPerioada — intrările lunii ajung în statul de plată", (
     expect(camp(server, ANGAJAT_A, "baza_salariu")).toBeCloseTo(3000, 2);
     expect(camp(server, ANGAJAT_B, "baza_salariu")).toBeCloseTo(4500, 2);
     const randA = randuriScrise(server).find((r) => r.employee_id === ANGAJAT_A);
-    expect(randA?.calc_warnings.map((w) => w.cod)).toContain("NORMA_SUB_CINCI_ZILE");
+    expect(randA?.calc_warnings.map((w) => w.cod)).toContain("SAL_PROGRAM_SUB_CINCI_ZILE");
   });
 
   it("scutirea fiscală activă anulează impozitul angajatului ei, nu și al celorlalți", async () => {
