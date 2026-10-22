@@ -39,6 +39,14 @@ const setari: SetariFlota = {
   praguri_alerta_zile: [30, 14, 7],
 };
 
+// F12d (0216): setările rezervărilor de pool, în același formular.
+const proprietati = {
+  setari,
+  candidati,
+  rezervari: { cuAprobare: false, obligatorie: true, maxZile: 14 },
+  rezervariInAsteptare: 0,
+} as const;
+
 function refuz(fieldErrors: Record<string, readonly string[]>): ActionResult<never> {
   return {
     ok: false,
@@ -57,7 +65,7 @@ beforeEach(() => {
 
 describe("FormularSetariFlota", () => {
   it("arată valorile salvate: bifa responsabilului, pragurile ca text, pragul de salt", () => {
-    render(<FormularSetariFlota setari={setari} candidati={candidati} />);
+    render(<FormularSetariFlota {...proprietati} />);
     expect((screen.getByLabelText(/Cristi Dan/u) as HTMLInputElement).checked).toBe(true);
     expect((screen.getByLabelText(/Ana Pop/u) as HTMLInputElement).checked).toBe(false);
     expect((screen.getByLabelText(/Alerte înainte de scadență/u) as HTMLInputElement).value).toBe(
@@ -67,14 +75,14 @@ describe("FormularSetariFlota", () => {
   });
 
   it("spune pe față ce-l oprește pe un candidat să primească alerte", () => {
-    render(<FormularSetariFlota setari={setari} candidati={candidati} />);
+    render(<FormularSetariFlota {...proprietati} />);
     expect(screen.getByLabelText(/Bogdan Ion — fără cont/u)).toBeDefined();
     expect(screen.getByLabelText(/Cristi Dan \(C3\) — nu mai este activ/u)).toBeDefined();
   });
 
   it("trimite bifele și textul pragurilor exact cum le-a lăsat omul", async () => {
     salveazaSetariFlota.mockResolvedValue({ ok: true, data: { id: "s1" } });
-    render(<FormularSetariFlota setari={setari} candidati={candidati} />);
+    render(<FormularSetariFlota {...proprietati} />);
 
     await userEvent.click(screen.getByLabelText(/Ana Pop/u));
     const praguri = screen.getByLabelText(/Alerte înainte de scadență/u);
@@ -89,12 +97,43 @@ describe("FormularSetariFlota", () => {
       responsabili: [ANA, CRISTI],
       prag_salt_km: "1200",
       praguri_alerta_zile: "45, 7",
+      rezervari_cu_aprobare: false,
+      rezervare_obligatorie: true,
+      rezervari_max_zile: "14",
+    });
+  });
+
+  // F12d (0216): bifele rezervărilor pleacă booleene (nebifată = `false`, nu lipsă).
+  it("setările rezervărilor: valorile salvate, bifele schimbate, durata ca text", async () => {
+    salveazaSetariFlota.mockResolvedValue({ ok: true, data: { id: "s1" } });
+    render(<FormularSetariFlota {...proprietati} rezervariInAsteptare={3} />);
+
+    expect(screen.getByText(/3 rezervări așteaptă decizia și rămân de decis/u)).toBeDefined();
+    const aprobare = screen.getByLabelText(/Rezervările cer aprobare/u) as HTMLInputElement;
+    const obligatorie = screen.getByLabelText(/doar cu rezervare/u) as HTMLInputElement;
+    expect(aprobare.checked).toBe(false);
+    expect(obligatorie.checked).toBe(true);
+
+    await userEvent.click(aprobare);
+    await userEvent.click(obligatorie);
+    const durata = screen.getByLabelText(/Durata maximă a unei rezervări/u);
+    await userEvent.clear(durata);
+    await userEvent.type(durata, "7");
+    await userEvent.click(screen.getByRole("button", { name: /Salvează setările/u }));
+
+    await waitFor(() => {
+      expect(salveazaSetariFlota).toHaveBeenCalledTimes(1);
+    });
+    expect(salveazaSetariFlota.mock.calls[0]?.[0]).toMatchObject({
+      rezervari_cu_aprobare: true,
+      rezervare_obligatorie: false,
+      rezervari_max_zile: "7",
     });
   });
 
   it("fără nicio bifă pleacă lista goală (toți administratorii), nu lipsa câmpului", async () => {
     salveazaSetariFlota.mockResolvedValue({ ok: true, data: { id: "s1" } });
-    render(<FormularSetariFlota setari={setari} candidati={candidati} />);
+    render(<FormularSetariFlota {...proprietati} />);
     await userEvent.click(screen.getByLabelText(/Cristi Dan/u));
     await userEvent.click(screen.getByRole("button", { name: /Salvează setările/u }));
     await waitFor(() => {
@@ -106,7 +145,7 @@ describe("FormularSetariFlota", () => {
   it("refuzul bazei pe responsabili ajunge lângă listă, ca alertă", async () => {
     const mesaj = "Responsabilul de flotă ales nu este angajat al organizației.";
     salveazaSetariFlota.mockResolvedValue(refuz({ responsabili: [mesaj] }));
-    render(<FormularSetariFlota setari={setari} candidati={candidati} />);
+    render(<FormularSetariFlota {...proprietati} />);
     await userEvent.click(screen.getByRole("button", { name: /Salvează setările/u }));
     await waitFor(() => {
       expect(screen.getByRole("alert").textContent).toBe(mesaj);
@@ -117,7 +156,7 @@ describe("FormularSetariFlota", () => {
     salveazaSetariFlota.mockResolvedValue(
       refuz({ praguri_alerta_zile: ["Fiecare prag e între 1 și 365 de zile."] }),
     );
-    render(<FormularSetariFlota setari={setari} candidati={candidati} />);
+    render(<FormularSetariFlota {...proprietati} />);
     await userEvent.click(screen.getByRole("button", { name: /Salvează setările/u }));
     await waitFor(() => {
       expect(screen.getByText("Fiecare prag e între 1 și 365 de zile.")).toBeDefined();

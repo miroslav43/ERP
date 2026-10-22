@@ -72,6 +72,14 @@ const COZI: readonly Readonly<{
     plural: "foi de parcurs",
     referinta: "flota.aprobari",
   },
+  // F12d (0216): același contor ca rândul din panou.
+  {
+    cheie: "rezervari",
+    numar: (c) => c.rezervari,
+    singular: "o rezervare de mașină",
+    plural: "rezervări de mașini",
+    referinta: "flota.rezervari",
+  },
   {
     cheie: "tichete",
     numar: (c) => c.tichete,

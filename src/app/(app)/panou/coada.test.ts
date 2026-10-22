@@ -13,6 +13,7 @@ const TOTI_PE_UNU: CoadaPanou = {
   pontaj: { zile: 1, fise: 0, luni: [{ an: 2026, luna: 9, zile: 1 }] },
   deplasari: 1,
   foiParcurs: 1,
+  rezervari: 1,
   tichete: 1,
   anomaliiKm: 1,
   regesDeTransmis: 1,
@@ -84,11 +85,12 @@ describe("coadaDinContoare", () => {
     expect(intrari.map((i) => i.cheie)).toEqual([
       "concedii",
       "pontaj",
+      "rezervari",
       "integrare",
       "anomalii",
       "reges",
     ]);
-    expect(numarulDinAntet(intrari)).toBe(5);
+    expect(numarulDinAntet(intrari)).toBe(6);
   });
 
   it("coada goală dă zero, nu un rând gol", () => {
@@ -99,6 +101,7 @@ describe("coadaDinContoare", () => {
       pontaj: null,
       deplasari: 0,
       foiParcurs: 0,
+      rezervari: 0,
       tichete: 0,
       anomaliiKm: 0,
       regesDeTransmis: 0,
@@ -117,6 +120,31 @@ describe("coadaDinContoare", () => {
     const intrari = coadaDinContoare(contoare(TOTI_PE_UNU));
     const urgente = intrari.filter((i) => i.urgent === true).map((i) => i.cheie);
     expect(urgente).toEqual(["reges"]);
+  });
+
+  // F12d (0216): rezervările de mașini care așteaptă aprobare.
+  it("rezervările de aprobat duc la coada filtrată; `null` și zero nu apar", () => {
+    const cu = coadaDinContoare(contoare({ ...TOTI_PE_UNU, rezervari: 2 })).find(
+      (i) => i.cheie === "rezervari",
+    );
+    expect(cu).toMatchObject({
+      numar: 2,
+      titlu: "Rezervări de mașini care așteaptă aprobare",
+      detaliu: "rezervări",
+      href: "/flota/rezervari?stare=ceruta",
+    });
+    expect(
+      coadaDinContoare(contoare({ ...TOTI_PE_UNU, rezervari: 1 })).find(
+        (i) => i.cheie === "rezervari",
+      )?.detaliu,
+    ).toBe("rezervare");
+    for (const rezervari of [null, 0]) {
+      expect(
+        coadaDinContoare(contoare({ ...TOTI_PE_UNU, rezervari })).some(
+          (i) => i.cheie === "rezervari",
+        ),
+      ).toBe(false);
+    }
   });
 
   it("acordă singularul cu pluralul", () => {

@@ -66,6 +66,14 @@ import { cuAvertismente } from "../avertismente-optiuni";
 // ── început bloc: fiscalul vehiculului (0205, F10) ──
 import { SectiuneFiscalaVehicul } from "../fiscal/sectiune-fiscala-vehicul";
 // ── sfârșit bloc: fiscalul vehiculului ──
+// ── început bloc: procesul-verbal de predare (0215, F12c) ──
+import { pvurileVehiculului } from "@/lib/queries/fleet-pv";
+import { capeteVehiculului } from "./capete-pv";
+import { CelulaPv } from "./celula-pv";
+import { DialogPvNou } from "./dialog-pv-nou";
+// ── sfârșit bloc: procesul-verbal de predare ──
+// F12d (0216): rezervările mașinii de pool.
+import { SectiuneRezervariVehicul } from "../rezervari/sectiune-vehicul";
 
 export const metadata: Metadata = { title: "Fișa vehiculului" };
 
@@ -123,26 +131,30 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
   // Șoferul (`own`) nu le vede, deci nici fila nu i se oferă; un `?fila=` scris
   // de mână pe un cont fără drept cade pe fișa obișnuită, nu pe un ecran gol.
   const poateVedeaService = can(permisiuni, "vehicles:read", "team");
-  const filtreFila = filtreDinUrl(filtreServiceSchema, await searchParams);
+  const parametri = await searchParams;
+  const filtreFila = filtreDinUrl(filtreServiceSchema, parametri);
   const fila = poateVedeaService ? filtreFila.fila : null;
 
   // Selectoarele (angajați, departamente) doar pentru cine poate scrie cu ele.
-  const [documente, nomenclator, alocari, angajati, departamente, pragFirma] = await Promise.all([
-    documenteleVehiculului(vehicul.id),
-    // Nomenclatorul ÎNTREG al firmei (0202): un document pe un tip retras între
-    // timp rămâne pe fișă; selectoarele primesc doar tipurile active (`tipuri`).
-    nomenclatorDocumente(tenant.organizationId),
-    alocarileVehiculului(tenant.organizationId, vehicul.id),
-    poateAdministra ? angajatiPentruAlocare(tenant.organizationId) : Promise.resolve([]),
-    // Și pentru cine doar citește: departamentul vehiculului se AFIȘA nicăieri.
-    poateAdministra || vehicul.department_id !== null
-      ? departamentePentruVehicul(tenant.organizationId)
-      : Promise.resolve([]),
-    // Pragul de salt al firmei (0201), afișat când vehiculul n-are unul propriu.
-    // Prin funcția îngustă, nu prin `fleet_settings`: tabela e închisă celor
-    // care nu administrează parcul (managerul cu `team` deschide această fișă).
-    vehicul.prag_salt_km === null ? pragSaltVehicul(vehicul.id) : Promise.resolve(null),
-  ]);
+  const [documente, nomenclator, alocari, angajati, departamente, pragFirma, pvuri] =
+    await Promise.all([
+      documenteleVehiculului(vehicul.id),
+      // Nomenclatorul ÎNTREG al firmei (0202): un document pe un tip retras între
+      // timp rămâne pe fișă; selectoarele primesc doar tipurile active (`tipuri`).
+      nomenclatorDocumente(tenant.organizationId),
+      alocarileVehiculului(tenant.organizationId, vehicul.id),
+      poateAdministra ? angajatiPentruAlocare(tenant.organizationId) : Promise.resolve([]),
+      // Și pentru cine doar citește: departamentul vehiculului se AFIȘA nicăieri.
+      poateAdministra || vehicul.department_id !== null
+        ? departamentePentruVehicul(tenant.organizationId)
+        : Promise.resolve([]),
+      // Pragul de salt al firmei (0201), afișat când vehiculul n-are unul propriu.
+      // Prin funcția îngustă, nu prin `fleet_settings`: tabela e închisă celor
+      // care nu administrează parcul (managerul cu `team` deschide această fișă).
+      vehicul.prag_salt_km === null ? pragSaltVehicul(vehicul.id) : Promise.resolve(null),
+      // 0215 (F12c): PV-urile vehiculului, grupate apoi pe capetele alocărilor.
+      pvurileVehiculului(tenant.organizationId, vehicul.id),
+    ]);
   const departamentVehicul =
     vehicul.department_id === null
       ? null
@@ -200,6 +212,7 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
       ? await cuAvertismente(tenant.organizationId, angajati, azi, vehiculPermis)
       : angajati;
 
+  const capete = capeteVehiculului(alocari, pvuri);
   const coloaneAlocari: readonly Coloana<AlocareVehicul>[] = [
     {
       cheie: "sofer",
@@ -247,6 +260,18 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
         `${a.km_predare === null ? "—" : a.km_predare.toLocaleString("ro-RO")} → ${
           a.km_restituire === null ? "—" : a.km_restituire.toLocaleString("ro-RO")
         }`,
+    },
+    {
+      cheie: "pv",
+      antet: "Proces-verbal",
+      peTelefon: "meta",
+      celula: (a) => (
+        <CelulaPv
+          vehiculId={vehicul.id}
+          capete={capete.get(a.id)}
+          poateAdministra={poateAdministra}
+        />
+      ),
     },
     ...(poateAdministra
       ? [
@@ -727,6 +752,15 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
                   angajati={angajatiPredare}
                 />
               ) : null}
+              {poateAdministra ? (
+                <DialogPvNou
+                  organizationId={tenant.organizationId}
+                  vehicul={vehicul}
+                  alocari={alocari}
+                  capete={capete}
+                  parametri={parametri}
+                />
+              ) : null}
             </div>
             <p className="text-muted-foreground text-corp">
               {vehicul.pool ? (
@@ -774,6 +808,14 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
               }
             />
           </section>
+
+          <SectiuneRezervariVehicul
+            organizationId={tenant.organizationId}
+            userId={user.id}
+            vehicul={vehicul}
+            permisiuni={permisiuni}
+            azi={azi}
+          />
 
           <section aria-labelledby="documente" className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">

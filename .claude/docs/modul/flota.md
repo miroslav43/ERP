@@ -49,7 +49,7 @@ capcane: [18, 19, 21, 22, 23, 26]
 citeste_daca:
   - "foaie refuzată cu „Vehiculul ales nu vă este alocat” → [[modul/flota/roluri-si-portal]]; permis, aviz medical, șofer → [[modul/flota/soferi]]; amendă, art. 39, incident, daună → [[modul/flota/amenzi-si-daune]]"
   - "curse, foaie trimisă, numărul FP, PDF, orele foilor → [[modul/flota/foaia-zilnica]]; service, costuri, anvelope → [[modul/flota/service-si-costuri]]; rapoarte lunare, Excel, pachet pentru contabil → [[modul/flota/rapoarte]]"
-  - "alerte de scadență, /flota/setari → [[modul/flota/alerte-si-setari]]; regim fiscal, avantaj în natură, /flota/fiscal → [[modul/flota/fiscal]]"
+  - "alerte de scadență, /flota/setari → [[modul/flota/alerte-si-setari]]; regim fiscal, avantaj în natură, /flota/fiscal → [[modul/flota/fiscal]]; proces-verbal de predare, PVA, confirmarea șoferului → [[modul/flota/proces-verbal]]"
 scris_pe: b6ed2c66abe3b535c04d7993c3465e8fff1629de
 scris_la: 2026-10-13
 tags: [modul, operations]
@@ -59,7 +59,7 @@ tags: [modul, operations]
 
 Vehicule, documentele lor cu scadențe, foi de parcurs cu alimentări, și anomalii de
 kilometraj. **Modulul cu cea mai densă concentrație de refuzuri tăcute din proiect** —
-majoritatea refuzurilor de mai jos nu produc nicio eroare.
+majoritatea celor de mai jos nu dau nicio eroare.
 
 ## Rute și cine ajunge
 
@@ -99,6 +99,8 @@ vehicule `activ` (baza refuză foaia pe unul vândut sau casat).
 ## Extensii (F12)
 
 - b, carduri de combustibil (0214): `[[modul/flota/carduri]]`
+- c, proces-verbal de predare-primire (0215): `[[modul/flota/proces-verbal]]`
+- d, rezervări pe mașinile de pool (0216): `[[modul/flota/rezervari]]`
 
 ## Server Actions
 
@@ -137,7 +139,7 @@ Cursele și alimentările se scriu DOAR pe ciornă.
 Scrierile pe vehicule și documente sunt toate `minScope: "all"`, fiindcă politicile cer
 literal `has_permission(...) = 'all'`. **`vehicles:delete` NU se folosește**, deși
 `0002_authz.sql:1153` îl acordă lui `super_admin` și `org_admin`: politicile se uită numai
-la `vehicles:update`, deci cheia rămâne inertă — poarta care contează e a bazei. Ștergerea
+la `vehicles:update`, deci cheia rămâne inertă. Ștergerea
 e logică, prin `deleted_at`: tabelele flotei primesc grant doar pe `select`, `insert` și
 `update` (`0012_fleet.sql:1080`). Contractele scrierilor și ale traducerii de erori sunt
 fixate pe clientul fals: `actions-*.test.ts`, `erori-etichete.test.ts`.
@@ -156,7 +158,7 @@ explicit pe șofer). Service, intervenții, cheltuieli și costuri: `fleet-servi
 
 ## Ce refuză baza tăcut
 
-Citește secțiunea asta înainte de orice scriere în modul.
+Citește-o înainte de orice scriere în modul.
 
 - **Un vehicul fără șofer și fără `pool` e invizibil sub `vehicles:read` own/team.**
   Managerul vede, din 0199, mașinile echipei și pool-ul; angajatul, mașina lui și

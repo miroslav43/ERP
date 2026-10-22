@@ -796,6 +796,21 @@ const INTRARI: readonly Intrare[] = [
     minScope: "own",
     descriere: "Foile de parcurs: curse, kilometri parcurși și combustibilul consumat.",
   },
+  // ═══ ÎNCEPUT BLOC: flota, rezervările de pool (0216, F12d) ═══
+  {
+    id: "flota.rezervari",
+    href: "/flota/rezervari",
+    eticheta: "Rezervări de mașini",
+    zona: "app",
+    parinte: "flota",
+    fila: "Rezervări",
+    featureKey: "fleet",
+    permission: "vehicle_reservations:read",
+    minScope: "own",
+    descriere:
+      "Rezervarea mașinilor comune (pool) pe zile, grila de ocupare și cererile care așteaptă aprobarea.",
+  },
+  // ═══ SFÂRȘIT BLOC: flota, rezervările de pool (0216, F12d) ═══
   {
     id: "flota.aprobari",
     href: "/flota/aprobari",
@@ -1589,6 +1604,19 @@ const INTRARI: readonly Intrare[] = [
     permission: "trip_sheets:create",
     minScope: "own",
     descriere: "Întocmirea foii de parcurs pe mașina dumneavoastră sau pe una din mașinile comune.",
+  },
+  // F12d (0216): rezervările proprii.
+  {
+    id: "portal.masina.rezervari",
+    href: "/portal/masina-mea/rezervari",
+    eticheta: "Rezervările mele de mașini",
+    zona: "portal",
+    parinte: "portal-masina",
+    fila: null,
+    featureKey: "fleet",
+    permission: "vehicle_reservations:read",
+    minScope: "own",
+    descriere: "Rezervarea unei mașini comune (pool) pe zile și rezervările dumneavoastră.",
   },
   // ── sfârșit bloc: flota pe roluri (0199) ──
   {

@@ -31,6 +31,7 @@ const SEGMENTE_UUID: ReadonlySet<string> = new Set([
   "[entryId]",
   "[alocare]",
   "[lectieId]",
+  "[pv]", // flota/[id]/pv/[pv] — procesul-verbal de predare (0215), `idDinRuta`
 ]);
 
 /** Segmentele care NU sunt UUID-uri; fiecare își validează valoarea altfel. */
