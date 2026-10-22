@@ -408,6 +408,48 @@ describe("aplicaImportAngajati", () => {
     });
   });
 
+  it.each([
+    [20, 4],
+    [30, 6],
+    [37.5, 7.5],
+    [21.73, 4.34],
+    [48, 8],
+  ] as const)(
+    "norma de %d h/săptămână din fișier primește și norma zilnică pe cinci zile (%d h), nu 8 h implicit",
+    async (saptamana, zi) => {
+      // Garda „L4”: cu doar norma săptămânală scrisă, baza punea 8 h/zi, iar
+      // 8/20 înseamnă pentru salarizare un program de 2,5 zile pe săptămână.
+      const { server } = configureazaActiunea({ permisiuni: PERMIS });
+      programeazaLot(server, [
+        { ...simplu, marca: "M1", numar_contract: "5", salariu: 2500, norma_ore: saptamana },
+      ]);
+      server.raspunde("employees", "insert", { data: { id: ID_2 } });
+      server.raspunde("employment_contracts", "insert", { data: null });
+
+      const r = await aplicaImportAngajati({ batchId: BATCH, offset: 0 });
+
+      expect(r).toMatchObject({ ok: true, data: { reusite: 1 } });
+      expect(server.apeluriPe("employment_contracts")[0]?.payload).toMatchObject({
+        norma_ore_saptamana: saptamana,
+        norma_ore_zi: zi,
+      });
+      expect(saptamana / zi).toBeGreaterThanOrEqual(5);
+    },
+  );
+
+  it("fără normă în fișier, contractul rămâne pe implicitele bazei (40 h, 8 h)", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    programeazaLot(server, [{ ...simplu, marca: "M1", numar_contract: "5", salariu: 4500 }]);
+    server.raspunde("employees", "insert", { data: { id: ID_2 } });
+    server.raspunde("employment_contracts", "insert", { data: null });
+
+    await aplicaImportAngajati({ batchId: BATCH, offset: 0 });
+
+    const payload = server.apeluriPe("employment_contracts")[0]?.payload as Record<string, unknown>;
+    expect(payload).not.toHaveProperty("norma_ore_zi");
+    expect(payload).not.toHaveProperty("norma_ore_saptamana");
+  });
+
   it("contract cu număr deja folosit: fișa se anulează LOGIC (compensare), cu `.select()` după", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
     programeazaLot(server, [{ ...simplu, marca: "M1", numar_contract: "5", salariu: 4500 }]);
