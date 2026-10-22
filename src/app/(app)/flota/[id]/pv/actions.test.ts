@@ -46,8 +46,10 @@ import {
   actualizeazaPv,
   anuleazaPv,
   confirmaPv,
+  confirmaScanPv,
   creeazaPv,
   finalizeazaPv,
+  pregatesteScanPv,
   stergePv,
 } from "./actions";
 import { MESAJ_PV_DUBLAT } from "./erori";
@@ -431,5 +433,106 @@ describe("confirmaPv", () => {
     });
     expect(await confirmaPv({ id: PV })).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
     expect(server.apeluri).toHaveLength(0);
+  });
+});
+
+describe("pregatesteScanPv și confirmaScanPv (sub-commitul 8.8)", () => {
+  const fisier = { numeFisier: "PV semnat.pdf", dimensiune: 120_000, mime: "application/pdf" };
+
+  it("sub `vehicles:update` ≠ all: INTERZIS, fără drum la bază sau la Storage", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "team" } });
+    const r = await pregatesteScanPv({ id: PV, vehicle_id: VEHICUL, ...fisier });
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+    expect(server.apeluri).toHaveLength(0);
+    expect(server.apeluriStocare).toHaveLength(0);
+  });
+
+  it("semnează o cale în folderul VEHICULULUI, doar pentru un PV finalizat", async () => {
+    const { server } = configureazaActiunea({ permisiuni: ADMIN });
+    server.raspunde("vehicle_handovers", "select", { data: { id: PV } });
+    server.raspundeStocare("org-flota", "createSignedUploadUrl", {
+      data: { signedUrl: "https://s/semnat" },
+    });
+
+    const r = await pregatesteScanPv({ id: PV, vehicle_id: VEHICUL, ...fisier });
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.data.cale.startsWith(`${ORG_ID}/vehicles/${VEHICUL}/`)).toBe(true);
+    const [citire] = server.apeluriPe("vehicle_handovers", "select");
+    expect(areFiltru(citire, "eq", "stare", "finalizat")).toBe(true);
+    expect(areFiltru(citire, "eq", "vehicle_id", VEHICUL)).toBe(true);
+    expect(areFiltru(citire, "eq", "organization_id", ORG_ID)).toBe(true);
+  });
+
+  it("PV-ul ciornă sau al altui vehicul: NEGASIT, fără URL semnat", async () => {
+    const { server } = configureazaActiunea({ permisiuni: ADMIN });
+    server.raspunde("vehicle_handovers", "select", { data: null });
+    const r = await pregatesteScanPv({ id: PV, vehicle_id: VEHICUL, ...fisier });
+    expect(r).toMatchObject({ ok: false, error: { code: "NEGASIT" } });
+    expect(server.apeluriStocare).toHaveLength(0);
+  });
+
+  it("un tip de fișier neacceptat se refuză înaintea oricărui drum", async () => {
+    const { server } = configureazaActiunea({ permisiuni: ADMIN });
+    const r = await pregatesteScanPv({
+      id: PV,
+      vehicle_id: VEHICUL,
+      ...fisier,
+      mime: "application/zip",
+    });
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    expect(server.apeluri).toHaveLength(0);
+  });
+
+  it("confirmarea măsoară obiectul REAL și leagă calea, cu `.select()` după UPDATE", async () => {
+    const { server } = configureazaActiunea({ permisiuni: ADMIN });
+    const cale = `${ORG_ID}/vehicles/${VEHICUL}/abc-pv-semnat.pdf`;
+    server.raspundeStocare("org-flota", "info", {
+      data: { size: 120_000, contentType: "application/pdf" },
+    });
+    server.raspunde("vehicle_handovers", "update", { data: { id: PV } });
+
+    const r = await confirmaScanPv({
+      id: PV,
+      vehicle_id: VEHICUL,
+      cale,
+      numeFisier: "PV semnat.pdf",
+    });
+
+    expect(r).toEqual({ ok: true, data: { id: PV } });
+    const [scriere] = server.apeluriPe("vehicle_handovers", "update");
+    expect(scriere?.payload).toEqual({ scan_path: cale, updated_by: USER_ID });
+    expect(areFiltru(scriere, "eq", "stare", "finalizat")).toBe(true);
+    expect(areFiltru(scriere, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(scriere?.selectDupaScriere).toBe("id");
+    expect(caiRevalidate()).toEqual([`/flota/${VEHICUL}/pv/${PV}`]);
+  });
+
+  it("calea din alt folder: VALIDARE, fără drum la bază", async () => {
+    const { server } = configureazaActiunea({ permisiuni: ADMIN });
+    const r = await confirmaScanPv({
+      id: PV,
+      vehicle_id: VEHICUL,
+      cale: `${ORG_ID}/vehicles/${ALOCARE}/abc.pdf`,
+      numeFisier: "abc.pdf",
+    });
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    expect(server.apeluri).toHaveLength(0);
+  });
+
+  it("zero rânduri la legare (PV șters între timp): CONFLICT", async () => {
+    const { server } = configureazaActiunea({ permisiuni: ADMIN });
+    server.raspundeStocare("org-flota", "info", {
+      data: { size: 120_000, contentType: "application/pdf" },
+    });
+    server.raspunde("vehicle_handovers", "update", { data: null });
+    const r = await confirmaScanPv({
+      id: PV,
+      vehicle_id: VEHICUL,
+      cale: `${ORG_ID}/vehicles/${VEHICUL}/abc.pdf`,
+      numeFisier: "abc.pdf",
+    });
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
   });
 });

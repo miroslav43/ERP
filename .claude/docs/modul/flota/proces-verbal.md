@@ -52,6 +52,7 @@ ESLint și garda demo recunosc doar numele ăsta).
 | ------------------------------------------------------------------------ | ----------------------- |
 | `creeazaPv`, `actualizeazaPv`, `finalizeazaPv`, `anuleazaPv`, `stergePv` | `vehicles:update` / all |
 | `confirmaPv`                                                             | `employees:read` / own  |
+| `pregatesteScanPv`, `confirmaScanPv` (scanul semnat)                     | `vehicles:update` / all |
 
 `confirmaPv` nu e pe `vehicles:read`: omul fără drept pe parc care e parte la PV (decizia 3)
 trebuie să-l poată confirma. Cine e parte decide baza; acțiunea doar alege coloana, după
@@ -88,6 +89,10 @@ transfer: `capete-pv.ts`, din alocările deja citite.
   vehiculul alocat LUI (ramura din `vehicule_select`), fără documentele lui, alocări, foi sau
   restul parcului. „Mașina mea” îi arată mașina fără semafor.
 - **Cine întocmește**: doar `vehicles:update = all` și membru. `super_admin` vede, nu scrie.
+- **Scanul hârtiei semnate** (`pregatesteScanPv` → urcare → `confirmaScanPv`) stă în
+  `org-flota`, în folderul VEHICULULUI (0202): doar pe PV-ul finalizat, doar cine
+  administrează parcul; altă cale dă P0001. Îl citește cine vede vehiculul atunci, nu partea
+  fără `vehicles:read`.
 
 Proba: `tests/rls/proba-flota-pv.sql`, plus blocul `(l) F12c` din `tests/rls/izolare.sql`,
 cu rânduri numărate pe toate cele cinci roluri.
@@ -109,8 +114,8 @@ Registrul deschide PDF-ul inline (`registru/legaturi.ts`, `vehicle_handovers`).
 
 ## Ce NU e aici
 
-Scanul PV-ului semnat (coloana există, fără încărcare), fotografiile daunelor, crearea
-automată a PV-ului din alocare, recuperarea pagubei de la șofer.
+Fotografiile daunelor, crearea automată a PV-ului din alocare, recuperarea pagubei de la
+șofer.
 
 ## Când NU e suficientă pagina asta
 

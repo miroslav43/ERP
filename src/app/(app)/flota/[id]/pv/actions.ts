@@ -16,14 +16,23 @@
 // `internal.set_actor` (capcana 23), iar politicile le cer.
 
 import { createAction } from "@/lib/actions/create-action";
-import { businessRule, notFound } from "@/lib/actions/errors";
+import { businessRule, invalidInput, notFound } from "@/lib/actions/errors";
+import { masoaraObiectul } from "@/lib/storage/masoara-obiectul";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { fisaMea } from "@/lib/queries/portal";
+import {
+  BUCKET_FLOTA,
+  caleFlotaValida,
+  construiesteCaleFlota,
+  verificaFisierFlota,
+} from "@/domain/fleet/fisiere";
 import {
   actualizeazaPvSchema,
   anuleazaPvSchema,
   confirmaPvSchema,
+  confirmaScanPvSchema,
   finalizeazaPvSchema,
+  pregatesteScanPvSchema,
   pvNouSchema,
   stergePvSchema,
   type ConstatariPv,
@@ -341,6 +350,110 @@ export const confirmaPv = createAction({
       );
     }
 
+    return { id: data.id };
+  },
+});
+
+// ── Scanul hârtiei semnate (sub-commitul 8.8) ──────────────────────────────
+//
+// Trei pași, ca scanarea documentelor de vehicul (`flota/actions-fisiere.ts`):
+// semnarea căii pe clientul UTILIZATORULUI (`flota_objects_insert` decide),
+// urcarea din browser, confirmarea cu mărimea REALĂ din Storage. Calea stă în
+// folderul vehiculului (`{org}/vehicles/{vehicul}/…`, 0202), iar baza o
+// verifică din nou pe rând (`internal.flota_cale_valida`). Doar pe PV-ul
+// finalizat: ciorna nu are hârtie semnată.
+
+const MESAJ_PREGATIRE_SCAN =
+  "Nu am putut pregăti încărcarea scanului. Verificați că aveți dreptul de a administra parcul auto și încercați din nou.";
+
+export const pregatesteScanPv = createAction({
+  name: "fleet.handover.scan_prepare",
+  feature: "fleet",
+  permission: "vehicles:update",
+  minScope: "all",
+  input: pregatesteScanPvSchema,
+  audit: {
+    action: "import",
+    entityType: "vehicle_handover",
+    entityId: (input) => input.id,
+    allow: ["id", "vehicle_id", "numeFisier", "dimensiune", "mime"],
+  },
+  handler: async (ctx, input): Promise<Readonly<{ cale: string; urlSemnat: string }>> => {
+    const problema = verificaFisierFlota(input.mime, input.dimensiune);
+    if (problema !== null) throw invalidInput(problema, {});
+
+    const db = await createServerSupabase();
+    const { data: pv, error } = await db
+      .from("vehicle_handovers")
+      .select("id")
+      .eq("id", input.id)
+      .eq("vehicle_id", input.vehicle_id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("stare", "finalizat")
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (error !== null) traduEroarePv(error);
+    if (pv === null) {
+      throw notFound(
+        "Procesul-verbal finalizat nu mai există pe acest vehicul. Reîncărcați pagina.",
+      );
+    }
+
+    const cale = construiesteCaleFlota(
+      ctx.tenant.organizationId,
+      "vehicles",
+      input.vehicle_id,
+      input.numeFisier,
+    );
+    const { data, error: eroareSemnare } = await db.storage
+      .from(BUCKET_FLOTA)
+      .createSignedUploadUrl(cale);
+    if (eroareSemnare !== null) throw businessRule(MESAJ_PREGATIRE_SCAN);
+    return { cale, urlSemnat: data.signedUrl };
+  },
+});
+
+export const confirmaScanPv = createAction({
+  name: "fleet.handover.scan_confirm",
+  feature: "fleet",
+  permission: "vehicles:update",
+  minScope: "all",
+  input: confirmaScanPvSchema,
+  audit: {
+    action: "update",
+    entityType: "vehicle_handover",
+    entityId: (input) => input.id,
+    allow: ["id", "vehicle_id", "cale", "numeFisier"],
+  },
+  revalidate: (input) => [`/flota/${input.vehicle_id}/pv/${input.id}`],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    if (!caleFlotaValida(input.cale, ctx.tenant.organizationId, "vehicles", input.vehicle_id)) {
+      throw invalidInput("Calea fișierului nu corespunde acestui vehicul.", {});
+    }
+    const db = await createServerSupabase();
+    const masura = await masoaraObiectul(db, BUCKET_FLOTA, input.cale);
+    if (masura === null) {
+      throw businessRule("Fișierul încărcat nu mai este disponibil. Reluați încărcarea.");
+    }
+    const problema = verificaFisierFlota(masura.mime, masura.octeti);
+    if (problema !== null) throw invalidInput(problema, {});
+
+    const { data, error } = await db
+      .from("vehicle_handovers")
+      .update({ scan_path: input.cale, updated_by: ctx.user.id })
+      .eq("id", input.id)
+      .eq("vehicle_id", input.vehicle_id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("stare", "finalizat")
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroarePv(error);
+    if (data === null) {
+      throw businessRule(
+        "Scanul nu a fost legat de procesul-verbal: a fost șters între timp sau nu aveți dreptul de a administra parcul auto.",
+      );
+    }
     return { id: data.id };
   },
 });

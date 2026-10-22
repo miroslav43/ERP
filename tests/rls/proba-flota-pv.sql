@@ -37,6 +37,7 @@
 --  (29) DECIZIA 3: hr NU vede restul parcului, documentele, alocările,
 --       PV-urile altora și nu scrie PV                                    [NEGATIVĂ]
 --  (30) managerul nu întocmește PV și nu anulează PV-ul subordonatei
+--  (31) scanul semnat: doar pe finalizat, în folderul vehiculului, de administrator
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh
@@ -652,6 +653,50 @@ begin
     raise warning '  ✗ (7b) PV-ul nou după anulare: % (%)', sqlerrm, sqlstate;
   end;
 
+  -- ── (31) scanul hârtiei semnate ─────────────────────────────────────────
+  -- Doar pe finalizat, doar în folderul vehiculului (0202), doar cine
+  -- administrează parcul. Rânduri numărate pe calea bună.
+  v_n := 0;
+  v_m := 0;
+  perform set_config('request.jwt.claim.sub', v_u_admin::text, true);
+  set local role authenticated;
+  update public.vehicle_handovers
+     set scan_path = v_org::text || '/vehicles/' || v_v1::text || '/' || gen_random_uuid()::text || '-pv-semnat.pdf',
+         updated_by = v_u_admin
+   where id = v_pv2;
+  get diagnostics v_k = row_count;
+  begin
+    update public.vehicle_handovers
+       set scan_path = v_org::text || '/vehicles/' || v_v2::text || '/' || gen_random_uuid()::text || '-alt-vehicul.pdf',
+           updated_by = v_u_admin
+     where id = v_pv2;
+  exception when raise_exception then
+    v_n := v_n + 1;
+  end;
+  begin
+    update public.vehicle_handovers set scan_path = v_org::text || '/vehicles/' || v_v1::text || '/x.pdf', updated_by = v_u_admin
+     where id = v_pv;
+  exception when raise_exception then
+    v_m := v_m + 1;
+  end;
+  reset role;
+  -- `v_pv` e aici ciorna de la (7b), încă vie: scanul nu se pune pe ciornă.
+  perform set_config('request.jwt.claim.sub', v_u_b::text, true);
+  set local role authenticated;
+  begin
+    update public.vehicle_handovers set scan_path = null, updated_by = v_u_b where id = v_pv2;
+  exception when raise_exception then
+    v_n := v_n + 1;
+  end;
+  reset role;
+  if v_k = 1 and v_n = 2 and v_m = 1
+     and (select scan_path from public.vehicle_handovers where id = v_pv2) like v_org::text || '/vehicles/' || v_v1::text || '/%' then
+    raise notice '  ✓ (31) scanul: pe finalizat, în folderul vehiculului (1 rând); alt vehicul, ciorna și șoferul: P0001';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (31) scanul: % rânduri, refuzuri cale/șofer %, ciornă %', v_k, v_n, v_m;
+  end if;
+
   -- ── (17) km diferit de alocare ──────────────────────────────────────────
   perform set_config('request.jwt.claim.sub', v_u_admin::text, true);
   set local role authenticated;
@@ -928,7 +973,7 @@ begin
   if v_esecuri > 0 then
     raise exception 'PROBA FLOTA PV: % verificări picate', v_esecuri;
   end if;
-  raise notice '  TOATE cele 34 de verificări au trecut.';
+  raise notice '  TOATE cele 35 de verificări au trecut.';
   raise notice '';
 end;
 $$;

@@ -50,8 +50,9 @@
 --    iar celelalte extensii F12 scriu în paralel. Trigger dedicat, ca
 --    `hr_issued_documents_inregistreaza` (0120, 0184 §4).
 --  · Nu atinge `alocari_inainte`, `stergeAlocarea` sau politicile din 0173.
---  · Nicio fotografie a daunelor, niciun scan semnat încărcat (coloana
---    `scan_path` există, scrisă doar de cine administrează parcul).
+--  · Nicio fotografie a daunelor. Scanul hârtiei semnate (`scan_path`) stă în
+--    `org-flota`, în folderul vehiculului (0202), scris doar de cine
+--    administrează parcul, doar pe PV-ul finalizat.
 --
 -- Aplicare: psql byte-exact (NOTES.md §1), după bancul local.
 
@@ -399,6 +400,15 @@ begin
       raise exception using errcode = 'P0001', message = 'Autorul confirmării îl scrie aplicația.';
     end if;
 
+    -- Scanul hârtiei semnate stă în folderul VEHICULULUI din `org-flota`
+    -- (0202: `{org}/vehicles/{vehicul}/{uuid}-{fișier}`), cu aceeași regulă de
+    -- cale ca scanarea documentelor (`internal.flota_cale_valida`).
+    if new.scan_path is distinct from old.scan_path and new.scan_path is not null
+       and not internal.flota_cale_valida(new.scan_path, new.organization_id, 'vehicles', new.vehicle_id) then
+      raise exception using errcode = 'P0001',
+        message = 'Calea scanului nu corespunde vehiculului procesului-verbal.';
+    end if;
+
     -- Cine NU administrează parcul poate schimba DOAR coloana lui de
     -- confirmare. Anularea și scanul cer `vehicles:update = all`.
     if not v_serviciu and not app.can(new.organization_id, 'vehicles', 'update', 'all') then
@@ -425,6 +435,10 @@ begin
      or new.anulat_la is not null or new.motiv_anulare is not null then
     raise exception using errcode = 'P0001',
       message = 'O ciornă nu se confirmă și nu se anulează; se finalizează sau se șterge.';
+  end if;
+  if new.scan_path is not null then
+    raise exception using errcode = 'P0001',
+      message = 'Scanul semnat se atașează după finalizarea procesului-verbal.';
   end if;
   -- Ștergerea logică a ciornei: fără derivare. Altfel o ciornă a cărei alocare
   -- a fost ștearsă între timp n-ar mai putea fi ștearsă („nu aparține…”).

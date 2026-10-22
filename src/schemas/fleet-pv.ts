@@ -23,6 +23,7 @@ import {
 } from "@/domain/fleet/proces-verbal";
 
 import { enumOptional, jsonDinFormData, numarOptional } from "./comun";
+import { confirmaScanareSchema, pregatesteScanareSchema } from "./fleet";
 
 /** O listă de coduri, fără dubluri (o bifă trimisă de două ori e tot o bifă). */
 const coduri = <const T extends readonly [string, ...string[]]>(valori: T) =>
@@ -156,3 +157,16 @@ export const anuleazaPvSchema = z.object({
 export const stergePvSchema = z.object({ id: z.uuid(), vehicle_id: z.uuid() });
 
 export const confirmaPvSchema = z.object({ id: z.uuid() });
+
+/**
+ * Scanul hârtiei semnate (0215, sub-commitul 8.8): aceleași câmpuri declarate
+ * ca la scanarea documentelor de vehicul (0202), pe id-ul PV-ului. Fișierul
+ * urmează regulile bucketului `org-flota` (`verificaFisierFlota`).
+ */
+export const pregatesteScanPvSchema = pregatesteScanareSchema
+  .omit({ document_id: true })
+  .extend({ id: z.uuid() });
+
+export const confirmaScanPvSchema = confirmaScanareSchema
+  .omit({ document_id: true })
+  .extend({ id: z.uuid() });

@@ -12,7 +12,7 @@ import { avertismentePv, modelPv } from "@/domain/fleet/proces-verbal";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { toBucharestDateString, todayInBucharest } from "@/lib/format/date";
-import { alocarileVehiculului, citesteVehicul } from "@/lib/queries/fleet";
+import { alocarileVehiculului, citesteVehicul, urlSemnateFlota } from "@/lib/queries/fleet";
 import { citestePv, documenteleCurenteLaBord } from "@/lib/queries/fleet-pv";
 import { idDinRuta } from "@/lib/rute/parametri";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -21,6 +21,7 @@ import { capeteVehiculului, descriereParti, eAlocareDinIstoric } from "../../cap
 import { DialogPv } from "../../dialog-pv";
 import { intrareModelDinRand } from "../model-din-rand";
 import { ActiuniPv } from "./actiuni-pv";
+import { IncarcareScanPv } from "./incarcare-scan-pv";
 
 export const metadata: Metadata = { title: "Proces-verbal de predare-primire" };
 
@@ -61,11 +62,14 @@ export default async function PaginaPv({ params }: ProprietatiPagina) {
 
   const poateAdministra = can(permisiuni, "vehicles:update", "all");
   const ciorna = pv.stare === "ciorna";
-  const [vehicul, documenteVii, alocari] = await Promise.all([
+  const [vehicul, documenteVii, alocari, urlScan] = await Promise.all([
     citesteVehicul(tenant.organizationId, vehiculId),
     ciorna ? documenteleCurenteLaBord(tenant.organizationId, vehiculId) : Promise.resolve([]),
     ciorna ? alocarileVehiculului(tenant.organizationId, vehiculId) : Promise.resolve([]),
+    // Scanul semnat: URL semnat sub sesiunea omului (`flota_objects_select`).
+    urlSemnateFlota([pv.scan_path]),
   ]);
+  const linkScan = pv.scan_path === null ? undefined : urlScan.get(pv.scan_path);
 
   const ziPv = pv.data_pv;
   const documente = documenteVii.map((d) => ({
@@ -187,6 +191,40 @@ export default async function PaginaPv({ params }: ProprietatiPagina) {
             ))}
           </ul>
         </Callout>
+      )}
+
+      {ciorna ? null : (
+        <section aria-labelledby="titlu-scan" className="space-y-2">
+          <h2 id="titlu-scan" className="text-sectiune font-semibold">
+            Procesul-verbal semnat
+          </h2>
+          <p className="text-corp">
+            {pv.scan_path === null ? (
+              <span className="text-muted-foreground">Scanul hârtiei semnate nu e atașat.</span>
+            ) : linkScan === undefined ? (
+              <span className="text-muted-foreground">
+                Scanul e atașat, dar nu e disponibil acum.
+              </span>
+            ) : (
+              <a
+                href={linkScan}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline-offset-2 hover:underline"
+              >
+                Deschide scanul semnat (filă nouă)
+              </a>
+            )}
+          </p>
+          {poateAdministra ? (
+            <IncarcareScanPv
+              pvId={pv.id}
+              vehiculId={vehiculId}
+              numar={pv.numar}
+              areScan={pv.scan_path !== null}
+            />
+          ) : null}
+        </section>
       )}
 
       <p className="text-corp font-semibold">{model.operatiunea}</p>
