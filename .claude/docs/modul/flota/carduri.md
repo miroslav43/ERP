@@ -34,7 +34,7 @@ tabele:
 permisiuni: [vehicles:read, vehicles:create, vehicles:update]
 feature: fleet
 capcane: [7, 18, 19, 23, 26]
-scris_pe: 8e23efb65bb8eff5147be32dd1ac14ad59b13872
+scris_pe: 2c0b7ff16becc10e648a3e709573b5aaa95df1d4
 scris_la: 2026-10-22
 tags: [modul, operations]
 ---
@@ -95,6 +95,14 @@ zilei → alimentarea (bonul egal bate litrii; toleranțe constante).
 - **Datele din extras sunt imuabile** după import (P0001); se schimbă doar legătura,
   starea, nota, categoria. Extrasul greșit se ANULEAZĂ (`anuleazaImport`: tranzacțiile,
   apoi lotul), abia apoi se reimportă: indexul de dedup e parțial pe `deleted_at is null`.
+- **`fctx_alimentare_uq` se judecă la fiecare UPDATE/INSERT, nu la final**: repotrivirea
+  merge după oră, importul după ordinea din fișier, deci alimentarea poate trece la alt
+  rând. `repotrivesteTranzactii` o ELIBEREAZĂ întâi (altfel 23505 la fiecare reîncercare);
+  importul care o găsește legată între timp scrie tranzacția „fără alimentare”, nu o
+  numără tăcut ca duplicat (doar `fctx_dedup_uq` e duplicat).
+- **O celulă peste tipul coloanei** (km în `integer`, preț în `numeric(12,4)`, valoare în
+  `numeric(14,2)`) ar trece de previzualizare și ar pica felia întreagă pe 22003: analiza
+  golește km-ul și prețul și respinge rândul cu valoare absurdă.
 - **`ignorata` cere notă** (sau stornoul din extras), iar starea și legătura merg împreună
   (`fctx_stare_ck`, 23514). Foaia și vehiculul le pune triggerul din alimentare, nu clientul.
 - **Numărul cardului nu se schimbă** după înregistrare (P0001): alt număr e alt card.
