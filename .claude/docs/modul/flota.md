@@ -222,6 +222,7 @@ capcane tăcute stau acolo, prinse de `valori-vehicul.test.ts` și `valori-docum
 ## Extensii
 
 - F12a, bonul citit de pe poză (0213): `[[modul/flota/bon-ocr]]`.
+- F12f, codul UIT (e-Transport) pe cursă (0217): `[[modul/flota/uit]]`.
 
 ## Ce NU e aici
 
