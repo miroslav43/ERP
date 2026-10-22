@@ -60,6 +60,21 @@ describe("traduEroare — refuzurile bazei ajung pe câmpul vinovat", () => {
     expect(eroare.message).toBe(mesaj);
   });
 
+  it.each([
+    // 0213 (F12a): garda propunerii citite de pe bon. Banner, NU câmp: coloana
+    // `ocr_propunere` n-are casetă în formular, iar un câmp ascuns ar pierde
+    // mesajul sub „Corectați câmpurile marcate” (F12a §8.7).
+    "Propunerea citită de pe bon o scrie doar aplicația, la salvarea alimentării.",
+    "Propunerea citită de pe bon nu se mai poate modifica după salvarea alimentării.",
+    // 0202 §6, ajuns din `adaugaAlimentare` de când poza se leagă la adăugare.
+    "Poza bonului nu aparține acestei foi de parcurs. Încărcați-o din nou de pe foaie.",
+  ])("0202/0213, fără câmp: %s", (mesaj) => {
+    const eroare = prinde(p0001(mesaj));
+    expect(eroare.code).toBe("CONFLICT");
+    expect(eroare.fieldErrors).toBeNull();
+    expect(eroare.message).toBe(mesaj);
+  });
+
   it("un refuz fără câmp rămâne mesaj general, doar cu diacriticele corectate", () => {
     const mesaj =
       "Foaia de parcurs este aprobată. Pentru corecţii, stornaţi-o şi întocmiţi una nouă.";

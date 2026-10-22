@@ -11,6 +11,8 @@
 --  (4) context de serviciu: a doua scriere a propunerii ⇒ P0001;
 --  (5) employee: UPDATE doar pe `cui_statie` ⇒ 1 rând                  [POZITIVĂ];
 --  (6) employee: UPDATE care schimbă propunerea sau o golește ⇒ P0001;
+-- (6b) employee: UPDATE null → valoare pe un rând FĂRĂ propunere ⇒ P0001
+--      (PATCH-ul direct prin PostgREST din D12, prima scriere);
 --  (7) `cui_statie = 'RO123'` ⇒ 23514 (`fuel_cui_statie_ck`);
 --  (8) serviciu: propunere `[1,2]` sau `{}` (fără `v`) ⇒ 23514;
 --  (9) manager: INSERT pe foaia LUI ⇒ 1 rând [POZITIVĂ]; pe foaia subordonatei
@@ -49,6 +51,7 @@ declare
   v_alim_a    uuid;
   v_alim_m    uuid;
   v_alim_adm  uuid;
+  v_alim_6b   uuid;
   v_n         int;
   v_text      text;
   v_esecuri   int := 0;
@@ -237,6 +240,35 @@ begin
     raise warning '  ✗ (6) propunerea s-a schimbat totuși: litri = %', v_text;
   end if;
 
+  -- ── (6b) employee: UPDATE null → valoare pe o alimentare FĂRĂ propunere ⇒ P0001 ──
+  -- Atacul din F12a D12: grantul de update e pe tot tabelul, deci un PATCH
+  -- direct prin PostgREST pe un rând necitit ar pune o propunere inventată.
+  -- (6) prinde doar rescrierea unei propuneri existente; aici e prima scriere.
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  insert into public.fuel_entries (organization_id, trip_sheet_id, litri, cost, alimentat_la,
+                                   created_by, updated_by)
+  values (v_org, v_foaie_a, 12, 90, now() - interval '1 hour', v_u_a, v_u_a)
+  returning id into v_alim_6b;
+  reset role;
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  begin
+    update public.fuel_entries set ocr_propunere = v_prop, updated_by = v_u_a
+     where id = v_alim_6b;
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (6b) FALS-POZITIV: șoferul și-a pus singur propunerea pe un rând necitit';
+  exception when raise_exception then
+    reset role;
+    raise notice '  ✓ (6b) employee nu pune propunerea pe un rând necitit, prin UPDATE (P0001)';
+  end;
+  select ocr_propunere::text into v_text from public.fuel_entries where id = v_alim_6b;
+  if v_text is not null then
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (6b) propunerea a ajuns totuși în rând: %', v_text;
+  end if;
+
   -- ── (7) forma CUI-ului ⇒ 23514 ──────────────────────────────────────────
   perform set_config('request.jwt.claim.sub', v_u_a::text, true);
   set local role authenticated;
@@ -410,7 +442,7 @@ begin
   if v_esecuri > 0 then
     raise exception 'PROBA FLOTA BON CITIT: % verificări picate', v_esecuri;
   end if;
-  raise notice '  TOATE cele 13 verificări au trecut.';
+  raise notice '  TOATE cele 14 verificări au trecut.';
   raise notice '';
 end;
 $$;
