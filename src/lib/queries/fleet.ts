@@ -7,7 +7,13 @@
 import "server-only";
 
 import type { FiltreFoi, FiltreVehicule, SortareFoi, SortareVehicule } from "@/schemas/fleet";
-import type { CategorieVehicul, Combustibil, StatusFoaie, StatusVehicul } from "@/schemas/fleet";
+import type {
+  CategorieVehicul,
+  Combustibil,
+  ETransportIncadrare,
+  StatusFoaie,
+  StatusVehicul,
+} from "@/schemas/fleet";
 import { SORTARI_FOI, SORTARI_VEHICULE } from "@/schemas/fleet";
 import { createServerSupabase } from "@/lib/supabase/server";
 
@@ -30,6 +36,7 @@ import {
 } from "@/domain/fleet/tipuri-document";
 import { BUCKET_FLOTA } from "@/domain/fleet/fisiere";
 import { citestePropunereaSalvata, type PropunereSalvata } from "@/domain/fleet/bon-ocr";
+import { numaraAvertismentePeFoi } from "@/domain/fleet/uit";
 
 export interface RandVehicul {
   readonly id: string;
@@ -1081,6 +1088,8 @@ export async function foileMele(
 export interface Cursa extends CursaFoaie {
   readonly trip_sheet_id: string;
   readonly observatii: string | null;
+  /** Încadrarea RO e-Transport declarată de om (0217, F12f). */
+  readonly e_transport: ETransportIncadrare;
 }
 
 /**
@@ -1099,7 +1108,7 @@ export async function curseleFoii(
     .from("trip_sheet_curse")
     .select(
       "id, trip_sheet_id, ordine, plecare_la, sosire_la, de_la_loc, pana_la_loc, scop, " +
-        "km_plecare, km_sosire, km_parcursi, observatii",
+        "km_plecare, km_sosire, km_parcursi, observatii, e_transport",
     )
     .eq("organization_id", organizationId)
     .eq("trip_sheet_id", foaieId)
@@ -1110,6 +1119,90 @@ export async function curseleFoii(
     .returns<Cursa[]>();
   if (error !== null) throw error;
   return data ?? [];
+}
+
+// ── Codurile UIT ale curselor (0217, F12f) ──────────────────────────────────
+
+/** Un cod UIT de pe o cursă. Vizibilitatea o dă `uit_select` (după foaie, ca la curse). */
+export interface UitCursa {
+  readonly id: string;
+  readonly cursa_id: string;
+  readonly uit: string;
+  readonly data_inceput: string;
+  readonly valabilitate_zile: number;
+  /** Prima zi expirată (GENERATED în bază, `data_inceput + valabilitate_zile`). */
+  readonly expira_la: string | null;
+  readonly observatii: string | null;
+}
+
+/**
+ * Câte coduri citește o foaie. Câteva curse, câteva partide pe cursă; plafonul
+ * stă sub `max_rows = 1000`, care ar tăia TĂCUT.
+ */
+export const PLAFON_UIT_FOAIE = 500;
+
+/** Codurile UIT vii ale foii, pe cursă și după data de început. Fără keyset: o foaie e o zi. */
+export async function uiturileFoii(
+  organizationId: string,
+  foaieId: string,
+): Promise<readonly UitCursa[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("trip_sheet_uit")
+    .select("id, cursa_id, uit, data_inceput, valabilitate_zile, expira_la, observatii")
+    .eq("organization_id", organizationId)
+    .eq("trip_sheet_id", foaieId)
+    .is("deleted_at", null)
+    .order("cursa_id", { ascending: true })
+    .order("data_inceput", { ascending: true })
+    .limit(PLAFON_UIT_FOAIE);
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+/**
+ * Avertismentele e-Transport ale unui LOT de foi (coada `/flota/aprobari`), în
+ * două citiri: cursele și codurile lor. `null` pe o foaie = necunoscut: una
+ * dintre citiri a atins plafonul PostgREST, iar un zero tăiat tăcut ar arăta
+ * ca o foaie curată exact pe ecranul unde se semnează.
+ *
+ * TOATE cursele, fără filtru pe `e_transport`: una „neaplicabil” cu un UIT e
+ * monitorizată implicit (`avertismenteCursa`). Calculul e în domeniu
+ * (`numaraAvertismentePeFoi`), cu ziua foii din rândul listei.
+ */
+export async function stareETransportPeFoi(
+  organizationId: string,
+  foi: readonly Readonly<{ id: string; data: string }>[],
+): Promise<ReadonlyMap<string, number | null>> {
+  const idFoi = [...new Set(foi.map((f) => f.id))];
+  if (idFoi.length === 0) return new Map();
+
+  const db = await createServerSupabase();
+  const [curse, uituri] = await Promise.all([
+    db
+      .from("trip_sheet_curse")
+      .select("id, trip_sheet_id, e_transport")
+      .eq("organization_id", organizationId)
+      .in("trip_sheet_id", idFoi)
+      .is("deleted_at", null)
+      .limit(PLAFON_POSTGREST),
+    db
+      .from("trip_sheet_uit")
+      .select("cursa_id, trip_sheet_id, uit, data_inceput, valabilitate_zile")
+      .eq("organization_id", organizationId)
+      .in("trip_sheet_id", idFoi)
+      .is("deleted_at", null)
+      .limit(PLAFON_POSTGREST),
+  ]);
+  if (curse.error !== null) throw curse.error;
+  if (uituri.error !== null) throw uituri.error;
+
+  const randuriCurse = curse.data ?? [];
+  const randuriUit = uituri.data ?? [];
+  if (randuriCurse.length >= PLAFON_POSTGREST || randuriUit.length >= PLAFON_POSTGREST) {
+    return new Map(idFoi.map((id) => [id, null] as const));
+  }
+  return numaraAvertismentePeFoi(foi, randuriCurse, randuriUit);
 }
 
 /** Câte șabloane arată caseta. O firmă are câteva rute recurente, nu sute. */

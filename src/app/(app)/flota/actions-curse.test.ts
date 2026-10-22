@@ -114,6 +114,24 @@ describe("adaugaCursa", () => {
     expect(caiRevalidate()).toEqual(caiFoaie);
   });
 
+  it("0217: cursa nouă pleacă „neaplicabil” fără selector, cu încadrarea aleasă dacă există", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "trip_sheets:update": "own" } });
+    server.raspunde("trip_sheet_curse", "insert", { data: { id: ID_2 } });
+    await adaugaCursa(cursa());
+    expect(server.apeluriPe("trip_sheet_curse")[0]?.payload).toMatchObject({
+      e_transport: "neaplicabil",
+    });
+
+    const { server: alDoilea } = configureazaActiunea({
+      permisiuni: { "trip_sheets:update": "own" },
+    });
+    alDoilea.raspunde("trip_sheet_curse", "insert", { data: { id: ID_2 } });
+    await adaugaCursa(cursa({ e_transport: "risc_fiscal_national" }));
+    expect(alDoilea.apeluriPe("trip_sheet_curse")[0]?.payload).toMatchObject({
+      e_transport: "risc_fiscal_national",
+    });
+  });
+
   it("o cursă pe drum pleacă fără sosire", async () => {
     const { server } = configureazaActiunea({ permisiuni: { "trip_sheets:update": "own" } });
     server.raspunde("trip_sheet_curse", "insert", { data: { id: ID_2 } });
@@ -174,6 +192,22 @@ describe("actualizeazaCursa", () => {
     expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
     expect(apel?.selectDupaScriere).toBeDefined();
     expect(caiRevalidate()).toEqual(caiFoaie);
+  });
+
+  it("0217: încadrarea e-Transport absentă din casetă NU se trimite; prezentă, se trimite", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "trip_sheets:update": "own" } });
+    server.raspunde("trip_sheet_curse", "update", { data: { id: ID_2 } });
+    await actualizeazaCursa({ ...cursa(), id: ID_2 });
+    expect(server.apeluriPe("trip_sheet_curse")[0]?.payload).not.toHaveProperty("e_transport");
+
+    const { server: alDoilea } = configureazaActiunea({
+      permisiuni: { "trip_sheets:update": "own" },
+    });
+    alDoilea.raspunde("trip_sheet_curse", "update", { data: { id: ID_2 } });
+    await actualizeazaCursa({ ...cursa(), id: ID_2, e_transport: "international" });
+    expect(alDoilea.apeluriPe("trip_sheet_curse")[0]?.payload).toMatchObject({
+      e_transport: "international",
+    });
   });
 
   it("zero rânduri (cursa altcuiva, respinsă de USING): CONFLICT, fără revalidare", async () => {

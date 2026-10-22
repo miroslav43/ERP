@@ -32,9 +32,12 @@ import {
   listeazaFoi,
   listeazaVehicule,
   PLAFON_ANOMALII,
+  PLAFON_UIT_FOAIE,
   pragSaltVehicul,
   scadenteCurente,
+  stareETransportPeFoi,
   tipuriDocument,
+  uiturileFoii,
   urlSemnateFlota,
   vehiculeDupaId,
   type FiltreFoiCitire,
@@ -564,3 +567,95 @@ describe("pragSaltVehicul", () => {
   });
 });
 // ═══ SFÂRȘIT BLOC: pragul de salt al unui vehicul ═════════════════════════════
+
+// ═══ ÎNCEPUT BLOC: codurile UIT ale curselor (0217, F12f) ════════════════════
+describe("uiturileFoii", () => {
+  it("filtrează pe firmă, pe foaie și pe codurile vii; fără `.range()`, cu plafon", async () => {
+    db.raspunde("trip_sheet_uit", "select", {
+      data: [
+        {
+          id: ID_3,
+          cursa_id: ID_2,
+          uit: "3V0P0L0P0T3JUW46",
+          data_inceput: "2026-10-20",
+          valabilitate_zile: 5,
+          expira_la: "2026-10-25",
+          observatii: null,
+        },
+      ],
+    });
+
+    const r = await uiturileFoii(ORG_ID, ID_1);
+
+    expect(r).toHaveLength(1);
+    const [apel] = db.apeluriPe("trip_sheet_uit");
+    expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(apel, "eq", "trip_sheet_id", ID_1)).toBe(true);
+    expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
+    expect(limita(apel)).toBe(PLAFON_UIT_FOAIE);
+  });
+
+  it("o eroare a bazei se propagă", async () => {
+    db.raspunde("trip_sheet_uit", "select", { error: eroarePostgrest("42501", "denied") });
+    await expect(uiturileFoii(ORG_ID, ID_1)).rejects.toMatchObject({ code: "42501" });
+  });
+});
+
+describe("stareETransportPeFoi", () => {
+  const foi = [
+    { id: ID_1, data: "2026-10-21" },
+    { id: ID_2, data: "2026-10-21" },
+  ];
+
+  it("toate cursele foilor (fără filtru pe încadrare) și codurile lor, pe firmă", async () => {
+    db.raspunde("trip_sheet_curse", "select", {
+      data: [
+        { id: "c1", trip_sheet_id: ID_1, e_transport: "risc_fiscal_national" },
+        { id: "c2", trip_sheet_id: ID_2, e_transport: "neaplicabil" },
+      ],
+    });
+    db.raspunde("trip_sheet_uit", "select", {
+      data: [
+        {
+          cursa_id: "c2",
+          trip_sheet_id: ID_2,
+          uit: "4C0U0C0J0W3DDQ92",
+          data_inceput: "2026-10-01",
+          valabilitate_zile: 5,
+        },
+      ],
+    });
+
+    const r = await stareETransportPeFoi(ORG_ID, foi);
+
+    expect(r.get(ID_1)).toBe(1);
+    expect(r.get(ID_2)).toBe(1);
+    const [curse] = db.apeluriPe("trip_sheet_curse");
+    expect(areFiltru(curse, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(curse, "in", "trip_sheet_id", [ID_1, ID_2])).toBe(true);
+    expect(curse?.filtre.some((f) => f.argumente[0] === "e_transport")).toBe(false);
+    const [uit] = db.apeluriPe("trip_sheet_uit");
+    expect(areFiltru(uit, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(uit, "is", "deleted_at", null)).toBe(true);
+  });
+
+  it("o citire care atinge plafonul dă „necunoscut” (null), nu zero", async () => {
+    db.raspunde("trip_sheet_curse", "select", {
+      data: Array.from({ length: 1000 }, (_, i) => ({
+        id: `c${String(i)}`,
+        trip_sheet_id: ID_1,
+        e_transport: "neaplicabil",
+      })),
+    });
+    db.raspunde("trip_sheet_uit", "select", { data: [] });
+    const r = await stareETransportPeFoi(ORG_ID, foi);
+    expect(r.get(ID_1)).toBeNull();
+    expect(r.get(ID_2)).toBeNull();
+  });
+
+  it("fără foi nu atinge baza", async () => {
+    expect(await stareETransportPeFoi(ORG_ID, [])).toEqual(new Map());
+    expect(db.apeluri).toHaveLength(0);
+  });
+});
+// ═══ SFÂRȘIT BLOC: codurile UIT ale curselor (0217, F12f) ════════════════════

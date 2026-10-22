@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { ActionDenied } from "@/lib/actions/errors";
 import { cuVirgula } from "@/lib/text/diacritice";
 
-import { traduEroare, traduEroareAlocare, traduEroareFiscal } from "./erori";
+import { traduEroare, traduEroareAlocare, traduEroareFiscal, traduEroareUit } from "./erori";
 
 function p0001(message: string) {
   return { code: "P0001", message, details: "", hint: "", name: "PostgrestError" };
@@ -291,5 +291,68 @@ describe("traduEroareFiscal — 0205", () => {
     expect(() => {
       traduEroareFiscal(new Error("altceva"));
     }).toThrow();
+  });
+});
+
+describe("traduEroareUit — 0217, codul UIT pe cursă", () => {
+  function prindeUit(error: unknown): ActionDenied {
+    try {
+      traduEroareUit(error);
+    } catch (e) {
+      if (e instanceof ActionDenied) return e;
+      throw e;
+    }
+    throw new Error("traduEroareUit n-a aruncat");
+  }
+
+  const restrictie = (cod: string, nume: string) => ({
+    code: cod,
+    message: `duplicate key value violates unique constraint "${nume}"`,
+    details: "",
+    hint: "",
+    name: "PostgrestError",
+  });
+
+  it("23505 pe (cursa_id, uit) spune ce e despre UIT, NU „Există deja un vehicul…”", () => {
+    const eroare = prindeUit(restrictie("23505", "tsu_cursa_uit_uq"));
+    expect(eroare.message).toBe("Codul UIT e deja trecut pe această cursă.");
+    expect(Object.keys(eroare.fieldErrors ?? {})).toEqual(["uit"]);
+    expect(eroare.message).not.toMatch(/vehicul/u);
+  });
+
+  it.each([
+    ["tsu_uit_format", "uit", /format valid/u],
+    ["tsu_valabilitate_ck", "valabilitate_zile", /între 1 și 31/u],
+    ["tsu_observatii_len", "observatii", /200 de caractere/u],
+  ])("23514 pe %s ajunge pe `%s`", (nume, camp, tipar) => {
+    const eroare = prindeUit(restrictie("23514", nume));
+    expect(Object.keys(eroare.fieldErrors ?? {})).toEqual([camp]);
+    expect(eroare.message).toMatch(tipar);
+  });
+
+  it.each([
+    "Codul UIT nu se mută pe altă cursă. Ștergeți-l și adăugați-l pe cursa corectă.",
+    "Codul UIT nu se corectează pe loc. Ștergeți-l și adăugați codul corect.",
+  ])("P0001 pe câmpul `uit`: %s", (mesaj) => {
+    const eroare = prindeUit(p0001(mesaj));
+    expect(Object.keys(eroare.fieldErrors ?? {})).toEqual(["uit"]);
+    expect(eroare.message).toBe(mesaj);
+  });
+
+  it.each([
+    "Codurile UIT se modifică doar cât foaia de parcurs este ciornă. Retrageți-o sau redeschideți-o în ciornă, apoi corectați-o.",
+    "Cursa aleasă nu aparține acestei foi de parcurs.",
+    "Cursa nu există în această organizație.",
+    "Cursa a fost ștearsă. Reîncărcați foaia.",
+  ])("P0001 fără câmp rămâne mesaj general: %s", (mesaj) => {
+    const eroare = prindeUit(p0001(mesaj));
+    expect(eroare.fieldErrors).toBeNull();
+    expect(eroare.message).toBe(mesaj);
+  });
+
+  it("o eroare necunoscută cade pe traducerea generală", () => {
+    expect(() => {
+      traduEroareUit(new Error("altceva"));
+    }).toThrow("altceva");
   });
 });

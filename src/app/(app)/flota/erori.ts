@@ -500,3 +500,61 @@ export function traduEroareAmenzi(error: unknown): never {
   traduEroare(error);
 }
 // ── SFÂRȘIT BLOC: amenzi și daune ──
+
+// ── ÎNCEPUT BLOC: codul UIT pe cursă (0217, F12f) ──
+
+/**
+ * Restricțiile tabelei `trip_sheet_uit`, pe câmpul lor. Schema le prinde
+ * înaintea bazei; ajung aici doar ocolind formularul.
+ */
+const RESTRICTII_UIT: readonly (readonly [string, string, string])[] = [
+  ["tsu_cursa_uit_uq", "uit", "Codul UIT e deja trecut pe această cursă."],
+  [
+    "tsu_uit_format",
+    "uit",
+    "Codul UIT nu are un format valid: 16 caractere, iar ultimele două sunt cifrele de control.",
+  ],
+  [
+    "tsu_valabilitate_ck",
+    "valabilitate_zile",
+    "Valabilitatea codului UIT e între 1 și 31 de zile.",
+  ],
+  ["tsu_observatii_len", "observatii", "Observațiile au cel mult 200 de caractere."],
+];
+
+/**
+ * Refuzurile triggerului `internal.uit_inainte` care țin de un câmp vizibil.
+ * „Cursa aleasă…”, „Cursa nu există…” și „Codurile UIT se modifică doar…” nu
+ * țin de niciun câmp din casetă (cursa e câmp ascuns): rămân mesaj general.
+ */
+const CAMPURI_UIT: readonly (readonly [RegExp, readonly string[]])[] = [
+  [/^Codul UIT nu se mută/u, ["uit"]],
+  [/^Codul UIT nu se corectează/u, ["uit"]],
+];
+
+/**
+ * Traducerea pentru codurile UIT (0217), separată de `traduEroare`: acolo
+ * orice 23505 necunoscut devine „Există deja un vehicul cu acest număr…”, un
+ * mesaj fals pentru un UIT dublat. Mesajele triggerului au ș/ț corecte.
+ */
+export function traduEroareUit(error: unknown): never {
+  if (isPostgrestError(error)) {
+    if (error.code === "23505" || error.code === "23514") {
+      const restrictie = RESTRICTII_UIT.find(([nume]) => error.message.includes(nume));
+      if (restrictie !== undefined) {
+        const [, camp, mesaj] = restrictie;
+        throw invalidInput(mesaj, { [camp]: [mesaj] });
+      }
+    }
+    if (error.code === "P0001") {
+      const mesaj = error.message.slice(0, 300);
+      const campuri = CAMPURI_UIT.find(([re]) => re.test(mesaj))?.[1] ?? [];
+      if (campuri.length > 0) {
+        throw invalidInput(mesaj, Object.fromEntries(campuri.map((c) => [c, [mesaj]])));
+      }
+      throw businessRule(mesaj);
+    }
+  }
+  traduEroare(error);
+}
+// ── SFÂRȘIT BLOC: codul UIT pe cursă ──
