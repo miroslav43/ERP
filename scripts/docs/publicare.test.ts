@@ -76,6 +76,12 @@ type Caz = {
   remoteRefuza?: boolean;
   /** Altcineva a împins pe main după checkout — fetch + merge trebuie să-l prindă. */
   mainMutatIntreTimp?: boolean;
+  /**
+   * Altcineva împinge pe main EXACT între fetch-ul din buclă și push: push-ul e
+   * respins de client („fetch first"), iar bucla trebuie să reia, nu să-l
+   * raporteze drept refuz al remote-ului. Singura ramură care justifică bucla.
+   */
+  mainSeMutaLaPush?: boolean;
   /** O comandă din pas înlocuită cu una care iese cu 1 fără niciun mesaj. */
   comandaCazuta?: string;
 };
@@ -156,6 +162,34 @@ function ruleaza(caz: Caz): Rezultat {
     writeFileSync(join(bin, caz.comandaCazuta), "#!/bin/sh\nexit 1\n");
     chmodSync(join(bin, caz.comandaCazuta), 0o755);
   }
+  if (caz.mainSeMutaLaPush) {
+    // Scris DUPĂ pregătire: și ajutorul `git` al testului trece prin `bin`.
+    // Primul `git push` al pasului împinge întâi, din altă clonă, un commit pe
+    // main, apoi rulează push-ul real — care vede main mutat și e respins.
+    const gitReal = execFileSync("sh", ["-c", "command -v git"], { env, encoding: "utf8" }).trim();
+    const altul = join(radacina, "altul-la-push");
+    git(radacina, "clone", "-q", remote, altul);
+    git(altul, "config", "user.name", "altcineva");
+    git(altul, "config", "user.email", "altcineva@example.invalid");
+    const marcaj = join(radacina, "push-interceptat");
+    writeFileSync(
+      join(bin, "git"),
+      [
+        "#!/bin/sh",
+        `if [ "$1" = "push" ] && [ ! -e '${marcaj}' ]; then`,
+        `  : > '${marcaj}'`,
+        `  '${gitReal}' -C '${altul}' commit -q --allow-empty -m "împins în timpul publicării" >&2`,
+        `  '${gitReal}' -C '${altul}' push -q origin HEAD:main >&2`,
+        "fi",
+        `exec '${gitReal}' "$@"`,
+        "",
+      ].join("\n"),
+    );
+    chmodSync(join(bin, "git"), 0o755);
+    // Reluarea așteaptă `sleep $((i * 5))`; aici n-are ce aștepta.
+    writeFileSync(join(bin, "sleep"), "#!/bin/sh\nexit 0\n");
+    chmodSync(join(bin, "sleep"), 0o755);
+  }
 
   const script = join(radacina, "pas.sh");
   writeFileSync(script, pasulDinWorkflow("Comite și publică"));
@@ -174,8 +208,11 @@ function ruleaza(caz: Caz): Rezultat {
   return { cod: r.status, iesire: `${r.stdout}${r.stderr}`, mesajeMain };
 }
 
+// Fiecare caz pornește o duzină de procese git și un bash, SINCRON: pe o
+// mașină încărcată trec de cele 5000 ms implicite fără să fie greșite.
 describe.skipIf(process.platform === "win32")(
   "documentatie.yml — pasul „Comite și publică”",
+  { timeout: 30_000 },
   () => {
     it("publică într-o noapte fără niciun commit pe main în ultimele 24 de ore", () => {
       const r = ruleaza({ oreDeLaUltimulCommit: 25 });
@@ -197,6 +234,18 @@ describe.skipIf(process.platform === "win32")(
 
       expect(r.cod).toBe(0);
       expect(r.mesajeMain).toContain("commit al altcuiva");
+      expect(r.mesajeMain[0]).toMatch(/^Merge /);
+    });
+
+    it("main mutat între fetch și push: push-ul respins se reia, cu fetch + merge", () => {
+      const r = ruleaza({ oreDeLaUltimulCommit: 1, mainSeMutaLaPush: true });
+
+      expect(r.iesire).toMatch(/\[rejected\].*\((fetch first|non-fast-forward)\)/);
+      expect(r.iesire).toContain("::warning title=main s-a mișcat::încercarea 1");
+      expect(r.iesire).not.toContain("Push refuzat");
+      expect(r.iesire).toContain("Publicat.");
+      expect(r.cod).toBe(0);
+      expect(r.mesajeMain).toContain("împins în timpul publicării");
       expect(r.mesajeMain[0]).toMatch(/^Merge /);
     });
 
