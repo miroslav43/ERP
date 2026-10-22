@@ -35,13 +35,13 @@ o rezervare pe ore n-ar avea cu ce se potrivi. Alocările: `[[modul/flota]]`.
 
 ## Rute și cine ajunge
 
-| Rută                                      | Poartă                                                                   |
-| ----------------------------------------- | ------------------------------------------------------------------------ |
-| `/flota/rezervari`                        | `vehicle_reservations:read` own; „De aprobat” cu `approve` team          |
-| `/flota/rezervari?rezervare=noua&vehicul` | caseta, cu `create` own (`deschisInitial` + `key`); `&de_la=` din grilă  |
-| `/portal/masina-mea/rezervari`            | `read` own; doar ale mele, fără select de angajat, fără decizii          |
-| `/flota/[id]` (secțiunea „Rezervări”)     | doar pe pool și cu `read` own (`sectiune-vehicul.tsx`)                   |
-| `/flota/setari` (trei câmpuri)            | `vehicles:update` all, ca restul setărilor (`salveazaSetariFlota`)       |
+| Rută                                      | Poartă                                                                  |
+| ----------------------------------------- | ----------------------------------------------------------------------- |
+| `/flota/rezervari`                        | `vehicle_reservations:read` own; „De aprobat” cu `approve` team         |
+| `/flota/rezervari?rezervare=noua&vehicul` | caseta, cu `create` own (`deschisInitial` + `key`); `&de_la=` din grilă |
+| `/portal/masina-mea/rezervari`            | `read` own; doar ale mele, fără select de angajat, fără decizii         |
+| `/flota/[id]` (secțiunea „Rezervări”)     | doar pe pool și cu `read` own (`sectiune-vehicul.tsx`)                  |
+| `/flota/setari` (trei câmpuri)            | `vehicles:update` all, ca restul setărilor (`salveazaSetariFlota`)      |
 
 Matricea din seed: `org_admin` all pe toate patru; `manager` read/approve = team,
 create/update = own (își face propria rezervare, nu le scrie pe ale echipei); `employee`
