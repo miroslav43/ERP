@@ -209,12 +209,11 @@ describe("norma săptămânală: timpul parțial în zile întregi nu primește 
 });
 
 /*
- * Calculatorul public (`src/lib/unelte/salariu.ts`, C3) aplică suma „peste”
- * motor, pe brutul fără ea, și o adaugă înapoi la net. Motorul o aplică acum
- * singur. Aceeași lună întreagă la salariul minim trebuie să dea aceleași
- * cifre pe ambele căi — altfel pagina publică și statul de plată spun lucruri
- * diferite pe același om. Calculatorul NU trimite `lunaVenituri` motorului,
- * ca suma să nu se scadă de două ori.
+ * Calculatorul public (`src/lib/unelte/salariu.ts`) îi trimite motorului luna
+ * veniturilor (prima lună a perioadei) și lasă etapa să aplice suma — din D6,
+ * nu o mai socotește singur. Aici, pe o lună reală de 21 de zile la salariul
+ * minim; paritatea completă, lună cu lună (deduceri, tichete, timp parțial,
+ * handicap), e în `src/lib/unelte/salariu.paritate.test.ts`.
  */
 describe("paritate cu calculatorul public la salariul minim", () => {
   it.each([
