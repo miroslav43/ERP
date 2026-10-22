@@ -41,6 +41,9 @@
 -- (25) cercetarea SSM din altă firmă: P0001; din aceeași firmă          [POZITIVĂ];
 --      cea pe care apelantul n-o vede (modulul SSM oprit): P0001; legătura deja
 --      pusă se păstrează la corectură                                   [POZITIVĂ];
+--      managerul cu cheile incidentelor: cercetarea colegului din afara
+--      echipei (nevăzută) și un id inexistent: același P0001; a
+--      subordonatului se leagă                                          [POZITIVĂ];
 -- (26) incidentul în lucru nu se șterge (P0001), cel doar raportat da    [POZITIVĂ];
 -- (27) incidentul nu se mută pe alt vehicul: P0001;
 -- Lista de conformitate
@@ -140,6 +143,8 @@ declare
   v_acc       uuid;
   v_acc_alta  uuid;
   v_acc2      uuid;
+  v_acc_ang   uuid;
+  v_acc_col   uuid;
   v_foaie     uuid;
   v_foaie_r   uuid;
   v_foaie_o   uuid;
@@ -629,6 +634,42 @@ begin
     $q$update public.vehicle_incidents set work_accident_id = %L where id = %L$q$, v_acc2, v_inc2));
   v_esecuri := v_esecuri + pg_temp.verifica('25e', v_text = 'ok:1',
     'cu modulul SSM pornit, aceeași cercetare se leagă [POZITIVĂ]', v_text);
+  -- (25f–25h) Ramura pe ANGAJAT a judecății SSM (`app.ssm_acces`), nu doar
+  -- modulul: cercetările de mai sus n-au angajat, deci ajungeau la `can(team)`.
+  -- O firmă care dă cheile incidentelor managerului (`ssm:read = team`) îl lasă
+  -- să lege cercetarea subordonatului, nu și pe a colegului din afara echipei,
+  -- pe care n-o vede; id-ul inexistent primește același mesaj. Cu triggerul
+  -- vechi, (25f) trecea cu `ok:1` și (25g) spunea „nu aparține”.
+  insert into public.role_permissions (organization_id, role, resource, action, scope) values
+    (v_org, 'manager', 'vehicle_incidents', 'read', 'all'),
+    (v_org, 'manager', 'vehicle_incidents', 'update', 'all');
+  insert into public.work_accidents (organization_id, employee_id, data_producerii, locul, imprejurari, tip, created_by, updated_by)
+  values (v_org, v_e_ang, v_zi - 2, 'Depozit', 'Alunecare pe rampă', 'usor', v_u_admin, v_u_admin)
+  returning id into v_acc_ang;
+  insert into public.work_accidents (organization_id, employee_id, data_producerii, locul, imprejurari, tip, created_by, updated_by)
+  values (v_org, v_e_coleg, v_zi - 2, 'Atelier', 'Tăietură la mână', 'usor', v_u_admin, v_u_admin)
+  returning id into v_acc_col;
+  v_n := pg_temp.numara(v_u_mgr, format(
+    $q$select count(*) from public.work_accidents where id in (%L, %L)$q$, v_acc_ang, v_acc_col));
+  v_text := pg_temp.ruleaza(v_u_mgr, format(
+    $q$update public.vehicle_incidents set work_accident_id = %L where id = %L$q$, v_acc_col, v_inc2));
+  select work_accident_id into v_sofer from public.vehicle_incidents where id = v_inc2;
+  v_esecuri := v_esecuri + pg_temp.verifica('25f',
+    v_n = 1 and v_text = 'P0001:Cercetarea SSM aleasă nu există în organizația dumneavoastră sau nu o puteți consulta.'
+      and v_sofer = v_acc2,
+    'managerul cu cheile incidentelor NU leagă cercetarea colegului din afara echipei (n-o vede); legătura rămâne',
+    format('vizibile %s, %s, legătura %s', v_n, v_text, v_sofer));
+  v_text := pg_temp.ruleaza(v_u_mgr, format(
+    $q$update public.vehicle_incidents set work_accident_id = %L where id = %L$q$, gen_random_uuid(), v_inc2));
+  v_esecuri := v_esecuri + pg_temp.verifica('25g',
+    v_text = 'P0001:Cercetarea SSM aleasă nu există în organizația dumneavoastră sau nu o puteți consulta.',
+    'un id inexistent primește ACELAȘI mesaj ca cercetarea nevăzută: refuzul nu e sondă', v_text);
+  v_text := pg_temp.ruleaza(v_u_mgr, format(
+    $q$update public.vehicle_incidents set work_accident_id = %L where id = %L$q$, v_acc_ang, v_inc2));
+  v_esecuri := v_esecuri + pg_temp.verifica('25h', v_text = 'ok:1',
+    'managerul leagă cercetarea subordonatului, pe care o vede [POZITIVĂ]', v_text);
+  delete from public.role_permissions
+   where organization_id = v_org and role = 'manager' and resource = 'vehicle_incidents';
 
   -- (26) ștergerea incidentului
   v_text := pg_temp.ruleaza(v_u_admin, format(

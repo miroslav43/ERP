@@ -5,6 +5,9 @@
 // angajat) e probat real în `tests/rls/proba-flota-soferi.sql`; aici se
 // fixează ce PLEACĂ spre ea și cum se întorc refuzurile ei.
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/headers", async () => (await import("@/lib/teste/actiune")).falsuri.nextHeaders());
@@ -258,6 +261,31 @@ describe("legaDeplasarea", () => {
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r.error.fieldErrors?.["business_trip_id"]).toEqual([mesaj]);
+  });
+
+  // Fiecare refuz al gărzii, citit din migrare: inclusiv cel unic pentru
+  // „nu există” / „nu o puteți consulta”. Un mesaj nou care n-ar începe cu
+  // „Deplasarea aleasă” ar cădea din `traduEroareDeplasare` pe mesaj general.
+  it("toate refuzurile gărzii `foi_deplasare_garda` (0204) ajung pe selector", async () => {
+    const sql = readFileSync(
+      join(process.cwd(), "supabase/migrations/0204_flota_soferi.sql"),
+      "utf8",
+    );
+    const start = sql.indexOf("create or replace function internal.foi_deplasare_garda()");
+    const corp = sql.slice(start, sql.indexOf("$$;", start));
+    const mesaje = [...corp.matchAll(/message = '([^']+)'/g)].map((m) => m[1] ?? "");
+    expect(mesaje).toContain(
+      "Deplasarea aleasă nu există în organizația dumneavoastră sau nu o puteți consulta.",
+    );
+    expect(mesaje).toHaveLength(3);
+    for (const mesaj of mesaje) {
+      const { server } = configureazaActiunea({ permisiuni: { "trip_sheets:update": "own" } });
+      server.raspunde("trip_sheets", "update", { error: eroarePostgrest("P0001", mesaj) });
+      const r = await legaDeplasarea({ id: ID_1, business_trip_id: ID_3 });
+      expect(r.ok, mesaj).toBe(false);
+      if (r.ok) continue;
+      expect(r.error.fieldErrors?.["business_trip_id"], mesaj).toEqual([mesaj]);
+    }
   });
 
   it("foaia nu mai e ciornă (zero rânduri): CONFLICT", async () => {
