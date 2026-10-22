@@ -59,7 +59,7 @@ tags: [modul, operations]
 
 Vehicule, documentele lor cu scadențe, foi de parcurs cu alimentări, și anomalii de
 kilometraj. **Modulul cu cea mai densă concentrație de refuzuri tăcute din proiect** —
-majoritatea refuzurilor de mai jos nu produc nicio eroare.
+majoritatea celor de mai jos nu dau nicio eroare.
 
 ## Rute și cine ajunge
 
@@ -99,6 +99,7 @@ vehicule `activ` (baza refuză foaia pe unul vândut sau casat).
 ## Extensii
 
 - F12c: [[modul/flota/proces-verbal]]
+- F12d: [[modul/flota/rezervari]]
 
 ## Server Actions
 
@@ -137,7 +138,7 @@ Cursele și alimentările se scriu DOAR pe ciornă.
 Scrierile pe vehicule și documente sunt toate `minScope: "all"`, fiindcă politicile cer
 literal `has_permission(...) = 'all'`. **`vehicles:delete` NU se folosește**, deși
 `0002_authz.sql:1153` îl acordă lui `super_admin` și `org_admin`: politicile se uită numai
-la `vehicles:update`, deci cheia rămâne inertă — poarta care contează e a bazei. Ștergerea
+la `vehicles:update`, deci cheia rămâne inertă. Ștergerea
 e logică, prin `deleted_at`: tabelele flotei primesc grant doar pe `select`, `insert` și
 `update` (`0012_fleet.sql:1080`). Contractele scrierilor și ale traducerii de erori sunt
 fixate pe clientul fals: `actions-*.test.ts`, `erori-etichete.test.ts`.
