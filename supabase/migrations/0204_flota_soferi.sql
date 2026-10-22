@@ -77,7 +77,8 @@
 --    utilizatorului) și `contract_incetat`.
 -- F. `trip_sheets.business_trip_id`: foaia de parcurs legată de deplasarea
 --    (delegația) șoferului, cu gardă proprie (`internal.foi_deplasare_garda`):
---    aceeași firmă, același angajat, deplasare neanulată. Trigger SEPARAT, nu
+--    aceeași firmă, deplasare pe care apelantul o poate citi (aceeași judecată
+--    ca `business_trips_select`), același angajat, neanulată. Trigger SEPARAT, nu
 --    o ramură în `internal.foi_parcurs_inainte`: corpul acela îl rescriu și
 --    fazele paralele, iar comparațiile lui pe `to_jsonb(new) - …` acoperă
 --    oricum coloana nouă (foaia trimisă sau aprobată nu-și schimbă legătura).
@@ -543,10 +544,21 @@ begin
     return new;
   end if;
 
+  -- Funcția rulează cu drepturile bazei, deci vede TOATE deplasările. Pe lângă
+  -- „a firmei, neștearsă”, cere ca APELANTUL s-o poată citi, cu aceeași judecată
+  -- ca `business_trips_select` (0015): membru al firmei și
+  -- `app.poate_accesa_deplasare(…, 'read')`, care cere și modulul `per_diem`.
+  -- Fără ea, refuzurile de mai jos („a altui angajat”, „anulată”) spuneau unui
+  -- șofer fără drept pe diurna colegului că deplasarea există, al cui e și în ce
+  -- stare — exact ce `verificari_soferi` ascunde (§F). Un singur mesaj pentru
+  -- „nu există” și „nu o puteți consulta”. Contextul de serviciu judecă doar firma.
   select * into v_d from public.business_trips d where d.id = new.business_trip_id;
-  if not found or v_d.organization_id <> new.organization_id or v_d.deleted_at is not null then
+  if not found or v_d.organization_id <> new.organization_id or v_d.deleted_at is not null
+     or not (app.is_service_context()
+             or (new.organization_id = any ((select app.current_org_ids())::uuid[])
+                 and app.poate_accesa_deplasare(new.organization_id, v_d.employee_id, 'read'))) then
     raise exception using errcode = 'P0001',
-      message = 'Deplasarea aleasă nu aparține organizației dumneavoastră.';
+      message = 'Deplasarea aleasă nu există în organizația dumneavoastră sau nu o puteți consulta.';
   end if;
   if v_d.employee_id <> new.employee_id then
     raise exception using errcode = 'P0001',

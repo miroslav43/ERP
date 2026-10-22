@@ -25,7 +25,9 @@
 -- (14) angajatul nu află faptele colegului (zero rânduri), iar avizul
 --      colegului îi vine `null`;
 -- (15) angajatul își leagă foaia de propria deplasare               [POZITIVĂ];
--- (16) foaia nu se leagă de deplasarea altui angajat (P0001);
+-- (16) foaia nu se leagă de deplasarea altui angajat (P0001); angajatul, care
+--      n-o vede, primește mesajul de „inexistentă”, nu „a altui angajat”;
+-- (16b) org_admin, care o vede, primește motivul exact;
 -- (17) foaia nu se leagă de deplasarea altei firme (P0001);
 -- (18) org_admin vede scadența permisului în lista de conformitate   [POZITIVĂ];
 -- (19) ștergerea logică a permisului scoate scadența din `expirables` [POZITIVĂ];
@@ -440,6 +442,9 @@ begin
     raise warning '  ✗ (15) angajatul nu-și poate lega foaia: % (%)', sqlerrm, sqlstate;
   end;
 
+  -- (16) Angajatul NU vede deplasarea colegului (`per_diem:read = own`), deci
+  -- refuzul nu are voie să-i spună că există, al cui e sau în ce stare: același
+  -- mesaj ca pentru o deplasare inexistentă. Garda rulează cu drepturile bazei.
   perform set_config('request.jwt.claim.sub', v_u_ang::text, true);
   set local role authenticated;
   begin
@@ -449,7 +454,30 @@ begin
     raise warning '  ✗ (16) foaia s-a legat de deplasarea colegului';
   exception when raise_exception then
     reset role;
-    raise notice '  ✓ (16) deplasarea altui angajat e refuzată: %', sqlerrm;
+    if sqlerrm = 'Deplasarea aleasă nu există în organizația dumneavoastră sau nu o puteți consulta.' then
+      raise notice '  ✓ (16) deplasarea colegului (nevăzută) e refuzată ca una inexistentă: %', sqlerrm;
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (16) refuzul spune despre o deplasare pe care angajatul n-o vede: %', sqlerrm;
+    end if;
+  end;
+
+  -- (16b) org_admin VEDE deplasarea colegului: primește motivul exact.
+  perform set_config('request.jwt.claim.sub', v_u_admin::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets set business_trip_id = v_depl_col, updated_by = v_u_admin where id = v_foaie;
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (16b) org_admin a legat foaia de deplasarea altui angajat';
+  exception when raise_exception then
+    reset role;
+    if sqlerrm like 'Deplasarea aleasă este a altui angajat%' then
+      raise notice '  ✓ (16b) cine vede deplasarea primește motivul: %', sqlerrm;
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (16b) org_admin primește alt refuz: %', sqlerrm;
+    end if;
   end;
 
   perform set_config('request.jwt.claim.sub', v_u_ang::text, true);
