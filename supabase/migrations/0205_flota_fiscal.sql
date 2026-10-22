@@ -342,6 +342,14 @@ comment on column public.trip_sheets.norma_l_100km is
 -- SECURITY INVOKER: fiecare tabelă își aplică RLS-ul, deci apelantul vede
 -- exact vehiculele, regimurile și foile pe care le-ar vedea și direct. Fără
 -- funcții `internal.*` (invocatorul n-are EXECUTE pe schema aceea).
+--
+-- Vehiculul trece, în plus, prin `app.poate_vedea_vehicul` (0199), adică prin
+-- scope-ul lui `vehicles:read`, nu prin politica întreagă: 0215 dă în
+-- `vehicule_select` omului FĂRĂ `vehicles:read` (hr) mașina alocată lui, pentru
+-- „Mașina mea” (decizia 3), nu și raportul fiscal al parcului. Moștenită, ramura
+-- i-ar fi dat un rând fals: regimul îi e închis, deci „fără regim” toată luna.
+-- Platforma și contextul de serviciu rămân ca în politică (serviciul ocolește
+-- RLS-ul). Proba: `tests/rls/proba-livrare-roluri.sql`, hr = 0.
 create or replace function public.flota_fiscal_luna(p_organization_id uuid, p_luna date)
 returns table (
   vehicle_id       uuid,
@@ -439,6 +447,9 @@ as $$
     and p_luna is not null
     and v.organization_id = p_organization_id
     and v.deleted_at is null
+    and ((select app.is_platform_admin())
+         or (select app.is_service_context())
+         or app.poate_vedea_vehicul(v.organization_id, v.employee_id, v.pool))
     and (v.data_iesire is null or v.data_iesire >= l.inceput)
     and (v.data_achizitie is null or v.data_achizitie <= l.sfarsit)
   order by v.nr_inmatriculare;

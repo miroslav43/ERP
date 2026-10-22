@@ -44,7 +44,9 @@
 --    vehiculului, alocările, foile, anomaliile și restul parcului rămân închise.
 --    ATENȚIE la orice politică nouă care judecă după `exists (… from
 --    public.vehicles …)` SUB RLS: ar moșteni ramura. Tabelele copil folosesc
---    `app.poate_vedea_vehicul_dupa_id` (0199 §B), care NU o are.
+--    `app.poate_vedea_vehicul_dupa_id` (0199 §B), care NU o are. La fel orice
+--    funcție SECURITY INVOKER care citește `vehicles`: `flota_fiscal_luna`
+--    (0205 §7) o taie explicit, pe `app.poate_vedea_vehicul`.
 -- G. Scanul hârtiei semnate: poarta bucketului (`app.flota_poate_fisier`,
 --    rescrisă de la 0202) îl lasă citit și de cine vede PV-ul, nu doar de
 --    cine vede vehiculul acum (fostul șofer, managerul lui, partea fără

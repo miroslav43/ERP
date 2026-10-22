@@ -550,6 +550,19 @@ begin
   for r in
     select * from (values
       -- ═══ SELECT: rânduri văzute din firma A ═══════════════════════════════
+      -- `vehicles` e veche, dar 0215 îi rescrie politica: hr-ul își vede mașina
+      -- (VH) prin ramura „decizia 3”, nimic altceva din parc.
+      ('vehicles', 'SELECT',
+       $q$select 1 from public.vehicles where organization_id = {org}$q$,
+       array['6', '6', '1', '2', '2', '2', '0']),
+      -- DEFECT cunoscut, aceeași clasă ca în `proba-flota-matrice-roluri.sql`:
+      -- costul stă într-o COLOANĂ a rândului vizibil, iar RLS-ul nu taie coloane.
+      -- Decizia 3 l-a extins la hr (vede 50.000 pe VH). Intenționat: costurile
+      -- doar la `vehicles:read = all` și pe mașinile echipei la manager.
+      -- Repararea cere o decizie de model, nu o politică.
+      ('vehicles.valoare_achizitie', 'SELECT',
+       $q$select 1 from public.vehicles where organization_id = {org} and valoare_achizitie is not null$q$,
+       array['6', '6', 'D:1/0', 'D:2/1', 'D:2/0', 'D:2/0', '0']),
       ('maintenance_rezumat_trimis', 'SELECT',
        $q$select 1 from public.maintenance_rezumat_trimis where organization_id = {org}$q$,
        array['2', '1', '0', '1', '0', '0', '0']),
@@ -630,14 +643,13 @@ begin
       ('verificari_soferi (4 fișe)', 'SELECT',
        $q$select 1 from public.verificari_soferi({org}, array[{e_e1}, {e_e2}, {e_mgr}, {e_hr}]::uuid[], app.azi_local())$q$,
        array['4', '4', '4', '2', '1', '1', '0']),
-      -- DEFECT (hr = 1, intenționat 0): funcția e SECURITY INVOKER și citește
-      -- `vehicles` SUB RLS, deci moștenește ramura „decizia 3” din `vehicule_select`
-      -- (0215): hr-ul cu mașină primește rândul ei în raportul fiscal al lunii
-      -- (fără regim, normă sau foi — acelea îi rămân închise; `zile_fara_regim` =
-      -- toată luna). Exact clasa de care avertizează `[[modul/flota/proces-verbal]]`.
+      -- hr = 0, deși își vede mașina (VH) în `vehicles`: funcția e SECURITY
+      -- INVOKER și ar moșteni ramura „decizia 3” din `vehicule_select` (0215),
+      -- cu un rând fals („fără regim” toată luna, când VH are regim). 0205 §7 o
+      -- taie explicit, pe `app.poate_vedea_vehicul` (reparat 22.10.2026).
       ('flota_fiscal_luna (rânduri)', 'SELECT',
        $q$select 1 from public.flota_fiscal_luna({org}, {luna}::date)$q$,
-       array['6', '6', 'D:1/0', '2', '2', '2', '0']),
+       array['6', '6', '0', '2', '2', '2', '0']),
       ('flota_fiscal_luna (cu regim)', 'SELECT',
        $q$select 1 from public.flota_fiscal_luna({org}, {luna}::date) where regim is not null$q$,
        array['2', '2', '0', '0', '0', '0', '0']),
