@@ -21,7 +21,7 @@ tabele: [vehicle_handovers, vehicle_assignments, vehicles, registru_documente, d
 permisiuni: [vehicles:read, vehicles:update, employees:read]
 feature: fleet
 capcane: [17, 18, 22, 23, 29, 30, 31]
-scris_pe: 49b1fb6913189d1bbb22d90343f9795e1d610f6c
+scris_pe: c8fb7e69e4929446f9df95a1d46174f7903ec3a7
 scris_la: 2026-10-22
 tags: [modul, operations]
 ---
@@ -73,7 +73,13 @@ transfer: `capete-pv.ts`, din alocările deja citite.
   alocări. `sofer_employee_id` e GENERATED (trimis dă 428C9), iar în triggerul BEFORE e încă
   NULL. — capcanele #22 și #30
 - **Finalizatul e imuabil.** Orice altă schimbare decât anularea, confirmarea părții sau scanul
-  dă P0001; corectura e anulare + PV nou. A doua finalizare are zero rânduri: CONFLICT.
+  dă P0001; corectura e anulare + PV nou. A doua finalizare are zero rânduri: CONFLICT. Garda
+  compară RÂNDUL ÎNTREG minus coloanele permise, deci o coloană nouă e imuabilă din oficiu.
+- **`id` și `created_at` nu se schimbă pe nicio stare** (P0001). Partea la PV are UPDATE pe
+  rând; un `id` rescris ar fi rupt legătura cu registrul, notificarea și auditul.
+- **Ștergerea ciornei nu poartă nicio altă schimbare** (P0001): ramura de ștergere sare peste
+  derivare, deci un număr, o parte sau `stare = 'finalizat'` trimise odată cu `deleted_at`
+  ar fi rămas pe rândul șters (numărul ar fi blocat `pvv_numar_uq` pentru totdeauna).
 - **Confirmarea e o singură dată, pe coloana PĂRȚII**, cu ora și autorul scrise de bază.
   Alt om: zero rânduri (USING). Pe un PV anulat: refuz.
 - **Kilometrajul**: dacă alocarea îl are, PV-ul trebuie să-l repete; dacă nu, alocarea îl
@@ -87,12 +93,16 @@ transfer: `capete-pv.ts`, din alocările deja citite.
   arde, fiindcă secvența e în aceeași tranzacție.
 - **Decizia 3 (B3)**: `hr` sau orice rol fără `vehicles:read` vede PV-urile la care e parte și
   vehiculul alocat LUI (ramura din `vehicule_select`), fără documentele lui, alocări, foi sau
-  restul parcului. „Mașina mea” îi arată mașina fără semafor.
+  restul parcului. „Mașina mea” îi arată mașina fără semafor. ATENȚIE: o politică nouă care
+  judecă după `exists (… from public.vehicles …)` SUB RLS moștenește ramura; tabelele copil
+  folosesc `app.poate_vedea_vehicul_dupa_id` (0199), care n-o are.
 - **Cine întocmește**: doar `vehicles:update = all` și membru. `super_admin` vede, nu scrie.
 - **Scanul hârtiei semnate** (`pregatesteScanPv` → urcare → `confirmaScanPv`) stă în
   `org-flota`, în folderul VEHICULULUI (0202): doar pe PV-ul finalizat, doar cine
-  administrează parcul; altă cale dă P0001. Îl citește cine vede vehiculul atunci, nu partea
-  fără `vehicles:read`.
+  administrează parcul; altă cale dă P0001. Îl citește cine vede vehiculul ȘI cine vede PV-ul
+  (fostul șofer, managerul lui, partea fără `vehicles:read`), doar pe calea exactă
+  `scan_path`: 0215 rescrie `app.flota_poate_fisier` (0202), deci o rescriere ulterioară
+  pornește de la forma din 0215.
 
 Proba: `tests/rls/proba-flota-pv.sql`, plus blocul `(l) F12c` din `tests/rls/izolare.sql`,
 cu rânduri numărate pe toate cele cinci roluri.
