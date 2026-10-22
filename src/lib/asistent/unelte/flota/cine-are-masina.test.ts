@@ -161,6 +161,33 @@ describe("cine_are_masina — azi", () => {
     expect(r.text).not.toContain("fără foaie în ziua aceea");
   });
 
+  it("foaia zilei fără cursă acum: „nealocată” doar sub vizibilitate completă", async () => {
+    // Mașina comună cu foaia subordonatului, fără cursă la ora asta. Alocarea unui
+    // ne-subordonat ar fi invizibilă managerului: „nu e alocată nimănui” ar fi falsă.
+    vi.mocked(vehiculeDupaNumar).mockResolvedValue([vehicul({ pool: true })]);
+    vi.mocked(foiInInterval).mockResolvedValue([
+      {
+        id: FOAIE,
+        vehicle_id: V,
+        employee_id: ION,
+        numar: null,
+        data: "2026-10-22",
+        status: "draft",
+      },
+    ]);
+    const manager = await unealtaCineAreMasina.executa(contextFlota("manager"), {
+      nr_inmatriculare: "B123ABC",
+    });
+    expect(manager.text).toContain("e foaia zilei (șofer: Ion Popescu");
+    expect(manager.text).not.toContain("nu e alocată nimănui");
+    expect(manager.text).toContain("nicio alocare dintre cele pe care le poți vedea");
+
+    const admin = await unealtaCineAreMasina.executa(contextFlota("org_admin"), {
+      nr_inmatriculare: "B123ABC",
+    });
+    expect(admin.text).toContain("iar mașina nu e alocată nimănui atunci");
+  });
+
   it("rezervarea zilei se pomenește după alocare", async () => {
     vi.mocked(vehiculeDupaNumar).mockResolvedValue([vehicul({ pool: true })]);
     vi.mocked(rezervarileZilei).mockResolvedValue([

@@ -219,11 +219,17 @@ async function executa(context: ContextUnealta, argument: unknown): Promise<Rezu
       );
       break;
     }
-    case "foaie":
+    case "foaie": {
+      // Sub vizibilitate parțială, alocarea unui ne-subordonat lipsește fără
+      // eroare: „nu e alocată nimănui” ar fi aceeași afirmație falsă ca la D3.
+      const alocare = vizibilitateCompleta
+        ? "iar mașina nu e alocată nimănui atunci"
+        : "iar nicio alocare dintre cele pe care le poți vedea nu o acoperă atunci";
       bucati.push(
-        `Pe ${nr} e foaia zilei (șofer: ${numele(ales.foaie.employee_id, angajati)}, ${peFoaie(ales.foaie)}), dar nicio cursă de pe ea nu acoperă ${ora === undefined ? "ora de acum" : `ora ${ora}`}, iar mașina nu e alocată nimănui atunci.`,
+        `Pe ${nr} e foaia zilei (șofer: ${numele(ales.foaie.employee_id, angajati)}, ${peFoaie(ales.foaie)}), dar nicio cursă de pe ea nu acoperă ${ora === undefined ? "ora de acum" : `ora ${ora}`}, ${alocare}.`,
       );
       break;
+    }
     case "zi": {
       const linii = [
         ...ales.foi.map((f) => {
