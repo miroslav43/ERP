@@ -102,10 +102,19 @@ Pe `/flota/foi/[id]`, închiderea și alimentarea apar doar pe foaia proprie câ
 
 | Rută                              | Poartă                                                              |
 | --------------------------------- | ------------------------------------------------------------------- |
-| `/portal/masina-mea`              | `trip_sheets:read` own (fleet)                                      |
+| `/portal/masina-mea`              | doar modulul fleet (0215: și omul fără drept pe foi)                |
 | `/portal/masina-mea?foaie=noua`   | caseta, cu `trip_sheets:create`                                     |
 | `/portal/masina-mea/foi/[id]`     | `trip_sheets:read` own; foaia altcuiva → 404                        |
 | `/portal/masina-mea?incident=nou` | declarația de incident, cu `vehicle_incidents:create` own (0206 §F) |
+| `/portal/masina-mea/rezervari`    | `vehicle_reservations:read` (0216): `[[modul/flota/rezervari]]`     |
+
+Din 0215 (F12c, decizia 3), pagina nu mai cere `trip_sheets:read`: omul FĂRĂ drept pe foi
+sau pe vehicule (de regulă `hr`) care conduce o mașină a firmei vede aici vehiculul alocat
+LUI și PV-urile la care e parte, fără semafor, fără mașini comune și fără foi (secțiunea
+foilor lipsește). Ramura e în `vehicule_select`; cardul mașinii nu o moștenește (0214
+judecă prin `app.poate_vedea_vehicul_dupa_id`). Meniul ține încă intrarea pe
+`trip_sheets:read`: hr-ul ajunge la pagină din notificare. PV-urile:
+`[[modul/flota/proces-verbal]]`.
 
 Declarația șoferului (mașina lui sau pool, doar declarațiile proprii, notificarea
 responsabilului): `[[modul/flota/declaratia-soferului]]`.
