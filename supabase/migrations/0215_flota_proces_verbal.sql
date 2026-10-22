@@ -42,6 +42,13 @@
 --    stă în `pv_vehicul_select` / `pv_vehicul_update` și, pentru vehicul, în
 --    `vehicule_select` (rescrisă de la forma ultimă, 0199 §B). Documentele
 --    vehiculului, alocările, foile, anomaliile și restul parcului rămân închise.
+--    ATENȚIE la orice politică nouă care judecă după `exists (… from
+--    public.vehicles …)` SUB RLS: ar moșteni ramura. Tabelele copil folosesc
+--    `app.poate_vedea_vehicul_dupa_id` (0199 §B), care NU o are.
+-- G. Scanul hârtiei semnate: poarta bucketului (`app.flota_poate_fisier`,
+--    rescrisă de la 0202) îl lasă citit și de cine vede PV-ul, nu doar de
+--    cine vede vehiculul acum (fostul șofer, managerul lui, partea fără
+--    `vehicles:read`).
 --
 -- ── CE NU FACE ──────────────────────────────────────────────────────────────
 --  · Nu creează PV-uri din triggerul alocării: backfill-ul din 0173 și orice
@@ -343,22 +350,32 @@ declare
   v_an          integer;
   v_serviciu    boolean := app.is_service_context();
   v_eu          uuid := app.current_employee_id(new.organization_id);
+  -- `sofer_employee_id` e GENERATĂ: în BEFORE, NEW o are NULL, deci iese din
+  -- orice comparație de rând întreg (altfel orice UPDATE ar părea schimbare).
+  -- `updated_at` o scrie triggerul de după, `updated_by` o cere politica.
+  v_mereu_libere text[] := array['sofer_employee_id', 'updated_at', 'updated_by'];
 begin
+  -- Cheia și data creării nu se schimbă, pe nicio stare: registrul,
+  -- notificarea, legătura din registru spre PDF și urma de audit se leagă de
+  -- `id`. Un `id` rescris de partea la PV (ramura ei din `pv_vehicul_update`)
+  -- ar fi lăsat anularea de mai târziu fără rândul din registru.
+  if tg_op = 'UPDATE' and (new.id, new.created_at) is distinct from (old.id, old.created_at) then
+    raise exception using errcode = 'P0001',
+      message = 'Identificatorul și data creării procesului-verbal nu se schimbă.';
+  end if;
+
   -- ── A. UPDATE pe un PV finalizat: doar anulare, confirmări, scan ─────────
+  -- Comparația e pe TOT rândul, minus coloanele permise: o coloană adăugată
+  -- mai târziu e imuabilă din oficiu, în loc să scape dintr-o listă scrisă de
+  -- mână (cum scăpaseră `id` și `created_at`).
   if tg_op = 'UPDATE' and old.stare = 'finalizat' then
-    if (new.organization_id, new.vehicle_id, new.alocare_predata_id, new.alocare_primita_id,
-        new.tip, new.moment, new.data_pv, new.predator_employee_id, new.primitor_employee_id,
-        new.km_bord, new.nivel_rezervor, new.numar_chei, new.stare_generala, new.anvelope,
-        new.documente_bord, new.dotari, new.daune_constatate, new.daune, new.observatii,
-        new.stare, new.numar, new.numar_registru, new.snapshot, new.finalizat_la, new.finalizat_de,
-        new.created_by, new.deleted_at)
+    if (to_jsonb(new) - (v_mereu_libere || array['anulat_la', 'motiv_anulare', 'scan_path',
+                                                 'confirmat_predator_la', 'confirmat_predator_de',
+                                                 'confirmat_primitor_la', 'confirmat_primitor_de']))
        is distinct from
-       (old.organization_id, old.vehicle_id, old.alocare_predata_id, old.alocare_primita_id,
-        old.tip, old.moment, old.data_pv, old.predator_employee_id, old.primitor_employee_id,
-        old.km_bord, old.nivel_rezervor, old.numar_chei, old.stare_generala, old.anvelope,
-        old.documente_bord, old.dotari, old.daune_constatate, old.daune, old.observatii,
-        old.stare, old.numar, old.numar_registru, old.snapshot, old.finalizat_la, old.finalizat_de,
-        old.created_by, old.deleted_at) then
+       (to_jsonb(old) - (v_mereu_libere || array['anulat_la', 'motiv_anulare', 'scan_path',
+                                                 'confirmat_predator_la', 'confirmat_predator_de',
+                                                 'confirmat_primitor_la', 'confirmat_primitor_de'])) then
       raise exception using errcode = 'P0001',
         message = 'Procesul-verbal este finalizat și nu se mai modifică. Dacă a fost întocmit greșit, anulați-l și întocmiți altul.';
     end if;
@@ -442,8 +459,18 @@ begin
   end if;
   -- Ștergerea logică a ciornei: fără derivare. Altfel o ciornă a cărei alocare
   -- a fost ștearsă între timp n-ar mai putea fi ștearsă („nu aparține…”).
-  if tg_op = 'UPDATE' and old.deleted_at is null and new.deleted_at is not null
-     and new.stare = 'ciorna' then
+  -- Tocmai fiindcă sare peste derivare, ștergerea NU poartă nicio altă
+  -- schimbare: un `numar` pus pe rândul șters ar ocupa `pvv_numar_uq` pentru
+  -- totdeauna (fiecare finalizare de după ar cădea pe 23505), o parte
+  -- schimbată ar deschide ciorna ștearsă altui angajat (`pv_vehicul_select`
+  -- nu filtrează `deleted_at`), iar `stare = 'finalizat'` în aceeași scriere
+  -- ar lăsa în registru un PV pe care nu-l mai vede nimeni.
+  if tg_op = 'UPDATE' and old.deleted_at is null and new.deleted_at is not null then
+    if (to_jsonb(new) - (v_mereu_libere || array['deleted_at']))
+       is distinct from (to_jsonb(old) - (v_mereu_libere || array['deleted_at'])) then
+      raise exception using errcode = 'P0001',
+        message = 'Ștergerea ciornei nu poate modifica alte câmpuri ale procesului-verbal.';
+    end if;
     return new;
   end if;
 
@@ -660,6 +687,87 @@ begin
 end;
 $$;
 
+-- 4.6 Poarta bucketului `org-flota`, rescrisă de la forma ultimă (0202 §7;
+-- verificat cu grep: nicio altă migrare n-o rescrie). Un singur caz nou, pe
+-- ramura de CITIRE a folderului `vehicles`: scanul PV-ului semnat (calea egală
+-- EXACT cu `scan_path`) îl citește cine vede PV-ul, după regula lui
+-- `pv_vehicul_select`, nu doar cine vede vehiculul ACUM. Fără el, fostul șofer
+-- și managerul lui își vedeau PV-ul (E), dar nu hârtia semnată: după
+-- restituire, `vehicles.employee_id` nu mai e al lor. Restul folderului
+-- vehiculului (documentele de bord) rămâne pe vizibilitatea vehiculului.
+create or replace function app.flota_poate_fisier(p_name text, p_actiune text)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_org     uuid := app.path_org(p_name);
+  v_tip     text := app.path_segment(p_name, 2);
+  v_id_text text := app.path_segment(p_name, 3);
+  v_id      uuid;
+  v_vehicul public.vehicles%rowtype;
+  v_foaie   public.trip_sheets%rowtype;
+begin
+  if v_org is null or v_tip is null or v_id_text is null
+     or app.path_segment(p_name, 4) is null
+     or app.path_segment(p_name, 5) is not null then
+    return false;
+  end if;
+  if v_tip not in ('vehicles', 'trip_sheets') then
+    return false;
+  end if;
+  if v_id_text !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+    return false;
+  end if;
+  v_id := v_id_text::uuid;
+
+  -- Administratorul de platformă citește (ca `vdoc_select`), nu scrie.
+  if p_actiune = 'read' and app.is_platform_admin() then
+    return true;
+  end if;
+
+  if not (v_org = any (app.current_org_ids())) then return false; end if;
+  if not app.feature_on(v_org, 'fleet') then return false; end if;
+
+  if v_tip = 'vehicles' then
+    select * into v_vehicul from public.vehicles v
+     where v.id = v_id and v.organization_id = v_org;
+    if not found then return false; end if;
+    if p_actiune = 'read' then
+      return app.poate_vedea_vehicul(v_org, v_vehicul.employee_id, v_vehicul.pool)
+          or exists (
+               select 1 from public.vehicle_handovers h
+                where h.organization_id = v_org
+                  and h.vehicle_id = v_id
+                  and h.scan_path = p_name
+                  and h.deleted_at is null
+                  and (app.poate_vedea_vehicul(v_org, h.predator_employee_id)
+                       or app.poate_vedea_vehicul(v_org, h.primitor_employee_id)
+                       or app.current_employee_id(v_org) in (h.predator_employee_id, h.primitor_employee_id)));
+    end if;
+    return v_vehicul.deleted_at is null
+       and app.has_permission(v_org, 'vehicles', 'update') = 'all';
+  end if;
+
+  select * into v_foaie from public.trip_sheets t
+   where t.id = v_id and t.organization_id = v_org;
+  if not found then return false; end if;
+  if p_actiune = 'read' then
+    return app.poate_vedea_foaie(v_org, v_foaie.employee_id);
+  end if;
+  -- Bonul urmează alimentarea: se atașează doar cât foaia e ciornă (0200 §D1).
+  return v_foaie.deleted_at is null
+     and v_foaie.status = 'draft'
+     and app.poate_scrie_foaie(v_org, v_foaie.employee_id);
+end;
+$$;
+
+comment on function app.flota_poate_fisier(text, text) is
+  'Poarta bucketului org-flota (0202, 0215): {org}/vehicles/{vehicul}/… după vizibilitatea vehiculului și vehicles:update = all, '
+  'iar scanul unui PV de predare (scan_path) și după vizibilitatea PV-ului; {org}/trip_sheets/{foaie}/… după foaie, scriere doar pe ciornă. Fără app.can_path.';
+
 -- ============================================================
 -- 5. Triggere
 -- ============================================================
@@ -787,6 +895,9 @@ revoke all on function internal.pv_vehicul_instantaneu(uuid, uuid, uuid, uuid, t
 revoke all on function internal.pv_vehicul_rezumat(public.vehicle_handovers, text) from public, anon, authenticated;
 revoke all on function internal.pv_vehicul_inainte() from public, anon, authenticated;
 revoke all on function internal.pv_vehicul_dupa() from public, anon, authenticated;
+-- Ca în 0202: poarta e chemată din politicile de Storage, sub `authenticated`.
+revoke all on function app.flota_poate_fisier(text, text) from public, anon;
+grant execute on function app.flota_poate_fisier(text, text) to authenticated, service_role;
 
 -- ============================================================
 -- 8. Verificarea de la final
@@ -815,4 +926,5 @@ commit;
 --   `data_pv` e ziua predării. Un PV întocmit după predare poartă ambele date pe
 --   hârtie (decizia I-c7, ⚠ contabil).
 -- * Ștergerea logică e permisă doar pe ciornă (pasul A o refuză pe finalizat,
---   fiindcă `deleted_at` e în tuplu).
+--   fiindcă `deleted_at` intră în comparația rândului întreg) și nu poartă nicio
+--   altă schimbare (pasul B).

@@ -38,6 +38,10 @@
 --       PV-urile altora și nu scrie PV                                    [NEGATIVĂ]
 --  (30) managerul nu întocmește PV și nu anulează PV-ul subordonatei
 --  (31) scanul semnat: doar pe finalizat, în folderul vehiculului, de administrator
+--  (32) `id` și `created_at` nu se rescriu, nici de partea la PV, nici pe ciornă
+--  (33) ștergerea ciornei nu poartă număr, părți sau finalizare: P0001
+--  (34) scanul semnat îl citește cine vede PV-ul (fostul șofer, managerul lui),
+--       nu și restul folderului vehiculului                               [POZITIVĂ / 0]
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh
@@ -697,6 +701,95 @@ begin
     raise warning '  ✗ (31) scanul: % rânduri, refuzuri cale/șofer %, ciornă %', v_k, v_n, v_m;
   end if;
 
+  -- ── (32) cheia și data creării nu se rescriu ─────────────────────────
+  -- Partea la PV are UPDATE pe rând (ramura „parte la PV”), deci garda ține
+  -- TOT rândul, nu o listă de coloane: un `id` rescris ar rupe legătura cu
+  -- registrul (anularea nu l-ar mai găsi), cu notificarea și cu auditul.
+  -- Fiecare încercare e derulată (PVR01) dacă trece, ca restul probei să
+  -- lucreze tot pe rândurile ei.
+  v_n := 0;
+  v_text := '';
+  perform set_config('request.jwt.claim.sub', v_u_b::text, true);
+  set local role authenticated;
+  begin
+    update public.vehicle_handovers set id = gen_random_uuid(), updated_by = v_u_b where id = v_pv2;
+    get diagnostics v_k = row_count;
+    raise exception using errcode = 'PVR01', message = 'id rescris de primitor: ' || v_k || ' rânduri';
+  exception when others then
+    if sqlstate = 'P0001' and sqlerrm like 'Identificatorul și data creării%' then v_n := v_n + 1;
+    else v_text := v_text || sqlerrm || '; '; end if;
+  end;
+  begin
+    update public.vehicle_handovers set created_at = '2001-01-01', updated_by = v_u_b where id = v_pv2;
+    get diagnostics v_k = row_count;
+    raise exception using errcode = 'PVR01', message = 'created_at rescris de primitor: ' || v_k || ' rânduri';
+  exception when others then
+    if sqlstate = 'P0001' and sqlerrm like 'Identificatorul și data creării%' then v_n := v_n + 1;
+    else v_text := v_text || sqlerrm || '; '; end if;
+  end;
+  reset role;
+  perform set_config('request.jwt.claim.sub', v_u_admin::text, true);
+  set local role authenticated;
+  begin
+    -- `v_pv` e ciorna de la (7b): nici administratorul nu-i schimbă cheia.
+    update public.vehicle_handovers set id = gen_random_uuid(), updated_by = v_u_admin where id = v_pv;
+    get diagnostics v_k = row_count;
+    raise exception using errcode = 'PVR01', message = 'id-ul ciornei rescris: ' || v_k || ' rânduri';
+  exception when others then
+    if sqlstate = 'P0001' and sqlerrm like 'Identificatorul și data creării%' then v_n := v_n + 1;
+    else v_text := v_text || sqlerrm || '; '; end if;
+  end;
+  reset role;
+  if v_n = 3 then
+    raise notice '  ✓ (32) cheia și data creării nu se rescriu: finalizat de primitor, ciornă de administrator (P0001 × 3)';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (32) doar % din 3 rescrieri refuzate: %', v_n, v_text;
+  end if;
+
+  -- ── (34) scanul îl citește cine vede PV-ul, nu doar cine vede vehiculul ─
+  -- Ana a predat V1 lui Bogdan (transferul de la (5)): nu mai vede vehiculul
+  -- (9), dar își vede PV-ul, deci și hârtia semnată. Managerul ei, la fel.
+  -- Restul folderului vehiculului rămâne închis; alt manager și hr nu văd nimic.
+  select scan_path into v_text from public.vehicle_handovers where id = v_pv2;
+  insert into storage.objects (bucket_id, name, owner) values
+    ('org-flota', v_text, v_u_admin),
+    ('org-flota', v_org::text || '/vehicles/' || v_v1::text || '/' || gen_random_uuid()::text || '-rca.pdf', v_u_admin);
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  select count(*) filter (where name = v_text), count(*) filter (where name <> v_text) into v_n, v_m
+    from storage.objects where bucket_id = 'org-flota' and name like v_org::text || '/vehicles/' || v_v1::text || '/%';
+  reset role;
+  perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
+  set local role authenticated;
+  select v_n * 10 + count(*) filter (where name = v_text), v_m * 10 + count(*) filter (where name <> v_text)
+    into v_n, v_m
+    from storage.objects where bucket_id = 'org-flota' and name like v_org::text || '/vehicles/' || v_v1::text || '/%';
+  reset role;
+  perform set_config('request.jwt.claim.sub', v_u_mgr2::text, true);
+  set local role authenticated;
+  select count(*) into v_k from storage.objects
+   where bucket_id = 'org-flota' and name like v_org::text || '/vehicles/' || v_v1::text || '/%';
+  reset role;
+  perform set_config('request.jwt.claim.sub', v_u_hr::text, true);
+  set local role authenticated;
+  select v_k * 10 + count(*) into v_k from storage.objects
+   where bucket_id = 'org-flota' and name like v_org::text || '/vehicles/' || v_v1::text || '/%';
+  reset role;
+  -- Controlul: Bogdan, șoferul de acum, vede tot folderul (ramura vehiculului).
+  perform set_config('request.jwt.claim.sub', v_u_b::text, true);
+  set local role authenticated;
+  select count(*) into v_text from storage.objects
+   where bucket_id = 'org-flota' and name like v_org::text || '/vehicles/' || v_v1::text || '/%';
+  reset role;
+  if v_n = 11 and v_m = 0 and v_k = 0 and v_text = '2' then
+    raise notice '  ✓ (34) scanul semnat: Ana (fost șofer) și managerul ei îl văd, restul folderului nu; alt manager și hr: 0';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (34) scanul: Ana·manager % (așteptat 11), alt fișier % (0), alt manager·hr % (0), șoferul de acum % (2)',
+      v_n, v_m, v_k, v_text;
+  end if;
+
   -- ── (17) km diferit de alocare ──────────────────────────────────────────
   perform set_config('request.jwt.claim.sub', v_u_admin::text, true);
   set local role authenticated;
@@ -718,6 +811,56 @@ begin
       raise warning '  ✗ (17) alt mesaj: %', sqlerrm;
     end if;
   end;
+
+  -- ── (33) ștergerea ciornei nu poartă alte schimbări ─────────────────────
+  -- Ramura de ștergere sare peste derivare; fără gardă, ar scrie pe rândul
+  -- șters coloanele pe care le scrie doar baza: un număr pus acolo ar ocupa
+  -- `pvv_numar_uq` pentru totdeauna (fiecare finalizare de după ar cădea pe
+  -- 23505), iar o parte schimbată ar deschide ciorna ștearsă altui angajat.
+  -- Finalizarea și ștergerea în aceeași scriere ar lăsa în registru un PV
+  -- pe care nu-l mai vede nimeni. Fiecare încercare e derulată dacă trece.
+  v_n := 0;
+  v_text := '';
+  perform set_config('request.jwt.claim.sub', v_u_admin::text, true);
+  set local role authenticated;
+  begin
+    update public.vehicle_handovers
+       set deleted_at = now(), numar = 'PVA-' || v_an::text || '-9999', updated_by = v_u_admin
+     where id = v_pv and deleted_at is null;
+    get diagnostics v_k = row_count;
+    raise exception using errcode = 'PVR01', message = 'număr pus la ștergere: ' || v_k || ' rânduri';
+  exception when others then
+    if sqlstate = 'P0001' and sqlerrm like 'Ștergerea ciornei nu poate modifica%' then v_n := v_n + 1;
+    else v_text := v_text || sqlerrm || '; '; end if;
+  end;
+  begin
+    update public.vehicle_handovers
+       set deleted_at = now(), primitor_employee_id = v_e_hr, updated_by = v_u_admin
+     where id = v_pv and deleted_at is null;
+    get diagnostics v_k = row_count;
+    raise exception using errcode = 'PVR01', message = 'parte schimbată la ștergere: ' || v_k || ' rânduri';
+  exception when others then
+    if sqlstate = 'P0001' and sqlerrm like 'Ștergerea ciornei nu poate modifica%' then v_n := v_n + 1;
+    else v_text := v_text || sqlerrm || '; '; end if;
+  end;
+  begin
+    update public.vehicle_handovers
+       set nivel_rezervor = 'plin', stare_generala = 'buna', daune_constatate = false,
+           stare = 'finalizat', deleted_at = now(), updated_by = v_u_admin
+     where id = v_pv and deleted_at is null;
+    get diagnostics v_k = row_count;
+    raise exception using errcode = 'PVR01', message = 'finalizat și șters deodată: ' || v_k || ' rânduri';
+  exception when others then
+    if sqlstate = 'P0001' and sqlerrm like 'Ștergerea ciornei nu poate modifica%' then v_n := v_n + 1;
+    else v_text := v_text || sqlerrm || '; '; end if;
+  end;
+  reset role;
+  if v_n = 3 then
+    raise notice '  ✓ (33) ștergerea ciornei nu scrie număr, părți sau finalizare (P0001 × 3)';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (33) doar % din 3 ștergeri cu încărcătură refuzate: %', v_n, v_text;
+  end if;
 
   -- ── (21) ștergerea: finalizatul refuză, ciorna trece ────────────────────
   perform set_config('request.jwt.claim.sub', v_u_admin::text, true);
@@ -973,7 +1116,7 @@ begin
   if v_esecuri > 0 then
     raise exception 'PROBA FLOTA PV: % verificări picate', v_esecuri;
   end if;
-  raise notice '  TOATE cele 35 de verificări au trecut.';
+  raise notice '  TOATE cele 38 de verificări au trecut.';
   raise notice '';
 end;
 $$;
