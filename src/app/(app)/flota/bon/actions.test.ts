@@ -199,7 +199,9 @@ describe("citesteBonul", () => {
 
   it("limita atinsă: LIMITA_DEPASITA, fără apel; cheile încep cu `ocr-bon:`", async () => {
     const { admin } = angajat();
-    limitePermise(admin, false);
+    admin.raspundeRpc("consume_rate_limit", { data: true });
+    admin.raspundeRpc("consume_rate_limit", { data: true });
+    admin.raspundeRpc("consume_rate_limit", { data: false });
     const r = await citesteBonul({ trip_sheet_id: FOAIE, cale: CALE });
     expect(r).toMatchObject({ ok: false, error: { code: "LIMITA_DEPASITA" } });
     expect(viziune.citesteImagineStructurat).not.toHaveBeenCalled();
@@ -209,6 +211,33 @@ describe("citesteBonul", () => {
       `ocr-bon:organizatie:${ORG_ID}`,
       "ocr-bon:global",
     ]);
+  });
+
+  /*
+   * `internal.rate_limit_hit` face `count + 1` și pe refuz. Consumate în
+   * paralel, apelurile pe care limita OMULUI le refuză deja ar fi urcat și
+   * contoarele comune: un singur om, în buclă, ținea `ocr-bon:global` peste
+   * 30/min și bloca citirea în TOATE firmele (santinela, F12a). În serie, cu
+   * oprire la primul refuz, un om contribuie la contoarele comune cel mult cu
+   * cota lui.
+   */
+  it("limita omului atinsă: contoarele firmei și global NU se consumă", async () => {
+    const { admin } = angajat();
+    limitePermise(admin, false);
+    const r = await citesteBonul({ trip_sheet_id: FOAIE, cale: CALE });
+    expect(r).toMatchObject({ ok: false, error: { code: "LIMITA_DEPASITA" } });
+    const chei = admin.apeluriRpc.map((a) => (a.argumente as { p_key: string }).p_key);
+    expect(chei).toEqual([`ocr-bon:utilizator:${USER_ID}`]);
+  });
+
+  it("limita firmei atinsă: contorul global NU se consumă", async () => {
+    const { admin } = angajat();
+    admin.raspundeRpc("consume_rate_limit", { data: true });
+    admin.raspundeRpc("consume_rate_limit", { data: false });
+    const r = await citesteBonul({ trip_sheet_id: FOAIE, cale: CALE });
+    expect(r).toMatchObject({ ok: false, error: { code: "LIMITA_DEPASITA" } });
+    const chei = admin.apeluriRpc.map((a) => (a.argumente as { p_key: string }).p_key);
+    expect(chei).toEqual([`ocr-bon:utilizator:${USER_ID}`, `ocr-bon:organizatie:${ORG_ID}`]);
   });
 
   it("foaia inexistentă: NEGASIT; citirea foii e filtrată pe firmă", async () => {
@@ -256,6 +285,31 @@ describe("citesteBonul", () => {
     const r = await citesteBonul({ trip_sheet_id: FOAIE, cale: CALE });
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
     if (!r.ok) expect(r.error.message).toMatch(/doar pe fotografii JPEG/u);
+    expect(viziune.citesteImagineStructurat).not.toHaveBeenCalled();
+  });
+
+  /*
+   * `flota_objects_update` (0202) lasă proprietarul să rescrie obiectul, deci
+   * între `info` și `download` poza se poate înlocui cu una de până la 20 MB
+   * (plafonul bucketului). Plafonul de 4 MiB se aplică pe octeții DESCĂRCAȚI,
+   * nu doar pe metadate: ce pleacă la terț e ce s-a descărcat.
+   */
+  it("poza înlocuită între măsurare și descărcare, peste 4 MiB: CONFLICT, fără terț", async () => {
+    const { server, admin } = angajat();
+    limitePermise(admin);
+    server.raspunde("trip_sheets", "select", { data: foaieDraft() });
+    server.raspunde("employees", "select", { data: { id: SOFER } });
+    server.raspundeStocare("org-flota", "info", {
+      data: { size: JPEG.length, contentType: "image/jpeg" },
+    });
+    // Un JPEG valid pentru `faraMetadateJpeg` (SOI, SOS, date, EOI), doar mare.
+    const mare = new Uint8Array(4 * 1024 * 1024 + 16);
+    mare.set([0xff, 0xd8, 0xff, 0xda, 0x00, 0x04, 0x01, 0x02]);
+    mare.set([0xff, 0xd9], mare.length - 2);
+    server.raspundeStocare("org-flota", "download", { data: new Blob([mare]) });
+    const r = await citesteBonul({ trip_sheet_id: FOAIE, cale: CALE });
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    if (!r.ok) expect(r.error.message).toMatch(/prea mare/u);
     expect(viziune.citesteImagineStructurat).not.toHaveBeenCalled();
   });
 

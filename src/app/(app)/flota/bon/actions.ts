@@ -152,20 +152,22 @@ export const citesteBonul = createAction({
       throw businessRule("Citirea automată a bonului cere modulul Asistent AI activ pentru firmă.");
     }
 
-    // 3. Limitele de rată.
-    const limite = await Promise.all(
-      LIMITE_OCR.map((l) =>
-        consumeRateLimit({
-          key: l.cheie(ctx.user.id, org),
-          limit: l.limita,
-          windowSeconds: l.fereastra,
-        }),
-      ),
-    );
-    if (limite.some((l) => !l.allowed)) {
-      throw limitExceeded(
-        "Prea multe citiri de bonuri. Încercați peste câteva minute sau completați manual.",
-      );
+    // 3. Limitele de rată, ÎN SERIE: om → firmă → global, cu oprire la primul
+    // refuz. `internal.rate_limit_hit` numără și cererile refuzate, deci în
+    // paralel un singur om, în buclă, ar fi urcat și contoarele comune peste
+    // prag și ar fi blocat citirea în toate firmele. Așa, un om contribuie la
+    // contorul firmei și la cel global cel mult cu cota lui.
+    for (const l of LIMITE_OCR) {
+      const { allowed } = await consumeRateLimit({
+        key: l.cheie(ctx.user.id, org),
+        limit: l.limita,
+        windowSeconds: l.fereastra,
+      });
+      if (!allowed) {
+        throw limitExceeded(
+          "Prea multe citiri de bonuri. Încercați peste câteva minute sau completați manual.",
+        );
+      }
     }
 
     // 4. Foaia, sub RLS-ul de CITIRE al omului.
@@ -218,6 +220,14 @@ export const citesteBonul = createAction({
       throw businessRule("Fotografia bonului nu a ajuns în Storage sau nu vă este accesibilă.");
     }
     const octeti = new Uint8Array(await fisier.arrayBuffer());
+    // Din nou, pe octeții DESCĂRCAȚI: proprietarul poate rescrie obiectul
+    // (`flota_objects_update`, 0202) între măsurare și descărcare, iar la terț
+    // pleacă ce s-a descărcat, nu ce spuneau metadatele.
+    if (octeti.length > LIMITA_OCTETI_OCR) {
+      throw businessRule(
+        "Fotografia e prea mare pentru citire. Urcați din nou poza din formular sau completați manual.",
+      );
+    }
 
     // 7. Doar JPEG, fără metadate (GPS-ul șoferului nu pleacă la terț).
     if (!esteJpeg(octeti)) {
