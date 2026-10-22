@@ -75,8 +75,10 @@
 --        Înainte nimic nu le limita, iar fiecare cursă inserată la începutul
 --        foii renumerota toate surorile (cu un rând de audit fiecare): 300 de
 --        curse scrise în ordine inversă au produs 45.449 de rânduri de audit.
---        Cifrele vin din realitate și din citiri: o zi de lucru are cel mult
---        12 ore (Codul muncii art. 112), adică o cursă la 18 minute pentru 40;
+--        Cifrele vin din realitate și din citiri: între două zile de muncă
+--        repausul e, de regulă, de cel puțin 12 ore (Codul muncii art. 135
+--        alin. (1)), deci ziua de lucru are cel mult 12 ore, adică o cursă la
+--        18 minute pentru 40;
 --        `combustibilPeFoi` presupune 20 de alimentări pe foaie, iar
 --        `sabloaneTraseu` citește 100 de șabloane — peste ele, ecranul taie
 --        tăcut. Cursa și alimentarea blochează rândul foii înainte de
@@ -97,6 +99,20 @@
 --        sau stornarea ei anulează și rândul din registru, cu motivul în clar
 --        (convenția din 0142 §5 și 0158: rândul rămâne, numărul rămâne
 --        consumat, golul se explică).
+--    E5. Revizia adversarială A2, reprodusă pe banc. (a) `aloca_numar_foaie`
+--        sărea doar peste numerele foilor ACTIVE: după ce `org_admin` dădea
+--        contorul înapoi (`document_sequences_update`, 0002), numărul unei
+--        foi anulate se dădea din nou, tăcut, iar registrul avea două
+--        documente FP cu același număr. Acum sare peste orice număr purtat
+--        vreodată de o foaie a firmei, ștearsă logic sau nu. (b)
+--        `curse_inainte` și `alimentari_inainte` sunt DEFINER și rulează
+--        ÎNAINTEA WITH CHECK-ului politicii de INSERT. Cine știa id-ul foii
+--        altcuiva — un coleg, sau un utilizator din ALTĂ firmă care trimitea
+--        `organization_id`-ul ei — afla din refuzuri ziua foii, orele și
+--        kilometrii curselor, starea ei și numărul foilor declarate ale
+--        șoferului. Amândouă refuză acum, primul lucru după citirea foii, pe
+--        cine nu poate scrie foaia, cu 42501 — codul pe care l-ar fi dat
+--        oricum politica —, înaintea oricărui mesaj care depinde de foaie.
 --
 -- ── CE NU E AICI ────────────────────────────────────────────────────────────
 -- * Notificările pe fluxul foii: F5.
@@ -191,6 +207,12 @@ create index ts_sofer_interval_gist
     pg_catalog.tstzrange(plecare_la, coalesce(sosire_la, 'infinity'::timestamptz), '[)')
   )
   where deleted_at is null and status in ('trimis', 'aprobat');
+-- §E5: căutarea numărului în `aloca_numar_foaie`, ȘI pe foile șterse logic:
+-- numărul unei foi anulate rămâne consumat. Deliberat fără `deleted_at is
+-- null`; `ts_org_numar_uq` (0012) e parțial pe foile active, deci nu ajută.
+create index ts_org_numar_idx
+  on public.trip_sheets (organization_id, numar)
+  where numar is not null;
 
 -- ============================================================
 -- 3. trip_sheet_curse — liniile foii
@@ -289,6 +311,9 @@ declare
 begin
   -- `trip_sheets.numar` a fost text liber până la 0200; un număr scris de
   -- mână în forma noastră ar lovi `ts_org_numar_uq`. Se sare peste el.
+  -- §E5: și peste numărul unei foi ANULATE sau stornate. Rămâne consumat
+  -- chiar dacă `org_admin` dă contorul înapoi; altfel registrul ar avea două
+  -- documente cu același număr, unul anulat și unul valabil.
   loop
     insert into public.document_sequences (organization_id, document_type, year, prefix, next_number, padding)
     values (p_org, 'foaie_parcurs', p_an, 'FP', 2, 5)
@@ -301,7 +326,7 @@ begin
               || pg_catalog.lpad(v_numar::text, v_padding, '0');
     exit when not exists (
       select 1 from public.trip_sheets t
-       where t.organization_id = p_org and t.numar = v_text and t.deleted_at is null
+       where t.organization_id = p_org and t.numar = v_text
     );
     v_incercari := v_incercari + 1;
     if v_incercari > 100 then
@@ -796,14 +821,34 @@ begin
     end if;
   end if;
 
+  -- 0200 §E5: întâi dreptul de a scrie foaia, înaintea oricărui refuz care
+  -- depinde de ea și înaintea lacătului. Triggerul e DEFINER și rulează
+  -- înaintea WITH CHECK-ului lui `alimentari_insert`: fără poarta asta, cine
+  -- știa id-ul foii altcuiva (și din altă firmă, cu `organization_id`-ul ei)
+  -- îi afla starea și intervalul din refuzuri. Condiția e un factor al
+  -- politicii, deci nu oprește pe nimeni pe care politica l-ar lăsa, iar
+  -- codul e cel pe care l-ar fi dat politica (42501). Mesajul foii lipsă e
+  -- cel din 0199, cu virgula dedesubt (`traduEroare` îl afișa oricum așa).
+  select * into v_foaie from public.trip_sheets t where t.id = new.trip_sheet_id;
+  if not found or v_foaie.organization_id <> new.organization_id then
+    raise exception using errcode = 'P0001',
+      message = 'Foaia de parcurs selectată nu aparține organizației dumneavoastră.';
+  end if;
+  if not app.is_service_context()
+     and not app.poate_scrie_foaie(v_foaie.organization_id, v_foaie.employee_id) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul să scrieți pe această foaie de parcurs.';
+  end if;
+
   -- 0200 §E1: rândul foii se blochează înaintea numărătorii de mai jos, ca
-  -- două inserări simultane să nu treacă amândouă de plafon.
+  -- două inserări simultane să nu treacă amândouă de plafon. Citit din nou
+  -- sub lacăt: între timp foaia se putea șterge sau își putea schimba starea.
   select * into v_foaie from public.trip_sheets t
    where t.id = new.trip_sheet_id and t.deleted_at is null
      for no key update;
-  if not found or v_foaie.organization_id <> new.organization_id then
+  if not found then
     raise exception using errcode = 'P0001',
-      message = 'Foaia de parcurs selectată nu aparţine organizaţiei dumneavoastră.';
+      message = 'Foaia de parcurs selectată nu aparține organizației dumneavoastră.';
   end if;
 
   -- 0200 §D1: alimentările urmează EXACT starea foii: se adaugă, se modifică
@@ -863,8 +908,9 @@ declare
   v_alta  record;
   v_numara boolean;
   v_serviciu boolean := app.is_service_context();
-  -- 0200 §E1: o zi de lucru are cel mult 12 ore (Codul muncii art. 112), deci
-  -- 40 de curse înseamnă una la 18 minute, fără pauză. Plafonul ține de
+  -- 0200 §E1: repausul dintre două zile de muncă e, de regulă, de cel puțin
+  -- 12 ore (Codul muncii art. 135 alin. (1)), deci ziua de lucru are cel mult
+  -- 12 ore: 40 de curse înseamnă una la 18 minute, fără pauză. Plafonul ține de
   -- resursă, nu de drepturi, deci se aplică oricui scrie, și contextului de
   -- serviciu.
   c_plafon_curse constant integer := 40;
@@ -881,14 +927,34 @@ begin
     end if;
   end if;
 
+  -- 0200 §E5: întâi dreptul de a scrie foaia, înaintea oricărui refuz care
+  -- depinde de ea și înaintea lacătului. Triggerul e DEFINER și rulează
+  -- înaintea WITH CHECK-ului lui `curse_insert`: fără poarta asta, cine știa
+  -- id-ul foii altcuiva (și din altă firmă, cu `organization_id`-ul ei) îi
+  -- afla din refuzuri ziua foii, orele și kilometrii curselor, starea ei și
+  -- foile declarate ale șoferului, cu număr și ore. Condiția e un factor al
+  -- politicii, deci nu oprește pe nimeni pe care politica l-ar lăsa, iar
+  -- codul e cel pe care l-ar fi dat politica (42501).
+  select * into v_foaie from public.trip_sheets t where t.id = new.trip_sheet_id;
+  if not found or v_foaie.organization_id <> new.organization_id then
+    raise exception using errcode = 'P0001',
+      message = 'Foaia de parcurs selectată nu aparține organizației dumneavoastră.';
+  end if;
+  if not v_serviciu
+     and not app.poate_scrie_foaie(v_foaie.organization_id, v_foaie.employee_id) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul să scrieți pe această foaie de parcurs.';
+  end if;
+
   -- 0200 §E1: rândul foii se blochează înainte de plafon și de vecini: două
   -- scrieri simultane pe aceeași foaie se așteaptă, deci nu trec amândouă de
   -- plafon și nu se suprapun una peste alta. `curse_dupa` atinge oricum același
   -- rând, deci ordinea lacătelor nu se inversează. La renumerotarea surorilor
-  -- (adâncimea 2) lacătul e deja al tranzacției.
+  -- (adâncimea 2) lacătul e deja al tranzacției. Citit din nou sub lacăt:
+  -- între timp foaia se putea șterge sau își putea schimba starea.
   select * into v_foaie from public.trip_sheets t where t.id = new.trip_sheet_id
      for no key update;
-  if not found or v_foaie.organization_id <> new.organization_id or v_foaie.deleted_at is not null then
+  if not found or v_foaie.deleted_at is not null then
     raise exception using errcode = 'P0001',
       message = 'Foaia de parcurs selectată nu aparține organizației dumneavoastră.';
   end if;
@@ -1451,6 +1517,13 @@ begin
      where schemaname = 'public' and tablename = 'trip_sheets' and indexname = 'ts_sofer_interval_gist'
   ) then
     raise exception '0200: lipsește indexul de suprapunere pe șofer (ts_sofer_interval_gist).';
+  end if;
+
+  if not exists (
+    select 1 from pg_catalog.pg_indexes
+     where schemaname = 'public' and tablename = 'trip_sheets' and indexname = 'ts_org_numar_idx'
+  ) then
+    raise exception '0200: lipsește indexul numerelor de foaie, și pe foile anulate (ts_org_numar_idx).';
   end if;
 
   select string_agg(p.proname, ', ') into v_lipsa

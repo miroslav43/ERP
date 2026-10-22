@@ -43,6 +43,18 @@
 --       trece pe alt vehicul (P0001). Înainte: FP-2025-00001 retrimisă pe 2 ian.
 --       2026, cu registrul spunând 31 dec. 2025;
 --  (17) ciorna FĂRĂ număr își mută în continuare ziua                     [POZITIVĂ].
+-- ── Revizorul adversarial A2 (0200 §E5; au picat pe 0200 de la acd49bdf: (18),
+--    (19)×2 și (20); (21) trecea) ────────────────────────────────────────────
+--  (18) `org_admin` dă contorul FP înapoi la 1: foaia nouă NU primește numărul
+--       unei foi anulate. Înainte: FP-…-00001 a doua oară, și în registru;
+--  (19) colegul `employee` care știe id-ul foii lui A nu află nimic din refuz:
+--       cursa peste foaia ei trimisă, cea liberă, cea din altă zi și cea de pe
+--       foaia trimisă dau toate 42501, la fel alimentările. Înainte: numărul
+--       foii declarate, cu orele, ziua foii și starea ei, în P0001;
+--  (20) la fel un utilizator din ALTĂ firmă, care trimite `organization_id`-ul
+--       firmei lui A;
+--  (21) `org_admin` (update = all) scrie în continuare o cursă și o alimentare
+--       pe ciorna șoferului                                             [POZITIVĂ].
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh
@@ -73,6 +85,17 @@ begin
   insert into public.trip_sheet_curse (organization_id, trip_sheet_id, plecare_la, sosire_la,
                                        de_la_loc, pana_la_loc, scop, km_plecare, km_sosire, created_by, updated_by)
   values (p_org, p_foaie, p_de_la, p_pana_la, 'Sediu', 'Client', 'Livrare', p_km, p_km + 1, p_user, p_user);
+  return 'OK';
+exception when others then
+  return sqlstate || ' ' || sqlerrm;
+end $$;
+
+-- O alimentare: 'OK' sau 'SQLSTATE mesaj'.
+create function pg_temp.alim(p_org uuid, p_foaie uuid, p_user uuid, p_la timestamptz) returns text
+language plpgsql as $$
+begin
+  insert into public.fuel_entries (organization_id, trip_sheet_id, litri, cost, alimentat_la, created_by, updated_by)
+  values (p_org, p_foaie, 10, 70, p_la, p_user, p_user);
   return 'OK';
 exception when others then
   return sqlstate || ' ' || sqlerrm;
@@ -113,9 +136,20 @@ declare
                           then app.azi_local() - 10
                           else date_trunc('year', app.azi_local())::date - 10 end;
   v_org      uuid := gen_random_uuid();
+  v_org2     uuid := gen_random_uuid();
   v_u_adm    uuid := gen_random_uuid();
   v_u_a      uuid := gen_random_uuid();
+  v_u_b      uuid := gen_random_uuid();
+  v_u_x      uuid := gen_random_uuid();
   v_e_a      uuid := gen_random_uuid();
+  v_e_b      uuid := gen_random_uuid();
+  v_n6       uuid;
+  v_numar6   text;
+  v_r2       text;
+  v_r3       text;
+  v_r4       text;
+  v_curse0   bigint;
+  v_alim0    bigint;
   v_p        uuid[] := array(select gen_random_uuid() from generate_series(1, 12));
   v_s1       uuid;
   v_s1b      uuid;
@@ -155,16 +189,25 @@ begin
   insert into public.organizations (id, slug, name, cui) values
     (v_org, 'proba-flota-plf-' || v_sufix, 'Proba Plafoane SRL',
      'RO' || (85000000 + (random() * 900000)::int)::text);
+  -- A doua firmă: doar pentru (20), un utilizator străin de firma lui A.
+  insert into public.organizations (id, slug, name, cui) values
+    (v_org2, 'proba-flota-plf2-' || v_sufix, 'Proba Plafoane Bis SRL',
+     'RO' || (86000000 + (random() * 900000)::int)::text);
   insert into public.organization_features (organization_id, feature_key, enabled, activated_at)
-  select v_org, f.feature_key, true, now() from public.features f;
+  select o, f.feature_key, true, now() from public.features f, unnest(array[v_org, v_org2]) o;
   insert into auth.users (id, email, email_confirmed_at) values
     (v_u_adm, 'plf-adm-' || v_sufix || '@proba.test', now()),
-    (v_u_a,   'plf-a-'   || v_sufix || '@proba.test', now());
+    (v_u_a,   'plf-a-'   || v_sufix || '@proba.test', now()),
+    (v_u_b,   'plf-b-'   || v_sufix || '@proba.test', now()),
+    (v_u_x,   'plf-x-'   || v_sufix || '@proba.test', now());
   insert into public.organization_members (organization_id, user_id, role) values
-    (v_org, v_u_adm, 'org_admin'),
-    (v_org, v_u_a,   'employee');
+    (v_org,  v_u_adm, 'org_admin'),
+    (v_org,  v_u_a,   'employee'),
+    (v_org,  v_u_b,   'employee'),
+    (v_org2, v_u_x,   'employee');
   insert into public.employees (id, organization_id, marca, first_name, last_name, hired_on, status, user_id) values
-    (v_e_a, v_org, 'PLF-A', 'Ana', 'Șofer', app.azi_local() - 400, 'activ', v_u_a);
+    (v_e_a, v_org, 'PLF-A', 'Ana', 'Șofer', app.azi_local() - 400, 'activ', v_u_a),
+    (v_e_b, v_org, 'PLF-B', 'Bogdan', 'Coleg', app.azi_local() - 400, 'activ', v_u_b);
   for i in 1 .. 12 loop
     insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent, pool,
                                  consum_mediu_declarat, created_by, updated_by)
@@ -581,6 +624,99 @@ begin
     raise warning '  ✗ (17) ciorna fără număr: %', v_r;
   end if;
 
+  -- ═══ (18) contorul dat înapoi nu redă numărul unei foi anulate ════════════
+  -- `document_sequences_update` (0002) îl lasă pe `org_admin` să rescrie
+  -- contorul. N1 (anulată la (5)) își păstrează numărul, dar e ștearsă logic.
+  perform set_config('request.jwt.claim.sub', v_u_adm::text, true);
+  set local role authenticated;
+  update public.document_sequences set next_number = 1
+   where organization_id = v_org and document_type = 'foaie_parcurs';
+  get diagnostics v_n = row_count;
+  reset role;
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  v_n6 := pg_temp.foaie(v_org, v_p[1], v_e_a, v_u_a, pg_temp.la(v_zi - 22, '8 hours'), 1000);
+  v_r := pg_temp.cursa(v_org, v_n6, v_u_a, pg_temp.la(v_zi - 22, '8 hours'), pg_temp.la(v_zi - 22, '9 hours'), 1000);
+  v_r := v_r || ' / ' || pg_temp.stare(v_n6, v_u_a, 'trimis');
+  reset role;
+  select numar into v_numar6 from public.trip_sheets where id = v_n6;
+  if v_n = 1 and v_r = 'OK / OK' and v_numar6 is not null and v_numar6 <> v_numar1
+     and (select count(*) from public.trip_sheets where organization_id = v_org and numar = v_numar6) = 1 then
+    raise notice '  ✓ (18) contorul dat înapoi la 1: foaia nouă primește %, nu numărul anulat %', v_numar6, v_numar1;
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (18) contor dat înapoi (% rând): %, foaia nouă are % (anulată: %), foi cu numărul ăsta: %',
+      v_n, v_r, v_numar6, v_numar1,
+      (select count(*) from public.trip_sheets where organization_id = v_org and numar = v_numar6);
+  end if;
+
+  -- ═══ (19) colegul care știe id-ul foii nu află nimic din refuz ═══════════
+  -- SC: ciorna lui A, fără curse, în ziua în care A are SB TRIMISĂ (09–12).
+  select count(*) into v_curse0 from public.trip_sheet_curse
+   where trip_sheet_id in (v_sc, v_sb) and deleted_at is null;
+  perform set_config('request.jwt.claim.sub', v_u_b::text, true);
+  set local role authenticated;
+  v_r  := pg_temp.cursa(v_org, v_sc, v_u_b, pg_temp.la(v_zi - 16, '10 hours'), pg_temp.la(v_zi - 16, '11 hours'), 1000);
+  v_r2 := pg_temp.cursa(v_org, v_sc, v_u_b, pg_temp.la(v_zi - 16, '15 hours'), pg_temp.la(v_zi - 16, '16 hours'), 1000);
+  v_r3 := pg_temp.cursa(v_org, v_sc, v_u_b, pg_temp.la(v_zi - 30, '10 hours'), pg_temp.la(v_zi - 30, '11 hours'), 1000);
+  v_r4 := pg_temp.cursa(v_org, v_sb, v_u_b, pg_temp.la(v_zi - 16, '18 hours'), pg_temp.la(v_zi - 16, '19 hours'), 2000);
+  reset role;
+  if v_r like '42501 %' and v_r2 like '42501 %' and v_r3 like '42501 %' and v_r4 like '42501 %'
+     and (select count(*) from public.trip_sheet_curse
+           where trip_sheet_id in (v_sc, v_sb) and deleted_at is null) = v_curse0 then
+    raise notice '  ✓ (19) colegul: cursa peste foaia trimisă, cea liberă, cea din altă zi și cea de pe foaia trimisă dau toate 42501';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning E'  ✗ (19) colegul, pe cursele foii lui A:\n    peste foaia trimisă: %\n    liberă: %\n    altă zi: %\n    pe foaia trimisă: %',
+      v_r, v_r2, v_r3, v_r4;
+  end if;
+
+  select count(*) into v_alim0 from public.fuel_entries
+   where trip_sheet_id in (v_sa, v_sb) and deleted_at is null;
+  perform set_config('request.jwt.claim.sub', v_u_b::text, true);
+  set local role authenticated;
+  v_r  := pg_temp.alim(v_org, v_sa, v_u_b, pg_temp.la(v_zi - 16, '7 hours'));
+  v_r2 := pg_temp.alim(v_org, v_sa, v_u_b, pg_temp.la(v_zi - 16, '9 hours'));
+  v_r3 := pg_temp.alim(v_org, v_sb, v_u_b, pg_temp.la(v_zi - 16, '10 hours'));
+  reset role;
+  if v_r like '42501 %' and v_r2 like '42501 %' and v_r3 like '42501 %'
+     and (select count(*) from public.fuel_entries
+           where trip_sheet_id in (v_sa, v_sb) and deleted_at is null) = v_alim0 then
+    raise notice '  ✓ (19) colegul: alimentarea în afara foii, cea din interval și cea de pe foaia trimisă dau toate 42501';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning E'  ✗ (19) colegul, pe alimentările foii lui A:\n    în afara foii: %\n    în interval: %\n    pe foaia trimisă: %',
+      v_r, v_r2, v_r3;
+  end if;
+
+  -- ═══ (20) utilizatorul din ALTĂ firmă, cu `organization_id`-ul lui A ══════
+  perform set_config('request.jwt.claim.sub', v_u_x::text, true);
+  set local role authenticated;
+  v_r  := pg_temp.cursa(v_org, v_sc, v_u_x, pg_temp.la(v_zi - 16, '10 hours'), pg_temp.la(v_zi - 16, '11 hours'), 1000);
+  v_r2 := pg_temp.alim(v_org, v_sb, v_u_x, pg_temp.la(v_zi - 16, '10 hours'));
+  reset role;
+  if v_r like '42501 %' and v_r2 like '42501 %' then
+    raise notice '  ✓ (20) străinul de firmă primește 42501 pe cursă și pe alimentare, fără nimic din foaie';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning E'  ✗ (20) străinul de firmă:\n    cursa: %\n    alimentarea: %', v_r, v_r2;
+  end if;
+
+  -- ═══ (21) cine scrie orice foaie (update = all) scrie în continuare ══════
+  perform set_config('request.jwt.claim.sub', v_u_adm::text, true);
+  set local role authenticated;
+  v_r  := pg_temp.cursa(v_org, v_n5, v_u_adm, pg_temp.la(v_zi - 21, '8 hours'), pg_temp.la(v_zi - 21, '9 hours'), 1000);
+  v_r2 := pg_temp.alim(v_org, v_n5, v_u_adm, pg_temp.la(v_zi - 21, '8 hours 30 minutes'));
+  reset role;
+  if v_r = 'OK' and v_r2 = 'OK'
+     and (select count(*) from public.trip_sheet_curse where trip_sheet_id = v_n5 and deleted_at is null) = 1
+     and (select count(*) from public.fuel_entries where trip_sheet_id = v_n5 and deleted_at is null) = 1 then
+    raise notice '  ✓ (21) org_admin scrie o cursă și o alimentare pe ciorna șoferului (1 + 1 rânduri)';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (21) org_admin pe ciorna șoferului: cursa %, alimentarea %', v_r, v_r2;
+  end if;
+
   -- ═══ (15) indexul de suprapunere ══════════════════════════════════════════
   -- Pe tabele mici planificatorul alege oricum scanarea secvențială; cu ea oprită
   -- se vede dacă forma interogării SE POATE sprijini pe index. Același predicat pe
@@ -608,7 +744,7 @@ begin
   if v_esecuri > 0 then
     raise exception 'PROBA FLOTA PLAFOANE: % verificări picate', v_esecuri;
   end if;
-  raise notice '  TOATE cele 21 de verificări au trecut.';
+  raise notice '  TOATE cele 26 de verificări au trecut.';
   raise notice '';
 end;
 $$;
