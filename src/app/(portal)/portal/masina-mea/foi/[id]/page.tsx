@@ -23,6 +23,7 @@ import {
   citesteFoaie,
   curseleFoii,
   sabloaneTraseu,
+  uiturileFoii,
   urlSemnateFlota,
   vehiculeDupaId,
 } from "@/lib/queries/fleet";
@@ -84,11 +85,12 @@ export default async function PaginaFoaiaMea({ params }: ProprietatiPagina) {
   const foaie = await citesteFoaie(tenant.organizationId, id);
   if (foaie === null || foaie.employee_id !== stare.fisa.id) notFound();
 
-  const [alimentari, vehicule, anomalii, curse] = await Promise.all([
+  const [alimentari, vehicule, anomalii, curse, uituri] = await Promise.all([
     alimentarileFoii(foaie.id),
     vehiculeDupaId(tenant.organizationId, [foaie.vehicle_id]),
     anomaliiPeFoi(tenant.organizationId, [foaie.id]),
     curseleFoii(tenant.organizationId, foaie.id),
+    uiturileFoii(tenant.organizationId, foaie.id),
   ]);
   const vehicul = vehicule.get(foaie.vehicle_id);
   const poateScrie = can(permisiuni, "trip_sheets:update", "own");
@@ -245,12 +247,16 @@ export default async function PaginaFoaiaMea({ params }: ProprietatiPagina) {
         bazaDeplasare="/portal/diurna-mea"
       />
 
+      {/* ── flota F12f (0217): codurile UIT, aceleași ca pe /flota/foi/[id] ── */}
       <SectiuneCurse
         foaieId={foaie.id}
         curse={curse}
         editabil={editabil}
         kmPlecareFoaie={foaie.km_plecare ?? 0}
         sabloane={sabloane}
+        ziuaFoii={foaie.data}
+        uituri={uituri}
+        masaVehiculKg={vehicul?.masa_maxima_kg ?? null}
       />
 
       <section aria-label="Kilometraj și consum" className="border-border rounded-panou border p-4">

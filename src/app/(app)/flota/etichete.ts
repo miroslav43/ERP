@@ -2,6 +2,16 @@
 import type { TonStare } from "@/components/ui/badge";
 import type { CategorieVehicul, Combustibil, StatusFoaie, StatusVehicul } from "@/schemas/fleet";
 import type { StareScadentaFlota } from "@/domain/fleet/scadente";
+import {
+  grupeazaUit,
+  intervalValabilitate,
+  stareUitLaZi,
+  type AvertismentETransport,
+  type EIncadrare,
+  type StareUitLaZi,
+  type VALABILITATI_UIT,
+} from "@/domain/fleet/uit";
+import { formatDate } from "@/lib/format/date";
 
 export const ETICHETE_STATUS_VEHICUL: Readonly<Record<StatusVehicul, string>> = {
   activ: "În parc",
@@ -129,3 +139,99 @@ const formatorConsum = new Intl.NumberFormat("ro-RO", {
 export function formatConsum(litriLa100Km: number): string {
   return `${formatorConsum.format(litriLa100Km)} l/100 km`;
 }
+
+// ── ÎNCEPUT BLOC: codul UIT (RO e-Transport) pe cursă (0217, F12f) ──
+
+/** Încadrarea cursei, cum o citește omul în selector. */
+export const ETICHETE_E_TRANSPORT: Readonly<Record<EIncadrare, string>> = {
+  neaplicabil: "Nu se aplică",
+  risc_fiscal_national: "Bunuri cu risc fiscal ridicat (transport intern)",
+  international: "Transport internațional",
+};
+
+/** Forma scurtă, pentru coloana de pe foaie și pentru PDF. */
+export const ETICHETE_E_TRANSPORT_SCURT: Readonly<Record<EIncadrare, string>> = {
+  neaplicabil: "Nu se aplică",
+  risc_fiscal_national: "Risc fiscal (intern)",
+  international: "Internațional",
+};
+
+/**
+ * Ce face și ce NU face aplicația, sub selector. Fără „conform e-Transport”:
+ * declararea, confirmarea și poziția GPS rămân în afara aplicației.
+ */
+export const AJUTOR_E_TRANSPORT =
+  "Codul UIT îl primiți de la cel care a declarat transportul (furnizor, beneficiar sau firma proprie). Aplicația îl păstrează și îl verifică, dar nu declară nimic la ANAF.";
+
+export const AJUTOR_DATA_INCEPUT_UIT =
+  "Data declarată pentru începerea transportului, nu data la care a fost generat codul.";
+
+/** Valabilitățile din OUG 41/2022 art. 11 alin. (2), cum apar în selector. */
+export const ETICHETE_VALABILITATE_UIT: Readonly<
+  Record<(typeof VALABILITATI_UIT)[number], string>
+> = {
+  5: "5 zile — standard",
+  15: "15 zile — achiziție intracomunitară, tranzit cu depozitare, nontransfer, stocuri la dispoziția clientului",
+};
+
+export const TONURI_STARE_UIT: Readonly<Record<StareUitLaZi, TonStare>> = {
+  valabil: "succes",
+  neinceput: "atentie",
+  expirat: "pericol",
+};
+
+/** Pastila codului, în ziua foii: „Valabil”, „Expirat din 29.06.2024”, „Începe pe 24.06.2024”. */
+export function etichetaStareUit(
+  u: Readonly<{ data_inceput: string; valabilitate_zile: number }>,
+  ziuaFoii: string,
+): string {
+  const stare = stareUitLaZi(u, ziuaFoii);
+  if (stare === "valabil") return "Valabil";
+  if (stare === "neinceput") return `Începe pe ${formatDate(u.data_inceput)}`;
+  return `Expirat din ${formatDate(intervalValabilitate(u.data_inceput, u.valabilitate_zile).primaZiExpirata)}`;
+}
+
+/** Textul unui avertisment, așa cum apare pe foaie, în coadă și în PDF. */
+export function textAvertismentETransport(a: AvertismentETransport): string {
+  switch (a.tip) {
+    case "lipsa_uit":
+      return "Cursa e marcată e-Transport, dar n-are cod UIT.";
+    case "uit_expirat":
+      return `Codul ${grupeazaUit(a.uit)} e expirat din ${formatDate(a.primaZiExpirata)}, deci nu mai acoperă ziua foii.`;
+    case "uit_neinceput":
+      return `Codul ${grupeazaUit(a.uit)} începe pe ${formatDate(a.dataInceput)}, după ziua foii.`;
+    case "vehicul_sub_prag":
+      return `Vehiculul are ${a.masaKg.toLocaleString("ro-RO")} kg masă maximă în fișă, sub pragul de 2.500 kg al RO e-Transport. Verificați dacă transportul chiar e monitorizat.`;
+  }
+}
+
+/**
+ * Rezumatul foii, deasupra tabelului de curse: „2 curse marcate e-Transport
+ * n-au cod UIT.” Doar avertismentele care cer o acțiune; nota de prag rămâne
+ * pe rândul ei.
+ */
+export function rezumatETransport(
+  avertismente: readonly (readonly AvertismentETransport[])[],
+): readonly string[] {
+  const faraUit = avertismente.filter((lista) => lista.some((a) => a.tip === "lipsa_uit")).length;
+  const nevalabile = avertismente
+    .flat()
+    .filter((a) => a.tip === "uit_expirat" || a.tip === "uit_neinceput").length;
+  const randuri: string[] = [];
+  if (faraUit > 0) {
+    randuri.push(
+      faraUit === 1
+        ? "O cursă marcată e-Transport n-are cod UIT."
+        : `${String(faraUit)} curse marcate e-Transport n-au cod UIT.`,
+    );
+  }
+  if (nevalabile > 0) {
+    randuri.push(
+      nevalabile === 1
+        ? "Un cod UIT nu e valabil în ziua foii."
+        : `${String(nevalabile)} coduri UIT nu sunt valabile în ziua foii.`,
+    );
+  }
+  return randuri;
+}
+// ── SFÂRȘIT BLOC: codul UIT pe cursă ──

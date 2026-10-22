@@ -21,8 +21,10 @@ import {
   anomaliiPeFoi,
   combustibilPeFoi,
   listeazaFoi,
+  stareETransportPeFoi,
   vehiculeDupaId,
 } from "@/lib/queries/fleet";
+import { Badge } from "@/components/ui/badge";
 
 import { formatConsum } from "../etichete";
 import { DecizieFoaie } from "./decizie-foaie";
@@ -91,7 +93,9 @@ async function ListaDeAprobat({
    * apeluri per rând ar fi transformat coada într-o pagină care se încarcă în
    * secunde.
    */
-  const [soferi, vehicule, combustibil, anomalii] = await Promise.all([
+  // F12f (0217): avertismentele e-Transport (cursă marcată fără UIT, cod
+  // expirat sau neînceput în ziua foii). Nu blochează decizia; o informează.
+  const [soferi, vehicule, combustibil, anomalii, eTransport] = await Promise.all([
     angajatiDupaId(
       organizationId,
       randuri.map((f) => f.employee_id).filter((id): id is string => id !== null),
@@ -105,6 +109,7 @@ async function ListaDeAprobat({
       organizationId,
       randuri.map((f) => f.id),
     ),
+    stareETransportPeFoi(organizationId, randuri),
   ]);
 
   const cuAnomalie = randuri.filter((f) => (anomalii.get(f.id) ?? []).length > 0).length;
@@ -150,6 +155,10 @@ async function ListaDeAprobat({
           const vehicul = vehicule.get(f.vehicle_id);
           const alimentat = combustibil.perFoaie.get(f.id);
           const aleFoii = anomalii.get(f.id) ?? [];
+          // `null` = citirea a atins plafonul: „?”, nu un zero care pare curat.
+          // (`?? 0` ar fi transformat tocmai acel `null` în zero.)
+          const dinETransport = eTransport.get(f.id);
+          const avertismenteETransport = dinETransport === undefined ? 0 : dinETransport;
 
           const consumReal = consumLa100Km(alimentat?.litri ?? 0, f.km_parcursi);
           const abatere = abatereConsum(consumReal, vehicul?.consum_mediu_declarat ?? null);
@@ -193,6 +202,15 @@ async function ListaDeAprobat({
                     {formatDateTime(new Date(f.plecare_la))}
                     {f.sosire_la === null ? null : ` – ${formatDateTime(new Date(f.sosire_la))}`}
                   </p>
+                  {avertismenteETransport === 0 ? null : (
+                    <Link href={`/flota/foi/${f.id}`} className="inline-block">
+                      <Badge ton="atentie" cuAvertisment>
+                        {avertismenteETransport === null
+                          ? "e-Transport: ?"
+                          : `e-Transport: ${String(avertismenteETransport)}`}
+                      </Badge>
+                    </Link>
+                  )}
                 </div>
                 <DecizieFoaie id={f.id} />
               </div>

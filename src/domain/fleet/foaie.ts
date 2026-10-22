@@ -193,10 +193,25 @@ export interface IntrareFoaieParcurs {
   readonly aprobatLa: string | null;
   readonly curse: readonly CursaFoaie[];
   readonly alimentari: readonly AlimentareFoaie[];
+  /**
+   * RO e-Transport pe cursă (0217, F12f), după id-ul cursei: încadrarea deja
+   * tradusă și codurile UIT, grupate pentru citire. Lipsă = nicio cursă marcată.
+   */
+  readonly eTransport?: ReadonlyMap<string, LiniaETransport>;
+  /** Avertismentele e-Transport, deja formulate de apelant, tipărite sus. */
+  readonly avertismenteETransport?: readonly string[];
   /** Formatarea momentelor, injectată: modelul nu citește fusul orar. */
   readonly ora: (moment: string) => string;
   readonly dataSiOra: (moment: string) => string;
   readonly ziua: (data: string) => string;
+}
+
+/** Ce tipărește PDF-ul sub o cursă monitorizată RO e-Transport (0217). */
+export interface LiniaETransport {
+  /** Încadrarea, tradusă („Internațional”); `null` = nemarcată, dar cu UIT. */
+  readonly eticheta: string | null;
+  /** Codurile, în grupe de patru: „3V0P 0L0P 0T3J UW46”. */
+  readonly uituri: readonly string[];
 }
 
 export interface RandCursaDocument {
@@ -209,6 +224,10 @@ export interface RandCursaDocument {
   readonly kmPlecare: string;
   readonly kmSosire: string;
   readonly km: string;
+  /** Încadrarea e-Transport a cursei, tradusă; `null` = nemonitorizată. */
+  readonly eTransport: string | null;
+  /** Codurile UIT ale cursei, grupate; gol = niciunul. */
+  readonly uituri: readonly string[];
 }
 
 export interface ModelFoaieParcurs {
@@ -275,6 +294,8 @@ export function modelFoaieParcurs(p: IntrareFoaieParcurs): ModelFoaieParcurs {
     );
   }
   if (curse.length === 0) avertismente.push("Foaia nu are nicio cursă.");
+  avertismente.push(...(p.avertismenteETransport ?? []));
+  const areUit = [...(p.eTransport?.values() ?? [])].some((l) => l.uituri.length > 0);
 
   const unitate = p.unitate === "kWh" ? "kWh" : "l";
   const nrDoc = p.numar ?? "fără număr";
@@ -304,6 +325,8 @@ export function modelFoaieParcurs(p: IntrareFoaieParcurs): ModelFoaieParcurs {
       kmPlecare: km(c.km_plecare),
       kmSosire: km(c.km_sosire),
       km: km(c.km_parcursi),
+      eTransport: p.eTransport?.get(c.id)?.eticheta ?? null,
+      uituri: p.eTransport?.get(c.id)?.uituri ?? [],
     })),
     totaluri: [
       ["Kilometraj la plecare", km(curse[0]?.km_plecare ?? p.kmPlecare)],
@@ -339,6 +362,13 @@ export function modelFoaieParcurs(p: IntrareFoaieParcurs): ModelFoaieParcurs {
       "Km parcurși = kilometrajul la sosirea ultimei curse − kilometrajul la plecarea primei curse. Consum după normă = km parcurși × norma proprie de consum ÷ 100.",
       "Foaia cuprinde elementele minime din normele Codului fiscal (HG 1/2016, titlul II pct. 16 alin. (2) și titlul VII pct. 68 alin. (2)): categoria vehiculului, scopul și locul deplasării, kilometrii parcurși și norma proprie de consum.",
       "Document justificativ întocmit electronic (OMFP 2634/2015, anexa 1): întocmirea, trimiterea și aprobarea sunt consemnate în jurnalul de audit al aplicației, cu persoana și momentul.",
+      // Foaia NU ține loc de documentul care însoțește transportul: UIT-ul se
+      // prezintă împreună cu acela (OUG 41/2022 art. 2 pct. 12, art. 10 alin. (1)).
+      ...(areUit
+        ? [
+            "Codurile UIT (RO e-Transport) sunt cele primite pentru transport și consemnate de șofer; la control se prezintă împreună cu documentul care însoțește transportul. Aplicația nu le declară și nu le confirmă la ANAF.",
+          ]
+        : []),
       ...(p.observatii === null ? [] : [`Observații: ${p.observatii}`]),
     ],
     numeFisier: `foaie-de-parcurs-${p.vehiculNr}-${p.data}${p.numar === null ? "" : `-${p.numar}`}`,

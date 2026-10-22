@@ -170,5 +170,44 @@ describe("DialogCursa", () => {
       km_sosire: "10040",
       sosire_la: "2026-10-05T09:00",
     });
+    // 0217: fără selector (implicit), încadrarea nu pleacă, deci nu se suprascrie.
+    expect(screen.queryByLabelText(/RO e-Transport/)).toBeNull();
+    expect(actualizeazaCursa.mock.calls[0]?.[0]).not.toHaveProperty("e_transport");
+  });
+
+  it("0217: cu selectorul, încadrarea cursei e preselectată și pleacă la corectură", async () => {
+    const cursa = {
+      id: "c8",
+      ordine: 1,
+      plecare_la: "2026-10-05T05:00:00.000Z",
+      sosire_la: "2026-10-05T06:00:00.000Z",
+      de_la_loc: "Sediu",
+      pana_la_loc: "Vama Nădlac",
+      scop: "Export",
+      km_plecare: 10000,
+      km_sosire: 10040,
+      km_parcursi: 40,
+      e_transport: "international" as const,
+    };
+    render(
+      <DialogCursa
+        foaieId={FOAIE}
+        cursa={cursa}
+        propunere={propunere}
+        sabloane={[]}
+        arataETransport
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Modifică cursa/ }));
+    const selector = screen.getByLabelText(/RO e-Transport/) as HTMLSelectElement;
+    expect(selector.value).toBe("international");
+    expect(screen.getByText(/nu declară nimic la ANAF/)).toBeTruthy();
+
+    fireEvent.change(selector, { target: { value: "risc_fiscal_national" } });
+    await deschideSiTrimite();
+    expect(actualizeazaCursa.mock.calls[0]?.[0]).toMatchObject({
+      id: "c8",
+      e_transport: "risc_fiscal_national",
+    });
   });
 });

@@ -31,7 +31,7 @@ import {
 } from "@/domain/fleet/rapoarte";
 import type { CursaFoaie } from "@/domain/fleet/foaie";
 import { createServerSupabase } from "@/lib/supabase/server";
-import type { CategorieVehicul, Combustibil } from "@/schemas/fleet";
+import type { CategorieVehicul, Combustibil, ETransportIncadrare } from "@/schemas/fleet";
 
 import { citesteTot } from "./citeste-tot";
 import { angajatiDupaId, numeleContului, vehiculeDupaId, type RandVehicul } from "./fleet";
@@ -47,7 +47,8 @@ const FELIE_ID = 100;
 /** Exportate ca testul să le poată lipi de `database.ts`: poarta `coloane.test.ts` nu rezolvă `.select(CONSTANTA)`. */
 export const COLOANE_FOAIE_RAPORT =
   "id, vehicle_id, employee_id, numar, data, km_parcursi, vehicul_nr, vehicul_combustibil, " +
-  "norma_l_100km, alimentari:fuel_entries!trip_sheet_id(litri, cost)";
+  "norma_l_100km, alimentari:fuel_entries!trip_sheet_id(litri, cost), " +
+  "uituri:trip_sheet_uit!trip_sheet_id(uit)";
 
 /**
  * Foile APROBATE ale lunii (ziua foii, `trip_sheets.data`), cu litrii și costul
@@ -68,6 +69,7 @@ export async function foiAprobateLuna(
         .eq("status", "aprobat")
         .is("deleted_at", null)
         .is("alimentari.deleted_at", null)
+        .is("uituri.deleted_at", null)
         .gte("data", interval.deLa)
         .lte("data", interval.panaLa);
       if (vehicul !== null) q = q.eq("vehicle_id", vehicul);
@@ -90,10 +92,20 @@ export interface AlimentareDetaliata extends AlimentareRaport {
 }
 
 /** Foaia aprobată cu tot ce cere PDF-ul ei: curse, alimentări, aprobarea. */
-export interface FoaieDetaliata extends Omit<FoaieRaport, "alimentari" | "vehicul_combustibil"> {
+export interface FoaieDetaliata extends Omit<
+  FoaieRaport,
+  "alimentari" | "vehicul_combustibil" | "uituri"
+> {
   readonly alimentari: readonly AlimentareDetaliata[];
   readonly vehicul_combustibil: Combustibil | null;
-  readonly curse: readonly CursaFoaie[];
+  readonly curse: readonly (CursaFoaie & Readonly<{ e_transport: ETransportIncadrare }>)[];
+  /** Codurile UIT vii ale curselor (0217, F12f), ca pe foaia singură. */
+  readonly uituri: readonly Readonly<{
+    cursa_id: string;
+    uit: string;
+    data_inceput: string;
+    valabilitate_zile: number;
+  }>[];
   readonly km_plecare: number | null;
   readonly km_sosire: number | null;
   readonly observatii: string | null;
@@ -109,7 +121,8 @@ export const COLOANE_FOAIE_DETALIATA =
   "norma_l_100km, " +
   "alimentari:fuel_entries!trip_sheet_id(alimentat_la, litri, cost, statie, numar_bon, plin), " +
   "curse:trip_sheet_curse!trip_sheet_id(id, ordine, plecare_la, sosire_la, de_la_loc, " +
-  "pana_la_loc, scop, km_plecare, km_sosire, km_parcursi)";
+  "pana_la_loc, scop, km_plecare, km_sosire, km_parcursi, e_transport), " +
+  "uituri:trip_sheet_uit!trip_sheet_id(cursa_id, uit, data_inceput, valabilitate_zile)";
 
 /**
  * Foile aprobate ale lunii, ÎNTREGI: pachetul lunar generează câte un PDF din
@@ -132,6 +145,7 @@ export async function foiAprobateDetaliate(
         .is("deleted_at", null)
         .is("alimentari.deleted_at", null)
         .is("curse.deleted_at", null)
+        .is("uituri.deleted_at", null)
         .gte("data", interval.deLa)
         .lte("data", interval.panaLa);
       if (vehicul !== null) q = q.eq("vehicle_id", vehicul);

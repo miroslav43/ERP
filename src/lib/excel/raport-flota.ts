@@ -125,6 +125,8 @@ function tabelRegistru(randuri: readonly RandRegistru[]): TabelSuplimentar {
       coloana("Cost combustibil"),
       coloana("Consum real"),
       coloana("Norma"),
+      // F12f (0217): codurile UIT (RO e-Transport) ale curselor foii.
+      coloana("UIT", 2.4),
     ],
     randuri: randuri.map((r) => [
       r.numar ?? LIPSA,
@@ -136,6 +138,7 @@ function tabelRegistru(randuri: readonly RandRegistru[]): TabelSuplimentar {
       lei(r.costCombustibil),
       la100(r.consumReal, r.unitate),
       la100(r.norma, r.unitate),
+      r.uituri.length === 0 ? "" : r.uituri.join(", "),
     ]),
   };
 }

@@ -67,6 +67,8 @@ export async function pachetLunarFlota(p: ParametriPachet): Promise<Uint8Array> 
       aprobator: foaie.aprobat_de === null ? null : (p.aprobatori.get(foaie.aprobat_de) ?? null),
       curse: foaie.curse,
       alimentari,
+      // F12f (0217): codurile UIT, ca pe PDF-ul foii singure.
+      uituri: foaie.uituri,
     });
     const pdf = await genereazaFoaieParcurs({
       organizatie: p.organizatie,

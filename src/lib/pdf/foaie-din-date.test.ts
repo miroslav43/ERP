@@ -86,3 +86,62 @@ describe("modelFoaieDinDate", () => {
     expect(rubrica(m, "Conducător")).toBe("Popescu Ion");
   });
 });
+
+describe("modelFoaieDinDate — RO e-Transport pe cursă (0217, F12f)", () => {
+  const cursa = (id: string, ora: string, eTransport: "neaplicabil" | "international") => ({
+    id,
+    ordine: 1,
+    plecare_la: `2026-09-02T${ora}:00:00Z`,
+    sosire_la: `2026-09-02T${ora}:30:00Z`,
+    de_la_loc: "Sediu",
+    pana_la_loc: "Vamă",
+    scop: "Export",
+    km_plecare: 1000,
+    km_sosire: 1010,
+    km_parcursi: 10,
+    e_transport: eTransport,
+  });
+
+  it("sub traseu: încadrarea și codurile grupate; sus: cursa marcată fără cod și codul expirat", () => {
+    const m = modelFoaieDinDate({
+      ...baza,
+      foaie: FOAIE,
+      vehicul: VEHICUL,
+      curse: [cursa("c2", "08", "neaplicabil"), cursa("c1", "06", "international")],
+      uituri: [
+        {
+          cursa_id: "c2",
+          uit: "3V0P0L0P0T3JUW46",
+          data_inceput: "2026-08-20",
+          valabilitate_zile: 5,
+        },
+      ],
+    });
+    expect(m.curse.map((c) => [c.nr, c.eTransport, c.uituri])).toEqual([
+      ["1", "Internațional", []],
+      ["2", null, ["3V0P 0L0P 0T3J UW46"]],
+    ]);
+    expect(m.avertismente).toContain("Cursa 1: Cursa e marcată e-Transport, dar n-are cod UIT.");
+    expect(
+      m.avertismente.some((a) =>
+        a.startsWith("Cursa 2: Codul 3V0P 0L0P 0T3J UW46 e expirat din 25.08.2026"),
+      ),
+    ).toBe(true);
+    // Foaia nu ține loc de documentul care însoțește transportul.
+    expect(
+      m.note.some((n) => n.includes("împreună cu documentul care însoțește transportul")),
+    ).toBe(true);
+  });
+
+  it("fără curse marcate și fără coduri: nimic despre e-Transport", () => {
+    const m = modelFoaieDinDate({
+      ...baza,
+      foaie: FOAIE,
+      vehicul: VEHICUL,
+      curse: [cursa("c1", "06", "neaplicabil")],
+    });
+    expect(m.curse[0]).toMatchObject({ eTransport: null, uituri: [] });
+    expect(m.avertismente.some((a) => a.includes("UIT"))).toBe(false);
+    expect(m.note.some((n) => n.includes("UIT"))).toBe(false);
+  });
+});
