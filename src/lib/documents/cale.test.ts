@@ -6,9 +6,12 @@ import { PERMISSION_KEYS } from "@/config/permissions";
 import {
   ENTITATI_DOCUMENT,
   caleInPrefix,
+  caleLotCard,
   caleLotImport,
+  caleSursaExtras,
   construiesteCaleDocument,
   prefixCaleDocument,
+  prefixExtrasCard,
   slugFisier,
   verificaDocument,
 } from "./cale";
@@ -71,6 +74,22 @@ describe("contractul de cale din Storage", () => {
     };
     const prefix = prefixCaleDocument(intrare.organizationId, intrare.entitate, intrare.entitateId);
     expect(construiesteCaleDocument(intrare).startsWith(prefix)).toBe(true);
+  });
+
+  // F12b (0214): extrasele de card. Segmentul 2 e `vehicles`, poarta acțiunilor
+  // (`vehicles:create` la urcare); sursa și lotul stau sub ACELAȘI prefix, cel
+  // verificat de `analizeazaExtras` cu `caleInPrefix`.
+  it("extrasul de card și lotul lui stau sub `{org}/vehicles/{lot}/`", () => {
+    const prefix = prefixExtrasCard("org-1", "lot-9");
+    expect(prefix).toBe("org-1/vehicles/lot-9/");
+    expect(RESURSE_REALE).toContain(prefix.split("/")[1]);
+    const sursa = caleSursaExtras("org-1", "lot-9", "Extras OMV Octombrie.CSV");
+    expect(caleInPrefix(sursa, prefix)).toBe(true);
+    expect(sursa.split("/")).toHaveLength(4);
+    expect(sursa.endsWith("-extras-omv-octombrie.csv")).toBe(true);
+    expect(caleLotCard("org-1", "lot-9")).toBe("org-1/vehicles/lot-9/lot-card.json");
+    // `vehicles` nu e „fișă de personal în segmentul 3” (0144): nu intră în listă.
+    expect(ENTITATI_DOCUMENT).not.toContain("vehicles");
   });
 });
 

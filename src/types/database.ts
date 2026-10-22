@@ -5519,6 +5519,378 @@ export type Database = {
           },
         ]
       }
+      fuel_card_import_profiles: {
+        Row: {
+          codificare: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          delimitator: string
+          emitent: string
+          format_data: string
+          id: string
+          mapare: Json
+          organization_id: string
+          rand_antet: number
+          separator_zecimal: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          codificare?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          delimitator?: string
+          emitent: string
+          format_data?: string
+          id?: string
+          mapare: Json
+          organization_id: string
+          rand_antet?: number
+          separator_zecimal?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          codificare?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          delimitator?: string
+          emitent?: string
+          format_data?: string
+          id?: string
+          mapare?: Json
+          organization_id?: string
+          rand_antet?: number
+          separator_zecimal?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fuel_card_import_profiles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fuel_card_imports: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          duplicate: number
+          emitent: string
+          finalizat_la: string | null
+          fisier_nume: string
+          fisier_sha256: string
+          id: string
+          importate: number
+          organization_id: string
+          perioada_de_la: string
+          perioada_pana_la: string
+          randuri_fisier: number
+          respinse: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          duplicate?: number
+          emitent: string
+          finalizat_la?: string | null
+          fisier_nume: string
+          fisier_sha256: string
+          id: string
+          importate?: number
+          organization_id: string
+          perioada_de_la: string
+          perioada_pana_la: string
+          randuri_fisier: number
+          respinse?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          duplicate?: number
+          emitent?: string
+          finalizat_la?: string | null
+          fisier_nume?: string
+          fisier_sha256?: string
+          id?: string
+          importate?: number
+          organization_id?: string
+          perioada_de_la?: string
+          perioada_pana_la?: string
+          randuri_fisier?: number
+          respinse?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fuel_card_imports_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fuel_card_transactions: {
+        Row: {
+          are_ora: boolean
+          cantitate: number | null
+          card_id: string | null
+          card_ultimele_cifre: string | null
+          categorie: Database["public"]["Enums"]["fuel_card_tx_categorie"]
+          cheie_dedup: string
+          created_at: string
+          created_by: string | null
+          data_ro: string | null
+          deleted_at: string | null
+          efectuat_la: string
+          emitent: string
+          fuel_entry_id: string | null
+          id: string
+          id_tranzactie_emitent: string | null
+          import_id: string
+          km_declarat: number | null
+          localitate: string | null
+          moneda: string
+          motiv: string | null
+          nota: string | null
+          nr_inmatriculare_extras: string | null
+          numar_bon: string | null
+          organization_id: string
+          pret_unitar: number | null
+          produs: string
+          rand_fisier: number
+          stare_potrivire: Database["public"]["Enums"]["fuel_card_tx_potrivire"]
+          statie: string | null
+          tara: string | null
+          tip_combustibil: Database["public"]["Enums"]["fuel_type"] | null
+          trip_sheet_id: string | null
+          tva: number | null
+          updated_at: string
+          updated_by: string | null
+          valoare_bruta: number
+          valoare_neta: number | null
+          vehicle_id: string | null
+        }
+        Insert: {
+          are_ora?: boolean
+          cantitate?: number | null
+          card_id?: string | null
+          card_ultimele_cifre?: string | null
+          categorie: Database["public"]["Enums"]["fuel_card_tx_categorie"]
+          cheie_dedup: string
+          created_at?: string
+          created_by?: string | null
+          data_ro?: string | null
+          deleted_at?: string | null
+          efectuat_la: string
+          emitent: string
+          fuel_entry_id?: string | null
+          id?: string
+          id_tranzactie_emitent?: string | null
+          import_id: string
+          km_declarat?: number | null
+          localitate?: string | null
+          moneda?: string
+          motiv?: string | null
+          nota?: string | null
+          nr_inmatriculare_extras?: string | null
+          numar_bon?: string | null
+          organization_id: string
+          pret_unitar?: number | null
+          produs: string
+          rand_fisier: number
+          stare_potrivire: Database["public"]["Enums"]["fuel_card_tx_potrivire"]
+          statie?: string | null
+          tara?: string | null
+          tip_combustibil?: Database["public"]["Enums"]["fuel_type"] | null
+          trip_sheet_id?: string | null
+          tva?: number | null
+          updated_at?: string
+          updated_by?: string | null
+          valoare_bruta: number
+          valoare_neta?: number | null
+          vehicle_id?: string | null
+        }
+        Update: {
+          are_ora?: boolean
+          cantitate?: number | null
+          card_id?: string | null
+          card_ultimele_cifre?: string | null
+          categorie?: Database["public"]["Enums"]["fuel_card_tx_categorie"]
+          cheie_dedup?: string
+          created_at?: string
+          created_by?: string | null
+          data_ro?: string | null
+          deleted_at?: string | null
+          efectuat_la?: string
+          emitent?: string
+          fuel_entry_id?: string | null
+          id?: string
+          id_tranzactie_emitent?: string | null
+          import_id?: string
+          km_declarat?: number | null
+          localitate?: string | null
+          moneda?: string
+          motiv?: string | null
+          nota?: string | null
+          nr_inmatriculare_extras?: string | null
+          numar_bon?: string | null
+          organization_id?: string
+          pret_unitar?: number | null
+          produs?: string
+          rand_fisier?: number
+          stare_potrivire?: Database["public"]["Enums"]["fuel_card_tx_potrivire"]
+          statie?: string | null
+          tara?: string | null
+          tip_combustibil?: Database["public"]["Enums"]["fuel_type"] | null
+          trip_sheet_id?: string | null
+          tva?: number | null
+          updated_at?: string
+          updated_by?: string | null
+          valoare_bruta?: number
+          valoare_neta?: number | null
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fuel_card_transactions_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "fuel_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuel_card_transactions_fuel_entry_id_fkey"
+            columns: ["fuel_entry_id"]
+            isOneToOne: false
+            referencedRelation: "fuel_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuel_card_transactions_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "fuel_card_imports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuel_card_transactions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuel_card_transactions_trip_sheet_id_fkey"
+            columns: ["trip_sheet_id"]
+            isOneToOne: false
+            referencedRelation: "trip_sheets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuel_card_transactions_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fuel_cards: {
+        Row: {
+          amprenta_numar: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string | null
+          emitent: string
+          employee_id: string | null
+          id: string
+          observatii: string | null
+          organization_id: string
+          status: Database["public"]["Enums"]["fuel_card_status"]
+          ultimele_cifre: string
+          updated_at: string
+          updated_by: string | null
+          valabil_pana: string | null
+          vehicle_id: string | null
+        }
+        Insert: {
+          amprenta_numar?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string | null
+          emitent: string
+          employee_id?: string | null
+          id?: string
+          observatii?: string | null
+          organization_id: string
+          status?: Database["public"]["Enums"]["fuel_card_status"]
+          ultimele_cifre: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_pana?: string | null
+          vehicle_id?: string | null
+        }
+        Update: {
+          amprenta_numar?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string | null
+          emitent?: string
+          employee_id?: string | null
+          id?: string
+          observatii?: string | null
+          organization_id?: string
+          status?: Database["public"]["Enums"]["fuel_card_status"]
+          ultimele_cifre?: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_pana?: string | null
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fuel_cards_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuel_cards_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuel_cards_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fuel_entries: {
         Row: {
           alimentat_la: string
@@ -13939,6 +14311,215 @@ export type Database = {
           },
         ]
       }
+      vehicle_exit_obligations: {
+        Row: {
+          cod: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          depinde_de: string | null
+          exit_id: string
+          finalizat_de: string | null
+          finalizat_la: string | null
+          id: string
+          natura: string
+          nota: string | null
+          nu_se_aplica: boolean
+          ordine: number
+          organization_id: string
+          temei: string | null
+          termen: string | null
+          updated_at: string
+          updated_by: string | null
+          vehicle_id: string
+          zile_dupa_dependenta: number | null
+        }
+        Insert: {
+          cod: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          depinde_de?: string | null
+          exit_id: string
+          finalizat_de?: string | null
+          finalizat_la?: string | null
+          id?: string
+          natura: string
+          nota?: string | null
+          nu_se_aplica?: boolean
+          ordine: number
+          organization_id: string
+          temei?: string | null
+          termen?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id: string
+          zile_dupa_dependenta?: number | null
+        }
+        Update: {
+          cod?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          depinde_de?: string | null
+          exit_id?: string
+          finalizat_de?: string | null
+          finalizat_la?: string | null
+          id?: string
+          natura?: string
+          nota?: string | null
+          nu_se_aplica?: boolean
+          ordine?: number
+          organization_id?: string
+          temei?: string | null
+          termen?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id?: string
+          zile_dupa_dependenta?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_exit_obligations_exit_id_fkey"
+            columns: ["exit_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_exits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_exit_obligations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_exit_obligations_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_exits: {
+        Row: {
+          anulat_de: string | null
+          anulat_la: string | null
+          created_at: string
+          created_by: string | null
+          cumparator: string | null
+          data_iesire: string
+          deleted_at: string | null
+          destinatie_epava:
+            | Database["public"]["Enums"]["vehicle_exit_wreck"]
+            | null
+          id: string
+          incident_id: string | null
+          km_iesire: number | null
+          motiv: string
+          motiv_anulare: string | null
+          motiv_radiere:
+            | Database["public"]["Enums"]["vehicle_exit_dereg_reason"]
+            | null
+          nr_document: string | null
+          observatii: string | null
+          organization_id: string
+          pastreaza_numarul: boolean
+          preluata_din_istoric: boolean
+          pret: number | null
+          tip: Database["public"]["Enums"]["vehicle_exit_type"]
+          updated_at: string
+          updated_by: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          anulat_de?: string | null
+          anulat_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          cumparator?: string | null
+          data_iesire: string
+          deleted_at?: string | null
+          destinatie_epava?:
+            | Database["public"]["Enums"]["vehicle_exit_wreck"]
+            | null
+          id?: string
+          incident_id?: string | null
+          km_iesire?: number | null
+          motiv: string
+          motiv_anulare?: string | null
+          motiv_radiere?:
+            | Database["public"]["Enums"]["vehicle_exit_dereg_reason"]
+            | null
+          nr_document?: string | null
+          observatii?: string | null
+          organization_id: string
+          pastreaza_numarul?: boolean
+          preluata_din_istoric?: boolean
+          pret?: number | null
+          tip: Database["public"]["Enums"]["vehicle_exit_type"]
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          anulat_de?: string | null
+          anulat_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          cumparator?: string | null
+          data_iesire?: string
+          deleted_at?: string | null
+          destinatie_epava?:
+            | Database["public"]["Enums"]["vehicle_exit_wreck"]
+            | null
+          id?: string
+          incident_id?: string | null
+          km_iesire?: number | null
+          motiv?: string
+          motiv_anulare?: string | null
+          motiv_radiere?:
+            | Database["public"]["Enums"]["vehicle_exit_dereg_reason"]
+            | null
+          nr_document?: string | null
+          observatii?: string | null
+          organization_id?: string
+          pastreaza_numarul?: boolean
+          preluata_din_istoric?: boolean
+          pret?: number | null
+          tip?: Database["public"]["Enums"]["vehicle_exit_type"]
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_exits_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_exits_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_exits_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicle_expenses: {
         Row: {
           categorie: Database["public"]["Enums"]["vehicle_expense_category"]
@@ -15711,6 +16292,25 @@ export type Database = {
         | "finance"
         | "communication"
         | "portal"
+      fuel_card_status: "activ" | "blocat" | "anulat"
+      fuel_card_tx_categorie:
+        | "combustibil"
+        | "adblue"
+        | "taxa_drum"
+        | "spalatorie"
+        | "parcare"
+        | "magazin"
+        | "corectie"
+        | "altele"
+      fuel_card_tx_potrivire:
+        | "potrivita"
+        | "diferenta"
+        | "fara_alimentare"
+        | "fara_foaie"
+        | "vehicul_necunoscut"
+        | "card_necunoscut"
+        | "necombustibil"
+        | "ignorata"
       fuel_type:
         | "benzina"
         | "motorina"
@@ -15978,6 +16578,14 @@ export type Database = {
         | "transport_persoane_plata"
         | "servicii_plata"
         | "marfa_comerciala"
+      vehicle_exit_dereg_reason: "export" | "furt" | "retragere_depozitare"
+      vehicle_exit_type:
+        | "vanzare"
+        | "casare"
+        | "dauna_totala"
+        | "radiere"
+        | "restituire_leasing"
+      vehicle_exit_wreck: "instrainata" | "casata"
       vehicle_expense_category:
         | "combustibil_fara_foaie"
         | "parcare"
@@ -16337,6 +16945,27 @@ export const Constants = {
         "communication",
         "portal",
       ],
+      fuel_card_status: ["activ", "blocat", "anulat"],
+      fuel_card_tx_categorie: [
+        "combustibil",
+        "adblue",
+        "taxa_drum",
+        "spalatorie",
+        "parcare",
+        "magazin",
+        "corectie",
+        "altele",
+      ],
+      fuel_card_tx_potrivire: [
+        "potrivita",
+        "diferenta",
+        "fara_alimentare",
+        "fara_foaie",
+        "vehicul_necunoscut",
+        "card_necunoscut",
+        "necombustibil",
+        "ignorata",
+      ],
       fuel_type: [
         "benzina",
         "motorina",
@@ -16632,6 +17261,15 @@ export const Constants = {
         "servicii_plata",
         "marfa_comerciala",
       ],
+      vehicle_exit_dereg_reason: ["export", "furt", "retragere_depozitare"],
+      vehicle_exit_type: [
+        "vanzare",
+        "casare",
+        "dauna_totala",
+        "radiere",
+        "restituire_leasing",
+      ],
+      vehicle_exit_wreck: ["instrainata", "casata"],
       vehicle_expense_category: [
         "combustibil_fara_foaie",
         "parcare",

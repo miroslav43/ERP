@@ -145,9 +145,23 @@ const ENTITATI: Readonly<Record<string, string>> = {
   vehicle_fine: "Amendă pe vehicul",
   vehicle_incidents: "Incident / daună",
   vehicle_incident: "Incident / daună",
+  // F12b (0214): tabelele cardurilor de combustibil, scrise de triggerul de audit
+  // și de acțiunile din `flota/carduri/**`.
+  fuel_cards: "Card de combustibil",
+  fuel_card: "Card de combustibil",
+  fuel_card_imports: "Import extras card",
+  fuel_card_import: "Import extras card",
+  fuel_card_transactions: "Tranzacție card",
+  fuel_card_transaction: "Tranzacție card",
+  fuel_card_import_profiles: "Mapare extras card",
   // F12d (0216): tabela și literalul acțiunilor din `flota/rezervari/actions.ts`.
   vehicle_reservations: "Rezervare vehicul",
   vehicle_reservation: "Rezervare vehicul",
+  // F12h (0218): tabelele și literalele acțiunilor din `flota/[id]/iesire/actions.ts`.
+  vehicle_exits: "Ieșire din parc",
+  vehicle_exit: "Ieșire din parc",
+  vehicle_exit_obligations: "Termen de ieșire din parc",
+  vehicle_exit_obligation: "Termen de ieșire din parc",
   work_accidents: "Accident de muncă",
   work_accident: "Accident de muncă",
   fire_extinguishers: "Stingător",

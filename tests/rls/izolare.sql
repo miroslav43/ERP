@@ -630,6 +630,37 @@ begin
           'Parbriz crăpat de o piatră', v_admin_beta, v_admin_beta);
   -- ═══ SFÂRȘIT BLOC: fixture amenzi și daune (0206) ═════════════════════════
 
+  -- ═══ ÎNCEPUT BLOC: fixture carduri de combustibil (0214, F12b) ════════════
+  -- Câte un card pe vehiculul fiecărei firme, un profil de import, un lot și o
+  -- tranzacție din extras, ca verificarea (c) să aibă rânduri ale lui Beta.
+  insert into public.fuel_cards (organization_id, emitent, ultimele_cifre, vehicle_id, valabil_pana,
+                                 created_by, updated_by)
+  values (v_alfa, 'omv_petrom', '1111', (select val from t_ids where cheie='veh_alfa'), current_date + 300,
+          v_admin_alfa, v_admin_alfa),
+         (v_beta, 'omv_petrom', '1111', (select val from t_ids where cheie='veh_beta'), current_date + 300,
+          v_admin_beta, v_admin_beta);
+  insert into public.fuel_card_import_profiles (organization_id, emitent, mapare, created_by, updated_by)
+  values (v_alfa, 'omv_petrom', '{"numar_card": "Card"}', v_admin_alfa, v_admin_alfa),
+         (v_beta, 'omv_petrom', '{"numar_card": "Card"}', v_admin_beta, v_admin_beta);
+  with loturi as (
+    insert into public.fuel_card_imports (id, organization_id, emitent, fisier_nume, fisier_sha256,
+                                          perioada_de_la, perioada_pana_la, randuri_fisier, created_by, updated_by)
+    values (gen_random_uuid(), v_alfa, 'omv_petrom', 'extras-alfa.csv', repeat('a', 64), current_date - 30,
+            current_date, 1, v_admin_alfa, v_admin_alfa),
+           (gen_random_uuid(), v_beta, 'omv_petrom', 'extras-beta.csv', repeat('b', 64), current_date - 30,
+            current_date, 1, v_admin_beta, v_admin_beta)
+    returning id, organization_id, created_by
+  )
+  insert into public.fuel_card_transactions (organization_id, import_id, emitent, cheie_dedup, rand_fisier,
+                                             efectuat_la, produs, categorie, valoare_bruta, vehicle_id,
+                                             stare_potrivire, created_by, updated_by)
+  select l.organization_id, l.id, 'omv_petrom', 'h:fixture#1', 2, now() - interval '1 day', 'Parcare',
+         'parcare', 12.5,
+         (select val from t_ids where cheie = case when l.organization_id = v_alfa then 'veh_alfa' else 'veh_beta' end),
+         'necombustibil', l.created_by, l.created_by
+    from loturi l;
+  -- ═══ SFÂRȘIT BLOC: fixture carduri de combustibil (0214, F12b) ════════════
+
   -- ═══ ÎNCEPUT BLOC: fixture procesul-verbal de predare (0215, F12c) ════════
   -- Câte o CIORNĂ de PV de predare pe alocarea deschisă a fiecărei firme.
   -- Ciorna, nu finalizatul: fără număr PVA și fără rând în registru, ca
@@ -660,6 +691,23 @@ begin
     from public.vehicles v
    where v.nr_inmatriculare in ('CJ' || v_sufix || 'PA', 'TM' || v_sufix || 'PB');
   -- ═══ SFÂRȘIT BLOC: fixture rezervările de pool (0216, F12d) ═══════════════
+
+  -- ═══ ÎNCEPUT BLOC: fixture ieșirea din parc (0218, F12h) ══════════════════
+  -- Câte o mașină vândută ieri, per firmă, ca verificarea (c) să aibă rânduri
+  -- în AMBELE organizații pe `vehicle_exits` și `vehicle_exit_obligations`.
+  -- Vehicule proprii, nu `veh_alfa`/`veh_beta`: celelalte blocuri le folosesc
+  -- ca vehicule din parc. Ca superuser, prin același INSERT ca asistentul:
+  -- triggerul scoate vehiculul din parc și creează termenele.
+  insert into public.vehicles (organization_id, nr_inmatriculare, marca, model, km_curent,
+                               created_by, updated_by)
+  values (v_alfa, 'CJ' || v_sufix || 'IE', 'Dacia', 'Logan', 100, v_admin_alfa, v_admin_alfa),
+         (v_beta, 'TM' || v_sufix || 'IE', 'Dacia', 'Logan', 100, v_admin_beta, v_admin_beta);
+  insert into public.vehicle_exits (organization_id, vehicle_id, tip, data_iesire, motiv,
+                                    created_by, updated_by)
+  select v.organization_id, v.id, 'vanzare', app.azi_local() - 1, 'Vândută prin fixture', v.created_by, v.created_by
+    from public.vehicles v
+   where v.nr_inmatriculare in ('CJ' || v_sufix || 'IE', 'TM' || v_sufix || 'IE');
+  -- ═══ SFÂRȘIT BLOC: fixture ieșirea din parc (0218, F12h) ══════════════════
 
   -- ═══ ÎNCEPUT BLOC: fixture tipurile de document per firmă (0202) ══════════
   -- Câte o setare per firmă pe un tip de PLATFORMĂ (ADR, retras în 0116):
@@ -6288,6 +6336,90 @@ begin
 end $$;
 -- ═══ SFÂRȘIT BLOC: amenzi și daune (0206) ════════════════════════════════════
 
+-- ── (l) F12b: carduri de combustibil (0214) ──
+-- `org_admin` (vehicles:create/update = all) înregistrează un card, un lot de
+-- extras și o tranzacție, apoi reconciliază tranzacția (ignorare cu notă) și
+-- anulează cardul. Rânduri NUMĂRATE: un UPDATE respins de USING nu ridică
+-- eroare. `hr`, `manager` și `employee` nu scriu tranzacții (42501).
+do $$
+declare
+  v_alfa   uuid := pg_temp.id('alfa');
+  v_admin  uuid := pg_temp.id('admin_alfa');
+  v_hr     uuid := pg_temp.id('hr_user_alfa');
+  v_mgr    uuid := pg_temp.id('mgr_user_alfa');
+  v_emp    uuid := pg_temp.id('emp_alfa');
+  v_veh    uuid;
+  v_card   uuid;
+  v_lot    uuid := gen_random_uuid();
+  v_tx     uuid;
+  v_n      int;
+  v_total  int := 0;
+  v_u      uuid;
+begin
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+
+  insert into public.vehicles (organization_id, nr_inmatriculare, marca, model, km_curent, created_by, updated_by)
+  values (v_alfa, 'CJ' || upper(left(md5(random()::text), 6)) || 'K', 'Dacia', 'Logan', 100, v_admin, v_admin)
+  returning id into v_veh;
+
+  insert into public.fuel_cards (organization_id, emitent, ultimele_cifre, vehicle_id, valabil_pana,
+                                 created_by, updated_by)
+  values (v_alfa, 'omv_petrom', '4321', v_veh, current_date + 200, v_admin, v_admin)
+  returning id into v_card;
+  v_total := v_total + 1;
+
+  insert into public.fuel_card_imports (id, organization_id, emitent, fisier_nume, fisier_sha256,
+                                        perioada_de_la, perioada_pana_la, randuri_fisier, created_by, updated_by)
+  values (v_lot, v_alfa, 'omv_petrom', 'extras-l.csv', repeat('c', 64), current_date - 30, current_date, 1,
+          v_admin, v_admin);
+  v_total := v_total + 10;
+
+  insert into public.fuel_card_transactions (organization_id, import_id, emitent, cheie_dedup, rand_fisier,
+                                             card_id, efectuat_la, produs, categorie, valoare_bruta,
+                                             vehicle_id, stare_potrivire, created_by, updated_by)
+  values (v_alfa, v_lot, 'omv_petrom', 'h:izolare-l#1', 2, v_card, now() - interval '2 days', 'Spălare',
+          'spalatorie', 25, v_veh, 'necombustibil', v_admin, v_admin)
+  returning id into v_tx;
+  v_total := v_total + 100;
+
+  update public.fuel_card_transactions
+     set stare_potrivire = 'ignorata', nota = 'Spălare decontată separat.', updated_by = v_admin
+   where id = v_tx;
+  get diagnostics v_n = row_count;
+  v_total := v_total + v_n * 1000;
+
+  update public.fuel_cards set status = 'anulat', updated_by = v_admin where id = v_card;
+  get diagnostics v_n = row_count;
+  v_total := v_total + v_n * 10000;
+  reset role;
+
+  if v_total <> 11111 then
+    perform pg_temp.esueaza(format(
+      '(l) REFUZ TĂCUT: `org_admin` pe carduri: card + lot×10 + tranzacție×100 + reconciliere×1000 + anulare×10000 = %s, așteptat 11111',
+      v_total));
+  end if;
+
+  foreach v_u in array array[v_hr, v_mgr, v_emp] loop
+    perform set_config('request.jwt.claim.sub', v_u::text, true);
+    set local role authenticated;
+    begin
+      insert into public.fuel_card_transactions (organization_id, import_id, emitent, cheie_dedup, rand_fisier,
+                                                 efectuat_la, produs, categorie, valoare_bruta, stare_potrivire,
+                                                 created_by, updated_by)
+      values (v_alfa, v_lot, 'omv_petrom', 'h:izolare-l-x#1', 3, now(), 'Motorină', 'combustibil', 10,
+              'card_necunoscut', v_u, v_u);
+      reset role;
+      perform pg_temp.esueaza('(l) FALS-POZITIV: un rol fără `vehicles:update = all` a scris o tranzacție de card');
+    exception when insufficient_privilege then
+      reset role;
+    end;
+  end loop;
+
+  raise notice '(l) carduri de combustibil: org_admin înregistrează cardul, lotul și tranzacția, reconciliază și anulează; hr, manager și employee nu scriu tranzacții ✓';
+end $$;
+-- ── sfârșit (l) F12b ──
+
 -- ── (l) F12c: procesul-verbal de predare-primire (0215) ──
 -- (l), continuare — org_admin întocmește și finalizează PV-ul, șoferul îl
 -- confirmă din portal, iar `hr` care conduce o mașină a firmei (decizia 3)
@@ -6534,6 +6666,83 @@ begin
   raise notice '(l) F12d: employee își rezervă pool-ul, managerul aprobă subordonatul, org_admin anulează cu motiv; hr nu vede nimic ✓';
 end $$;
 -- ── sfârșit (l) F12d ──
+
+-- ── (l) F12h: ieșirea din parc (0218) ──
+-- (l), continuare — org_admin scoate din parc o mașină (un singur INSERT în
+-- `vehicle_exits`), bifează un termen, apoi anulează ieșirea. Dacă vreo politică
+-- ar refuza una dintre scrieri, administratorul n-ar putea lucra, iar (a)-(k) ar
+-- trece verzi. Rânduri NUMĂRATE: un UPDATE respins de USING nu ridică eroare.
+-- `manager` (read = team) nu vede ieșirea (implicita I-h6).
+do $$
+declare
+  v_alfa    uuid := pg_temp.id('alfa');
+  v_admin   uuid := pg_temp.id('admin_alfa');
+  v_mgr     uuid := pg_temp.id('mgr_user_alfa');
+  v_veh     uuid := gen_random_uuid();
+  v_azi     date := app.azi_local();
+  v_iesire  uuid;
+  v_termen  uuid;
+  v_n       int;
+  v_vazute  int;
+begin
+  insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent,
+                               created_by, updated_by) values
+    (v_veh, v_alfa, 'CJ' || left(replace(v_veh::text, '-', ''), 5) || 'IL', 'Dacia', 'Logan', 900,
+     v_admin, v_admin);
+
+  -- 1) org_admin scoate vehiculul din parc: vânzare de alaltăieri.
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  insert into public.vehicle_exits (organization_id, vehicle_id, tip, data_iesire, km_iesire, motiv,
+                                    created_by, updated_by)
+  values (v_alfa, v_veh, 'vanzare', v_azi - 2, 950, 'Vândută unui client', v_admin, v_admin)
+  returning id into v_iesire;
+  get diagnostics v_n = row_count;
+  reset role;
+  if v_n <> 1 or (select status from public.vehicles where id = v_veh) <> 'vandut'
+     or (select count(*) from public.vehicle_exit_obligations where exit_id = v_iesire) <> 2 then
+    perform pg_temp.esueaza(format('(l) FALS-NEGATIV: org_admin nu scoate vehiculul din parc (%s rânduri)', v_n));
+  end if;
+
+  -- 2) org_admin bifează declarația la primărie.
+  select id into v_termen from public.vehicle_exit_obligations
+   where exit_id = v_iesire and cod = 'impozit_local_instrainare';
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  update public.vehicle_exit_obligations set finalizat_la = v_azi, updated_by = v_admin
+   where id = v_termen and finalizat_la is null and not nu_se_aplica;
+  get diagnostics v_n = row_count;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza(format('(l) FALS-NEGATIV: org_admin nu bifează termenul ieșirii (%s rânduri)', v_n));
+  end if;
+
+  -- 3) managerul (vehicles:read = team) nu vede ieșirea și nu bifează nimic.
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  select count(*) into v_vazute from public.vehicle_exits where id = v_iesire;
+  update public.vehicle_exit_obligations set nota = 'Încercare', updated_by = v_mgr where exit_id = v_iesire;
+  get diagnostics v_n = row_count;
+  reset role;
+  if v_vazute <> 0 or v_n <> 0 then
+    perform pg_temp.esueaza(format('(l) FALS-POZITIV: managerul vede %s ieșiri și atinge %s termene', v_vazute, v_n));
+  end if;
+
+  -- 4) org_admin anulează ieșirea: vehiculul revine în parc.
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  update public.vehicle_exits
+     set anulat_la = now(), motiv_anulare = 'Vânzarea nu s-a mai făcut.', updated_by = v_admin
+   where id = v_iesire and anulat_la is null and deleted_at is null;
+  get diagnostics v_n = row_count;
+  reset role;
+  if v_n <> 1 or (select status from public.vehicles where id = v_veh) <> 'activ' then
+    perform pg_temp.esueaza(format('(l) FALS-NEGATIV: org_admin nu anulează ieșirea (%s rânduri)', v_n));
+  end if;
+
+  raise notice '(l) F12h: org_admin scoate vehiculul din parc, bifează un termen și anulează ieșirea; managerul nu vede nimic ✓';
+end $$;
+-- ── sfârșit (l) F12h ──
 
 
 rollback;

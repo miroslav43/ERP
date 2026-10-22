@@ -20,22 +20,21 @@ import { ETICHETE_STATUS_VEHICUL } from "../etichete";
 import { valoriVehicul } from "../valori-vehicul";
 
 /**
- * Modificarea vehiculului, inclusiv ieșirea lui din parc.
+ * Modificarea vehiculului. Ieșirea din parc NU mai trece pe aici.
  *
- * ── STAREA APARE DOAR AICI, NU ȘI LA CREARE ──────────────────────────────────
- * `vehicule_insert` cere literal `status = 'activ'`, `data_iesire is null` și
- * `motiv_iesire is null`: o mașină nu poate intra în evidență direct „vândută"
- * fără să fi existat vreodată în parc. Politica de UPDATE n-are restricția, deci
- * drumul spre „vândut"/„casat" trece obligatoriu prin caseta asta.
+ * ── IEȘIREA E UN ASISTENT SEPARAT (0218, F12h) ───────────────────────────────
+ * Din 0218, vânzarea, casarea, radierea și restituirea la locator se fac din
+ * „Scoate din parc” (`iesire/dialog-iesire.tsx`): un INSERT în `vehicle_exits`
+ * închide alocarea la data ieșirii și creează termenele de după ea. Baza refuză
+ * trecerea directă în/din `vandut`/`casat` (`vehicles_iesire_garda`, P0001).
+ * De aceea, cât vehiculul e în parc, starea are doar „În parc” / „În service”;
+ * pe un vehicul ieșit, starea și motivul ieșirii se arată ca text și pleacă
+ * NESCHIMBATE: așa trece `superRefine` din `actualizeazaVehiculSchema` (cere
+ * motiv la vândut/casat), iar garda bazei nu se declanșează. Revenirea în parc
+ * se face prin anularea ieșirii, din secțiunea „Ieșirea din parc”.
  *
- * ── DE CE MOTIVUL E CONTROLAT DE STARE, ȘI NU MEREU VIZIBIL ──────────────────
- * `motiv_iesire` n-are sens pentru o mașină din parc, iar un câmp gol pe care
- * nu-l poți completa corect e zgomot. Apare când starea o cere, iar schema îl
- * și impune atunci (`superRefine`): peste un an, „de ce a ieșit mașina asta?"
- * e singura întrebare care se mai pune despre ea.
- *
- * `data_iesire` NU e în formular: `internal.vehicles_normalizeaza` o pune singură
- * din `status` și o golește la întoarcerea în parc.
+ * `data_iesire` NU e în formular: o scrie asistentul, iar
+ * `internal.vehicles_normalizeaza` o golește la întoarcerea în parc.
  */
 interface Proprietati {
   readonly vehicul: ValoriInitialeVehicul &
@@ -49,21 +48,18 @@ interface Proprietati {
 
 const IESE_DIN_PARC: ReadonlySet<StatusVehicul> = new Set<StatusVehicul>(["vandut", "casat"]);
 
+/** Stările care se pot alege de aici: doar cele din parc (0218). */
+const STARI_IN_PARC = STATUS_VEHICUL.filter((s) => !IESE_DIN_PARC.has(s));
+
 /**
- * Starea + motivul, ca subcomponent — NU ca stare a casetei.
+ * Starea, ca subcomponent — NU ca stare a casetei.
  *
  * `FormularDialog` randează `{deschis ? <Dialog>… : null}`, deci interiorul se
  * REMONTEAZĂ la fiecare deschidere; componenta din jur, nu. Cât timp `status`
  * stătea în `DialogVehicul`, selectul era singurul câmp care nu-și relua
  * valoarea din `vehicul`: toate celelalte se remontau cu `defaultValue`, el
- * rămânea pe ultima alegere ABANDONATĂ.
- *
- * Concret: cineva deschidea „Modifică", alegea „Casat" din curiozitate, apăsa
- * „Renunță" — și la a doua deschidere, venită pentru cu totul altceva, găsea
- * selectul tot pe „Casat" și câmpul de motiv gol lângă el. Completat ca să
- * treacă de validare, vehiculul ieșea din parc fără ca nimeni s-o fi vrut.
- *
- * Mutat aici, `useState` se inițializează din nou la fiecare deschidere.
+ * rămânea pe ultima alegere ABANDONATĂ. Mutat aici, `useState` se
+ * inițializează din nou la fiecare deschidere.
  */
 function StareaVehiculului<TData>({
   stare,
@@ -76,6 +72,16 @@ function StareaVehiculului<TData>({
 }): ReactElement {
   const [status, setStatus] = useState<StatusVehicul>(vehicul.status);
 
+  // Vehiculul ieșit: starea și motivul se văd, nu se aleg (asistentul le-a scris).
+  if (IESE_DIN_PARC.has(vehicul.status)) {
+    return (
+      <p className="text-muted-foreground text-corp">
+        Vehiculul e ieșit din parc ({ETICHETE_STATUS_VEHICUL[vehicul.status].toLowerCase()}). Pentru
+        a-l readuce, anulați ieșirea din secțiunea „Ieșirea din parc”.
+      </p>
+    );
+  }
+
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <Camp
@@ -83,6 +89,7 @@ function StareaVehiculului<TData>({
         id={idc("status")}
         eticheta="Starea vehiculului"
         fel="select"
+        ajutor="Vânzarea, casarea sau radierea se înregistrează cu „Scoate din parc”."
         erori={stare.erori["status"] ?? []}
       >
         {(a) => (
@@ -93,7 +100,7 @@ function StareaVehiculului<TData>({
               setStatus(e.target.value as StatusVehicul);
             }}
           >
-            {STATUS_VEHICUL.map((s) => (
+            {STARI_IN_PARC.map((s) => (
               <option key={s} value={s}>
                 {ETICHETE_STATUS_VEHICUL[s]}
               </option>
@@ -101,36 +108,18 @@ function StareaVehiculului<TData>({
           </select>
         )}
       </Camp>
-
-      {IESE_DIN_PARC.has(status) ? (
-        <Camp
-          nume="motiv_iesire"
-          id={idc("motiv_iesire")}
-          eticheta="Motivul ieșirii din parc"
-          obligatoriu
-          ajutor="Cui s-a vândut, de ce s-a casat. Data ieșirii se completează singură."
-          erori={stare.erori["motiv_iesire"] ?? []}
-        >
-          {(a) => (
-            <input
-              {...a}
-              type="text"
-              maxLength={500}
-              defaultValue={stare.valoriTrimise["motiv_iesire"] ?? vehicul.motiv_iesire ?? ""}
-            />
-          )}
-        </Camp>
-      ) : null}
     </div>
   );
 }
 
 export function DialogVehicul({ vehicul, departamente }: Proprietati): ReactElement {
+  const iesit = IESE_DIN_PARC.has(vehicul.status);
   async function trimite(date: FormData) {
     return actualizeazaVehicul({
       id: vehicul.id,
-      status: String(date.get("status") ?? ""),
-      motiv_iesire: String(date.get("motiv_iesire") ?? "").trim() || null,
+      // Pe un vehicul ieșit, starea și motivul pleacă neschimbate (0218).
+      status: iesit ? vehicul.status : String(date.get("status") ?? ""),
+      motiv_iesire: iesit ? vehicul.motiv_iesire : null,
       ...valoriVehicul(date),
     });
   }

@@ -48,11 +48,32 @@ function dataIso(valoare: Date): string {
   return `${an}-${luna}-${zi}`;
 }
 
-function textDinCelula(valoare: unknown): string {
+/**
+ * Data CU ORA de perete: „AAAA-LL-ZZTHH:mm:ss”, din componentele UTC (Excel
+ * ține ora de perete ca UTC, fără fus). Miezul nopții exact iese doar ca dată:
+ * o celulă formatată „dată” nu are oră, iar „00:00:00” ar minți că are.
+ */
+function dataOraIso(valoare: Date): string {
+  const h = valoare.getUTCHours();
+  const m = valoare.getUTCMinutes();
+  const s = valoare.getUTCSeconds();
+  if (h === 0 && m === 0 && s === 0) return dataIso(valoare);
+  const doi = (n: number) => String(n).padStart(2, "0");
+  return `${dataIso(valoare)}T${doi(h)}:${doi(m)}:${doi(s)}`;
+}
+
+export type OptiuniExcel = Readonly<{
+  /** Celulele `Date` ies cu oră (`dataOraIso`). Implicit: doar data, ca până acum. */
+  pastreazaOra?: boolean;
+  /** Rândul de antet (de la 1). Datele încep sub el; plafonul se numără pe rândurile de DATE. */
+  randAntet?: number;
+}>;
+
+function textDinCelula(valoare: unknown, pastreazaOra = false): string {
   if (valoare === null || valoare === undefined) return "";
   if (typeof valoare === "string") return valoare.trim();
   if (typeof valoare === "number" || typeof valoare === "boolean") return String(valoare);
-  if (valoare instanceof Date) return dataIso(valoare);
+  if (valoare instanceof Date) return pastreazaOra ? dataOraIso(valoare) : dataIso(valoare);
   if (typeof valoare === "object") {
     const obiect: Record<string, unknown> = { ...(valoare as Record<string, unknown>) };
     const bogat = obiect["richText"];
@@ -67,7 +88,7 @@ function textDinCelula(valoare: unknown): string {
         .trim();
     }
     if (typeof obiect["text"] === "string") return obiect["text"].trim();
-    if ("result" in obiect) return textDinCelula(obiect["result"]);
+    if ("result" in obiect) return textDinCelula(obiect["result"], pastreazaOra);
   }
   return "";
 }
@@ -95,7 +116,12 @@ async function dimensiuneDecomprimata(buffer: ArrayBuffer): Promise<number> {
   return total;
 }
 
-export async function citesteExcelDinBuffer(buffer: ArrayBuffer): Promise<RezultatCitire> {
+export async function citesteExcelDinBuffer(
+  buffer: ArrayBuffer,
+  optiuni: OptiuniExcel = {},
+): Promise<RezultatCitire> {
+  const pastreazaOra = optiuni.pastreazaOra === true;
+  const randAntetCerut = Math.max(1, Math.trunc(optiuni.randAntet ?? 1));
   if (buffer.byteLength > LIMITA_FISIER_BYTES) {
     return { ok: false, mesaj: "Fișierul depășește dimensiunea maximă acceptată." };
   }
@@ -124,11 +150,11 @@ export async function citesteExcelDinBuffer(buffer: ArrayBuffer): Promise<Rezult
     };
   }
   const foaie = registru.worksheets[0];
-  if (!foaie || foaie.rowCount < 2) {
+  if (!foaie || foaie.rowCount < randAntetCerut + 1) {
     return { ok: false, mesaj: "Fișierul nu conține niciun rând de date sub linia de antet." };
   }
 
-  const randAntet = foaie.getRow(1);
+  const randAntet = foaie.getRow(randAntetCerut);
   const nrColoane = Math.max(foaie.columnCount, 1);
   const antet = Array.from({ length: nrColoane }, (_, i) => {
     const text = textDinCelula(randAntet.getCell(i + 1).value);
@@ -138,16 +164,19 @@ export async function citesteExcelDinBuffer(buffer: ArrayBuffer): Promise<Rezult
     antet.indexOf(nume) === i ? nume : `${nume} (${i + 1})`,
   );
 
-  const ultimul = Math.min(foaie.rowCount, LIMITA_RANDURI + 1);
+  // Plafonul e pe rândurile de DATE, nu pe numărul rândului: cu antetul pe
+  // rândul 4, „primele 1000” încep de la rândul 5.
+  const primul = randAntetCerut + 1;
+  const ultimul = Math.min(foaie.rowCount, randAntetCerut + LIMITA_RANDURI);
   const randuri: RandBrut[] = [];
-  for (let i = 2; i <= ultimul; i += 1) {
+  for (let i = primul; i <= ultimul; i += 1) {
     const rand = foaie.getRow(i);
     const celule = new Map<string, string>();
     let areContinut = false;
     for (let c = 0; c < nrColoane; c += 1) {
       const cheie = antetUnic[c];
       if (cheie === undefined) continue;
-      const text = textDinCelula(rand.getCell(c + 1).value);
+      const text = textDinCelula(rand.getCell(c + 1).value, pastreazaOra);
       if (text.length > 0) areContinut = true;
       celule.set(cheie, text);
     }

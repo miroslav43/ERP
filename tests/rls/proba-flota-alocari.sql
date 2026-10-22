@@ -12,7 +12,8 @@
 -- (6) angajatul altei firme nu se poate aloca (P0001);
 -- (7) șoferul își vede propriile alocări, inclusiv cea încheiată     [POZITIVĂ];
 -- (8) încheierea alocării lasă vehiculul fără șofer                  [POZITIVĂ];
--- (9) casarea vehiculului închide alocarea deschisă                   [POZITIVĂ];
+-- (9) casarea vehiculului (din 0218, o ieșire în `vehicle_exits`) închide
+--     alocarea deschisă                                              [POZITIVĂ];
 -- (10) un vehicul casat nu se mai alocă (P0001).
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
@@ -210,7 +211,9 @@ begin
     raise warning '  ✗ (8) încheierea alocării a eșuat: % (%)', sqlerrm, sqlstate;
   end;
 
-  -- (9) casarea închide alocarea deschisă
+  -- (9) casarea închide alocarea deschisă. Din 0218 (F12h) casarea trece prin
+  -- asistentul de ieșire: un INSERT în `vehicle_exits`, nu `status = 'casat'`
+  -- scris direct (`vehicles_iesire_garda` îl refuză cu P0001).
   perform set_config('request.jwt.claim.sub', v_u_admin::text, true);
   set local role authenticated;
   insert into public.vehicle_assignments (organization_id, vehicle_id, employee_id, de_la,
@@ -218,9 +221,9 @@ begin
   values (v_org, v_vehicul, v_e_a, now() - interval '30 minutes', v_u_admin, v_u_admin)
   returning id into v_aloc_a;
   begin
-    update public.vehicles
-       set status = 'casat', motiv_iesire = 'Probă', updated_by = v_u_admin
-     where id = v_vehicul;
+    insert into public.vehicle_exits (organization_id, vehicle_id, tip, data_iesire, motiv,
+                                      created_by, updated_by)
+    values (v_org, v_vehicul, 'casare', app.azi_local(), 'Probă de casare', v_u_admin, v_u_admin);
     reset role;
     select pana_la into v_pana_la from public.vehicle_assignments where id = v_aloc_a;
     select employee_id into v_sofer from public.vehicles where id = v_vehicul;

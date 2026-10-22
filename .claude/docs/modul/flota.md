@@ -96,11 +96,13 @@ bonului, `org-flota`): `[[modul/flota/documente-si-erori]]`.
 ACEEAȘI rută nu remontează). Datele casetei de foaie: `foi/date-foaie-noua.ts`, doar
 vehicule `activ` (baza refuză foaia pe unul vândut sau casat).
 
-## Extensii
+## Extensii (F12)
 
-- F12c: [[modul/flota/proces-verbal]]
-- F12d: [[modul/flota/rezervari]]
-- F12e: [[modul/asistent/unelte-flota]]
+- b, carduri de combustibil (0214): `[[modul/flota/carduri]]`
+- c, proces-verbal de predare-primire (0215): `[[modul/flota/proces-verbal]]`
+- d, rezervări pe mașinile de pool (0216): `[[modul/flota/rezervari]]`
+- e, unelte de flotă în asistent: `[[modul/asistent/unelte-flota]]`
+- h, ieșirea din parc (0218): `[[modul/flota/iesire]]`
 
 ## Server Actions
 
@@ -124,17 +126,15 @@ Planurile de service, intervențiile și cheltuielile (`actions-service.ts`, 020
 `[[modul/flota/service-si-costuri]]`. `salveazaSetariFlota` (`vehicles:update`
 / all, `actions-setari.ts`), jobul zilnic de scadențe și notificările foii (0201):
 `[[modul/flota/alerte-si-setari]]`. Tipurile de document (`actions-tipuri.ts`) și
-fișierele (`actions-fisiere.ts`, 0202): `[[modul/flota/documente-si-erori]]`. Ieșirea din parc (`status`,
-`motiv_iesire`) trece tot prin `actualizeazaVehicul`: aceeași pagină.
+fișierele (`actions-fisiere.ts`, 0202): `[[modul/flota/documente-si-erori]]`. Ieșirea din
+parc: extensia h, nu `actualizeazaVehicul`.
 
 **Kilometrajul de bord e obligatoriu la creare** (`numarObligatoriu`) și lipsește din
-modificare. Pe `default 0`, prima foaie trecea de orice verificare. `z.coerce.number()` nu
-ajunge: `Number("")` și `Number(null)` dau `0`. Corectura e `corecteazaKilometraj`, cu
-motivul în audit.
+modificare. Pe `default 0`, prima foaie trecea de orice verificare (`Number("")` e `0`, mai
+jos). Corectura e `corecteazaKilometraj`, cu motivul în audit.
 
-**Starea foii decide tot ce se mai scrie** (0200 §D1, pe orice scope): pe `trimis` doar
-retragerea sau decizia, pe `respins` doar redeschiderea, pe `aprobat` doar stornarea.
-Cursele și alimentările se scriu DOAR pe ciornă.
+**Starea foii decide tot ce se mai scrie** (0200 §D1, pe orice scope; cursele și
+alimentările DOAR pe ciornă): tabelul stărilor e în `[[modul/flota/foaia-zilnica]]`.
 
 Scrierile pe vehicule și documente sunt toate `minScope: "all"`, fiindcă politicile cer
 literal `has_permission(...) = 'all'`. **`vehicles:delete` NU se folosește**, deși

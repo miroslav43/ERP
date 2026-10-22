@@ -84,6 +84,36 @@ export function caleLotImport(organizationId: string, batchId: string): string {
   return `${organizationId}/employees/${batchId}/lot-validat.json`;
 }
 
+// ── F12b: importul extraselor de card (0214) ──
+/**
+ * Prefixul unui import de extras de card: `{org}/vehicles/{batchId}/`.
+ *
+ * Segmentul 2 e resursa `vehicles`, nu un cuvânt liber: analiza și urcarea cer
+ * `vehicles:create`, iar `app.can_path` îl dă direct lui `has_permission`.
+ * `vehicles` NU intră în `ENTITATI_DOCUMENT` (lista aceea înseamnă „fișă de
+ * personal în segmentul 3”, comentariul din `app.can_path`, 0144): segmentul 3
+ * e lotul, nu un vehicul. Pe `team`/`own`, `can_path` (0199) caută un vehicul
+ * cu id-ul lotului și nu găsește, deci managerul nu citește lotul.
+ */
+export function prefixExtrasCard(organizationId: string, batchId: string): string {
+  return `${organizationId}/vehicles/${batchId}/`;
+}
+
+/** Fișierul sursă al extrasului, urcat de browser pe URL semnat; se șterge la prima citire. */
+export function caleSursaExtras(
+  organizationId: string,
+  batchId: string,
+  numeFisier: string,
+): string {
+  return `${prefixExtrasCard(organizationId, batchId)}${crypto.randomUUID()}-${slugFisier(numeFisier)}`;
+}
+
+/** Lotul validat (fără numere întregi de card), între previzualizare și aplicare. */
+export function caleLotCard(organizationId: string, batchId: string): string {
+  return `${prefixExtrasCard(organizationId, batchId)}lot-card.json`;
+}
+// ── sfârșit F12b ──
+
 export function verificaDocument(mime: string, dimensiune: number): string | null {
   if (!MIME_ACCEPTATE.some((acceptat) => acceptat === mime)) {
     return "Acceptăm doar PDF, imagini (JPG, PNG, WEBP), Word sau Excel.";

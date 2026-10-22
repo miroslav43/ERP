@@ -146,6 +146,14 @@ export const PORTI_APP: readonly PoartaRuta[] = [
   p("/flota/incidente", "fleet", "vehicle_incidents:read", "all"),
   p("/flota/incidente/[id]", "fleet", "vehicle_incidents:read", "all"),
   // ── sfârșit bloc: amenzi și daune (0206) ──
+  // ── început bloc: carduri de combustibil (F12b, 0214) ──
+  // Lista: `carduri_select` urmează vehiculul / șoferul, deci managerul își vede
+  // echipa. Importul cere și `vehicles:update = all`, tranzacțiile și
+  // `vehicles:read = all`: al doilea prag se verifică în preambulul paginii.
+  p("/flota/carduri", "fleet", "vehicles:read", "team"),
+  p("/flota/carduri/import", "fleet", "vehicles:create", "all"),
+  p("/flota/carduri/tranzactii", "fleet", "vehicles:update", "all"),
+  // ── sfârșit bloc: carduri de combustibil (F12b, 0214) ──
   // F12d (0216): rezervările mașinilor de pool; poarta politicii `rezervari_select`.
   p("/flota/rezervari", "fleet", "vehicle_reservations:read"),
   p("/inventar", "inventory", "inventory:read"),
