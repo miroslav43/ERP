@@ -21,7 +21,12 @@
 --      (urgența): regula se aplică doar când tehnicianul se SCHIMBĂ      [POZITIVĂ];
 -- (9)  `public.tehnicieni_mentenanta`: gestionarul primește exact fișele
 --      eligibile; hr, employee și org_admin-ul altei firme primesc zero rânduri;
--- (10) managerul (update = none) nu atribuie: zero rânduri, ca înainte.
+-- (10) managerul (update = none) nu atribuie: zero rânduri, ca înainte;
+-- (11) gestionarul `team` (suprascriere pe membru `maintenance:update = team`,
+--      cu `employees:read = team`) primește doar fișele eligibile pe care i le
+--      arată RLS-ul pe `employees`, nu numele întregii firme [POZITIVĂ +
+--      NEGATIVĂ]. Pe prima formă a selectorului (SECURITY DEFINER pe tot) pica:
+--      lista era TH-A,TH-H,TH-M,TH-T, cu două fișe pe care RLS-ul i le ascundea.
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh --pastreaza
@@ -264,6 +269,29 @@ begin
     $q$update public.fault_reports set atribuit_employee_id = %L where id = %L$q$, v_e_teh, v_s1));
   v_esecuri := v_esecuri + pg_temp.verifica('10', v_text = 'ok:0' or v_text like 'P0001:%',
     'managerul (fără maintenance:update) nu atribuie', v_text);
+
+  -- (11) gestionarul `team` (suprascriere pe membru `maintenance:update = team`)
+  -- cu `employees:read = team` din seed: selectorul NU-i arată fișele pe care
+  -- RLS-ul pe `employees` i le ascunde (constatarea santinelei A5). Funcția e
+  -- SECURITY DEFINER pentru drepturile celorlalți, dar lista de oameni trece
+  -- prin RLS, ca `optiuniAngajati` dinainte.
+  insert into public.role_permissions (organization_id, member_id, role, resource, action, scope)
+  select v_org, m.id, 'manager', 'maintenance', 'update', 'team'
+    from public.organization_members m where m.organization_id = v_org and m.user_id = v_u_mgr;
+  v_ids := array(select x.id from pg_temp.tehnicieni_ca(v_u_mgr, v_org) x);
+  v_lista := (select string_agg(e.marca, ',' order by e.marca)
+                from public.employees e where e.id = any (v_ids));
+  -- Câte dintre fișele primite NU le vede managerul prin RLS.
+  v_n := pg_temp.numara(v_u_mgr, format(
+    $q$select count(*) from unnest(%L::uuid[]) i(id)
+        where not exists (select 1 from public.employees e where e.id = i.id)$q$, v_ids));
+  v_esecuri := v_esecuri + pg_temp.verifica('11',
+    v_e_teh = any (v_ids) and not (v_e_adm = any (v_ids)) and v_n = 0,
+    'gestionarul team primește doar fișele eligibile pe care i le arată RLS-ul (echipa lui), nu toată firma',
+    format('listă %s, nevăzute prin RLS %s', coalesce(v_lista, '∅'), v_n));
+  delete from public.role_permissions
+   where organization_id = v_org and resource = 'maintenance' and action = 'update' and member_id = (
+     select m.id from public.organization_members m where m.organization_id = v_org and m.user_id = v_u_mgr);
 
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri > 0 then

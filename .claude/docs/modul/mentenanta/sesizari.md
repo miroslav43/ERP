@@ -119,11 +119,17 @@ P0001 tradus. Așa regula trăiește într-un singur loc, probat de
   suprascrierile pe organizație și pe membru). Altfel P0001 („Tehnicianul ales nu poate
   deschide sesizările…”), la INSERT și la schimbarea tehnicianului — nu și pe o sesizare
   atribuită înainte cuiva care și-a pierdut dreptul (gestionarul o reatribuie). Un `hr`
-  (fără niciun rând `maintenance`) nu mai poate fi tehnician. Selectorul din caseta de
-  atribuire vine din `optiuniTehnicieni` → `public.tehnicieni_mentenanta` (aceeași regulă,
-  zero rânduri pentru cine n-are `update` ≥ team); executantul intervenției rămâne pe
-  `optiuniAngajati`, iar filtrul „Tehnician” al listei, pe toate fișele (filtrează
-  atribuiri existente). Proba: `tests/rls/proba-sesizari-tehnician-cu-drept.sql`.
+  (fără niciun rând `maintenance`) nu mai poate fi tehnician. Baza NU i-ar fi ascuns
+  rândul (`fault_reports_select` are ramura „atribuită mie”); îl închideau paginile, care
+  cer `can(maintenance:read, own)`. Regula stă o dată, în `internal.tehnician_cu_drept`.
+  Selectorul din caseta de atribuire vine din `optiuniTehnicieni` →
+  `public.tehnicieni_mentenanta`: SECURITY INVOKER (lista de oameni trece prin RLS-ul
+  apelantului pe `employees`, ca `optiuniAngajati`), cu garda privilegiată
+  `app.poate_primi_sesizari` (`update` ≥ team + regula), deci zero rânduri pentru cine nu
+  gestionează. Un gestionar `team` cu `employees:read = team` primește doar echipa lui, nu
+  numele întregii firme (constatarea santinelei, proba (11)). Executantul intervenției
+  rămâne pe `optiuniAngajati`, iar filtrul „Tehnician” al listei, pe toate fișele
+  (filtrează atribuiri existente). Proba: `tests/rls/proba-sesizari-tehnician-cu-drept.sql`.
 - **Atribuirea nu schimbă starea, iar luarea ei înapoi merge doar din `nou`/`in_analiza`**:
   `atribuieSesizare` cu tehnician `null` filtrează pe acele două stări, fiindcă garda cere
   tehnician la `in_lucru`. „Preiau eu” pe un cont fără fișă principală e regulă de business,

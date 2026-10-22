@@ -106,6 +106,28 @@ describe("traduEroare (mentenanță)", () => {
     });
   });
 
+  // 0212 §3b (M3): tehnicianul fără drept. Citit din migrare, ca la 0211: un
+  // mesaj nou al gărzii intră singur în probă.
+  const mesaje0212 = [
+    ...readFileSync(
+      join(process.cwd(), "supabase/migrations/0212_mentenanta_fisiere_scriu_doar_membrii.sql"),
+      "utf8",
+    ).matchAll(/errcode = 'P0001',\s*message = '((?:[^']|'')+)'/gu),
+  ].map((m) => (m[1] ?? "").replaceAll("''", "'"));
+
+  it("0212 are mesajul tehnicianului fără drept", () => {
+    expect(mesaje0212.some((m) => m.startsWith("Tehnicianul ales nu poate deschide"))).toBe(true);
+  });
+
+  it.each(mesaje0212.map((m) => [m]))("P0001 din 0212 ajunge întreg: %s", (mesaj) => {
+    expect(mesaj.length).toBeLessThanOrEqual(300);
+    expect(mesaj.endsWith(".")).toBe(true);
+    expect(prinde(() => traduEroare(eroarePostgrest("P0001", mesaj)))).toMatchObject({
+      code: "CONFLICT",
+      message: mesaj,
+    });
+  });
+
   it.each([["42501"], ["23503"], ["23514"], ["428C9"]])(
     "%s se aruncă mai departe, ca obiectul original",
     (cod) => {

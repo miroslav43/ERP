@@ -49,7 +49,8 @@
 --
 -- §3b (M3, 21 oct 2026): tehnicianul atribuit unei sesizări trebuie să aibă
 -- efectiv `maintenance:read` (P0001 altfel), iar `public.tehnicieni_mentenanta`
--- dă selectorului exact fișele care trec de regulă. Probă:
+-- dă selectorului exact fișele care trec de regulă, dintre cele pe care
+-- apelantul le vede prin RLS-ul pe `employees`. Probă:
 -- `tests/rls/proba-sesizari-tehnician-cu-drept.sql`.
 --
 -- Aplicare: psql byte-exact, după bancul local; pe producție doar cu
@@ -183,11 +184,16 @@ end $$;
 -- fișă a firmei, iar garda din 0181 §5 verifica doar că fișa e a firmei. Un
 -- angajat al cărui rol n-are `maintenance:read` (de ex. `hr`, care n-are niciun
 -- rând `maintenance` în seed) primea atribuirea și notificarea, apoi sesizarea
--- nu i se deschidea: `fault_reports_select` cere `maintenance:read`.
+-- nu i se deschidea. Nu baza o ascundea: `fault_reports_select` (0181) are
+-- ramura „atribuită mie”, deci rândul i se citește (verificat pe banc). O
+-- închid paginile: atât `/mentenanta/sesizari/[id]`, cât și
+-- `/portal/sesizari/[id]` cer `can(maintenance:read, own)`, adică exact
+-- `maintenance:read` ≠ none.
 --
--- Regula, într-un singur loc: tehnicianul NOU are cont, e membru ACTIV și are
--- efectiv `maintenance:read` ≠ none (`internal.scope_membru`, 0189: suprascrierea
--- pe membru bate organizația, organizația bate globalul). Trigger separat, nu o
+-- Regula, într-un singur loc (`internal.tehnician_cu_drept`, folosită de trigger
+-- și de selector): tehnicianul NOU are cont, e membru ACTIV și are efectiv
+-- `maintenance:read` ≠ none (`internal.scope_membru`, 0189: suprascrierea pe
+-- membru bate organizația, organizația bate globalul). Trigger separat, nu o
 -- rescriere a gărzii din 0181: se aplică doar când tehnicianul se SCHIMBĂ, deci
 -- nu blochează gesturile pe o sesizare atribuită înainte cuiva care și-a pierdut
 -- între timp dreptul (gestionarul o reatribuie). Rulează după `fault_reports_garda`
@@ -195,6 +201,32 @@ end $$;
 -- mesajul gărzii. Contextul de serviciu (seed, clientul admin) sare peste
 -- verificarea drepturilor, ca toate triggerele cu drepturi; apartenența la firmă
 -- o păzește garda.
+create or replace function internal.tehnician_cu_drept(p_org uuid, p_employee uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+      from public.employees e
+      join public.organization_members m
+        on m.organization_id = e.organization_id
+       and m.user_id = e.user_id
+       and m.status = 'active'
+       and m.deleted_at is null
+     where e.id = p_employee
+       and e.organization_id = p_org
+       and e.deleted_at is null
+       and e.user_id is not null
+       and internal.scope_membru(p_org, e.user_id, 'maintenance', 'read') <> 'none'
+  );
+$$;
+
+comment on function internal.tehnician_cu_drept(uuid, uuid) is
+  'Fișa poate primi o sesizare (0212 §3b): cont activ în firmă și maintenance:read efectiv ≠ none. Regula comună a triggerului fault_reports_tehnician_cu_drept și a selectorului.';
+
 create or replace function internal.fault_reports_tehnician_cu_drept()
 returns trigger
 language plpgsql
@@ -209,20 +241,7 @@ begin
      or (tg_op = 'UPDATE' and new.atribuit_employee_id is not distinct from old.atribuit_employee_id) then
     return new;
   end if;
-  if not exists (
-    select 1
-      from public.employees e
-      join public.organization_members m
-        on m.organization_id = e.organization_id
-       and m.user_id = e.user_id
-       and m.status = 'active'
-       and m.deleted_at is null
-     where e.id = new.atribuit_employee_id
-       and e.organization_id = new.organization_id
-       and e.deleted_at is null
-       and e.user_id is not null
-       and internal.scope_membru(new.organization_id, e.user_id, 'maintenance', 'read') <> 'none'
-  ) then
+  if not internal.tehnician_cu_drept(new.organization_id, new.atribuit_employee_id) then
     raise exception using errcode = 'P0001',
       message = 'Tehnicianul ales nu poate deschide sesizările: nu are cont activ sau rolul lui nu are acces la mentenanță. Alegeți un tehnician din listă.';
   end if;
@@ -235,39 +254,63 @@ create trigger fault_reports_tehnician_cu_drept
   before insert or update of atribuit_employee_id on public.fault_reports
   for each row execute function internal.fault_reports_tehnician_cu_drept();
 
+revoke all on function internal.tehnician_cu_drept(uuid, uuid) from public, anon, authenticated;
 revoke all on function internal.fault_reports_tehnician_cu_drept() from public, anon, authenticated;
 
--- Selectorul de tehnician, cu ACEEAȘI regulă ca triggerul. Doar gestionarul
--- atribuie (`maintenance:update` ≥ team, ca `atribuieSesizare`); ceilalți primesc
--- zero rânduri, fără eroare. SECURITY DEFINER fiindcă drepturile altor membri
--- (`role_permissions` pe membru, `organization_members`) nu se citesc prin RLS.
-create or replace function public.tehnicieni_mentenanta(p_organization_id uuid)
-returns table (id uuid, full_name text)
+-- Garda selectorului, pe O fișă: apelantul gestionează mentenanța în firmă
+-- (`maintenance:update` ≥ team, ca `atribuieSesizare`) și fișa trece de regulă.
+-- SECURITY DEFINER fiindcă drepturile altor membri (`role_permissions` pe membru,
+-- `organization_members`) nu se citesc prin RLS. În schema `app`: PostgREST n-o
+-- expune, deci se ajunge la ea doar prin selectorul de mai jos.
+create or replace function app.poate_primi_sesizari(p_org uuid, p_employee uuid)
+returns boolean
 language sql
 stable
 security definer
 set search_path = ''
 as $$
+  select p_org is not null
+     and p_org = any ((select app.current_org_ids())::uuid[])
+     and app.feature_on(p_org, 'maintenance')
+     and app.ssm_acces(p_org, 'maintenance', 'update', null)
+     and internal.tehnician_cu_drept(p_org, p_employee);
+$$;
+
+comment on function app.poate_primi_sesizari(uuid, uuid) is
+  'Garda selectorului de tehnician (0212 §3b): apelantul are maintenance:update ≥ team în firmă și fișa are cont activ și maintenance:read efectiv ≠ none.';
+
+revoke all on function app.poate_primi_sesizari(uuid, uuid) from public, anon;
+grant execute on function app.poate_primi_sesizari(uuid, uuid) to authenticated;
+
+-- Selectorul de tehnician, cu ACEEAȘI regulă ca triggerul. Doar gestionarul
+-- atribuie; ceilalți primesc zero rânduri, fără eroare.
+--
+-- SECURITY INVOKER, deliberat: lista de OAMENI trece prin RLS-ul apelantului pe
+-- `employees` (`employees_select`, 0005), ca `optiuniAngajati` dinainte. Prima
+-- formă era SECURITY DEFINER pe tot și îi dădea unui gestionar `team` (o
+-- suprascriere `maintenance:update = team`, cu `employees:read = team`) numele
+-- tuturor angajaților eligibili din firmă, nu doar ale echipei lui (santinela
+-- A5; `tests/rls/proba-sesizari-tehnician-cu-drept.sql` (11)). Doar drepturile
+-- celorlalți se judecă privilegiat, în `app.poate_primi_sesizari`.
+create or replace function public.tehnicieni_mentenanta(p_organization_id uuid)
+returns table (id uuid, full_name text)
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
   select e.id, e.full_name
     from public.employees e
-    join public.organization_members m
-      on m.organization_id = e.organization_id
-     and m.user_id = e.user_id
-     and m.status = 'active'
-     and m.deleted_at is null
    where e.organization_id = p_organization_id
      and e.deleted_at is null
      and e.user_id is not null
-     and p_organization_id = any ((select app.current_org_ids())::uuid[])
-     and app.feature_on(p_organization_id, 'maintenance')
-     and app.ssm_acces(p_organization_id, 'maintenance', 'update', null)
-     and internal.scope_membru(p_organization_id, e.user_id, 'maintenance', 'read') <> 'none'
+     and app.poate_primi_sesizari(p_organization_id, e.id)
    order by e.full_name nulls last, e.id
    limit 500;
 $$;
 
 comment on function public.tehnicieni_mentenanta(uuid) is
-  'Fișele care pot primi o sesizare (0212 §3b): cont activ în firmă și maintenance:read efectiv ≠ none. Doar pentru gestionarul mentenanței (update ≥ team); altfel zero rânduri.';
+  'Fișele care pot primi o sesizare (0212 §3b): cont activ în firmă și maintenance:read efectiv ≠ none, dintre cele pe care apelantul le vede prin RLS. Doar pentru gestionarul mentenanței (update ≥ team); altfel zero rânduri.';
 
 revoke all on function public.tehnicieni_mentenanta(uuid) from public, anon;
 grant execute on function public.tehnicieni_mentenanta(uuid) to authenticated;
@@ -288,10 +331,26 @@ begin
   if has_function_privilege('anon', 'public.tehnicieni_mentenanta(uuid)'::regprocedure, 'execute') then
     v_lipsa := v_lipsa || 'tehnicieni_mentenanta executabilă de anon';
   end if;
+  if not has_function_privilege('authenticated', 'public.tehnicieni_mentenanta(uuid)'::regprocedure, 'execute') then
+    v_lipsa := v_lipsa || 'tehnicieni_mentenanta neexecutabilă de authenticated';
+  end if;
+  -- Selectorul trece prin RLS-ul apelantului pe `employees`: NU security definer.
+  if exists (select 1 from pg_catalog.pg_proc p
+              where p.oid = 'public.tehnicieni_mentenanta(uuid)'::regprocedure and p.prosecdef) then
+    v_lipsa := v_lipsa || 'tehnicieni_mentenanta e security definer (ar ocoli RLS-ul pe employees)';
+  end if;
+  if has_function_privilege('authenticated', 'internal.tehnician_cu_drept(uuid,uuid)'::regprocedure, 'execute') then
+    v_lipsa := v_lipsa || 'internal.tehnician_cu_drept executabilă de authenticated';
+  end if;
+  if not exists (select 1 from pg_catalog.pg_proc p
+                  where p.oid = 'internal.tehnician_cu_drept(uuid,uuid)'::regprocedure
+                    and p.prosecdef and p.proconfig @> array['search_path=""']) then
+    v_lipsa := v_lipsa || 'internal.tehnician_cu_drept fără security definer sau fără search_path vid';
+  end if;
   foreach f in array array[
     'app.mentenanta_poate_atasament(uuid,text,uuid,text)',
     'app.mentenanta_poate_fisier(text,text)',
-    'public.tehnicieni_mentenanta(uuid)']
+    'app.poate_primi_sesizari(uuid,uuid)']
   loop
     if not exists (
       select 1 from pg_catalog.pg_proc p
