@@ -526,6 +526,20 @@ begin
   new.preluata_din_istoric := false;   -- dublat de politica de INSERT
   new.anulat_de := null;               -- anulat_la și motiv_anulare le păzesc politica și check-ul
 
+  -- Dreptul ÎNAINTEA gărzilor. `iesiri_insert` (WITH CHECK) se judecă DUPĂ
+  -- triggerele BEFORE, iar gărzile de mai jos citesc vehiculul fără RLS și
+  -- răspund diferit: fără poarta asta, oricine autentificat (un angajat al altei
+  -- firme, un manager fără `update`) afla km-ul curent (e în mesaj), data
+  -- achiziției (căutare binară pe dată), starea și existența unui vehicul al
+  -- firmei din rând (revizuirea F12h, proba 10b). Aceeași condiție ca politica.
+  if not app.is_service_context()
+     and not (new.organization_id = any (app.current_org_ids())
+              and app.feature_on(new.organization_id, 'fleet')
+              and app.has_permission(new.organization_id, 'vehicles', 'update') = 'all') then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul să scoateți vehicule din parc în această organizație.';
+  end if;
+
   select * into v from public.vehicles x where x.id = new.vehicle_id and x.deleted_at is null;
   if not found or v.organization_id <> new.organization_id then
     raise exception using errcode = 'P0001',
@@ -685,7 +699,10 @@ begin
   if (new.finalizat_la, new.nu_se_aplica) is distinct from (old.finalizat_la, old.nu_se_aplica) then
     new.finalizat_de := case when new.finalizat_la is not null or new.nu_se_aplica
                              then auth.uid() end;
-  else
+  elsif not app.is_service_context() then
+    -- Doar în afara contextului de serviciu: ștergerea contului (Auth) face
+    -- `finalizat_de = null` prin ON DELETE SET NULL, iar repus din OLD ar fi
+    -- dat 23503 pe FK (revizuirea F12h, proba 23).
     new.finalizat_de := old.finalizat_de;
   end if;
 

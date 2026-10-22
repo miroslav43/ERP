@@ -621,7 +621,9 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
               {poateAdministra ? (
                 <>
                   <DialogVehicul vehicul={vehicul} departamente={departamente} />
-                  {vehiculInParc ? (
+                  {/* INSERT-ul întoarce rândul (RETURNING), deci cere și `read = all`:
+                      o suprascriere `update = all` cu `read = team` ar primi 42501. */}
+                  {vehiculInParc && poateVedeaIesirea ? (
                     <DialogIesire
                       vehiculId={vehicul.id}
                       nrInmatriculare={vehicul.nr_inmatriculare}

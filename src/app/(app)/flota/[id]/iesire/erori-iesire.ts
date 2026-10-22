@@ -10,6 +10,7 @@
 // pierde sub „Corectați câmpurile marcate”. Mesajele din 0218 au ș/ț corecte,
 // deci tiparele le folosesc direct.
 import { businessRule, invalidInput, isPostgrestError } from "@/lib/actions/errors";
+import { cuVirgula } from "@/lib/text/diacritice";
 
 import { traduEroare } from "@/app/(app)/flota/erori";
 
@@ -90,7 +91,10 @@ export function traduEroareIesire(error: unknown): never {
       }
     }
     if (error.code === "P0001") {
-      const mesaj = error.message.slice(0, 400);
+      // INSERT-ul scrie și în `vehicles` și `vehicle_assignments`: triggerele lor
+      // vechi (0012–0173) au ş/ţ cu sedilă. Se corectează la afișare, ca în
+      // traducerea flotei; mesajele din 0218 trec neschimbate.
+      const mesaj = cuVirgula(error.message.slice(0, 400));
       const campuri = CAMPURI_DUPA_MESAJ.find(([re]) => re.test(mesaj))?.[1] ?? [];
       if (campuri.length > 0) {
         throw invalidInput(mesaj, Object.fromEntries(campuri.map((c) => [c, [mesaj]])));

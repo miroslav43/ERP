@@ -59,6 +59,22 @@ describe("traduEroareIesire", () => {
     expect(e.fieldErrors).toBeNull();
   });
 
+  // INSERT-ul ieșirii scrie și în `vehicles` și `vehicle_assignments`: triggerele
+  // lor vechi (0012–0173, `vehicles_normalizeaza`) au ş/ţ cu SEDILĂ în mesaje.
+  // Traducerea flotei le corectează la afișare (`cuVirgula`); aceasta la fel.
+  it("P0001 venit din triggerele vechi ale vehiculului: sedila devine virgulă", () => {
+    const e = prinde(
+      eroarePostgrest(
+        "P0001",
+        "Angajatul ales pentru vehicul nu aparţine organizaţiei dumneavoastră.",
+      ),
+    );
+    expect(e).toMatchObject({
+      code: "CONFLICT",
+      message: "Angajatul ales pentru vehicul nu aparține organizației dumneavoastră.",
+    });
+  });
+
   it("kilometrajul cu cifre din bază (format) ajunge pe `km_iesire`, cu cifrele", () => {
     const mesaj =
       "Kilometrajul la ieșire (9000 km) este mai mic decât ultimul cunoscut al vehiculului (10000 km).";

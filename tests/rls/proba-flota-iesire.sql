@@ -462,12 +462,37 @@ begin
     v_r like 'P0001:Vehiculul ales nu aparține organizației%' and v_r2 like '42501:%',
     'vehiculul altei firme: P0001; firma altcuiva în rând: 42501', v_r || ' / ' || v_r2);
 
+  -- (10b) Revizuirea F12h: dreptul se judecă ÎNAINTEA gărzilor. `iesiri_insert`
+  -- (WITH CHECK) rulează DUPĂ triggerul BEFORE, iar gărzile citesc vehiculul
+  -- fără RLS și răspund diferit: fără poarta din `iesire_inainte`, oricine
+  -- autentificat afla km-ul curent (în mesaj), data achiziției (căutare binară
+  -- pe dată), starea și existența unui vehicul al firmei din rând. Fiecare
+  -- încercare de mai jos trebuie să dea 42501, oricare gardă ar fi răspuns.
+  foreach v_t in array array['org_admin_alta', 'manager', 'hr', 'employee', 'super_admin'] loop
+    declare
+      v_u uuid := case v_t when 'manager' then v_u_mgr when 'hr' then v_u_hr
+                           when 'employee' then v_u_ang when 'super_admin' then v_u_sa
+                           else v_u_alta end;
+      v_km text := pg_temp.ruleaza(v_u, pg_temp.iesire(v_org, v_v5, v_u, 'vanzare', v_zi, 0));
+      v_ach text := pg_temp.ruleaza(v_u, pg_temp.iesire(v_org, v_v5, v_u, 'vanzare', v_zi - 200));
+      v_iesit text := pg_temp.ruleaza(v_u, pg_temp.iesire(v_org, v_v1, v_u, 'vanzare', v_zi));
+      v_nimic text := pg_temp.ruleaza(v_u, pg_temp.iesire(v_org, gen_random_uuid(), v_u, 'vanzare', v_zi));
+    begin
+      v_esecuri := v_esecuri + pg_temp.verifica('10b-' || v_t,
+        v_km like '42501:%' and v_km not like '%10000%' and v_ach like '42501:%'
+          and v_iesit like '42501:%' and v_nimic like '42501:%',
+        v_t || ': fără `vehicles:update = all` în firma din rând, nicio gardă nu răspunde (42501 pe km, achiziție, stare, existență)',
+        format('%s / %s / %s / %s', v_km, v_ach, v_iesit, v_nimic));
+    end;
+  end loop;
+
   -- ═══ (11) rolurile fără `vehicles:update` și fără `vehicles:read = all` ═══
   v_termen := pg_temp.termenul(v_v1, 'rca_notificare');
   foreach v_t in array array['manager', 'hr', 'employee', 'org_admin_alta'] loop
     declare
       v_u uuid := case v_t when 'manager' then v_u_mgr when 'hr' then v_u_hr
                            when 'employee' then v_u_ang else v_u_alta end;
+      v_anul text;
     begin
       v_r := pg_temp.ruleaza(v_u, pg_temp.iesire(v_org, v_v13, v_u, 'vanzare', v_zi));
       v_n := pg_temp.numara(v_u, format('select count(*) from public.vehicle_exits where organization_id = %L', v_org));
@@ -476,10 +501,14 @@ begin
         'select count(*) from public.expirables where organization_id = %L and entity_type = ''vehicle_exit''', v_org));
       v_r2 := pg_temp.ruleaza(v_u, format(
         'update public.vehicle_exit_obligations set nota = ''Încercare'', updated_by = %L where id = %L', v_u, v_termen));
+      -- Revizuirea F12h: și anularea ieșirii, numărată (refuz tăcut).
+      v_anul := pg_temp.ruleaza(v_u, format(
+        'update public.vehicle_exits set anulat_la = now(), motiv_anulare = ''Încercare de anulare'', '
+        || 'updated_by = %L where id = %L', v_u, pg_temp.iesirea(v_v1)));
       v_esecuri := v_esecuri + pg_temp.verifica('11-' || v_t,
-        v_r like '42501:%' and v_n = 0 and v_m = 0 and v_k = 0 and v_r2 = 'ok:0',
-        v_t || ': INSERT 42501; zero ieșiri, zero termene, zero scadențe; UPDATE pe termen 0 rânduri',
-        format('%s / %s / %s / %s / %s', v_r, v_n, v_m, v_k, v_r2));
+        v_r like '42501:%' and v_n = 0 and v_m = 0 and v_k = 0 and v_r2 = 'ok:0' and v_anul = 'ok:0',
+        v_t || ': INSERT 42501; zero ieșiri, zero termene, zero scadențe; UPDATE pe termen și anularea: 0 rânduri',
+        format('%s / %s / %s / %s / %s / %s', v_r, v_n, v_m, v_k, v_r2, v_anul));
     end;
   end loop;
 
@@ -487,9 +516,17 @@ begin
   v_n := pg_temp.numara(v_u_sa, format('select count(*) from public.vehicle_exits where organization_id = %L', v_org));
   v_m := pg_temp.numara(v_u_sa, format('select count(*) from public.vehicle_exit_obligations where organization_id = %L', v_org));
   v_r := pg_temp.ruleaza(v_u_sa, pg_temp.iesire(v_org, v_v13, v_u_sa, 'vanzare', v_zi));
-  v_esecuri := v_esecuri + pg_temp.verifica('22', v_n >= 4 and v_m >= 10 and v_r like '42501:%',
-    'super_admin (platform_admins, NU membru) vede ieșirile și termenele, nu scrie (42501)',
-    format('%s / %s / %s', v_n, v_m, v_r));
+  -- Revizuirea F12h: nici bifarea, nici anularea (nu e membru: USING-ul cere firma).
+  v_r2 := pg_temp.ruleaza(v_u_sa, format(
+    'update public.vehicle_exit_obligations set nota = ''Încercare'', updated_by = %L where id = %L', v_u_sa, v_termen));
+  v_t := pg_temp.ruleaza(v_u_sa, format(
+    'update public.vehicle_exits set anulat_la = now(), motiv_anulare = ''Încercare de anulare'', '
+    || 'updated_by = %L where id = %L', v_u_sa, pg_temp.iesirea(v_v1)));
+  v_esecuri := v_esecuri + pg_temp.verifica('22',
+    v_n >= 4 and v_m >= 10 and v_r like '42501:%' and v_r2 = 'ok:0' and v_t = 'ok:0'
+      and pg_temp.iesirea(v_v1) is not null,
+    'super_admin (platform_admins, NU membru) vede ieșirile și termenele, nu scrie: INSERT 42501, bifare și anulare 0 rânduri',
+    format('%s / %s / %s / %s / %s', v_n, v_m, v_r, v_r2, v_t));
 
   -- ═══ (12) termenele le scrie doar asistentul ══════════════════════════════
   v_r := pg_temp.ruleaza(v_u_admin, format(
@@ -672,6 +709,44 @@ begin
                          and (title like '%ieșire%' or body like '%IEP' || v_sufix || '%')),
     'rezumatul: termenele de ieșire (și ale pool-ului) ajung la administrator, nu la responsabilul cu `team`',
     format('%s / pool la admin %s / la ceilalți %s / titluri admin %s', v_r, v_n, v_m, v_k));
+
+  -- ═══ (23) ștergerea contului care a bifat un termen ═══════════════════════
+  -- Revizuirea F12h: `finalizat_de`, `created_by`, `anulat_de` au ON DELETE SET
+  -- NULL. Triggerul termenelor repunea `finalizat_de` din OLD ÎNAINTEA testului
+  -- de context de serviciu, deci ștergerea contului (Auth, ca serviciu) cădea cu
+  -- 23503 pe `vehicle_exit_obligations_finalizat_de_fkey`.
+  declare
+    v_u2  uuid := gen_random_uuid();
+    v_v14 uuid := gen_random_uuid();
+    v_o   uuid;
+    v_del text;
+  begin
+    insert into auth.users (id, email, email_confirmed_at)
+    values (v_u2, 'ie-adm2-' || lower(v_sufix) || '@proba.test', now());
+    insert into public.organization_members (organization_id, user_id, role) values (v_org, v_u2, 'org_admin');
+    insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent,
+                                 created_by, updated_by)
+    values (v_v14, v_org, 'IEZ' || v_sufix, 'Dacia', 'Spring', 100, v_u_admin, v_u_admin);
+    v_r := pg_temp.ruleaza(v_u2, pg_temp.iesire(v_org, v_v14, v_u2, 'vanzare', v_zi));
+    v_o := pg_temp.termenul(v_v14, 'verificare_transcriere');
+    v_r2 := pg_temp.ruleaza(v_u2, format(
+      'update public.vehicle_exit_obligations set finalizat_la = %L, updated_by = %L where id = %L',
+      v_zi, v_u2, v_o));
+    perform set_config('request.jwt.claim.sub', '', true);
+    begin
+      delete from auth.users where id = v_u2;
+      v_del := 'ok';
+    exception when others then
+      v_del := sqlstate || ':' || sqlerrm;
+    end;
+    v_esecuri := v_esecuri + pg_temp.verifica('23',
+      v_r = 'ok:1' and v_r2 = 'ok:1' and v_del = 'ok'
+        and (select finalizat_de from public.vehicle_exit_obligations where id = v_o) is null
+        and (select finalizat_la from public.vehicle_exit_obligations where id = v_o) = v_zi
+        and (select created_by from public.vehicle_exits where vehicle_id = v_v14) is null,
+      'ștergerea contului care a bifat un termen: SET NULL pe autor, bifa rămâne',
+      format('%s / %s / %s', v_r, v_r2, v_del));
+  end;
 
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri > 0 then
