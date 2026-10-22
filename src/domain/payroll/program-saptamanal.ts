@@ -11,7 +11,7 @@
 // dar arată identic cu un program real de 2,5 zile. De aceea programul sub
 // cinci zile se spune pe față, pe fiecare fluturaș (`SAL_PROGRAM_SUB_CINCI_ZILE`).
 
-import { textZile } from "@/lib/format/numar";
+import { formatNumar, textZile } from "@/lib/format/numar";
 
 /** Programul obișnuit (Codul muncii art. 112): cinci zile pe săptămână. */
 export const ZILE_SAPTAMANA_STANDARD = 5;
@@ -42,4 +42,30 @@ export function programSubCinciZile(zile: number | null): boolean {
 /** „5 zile pe săptămână”, „2,5 zile pe săptămână”, „1 zi pe săptămână”. */
 export function textZilePeSaptamana(zile: number): string {
   return `${textZile(zile)} pe săptămână`;
+}
+
+/**
+ * Norma contractului cum o arată fișa angajatului — ecranul la care duce
+ * atenționarea de pe fluturaș: „20 ore/săptămână, 8 ore/zi — 2,5 zile pe
+ * săptămână”. Zilele lipsesc când nu se pot deduce.
+ */
+export function textNormaContract(normaOreZi: number, normaOreSaptamana: number): string {
+  const norme = `${formatNumar(normaOreSaptamana)} ore/săptămână, ${formatNumar(normaOreZi)} ore/zi`;
+  const zile = zilePeSaptamana(normaOreZi, normaOreSaptamana);
+  return zile === null ? norme : `${norme} — ${textZilePeSaptamana(zile)}`;
+}
+
+/** Codul muncii art. 112: cel mult 8 ore pe zi (plafonul din `corpContractSchema`). */
+const NORMA_ZILNICA_MAXIMA = 8;
+
+/**
+ * Norma zilnică a unui program de cinci zile, pentru o normă săptămânală dată
+ * singură (importul are doar coloana „Normă (ore/săptămână)”). Fără ea, baza
+ * punea implicitul de 8 h/zi, iar 8/20 devenea pentru salarizare un program de
+ * 2,5 zile. Rotunjită la sutime în JOS, ca programul să nu iasă „sub cinci” din
+ * rotunjire (21,73 → 4,34, nu 4,35), și plafonată la 8 h (48 h ⇒ șase zile).
+ */
+export function normaZilnicaPeCinciZile(normaOreSaptamana: number): number {
+  const sutimi = Math.floor((normaOreSaptamana * 100) / ZILE_SAPTAMANA_STANDARD + 1e-9);
+  return Math.min(NORMA_ZILNICA_MAXIMA, Math.max(1, sutimi) / 100);
 }

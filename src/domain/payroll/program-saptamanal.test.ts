@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   ZILE_SAPTAMANA_STANDARD,
+  normaZilnicaPeCinciZile,
   programSubCinciZile,
+  textNormaContract,
   textZilePeSaptamana,
   zilePeSaptamana,
 } from "./program-saptamanal";
@@ -46,5 +48,42 @@ describe("zilele pe săptămână, deduse din cele două norme ale contractului"
     expect(textZilePeSaptamana(2.5)).toBe("2,5 zile pe săptămână");
     expect(textZilePeSaptamana(1)).toBe("1 zi pe săptămână");
     expect(textZilePeSaptamana(20 / 6)).toBe("3,33 zile pe săptămână");
+  });
+});
+
+describe("norma contractului pe fișa angajatului", () => {
+  it("arată ambele norme și zilele deduse", () => {
+    expect(textNormaContract(8, 40)).toBe("40 ore/săptămână, 8 ore/zi — 5 zile pe săptămână");
+    expect(textNormaContract(8, 20)).toBe("20 ore/săptămână, 8 ore/zi — 2,5 zile pe săptămână");
+    expect(textNormaContract(7.5, 37.5)).toBe(
+      "37,5 ore/săptămână, 7,5 ore/zi — 5 zile pe săptămână",
+    );
+  });
+
+  it("fără zile inventate când norma zilnică lipsește", () => {
+    expect(textNormaContract(0, 40)).toBe("40 ore/săptămână, 0 ore/zi");
+  });
+});
+
+describe("norma zilnică a unui program de cinci zile, din norma săptămânală", () => {
+  it.each([
+    [40, 8],
+    [20, 4],
+    [30, 6],
+    [37.5, 7.5],
+    [21.73, 4.34],
+    [0.7, 0.14],
+    [48, 8],
+  ] as const)("%d h/săptămână → %d h/zi", (saptamana, zi) => {
+    expect(normaZilnicaPeCinciZile(saptamana)).toBe(zi);
+  });
+
+  it("programul rezultat nu iese niciodată sub cinci zile din rotunjire, de la 0,5 la 48 h", () => {
+    // De la 0,5 h, minimul formularului de contract; sub 0,05 h nici sutimea nu mai încape.
+    for (let sutimi = 50; sutimi <= 4800; sutimi += 1) {
+      const saptamana = sutimi / 100;
+      const zile = zilePeSaptamana(normaZilnicaPeCinciZile(saptamana), saptamana);
+      expect(programSubCinciZile(zile), String(saptamana)).toBe(false);
+    }
   });
 });

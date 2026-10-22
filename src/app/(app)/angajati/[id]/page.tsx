@@ -32,6 +32,7 @@ import {
 } from "../../evaluari/etichete";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { contractInVigoareLa } from "@/domain/payroll/contract";
+import { textNormaContract } from "@/domain/payroll/program-saptamanal";
 import { formatLei } from "@/lib/format/money";
 import { Nivel } from "@/components/ui/nivel";
 import { cn } from "@/lib/ui/cn";
@@ -1127,7 +1128,10 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                     />
                     <Camp
                       eticheta="Normă"
-                      valoare={`${String(contract.norma_ore_saptamana)} ore/săptămână`}
+                      valoare={textNormaContract(
+                        Number(contract.norma_ore_zi),
+                        Number(contract.norma_ore_saptamana),
+                      )}
                     />
                     <Camp eticheta="Salariu de bază" valoare={formatLei(contract.salariu_baza)} />
                     <Camp
@@ -1187,7 +1191,10 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                         />
                         <Camp
                           eticheta="Normă"
-                          valoare={`${String(contract.norma_ore_saptamana)} ore/săptămână`}
+                          valoare={textNormaContract(
+                            Number(contract.norma_ore_zi),
+                            Number(contract.norma_ore_saptamana),
+                          )}
                         />
                         <Camp
                           eticheta="Salariu de bază"

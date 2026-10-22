@@ -23,6 +23,7 @@ import { CautaCor } from "@/components/cauta-cor";
 import { DepartamentNou } from "./departament-nou";
 import { IntrareDataFormular } from "./intrare-data-formular";
 import { PachetSalarial, type SablonSalarial } from "./pachet-salarial";
+import { ProgramSaptamanal } from "./program-saptamanal";
 
 export const CAMPURI_PAS_3 = [
   "department_id",
@@ -367,6 +368,7 @@ export function Pas3Contract({
               />
             )}
           </Camp>
+          <ProgramSaptamanal control={control} />
           <Camp
             nume="work_mode"
             eticheta="Mod de lucru"

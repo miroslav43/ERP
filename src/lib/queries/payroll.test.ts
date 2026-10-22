@@ -181,6 +181,37 @@ describe("perioade și înregistrări", () => {
     expect(areFiltru(aDoua, "gt", "id", "r499")).toBe(true);
   });
 
+  it("listeazaInregistrari: numără atenționările și marchează programul sub cinci zile (garda L4)", async () => {
+    server.raspunde("payroll_entries", "select", {
+      data: [
+        {
+          id: "a",
+          angajat: { full_name: "Ana", marca: "1" },
+          calc_warnings: [
+            { cod: "SAL_PROGRAM_SUB_CINCI_ZILE", mesaj: "…" },
+            { cod: "SAL_FACILITATE_SALARIU_MINIM", mesaj: "…" },
+          ],
+        },
+        {
+          id: "b",
+          angajat: { full_name: "Bogdan", marca: "2" },
+          calc_warnings: [{ cod: "SAL_FACILITATE_SALARIU_MINIM", mesaj: "…" }],
+        },
+        { id: "c", angajat: { full_name: "Corina", marca: "3" }, calc_warnings: null },
+        { id: "d", angajat: { full_name: "Dan", marca: "4" }, calc_warnings: [{ mesaj: "vechi" }] },
+      ],
+    });
+
+    const r = await listeazaInregistrari(ID_1);
+
+    expect(r.randuri.map((x) => [x.id, x.avertismente, x.programSubCinciZile])).toEqual([
+      ["a", 2, true],
+      ["b", 1, false],
+      ["c", 0, false],
+      ["d", 1, false],
+    ]);
+  });
+
   it("listeazaInregistrari: plafonul de 100 de pagini pline ⇒ `trunchiat`, fără a 101-a cerere", async () => {
     for (let p = 0; p < 100; p += 1) {
       server.raspunde("payroll_entries", "select", {

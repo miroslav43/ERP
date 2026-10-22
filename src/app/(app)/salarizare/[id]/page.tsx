@@ -188,6 +188,9 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
     },
   ];
   const fluturasiCuAvertismente = inregistrari.filter((r) => r.avertismente > 0).length;
+  // Garda „L4”: programul sub cinci zile e dedus din norme, nu ales într-un câmp,
+  // deci se numește omul, nu doar numărul de atenționări.
+  const programeSubCinciZile = inregistrari.filter((r) => r.programSubCinciZile);
 
   return (
     <div className="space-y-6">
@@ -534,6 +537,23 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
                 ? "Un fluturaș are atenționări de calcul"
                 : `${String(fluturasiCuAvertismente)} fluturași au atenționări de calcul`}
               ; deschideți-i din coloana „Atenționări” înainte de aprobare.
+            </p>
+          )}
+          {programeSubCinciZile.length === 0 ? null : (
+            <p className="text-warning text-corp">
+              Program sub cinci zile pe săptămână, de confirmat în contract:{" "}
+              {programeSubCinciZile.map((r, i) => (
+                <span key={r.id}>
+                  {i === 0 ? null : ", "}
+                  <Link
+                    href={`/salarizare/${perioada.id}/${r.id}`}
+                    className="underline underline-offset-2"
+                  >
+                    {r.angajat?.full_name || `marca ${r.angajat?.marca ?? "necunoscută"}`}
+                  </Link>
+                </span>
+              ))}
+              .
             </p>
           )}
           <Tabel
