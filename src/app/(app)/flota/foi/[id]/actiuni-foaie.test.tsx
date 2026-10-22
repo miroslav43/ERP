@@ -488,6 +488,31 @@ describe("ActiuniFoaie — poza bonului și citirea lui (F12a)", () => {
     );
   });
 
+  it("D10: a doua citire nu șterge eticheta „din bon” de pe câmpurile completate de prima", async () => {
+    pozaUrcata();
+    bon.citesteBonul.mockResolvedValue({
+      ok: true,
+      data: { propunere: PROPUNERE, avertismente: [], jeton: "jeton.semnat" },
+    });
+    randeaza("draft", { poateCitiBonul: true });
+    await urcaPoza();
+
+    await apasa("Citește bonul");
+    await waitFor(() => {
+      expect(camp("Stație (din bon)").value).toBe("OMV Pitești");
+    });
+    // A doua apăsare: câmpurile sunt deja pline, deci nu se mai completează
+    // nimic — dar valorile tot de pe bon vin, iar eticheta trebuie să rămână.
+    await apasa("Citește bonul");
+    await waitFor(() => {
+      expect(bon.citesteBonul).toHaveBeenCalledTimes(2);
+    });
+    await waitFor(() => {
+      expect(camp("Stație (din bon)").value).toBe("OMV Pitești");
+    });
+    expect(camp(/^Litri \(din bon\)/u).value).toBe("45.32");
+  });
+
   it("conversia HEIC eșuată: mesajul cu pașii, poza nu se urcă", async () => {
     const { FotoBonNecitibila, MESAJ_HEIC } = await import("@/lib/documents/foto-bon-pregatire");
     bon.pregatesteFotoBon.mockRejectedValue(new FotoBonNecitibila(MESAJ_HEIC));

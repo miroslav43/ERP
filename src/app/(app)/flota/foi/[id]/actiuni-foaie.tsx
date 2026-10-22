@@ -286,7 +286,10 @@ export function ActiuniFoaie({
       element.value = valoare;
       completate.add(camp);
     }
-    setDinBon(completate);
+    // Se ADAUGĂ la ce a completat o citire anterioară a ACELEIAȘI poze: la a
+    // doua apăsare câmpurile sunt deja pline, deci `completate` iese gol, dar
+    // valorile tot de pe bon vin. La schimbarea pozei, `schimbaPoza` golește.
+    setDinBon((anterioare) => new Set([...anterioare, ...completate]));
   }
 
   const eticheta = (text: string, camp: CampDinBon): string =>
