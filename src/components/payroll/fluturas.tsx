@@ -35,6 +35,7 @@ const ETICHETE_PAS: Record<string, string> = {
   bazaCasCass: "Bază CAS/CASS",
   cas: "CAS",
   cass: "CASS",
+  sumaNeimpozabila: "Sumă neimpozabilă (OUG 89/2025 art. III)",
   deducerePersonala: "Deducere personală",
   scutireFiscala: "Scutire fiscală",
   bazaImpozit: "Bază de impozit",

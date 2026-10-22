@@ -104,19 +104,23 @@ Panoul „Livrabile" de pe `/salarizare/[id]` apare doar când perioada e `aprob
 `inchis`. Cele patru descărcări — `bancar`, `nota`, `stat`, `d112`, sub
 `src/app/api/export/salarizare/` — se cer prin `ButonDescarcare`
 (`src/components/incarcare/buton-descarcare.tsx`), **nu** prin `<a href>`: rutele refuză
-în `text/plain`, nu în JSON (`d112/route.ts:41`, `bancar/route.ts:30`), iar printr-o
+în `text/plain`, nu în JSON (`d112/route.ts:43`, `bancar/route.ts:31`), iar printr-o
 navigare refuzul înlocuia ecranul cu pagina aia de text; prin `fetch` ajunge într-o
 notificare și omul rămâne pe perioadă.
 
-`d112` cere `payroll:export` all **și** `employees:read` all (`d112/route.ts:65-73`) —
+`d112` cere `payroll:export` all **și** `employees:read` all (`d112/route.ts:70-78`) —
 declarația conține CNP-ul fiecărui asigurat, deci `payroll:export` singur nu ajunge.
 
 Cifrele de control ale exportului nu sunt în corpul răspunsului, ci în antete:
-`bancar/route.ts:164-166` trimite `x-plati-incluse`, `x-suma-control` și `x-fara-iban` —
+`bancar/route.ts:174-176` trimite `x-plati-incluse`, `x-suma-control` și `x-fara-iban` —
 ce NU a intrat în fișier. `ButonDescarcare` le citește și le pune în notificarea de
-reușită. `d112/route.ts:276` trimite `x-atentionari` (atenționări ANAF neblocante), care
-**nu** e în lista citită de buton (`buton-descarcare.tsx:33-39`) — deci numărul lor nu
-apare azi nicăieri pe ecran.
+reușită. `d112/route.ts` trimite și `x-atentionari` (atenționări ANAF neblocante, câte
+una pe asigurat cu sumă neimpozabilă), iar butonul îl are în `ANTETE_CONTROL`: numărul
+apare în notificare, dar NU cine sunt — mesajele rămân în ruta de generare.
+
+`d112` citește `calc_breakdown` și declară `A_5` (baza CAM) = brut − suma neimpozabilă.
+Tipul de asigurat 51 și `A_13S` nu se generează, iar fișierul nu trece XSD-ul ANAF, nici
+cel curent, nici cel din 2019 (validat): [[modul/salarizare/calcul]], `NOTES.md` §3.
 
 ## Ce refuză baza tăcut
 
@@ -140,8 +144,8 @@ apare azi nicăieri pe ecran.
   `0110_functia_pe_fisa.sql` a desființat nomenclatorul `job_positions` și a mutat
   denumirea pe `employees.functie`. `job_position_id` a rămas pe tabelă, dar nu-l mai
   populează nimeni, deci embed-ul vechi întorcea `null` — fără eroare — pentru fiecare
-  fișă creată după 0110. `COLOANE_FLUTURAS_EMAIL` (`actions.ts:230`) cere azi `functie`,
-  la fel ca `api/export/salarizare/fluturas/route.ts:68`.
+  fișă creată după 0110. `COLOANE_FLUTURAS_EMAIL` (`actions.ts:244`) cere azi `functie`,
+  la fel ca `api/export/salarizare/fluturas/route.ts:70`.
 - **`zile_fara_plata` e cheie OBLIGATORIE în `payroll_scrie_rezultate`** de la
   `0126_d112_ore_suspendate.sql`: omisă, lotul cade cu `P0001`. Până atunci se agrega
   (`0064`) și se pierdea la ieșirea din RPC, iar D112 declara `A_7 = 0` fără eroare;
@@ -179,18 +183,10 @@ NU e pe fundal plin: `Inel` își desenează separatoarele în `var(--color-back
 
 Migrarea → `src/types/database.ts` → `src/schemas/payroll.ts` →
 `src/lib/queries/payroll.ts` → acțiuni → pagini. **Calculul propriu-zis nu e aici**: stă
-în `src/domain/payroll/`, care e cel mai mare director de domeniu din proiect și e
-acoperit cu teste. O sumă greșită se repară acolo, nu în pagină. Concediul medical
-are lanț propriu: `medical_leave_codes` → `certificateMedicaleLuna` →
-`calculeazaIndemnizatieCm` → bazele din `calc.ts`.
-
-Avertismentele calculului își scriu **orele pe ceas**: `calc.ts` trece fiecare durată
-prin `formatOre` (`src/lib/format/ore.ts`) și lipește unitatea `h` — `6:00 h de noapte`,
-nu `6.00 ore`. Sumele în lei rămân zecimale (`toFixed(2)`), iar coloanele de ore din bază
-rămân `numeric`, fiindcă tariful orar se înmulțește cu ele; ceasul e doar reprezentarea
-de citire, convertită într-un singur loc. `calc.test.ts` fixează șirurile verbatim pentru
-`SAL_ORE_IN_MOD_NEDECLARAT`, deci un avertisment nou care formatează orele altfel iese
-inconsecvent pe ecran, nu la teste.
+în `src/domain/payroll/`, acoperit cu teste, iar o sumă greșită se repară acolo, nu în
+pagină. Motorul, etapele lui, suma neimpozabilă de la salariul minim, lanțul
+concediului medical și felul în care avertismentele își scriu orele:
+[[modul/salarizare/calcul]].
 
 ## Ce NU e aici
 

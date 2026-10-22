@@ -161,6 +161,20 @@ function verificaAsigurat(asigurat: AsiguratD112, index: number): readonly Probl
       blocant: true,
     });
   }
+  // Beneficiarul sumei neimpozabile are în D112 tip de asigurat și rubrică
+  // proprii (structura ANAF, Nomenclator 5 și câmpul `A_13S`), pe care
+  // aplicația NU le generează: fișierul poartă `A_1` = 1 și nicio sumă pe
+  // `A_13S`. Doar `A_5` e corectat mai jos. Atenționarea e neblocantă: ce
+  // lipsește se completează în FIȘIER, înainte de validare. DUKIntegrator doar
+  // validează XML-ul și face PDF-ul; nu are unde edita un câmp.
+  const scutit = asigurat.sumaNeimpozabila ?? 0;
+  if (scutit > 0) {
+    probleme.push({
+      camp: "A_1",
+      mesaj: `${prefix} are suma neimpozabilă de la salariul minim (OUG 89/2025 art. III): baza CAM (A_5) e deja scăzută cu ea, dar tipul de asigurat 51 (52 dacă își plătește CAS în sisteme proprii) și rubrica A_13S, suma netaxabilă de ${String(rotunjesteD112(scutit))} lei, nu sunt generate de aplicație. Completați-le în fișier înainte de validarea cu DUKIntegrator și de depunere.`,
+      blocant: false,
+    });
+  }
   return probleme;
 }
 
@@ -182,7 +196,9 @@ function serializeazaAsigurat(asigurat: AsiguratD112, idAsig: number): string {
     `${atribut("A_2", asigurat.pensionar ? 1 : 0)}` +
     `${atribut("A_3", asigurat.tipContract)}` +
     `${atribut("A_4", asigurat.oreNormaZilnica)}` +
-    `${atribut("A_5", rotunjesteD112(asigurat.bazaCam))}` +
+    // OUG 89/2025 art. III alin. (1) derogă de la art. 220^4 alin. (1): suma
+    // scutită iese din baza CAM. Se rotunjește DIFERENȚA, nu fiecare termen.
+    `${atribut("A_5", rotunjesteD112(asigurat.bazaCam - (asigurat.sumaNeimpozabila ?? 0)))}` +
     `${atribut("A_6", asigurat.oreLucrate)}` +
     `${atribut("A_7", asigurat.oreSuspendate)} />`;
   return [antet, sectiuneA, "  </asigurat>"].join("\n");

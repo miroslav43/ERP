@@ -54,6 +54,7 @@ interface RandFluturas {
   readonly ore_lucrate: number;
   readonly ore_suplimentare: number;
   readonly ore_noapte: number;
+  readonly calc_breakdown: unknown;
   readonly calc_warnings: readonly { readonly mesaj: string }[] | null;
   readonly perioada: { readonly an: number; readonly luna: number; readonly status: string } | null;
   readonly angajat: {
@@ -64,7 +65,7 @@ interface RandFluturas {
 }
 
 const COLOANE =
-  "id, baza_salariu, suma_ore_suplimentare, spor_noapte, prime_total, valoare_tichete, brut, cas, cass, deducere_personala, scutire_fiscala, impozit, net, retineri_total, net_de_plata, rest_de_plata, zile_lucratoare_luna, zile_lucrate, zile_concediu_odihna, zile_concediu_medical, ore_lucrate, ore_suplimentare, ore_noapte, calc_warnings, " +
+  "id, baza_salariu, suma_ore_suplimentare, spor_noapte, prime_total, valoare_tichete, brut, cas, cass, deducere_personala, scutire_fiscala, impozit, net, retineri_total, net_de_plata, rest_de_plata, zile_lucratoare_luna, zile_lucrate, zile_concediu_odihna, zile_concediu_medical, ore_lucrate, ore_suplimentare, ore_noapte, calc_breakdown, calc_warnings, " +
   "perioada:payroll_periods!period_id(an, luna, status), " +
   "angajat:employees!employee_id(full_name, marca, functie)";
 

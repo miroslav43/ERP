@@ -11,7 +11,10 @@
 //   - norma din CONTRACTUL angajatului, nu cea a organizației (part-time);
 //   - baze separate pentru CAS și CASS, cu regimul tichetelor configurabil;
 //   - plafonul minim al bazei de contribuții, cu avertisment pentru excepții;
-//   - avantajele în natură: intră în brut, se scad din restul de plată.
+//   - avantajele în natură: intră în brut, se scad din restul de plată;
+//   - suma neimpozabilă de la salariul minim (OUG 89/2025 art. III, 2026):
+//     iese din bazele CAS, CASS, impozit și CAM, dar nu din brut — vezi
+//     `etape/facilitate-salariu-minim.ts`; cere `lunaVenituri`.
 //
 // CE RĂMÂNE SIMPLIFICAT, deliberat și marcat prin avertismente:
 //   - concediul medical NU intră în calcul (indemnizația CNAS/FNUASS are cod
@@ -43,6 +46,10 @@ import {
 } from "./etape/retineri-popriri";
 import { calculeazaIndemnizatieCm, type IntrareIndemnizatieCm } from "./etape/indemnizatie-cm";
 import { calculeazaIndemnizatieCo, type IntrareIndemnizatieCo } from "./etape/indemnizatie-co";
+import {
+  calculeazaFacilitateSalariuMinim,
+  facilitatePentruLuna,
+} from "./etape/facilitate-salariu-minim";
 
 export interface PragDeducerePersonala {
   readonly nrPersoaneIntretinereMin: number;
@@ -150,6 +157,13 @@ export interface EmployeeContractSnapshot {
    */
   readonly normaOreSaptamana?: number;
   readonly exemptii?: readonly TaxExemptionSnapshot[];
+  /**
+   * Contractul e la locul funcției de bază (art. 77 alin. (1) Cod fiscal; OUG
+   * 89/2025 art. III alin. (1)). Implicit `true` — aceeași presupunere pe care
+   * motorul o făcea deja pentru deducerea personală: fișa n-are încă un câmp.
+   * `false` taie și deducerea personală, și suma neimpozabilă.
+   */
+  readonly functieDeBaza?: boolean;
 }
 
 export interface AttendanceSummary {
@@ -242,6 +256,12 @@ export interface PayrollCalcInput {
     readonly plafonPoprireUnica: number;
     readonly plafonPopririConcurente: number;
   };
+  /**
+   * Luna VENITURILOR, „AAAA-LL” — din perioadă, niciodată din ceas. Decide
+   * facilitățile legate de lună (OUG 89/2025 art. III). Absentă ⇒ nicio
+   * facilitate, deci apelanții de dinainte rămân neatinși.
+   */
+  readonly lunaVenituri?: string;
   readonly contract: EmployeeContractSnapshot;
   readonly attendance: AttendanceSummary;
   readonly bonuses: readonly BonusInput[];
@@ -283,6 +303,8 @@ export interface PayrollCalcResult {
   readonly bazaImpozit: number;
   readonly impozit: number;
   readonly camAngajator: number;
+  /** Suma scoasă din bazele de impozit, CAS, CASS și CAM (OUG 89/2025 art. III); 0 când nu se aplică. */
+  readonly sumaNeimpozabila: number;
   readonly net: number;
   readonly retineriTotal: number;
   /**
@@ -681,6 +703,28 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
       primeTotal,
   );
 
+  // Suma neimpozabilă de la salariul minim — OUG 89/2025 art. III. Iese din
+  // bazele CAS, CASS, impozit și CAM (derogările de la art. 78, 139, 157 și
+  // 220^4), dar NU din brut: omul o primește. Luna e a VENITURILOR, din
+  // perioadă — decembrie 2026 recalculat în ianuarie 2027 o are. Plafonul se
+  // compară cu brutul fără tichete; tichetele nu intră în `brut`.
+  //
+  // „Normă întreagă” cere AMBELE: norma zilnică a contractului cel puțin cât a
+  // firmei ȘI cinci zile pe săptămână. Timpul parțial în zile întregi (8 h/zi,
+  // 24 h/săpt.), admis de schemă din 12 oct 2026, are norma zilnică întreagă,
+  // dar nu e cu normă întreagă (`subCinciZile`, calculat mai sus).
+  const facilitate = calculeazaFacilitateSalariuMinim({
+    luna: input.lunaVenituri ?? "",
+    salariuBaza: contract.salariuBaza,
+    venitBrut: brut,
+    normaIntreaga: normaZilnica >= settings.normaZilnicaOre && !subCinciZile,
+    functieDeBaza: contract.functieDeBaza ?? true,
+    zileCuVenitSalarial: attendance.zileLucrate + attendance.zileConcediuOdihna,
+    zileLucratoareLuna: attendance.zileLucratoareLuna,
+  });
+  raporteaza(facilitate.probleme);
+  const sumaNeimpozabila = inregistreaza("sumaNeimpozabila", facilitate.suma);
+
   // Numărul de tichete se acordă pe zilele efectiv LUCRATE, nu pe cele plătite
   // (concediul de odihnă nu dă tichete) — convenția cea mai răspândită.
   //
@@ -717,16 +761,25 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     );
   }
 
-  const bazaCas = inregistreaza("bazaCas", bazaComuna + primeInBazaCas + cmBazaCas);
+  const bazaCas = inregistreaza(
+    "bazaCas",
+    Math.max(0, bazaComuna + primeInBazaCas + cmBazaCas - sumaNeimpozabila),
+  );
   const bazaCass = inregistreaza(
     "bazaCass",
-    bazaComuna + primeInBazaCass + ticheteInCass + cmBazaCass,
+    Math.max(0, bazaComuna + primeInBazaCass + ticheteInCass + cmBazaCass - sumaNeimpozabila),
   );
   // Plafonul minim al bazei de contribuții. Legea prevede EXCEPȚII (elevi și
   // studenți sub 26 de ani, pensionari, persoane cu handicap, cumul de
   // contracte) pentru care schema nu are încă niciun câmp — de aceea motorul
   // ridică baza și AVERTIZEAZĂ, în loc să decidă singur.
-  const minim = settings.salariuMinimBrut ?? 0;
+  //
+  // OUG 89/2025 art. III alin. (5): în lunile cu facilitate, salariul minim
+  // folosit ca bază minimă (art. 146 alin. (5^6), art. 168 alin. (6^1)) scade
+  // cu aceeași sumă — pentru toți, nu doar pentru cine o primește. Altfel baza
+  // de 4.125 a unui salariat la minim ar fi ridicată înapoi la 4.325 chiar aici.
+  const diminuareMinim = facilitatePentruLuna(input.lunaVenituri ?? "")?.suma ?? 0;
+  const minim = Math.max(0, (settings.salariuMinimBrut ?? 0) - diminuareMinim);
   const aplicaMinim = (settings.aplicaMinimContributii ?? false) && minim > 0;
   const bazaCasFinala = aplicaMinim ? Math.max(bazaCas, minim) : bazaCas;
   const bazaCassFinala = aplicaMinim ? Math.max(bazaCass, minim) : bazaCass;
@@ -741,9 +794,14 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
   const cass = inregistreaza("cass", bazaCassFinala * settings.cotaCass);
   const bazaCasCass = bazaCasFinala;
 
+  // Numai la funcția de bază (art. 77 alin. (1) Cod fiscal), pe brutul ÎNTREG:
+  // art. 77 nu e printre articolele de la care derogă OUG 89/2025 art. III,
+  // deci suma neimpozabilă nu coboară treapta deducerii.
   const deducerePersonala = inregistreaza(
     "deducerePersonala",
-    cautaPragDeducere(settings.deducerePersonala, contract.nrPersoaneIntretinere, brut),
+    (contract.functieDeBaza ?? true)
+      ? cautaPragDeducere(settings.deducerePersonala, contract.nrPersoaneIntretinere, brut)
+      : 0,
   );
 
   const exemptii = contract.exemptii ?? [];
@@ -797,7 +855,11 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
   );
   const impozit = inregistreaza("impozit", bazaImpozit * settings.cotaImpozit);
 
-  const camAngajator = inregistreaza("camAngajator", brut * settings.cotaCamAngajator);
+  // Derogare și de la art. 220^4: suma neimpozabilă nu intră în baza CAM.
+  const camAngajator = inregistreaza(
+    "camAngajator",
+    Math.max(0, brut - sumaNeimpozabila) * settings.cotaCamAngajator,
+  );
 
   // Netul se închide pe coloanele AFIȘATE: fiecare termen se rotunjește întâi
   // (la ban sau la leu), ca fluturașul să se verifice cu creionul
@@ -899,6 +961,8 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     bazaImpozit: rotundLeu(bazaImpozit, r),
     impozit: rotundLeu(impozit, r),
     camAngajator: rotundLeu(camAngajator, r),
+    // La ban, nu la leu: nu e o contribuție datorată, ci o sumă scutită.
+    sumaNeimpozabila: rotund2(sumaNeimpozabila),
     net: rotundLeu(net, r),
     retineriTotal: rotundLeu(retineriTotal, r),
     retineriAplicate,

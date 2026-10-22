@@ -25,6 +25,7 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { decrypt, dinBytea } from "@/lib/crypto/aes-gcm";
 import { genereazaD112 } from "@/domain/payroll/d112/genereaza";
+import { sumaNeimpozabilaDinBreakdown } from "@/domain/payroll/etape/facilitate-salariu-minim";
 import {
   CODURI_OBLIGATIE,
   TIP_ASIGURAT_SALARIAT,
@@ -51,6 +52,7 @@ interface RandD112 {
   readonly ore_lucrate: number;
   readonly zile_absenta_nemotivata: number;
   readonly zile_fara_plata: number;
+  readonly calc_breakdown: unknown;
   readonly angajat: {
     readonly full_name: string | null;
     readonly first_name: string | null;
@@ -125,7 +127,7 @@ export async function GET(cerere: Request): Promise<Response> {
   const { data: randuri, error: eroareRanduri } = await db
     .from("payroll_entries")
     .select(
-      "employee_id, impozit, cas, cass, cam_angajator, brut, ore_lucrate, " +
+      "employee_id, impozit, cas, cass, cam_angajator, brut, calc_breakdown, ore_lucrate, " +
         "zile_absenta_nemotivata, zile_fara_plata, " +
         "angajat:employees!employee_id(full_name, first_name, last_name, hired_on, terminated_on)",
     )
@@ -201,6 +203,9 @@ export async function GET(cerere: Request): Promise<Response> {
       tipContract: tipContractD112(orePeZi, norma),
       oreNormaZilnica: norma,
       bazaCam: rand.brut,
+      // OUG 89/2025 art. III: suma scutită iese din baza CAM (`A_5`), exact cum
+      // a ieșit din `cam_angajator` la calcul (`calc.ts`).
+      sumaNeimpozabila: sumaNeimpozabilaDinBreakdown(rand.calc_breakdown),
       oreLucrate: Math.round(rand.ore_lucrate),
       /*
        * `A_7` — orele suspendate FĂRĂ acoperire medicală: concediu fără plată,

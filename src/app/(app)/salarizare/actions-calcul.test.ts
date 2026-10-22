@@ -1117,3 +1117,116 @@ describe("calculeazaPerioada — contractul cu `payroll_scrie_rezultate`", () =>
     ).toEqual([]);
   });
 });
+
+/**
+ * O perioadă în ciornă dintr-o lună anume a lui 2026. Ca `pregateste`, dar luna
+ * perioadei e parametru: facilitatea decide după ea, nu după ceas.
+ */
+function pregatesteLuna(luna: number): ClientFals {
+  const { server } = configureazaActiunea({ permisiuni: PERMIS });
+  rpcCuLant(server);
+  server.raspunde("payroll_periods", "select", {
+    data: {
+      id: ID_1,
+      an: 2026,
+      luna,
+      attendance_period_id: ID_2,
+      settings_id: ID_3,
+      status: "draft",
+    },
+  });
+  programeazaPreconditiile(server, {});
+  server.raspunde("payroll_bonuses", "select", { data: [] });
+  server.raspunde("payroll_deductions", "select", { data: [] });
+  return server;
+}
+
+describe("calculeazaPerioada — suma neimpozabilă de la salariul minim (OUG 89/2025 art. III)", () => {
+  beforeEach(() => {
+    vi.mocked(angajatiActiviCuContract).mockResolvedValue({
+      angajati: [angajat(ANGAJAT_A, 4325), angajat(ANGAJAT_B, 4500)],
+      faraContract: [],
+      trunchiat: false,
+    });
+  });
+
+  it("luna PERIOADEI ajunge la motor: contractul la 4.325 din august 2026 are 200 de lei scutiți", async () => {
+    const server = pregatesteLuna(8);
+    programeazaScrierea(server);
+
+    const r = await calculeazaPerioada({ id: ID_1 });
+
+    expect(r).toMatchObject({ ok: true });
+    const [laMinim, pesteMinim] = randuriScrise(server);
+    // SETARI: rotunjire la ban, fără grilă de deducere — aritmetica se vede direct.
+    expect(laMinim).toMatchObject({ brut: 4325, cas: 1031.25, cass: 412.5, cam_angajator: 92.81 });
+    expect(laMinim?.calc_breakdown).toContainEqual({ pas: "sumaNeimpozabila", valoare: 200 });
+    expect(laMinim?.calc_warnings.map((w) => w.cod)).toContain("SAL_FACILITATE_SALARIU_MINIM");
+    expect(pesteMinim).toMatchObject({ brut: 4500, cas: 1125, cass: 450 });
+    expect(pesteMinim?.calc_breakdown).toContainEqual({ pas: "sumaNeimpozabila", valoare: 0 });
+  });
+
+  it("decembrie 2026 recalculat în ianuarie 2027 păstrează suma: decide luna perioadei, nu ceasul", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2027-01-15T10:00:00Z"));
+    try {
+      const server = pregatesteLuna(12);
+      programeazaScrierea(server);
+
+      await calculeazaPerioada({ id: ID_1 });
+
+      expect(randuriScrise(server)[0]?.calc_breakdown).toContainEqual({
+        pas: "sumaNeimpozabila",
+        valoare: 200,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("în ianuarie–iunie condiția e minimul de atunci: 4.050 primește 300, iar 4.325 nu primește nimic", async () => {
+    vi.mocked(angajatiActiviCuContract).mockResolvedValue({
+      angajati: [angajat(ANGAJAT_A, 4050), angajat(ANGAJAT_B, 4325)],
+      faraContract: [],
+      trunchiat: false,
+    });
+    const server = pregatesteLuna(3);
+    programeazaScrierea(server);
+
+    await calculeazaPerioada({ id: ID_1 });
+
+    const [laMinim, pesteMinim] = randuriScrise(server);
+    expect(laMinim).toMatchObject({ brut: 4050, cas: 937.5, cass: 375 });
+    expect(laMinim?.calc_breakdown).toContainEqual({ pas: "sumaNeimpozabila", valoare: 300 });
+    expect(pesteMinim?.calc_breakdown).toContainEqual({ pas: "sumaNeimpozabila", valoare: 0 });
+  });
+
+  it("avertismentul scris pe rând cere verificarea funcției de bază — fișa n-are câmpul", async () => {
+    const server = pregatesteLuna(8);
+    programeazaScrierea(server);
+
+    await calculeazaPerioada({ id: ID_1 });
+
+    const avertisment = (
+      randuriScrise(server)[0]?.calc_warnings as { cod: string; mesaj: string }[] | undefined
+    )?.find((w) => w.cod === "SAL_FACILITATE_SALARIU_MINIM");
+    expect(avertisment?.mesaj).toContain("funcția de bază");
+  });
+
+  it("timpul parțial în zile întregi (8 h/zi, 24 h/săpt.) la salariul minim nu primește suma", async () => {
+    vi.mocked(angajatiActiviCuContract).mockResolvedValue({
+      angajati: [angajat(ANGAJAT_A, 4325, { norma_ore_zi: 8, norma_ore_saptamana: 24 })],
+      faraContract: [],
+      trunchiat: false,
+    });
+    const server = pregatesteLuna(8);
+    programeazaScrierea(server);
+
+    await calculeazaPerioada({ id: ID_1 });
+
+    expect(randuriScrise(server)[0]?.calc_breakdown).toContainEqual({
+      pas: "sumaNeimpozabila",
+      valoare: 0,
+    });
+  });
+});

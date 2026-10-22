@@ -9,6 +9,7 @@
 // Etichetele oglindesc `src/components/payroll/fluturas.tsx`: ecranul și PDF-ul
 // trebuie să spună aceleași cuvinte, altfel angajatul crede că sunt două
 // calcule diferite.
+import { sumaNeimpozabilaDinBreakdown } from "@/domain/payroll/etape/facilitate-salariu-minim";
 import type { LinieFluturas } from "./fluturas";
 
 /** Doar câmpurile de care depinde fluturașul — nu tot `DetaliuInregistrare`. */
@@ -27,6 +28,8 @@ export interface SursaFluturas {
   readonly net: number;
   readonly retineri_total: number;
   readonly net_de_plata: number;
+  /** Pașii motorului, salvați; de aici se citește suma neimpozabilă (OUG 89/2025 art. III). */
+  readonly calc_breakdown?: unknown;
 }
 
 /** Se ascund liniile nule: un fluturaș cu opt „0,00 lei" nu se citește. */
@@ -50,6 +53,13 @@ export function retinerileFluturasului(sursa: SursaFluturas): readonly LinieFlut
   return [
     { eticheta: "CAS — contribuția la pensie", valoare: sursa.cas, scade: true },
     { eticheta: "CASS — contribuția la sănătate", valoare: sursa.cass, scade: true },
+    // Scoasă din bazele de CAS, CASS și impozit, dar plătită angajatului: se
+    // arată, nu se scade. Eticheta e a ecranului (`ETICHETE_PAS` din
+    // `components/payroll/fluturas.tsx`), ca PDF-ul și ecranul să spună la fel.
+    {
+      eticheta: "Sumă neimpozabilă (OUG 89/2025 art. III)",
+      valoare: sumaNeimpozabilaDinBreakdown(sursa.calc_breakdown),
+    },
     { eticheta: "Deducere personală", valoare: sursa.deducere_personala },
     { eticheta: "Scutire fiscală", valoare: sursa.scutire_fiscala },
     { eticheta: "Impozit pe venit", valoare: sursa.impozit, scade: true },

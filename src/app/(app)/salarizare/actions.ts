@@ -242,7 +242,7 @@ interface RandFluturasEmail extends SursaFluturas {
 }
 
 const COLOANE_FLUTURAS_EMAIL =
-  "id, employee_id, baza_salariu, suma_ore_suplimentare, spor_noapte, prime_total, valoare_tichete, brut, cas, cass, deducere_personala, scutire_fiscala, impozit, net, retineri_total, net_de_plata, rest_de_plata, zile_lucratoare_luna, zile_lucrate, zile_concediu_odihna, zile_concediu_medical, ore_lucrate, ore_suplimentare, ore_noapte, calc_warnings, " +
+  "id, employee_id, baza_salariu, suma_ore_suplimentare, spor_noapte, prime_total, valoare_tichete, brut, cas, cass, deducere_personala, scutire_fiscala, impozit, net, retineri_total, net_de_plata, rest_de_plata, zile_lucratoare_luna, zile_lucrate, zile_concediu_odihna, zile_concediu_medical, ore_lucrate, ore_suplimentare, ore_noapte, calc_breakdown, calc_warnings, " +
   "angajat:employees!employee_id(full_name, marca, email_serviciu, email_personal, functie)";
 
 function laSetariSnapshot(
@@ -513,10 +513,15 @@ export const calculeazaPerioada = createAction({
       motiv: string;
     }[] = [];
 
+    // Luna VENITURILOR, din perioadă — decide suma neimpozabilă de la salariul
+    // minim (OUG 89/2025 art. III). Nu ceasul serverului: decembrie recalculat
+    // în ianuarie rămâne decembrie.
+    const lunaVenituri = `${String(perioada.an)}-${String(perioada.luna).padStart(2, "0")}`;
     const randuri = angajati.map((angajat) => {
       const pontajAngajat = pontaj.pePersoana.get(angajat.employee_id) ?? PONTAJ_GOL;
       const rezultat = calculatePayrollEntry({
         settings: snapshot,
+        lunaVenituri,
         contract: {
           salariuBaza: angajat.salariu_baza,
           nrPersoaneIntretinere: angajat.nr_persoane_intretinere,

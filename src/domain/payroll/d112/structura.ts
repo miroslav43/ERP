@@ -36,6 +36,15 @@
 //      contabilul le confirmă o dată, la prima depunere, și rămân în setări.
 //   ⚠️ `casaAng` — casa de asigurări de sănătate a angajatorului, care trebuie
 //      să coincidă cu județul sediului social. Vine din setări, nu se deduce.
+//   ⚠️ VERSIUNEA STRUCTURII. Mai sus e A7.2.2 (2019). ANAF publică azi A7.2.6
+//      (v7, valabilă din luna de raportare 07/2026, `structura_D112_0726_070926.pdf`
+//      și `d112_0726_140826.xsd`), în care `asiguratA` cere în plus, ca
+//      `required`: `A_sal1`, `A_sal2`, `A_11`–`A_14`, `A_13P`, `A_14P`,
+//      `A_11P`, `A_12P`, `A_14D`, `A_12D`, `A_13S`, `A_13C`. Generatorul emite
+//      doar `A_1`–`A_7`. Validat pe 22 oct 2026 față de schema curentă ȘI de cea
+//      din 2019: fișierul nu trece NICIUNA. Lipsesc spațiul de nume al rădăcinii
+//      și cuibărirea `angajatorA` în `angajator`, iar datele sunt ISO, nu
+//      `ZZ.LL.AAAA`. DUKIntegrator NU a rulat. Lista completă: `NOTES.md` §3.
 //
 // Fișierul rezultat se validează cu DUKIntegrator, aplicația ANAF, ÎNAINTE de
 // depunere. Nu pretindem că îl înlocuim: pretindem că scutim contabilul de
@@ -71,8 +80,15 @@ export interface AsiguratD112 {
   readonly tipContract: string;
   /** `A_4` — ore normă zilnică. ANAF acceptă EXACT 6, 7 sau 8. */
   readonly oreNormaZilnica: number;
-  /** `A_5` — baza de calcul CAM, în lei întregi. */
+  /** `A_5` — baza de calcul CAM, în lei întregi, ÎNAINTE de suma neimpozabilă. */
   readonly bazaCam: number;
+  /**
+   * Suma neimpozabilă de la salariul minim (OUG 89/2025 art. III), în lei.
+   * Derogarea de la art. 220^4 alin. (1) Cod fiscal o scoate din baza CAM:
+   * `A_5` = `bazaCam` − ea. Opțională: rândurile fără facilitate și apelanții
+   * vechi nu o trimit, iar `A_5` rămâne `bazaCam`.
+   */
+  readonly sumaNeimpozabila?: number;
   /** `A_6` — ore lucrate efectiv în lună. */
   readonly oreLucrate: number;
   /** `A_7` — ore suspendate în lună (concediu fără plată, CIC, suspendare). */

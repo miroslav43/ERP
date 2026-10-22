@@ -80,7 +80,7 @@ type Angajat = {
   functie: string | null;
 };
 
-function rand(id: string, angajat: Partial<Angajat> | null) {
+function rand(id: string, angajat: Partial<Angajat> | null, calcBreakdown: unknown = []) {
   return {
     id,
     // Fișa angajatului: raportul „fără adresă" numește oamenii, cu drum spre ea.
@@ -107,6 +107,9 @@ function rand(id: string, angajat: Partial<Angajat> | null) {
     ore_lucrate: 168,
     ore_suplimentare: 0,
     ore_noapte: 0,
+    // Pașii motorului, așa cum îi salvează `calculeazaPerioada`: de aici se
+    // citește suma neimpozabilă (OUG 89/2025 art. III) a fluturașului.
+    calc_breakdown: calcBreakdown,
     calc_warnings: [{ cod: "X", mesaj: "Avertisment de test" }],
     angajat:
       angajat === null
@@ -272,6 +275,49 @@ describe("trimiteFluturasii", () => {
       }),
     );
     expect(antetOrganizatie).toHaveBeenCalledWith(expect.anything(), ORG_ID, "Firma Test");
+  });
+
+  it("citește `calc_breakdown`: altfel rândul sumei neimpozabile dispare tăcut din PDF", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    programeazaPerioada(server, "aprobat");
+
+    await trimiteFluturasii({ id: ID_1 });
+
+    const [intrari] = server.apeluriPe("payroll_entries");
+    expect(intrari?.coloane?.split(",").map((c) => c.trim())).toContain("calc_breakdown");
+  });
+
+  it("fluturașul unui salariat la minim poartă rândul sumei neimpozabile, cu suma din calcul", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    programeazaPerioada(server, "aprobat", [
+      rand("r1", { email_serviciu: "ion@firma.ro" }, [
+        { pas: "brut", valoare: 4325 },
+        { pas: "sumaNeimpozabila", valoare: 200 },
+      ]),
+    ]);
+
+    await trimiteFluturasii({ id: ID_1 });
+
+    const date = vi.mocked(genereazaFluturas).mock.calls[0]?.[0];
+    expect(date?.retineri).toContainEqual({
+      eticheta: "Sumă neimpozabilă (OUG 89/2025 art. III)",
+      valoare: 200,
+    });
+  });
+
+  it("un rând dinaintea facilității (pașii fără `sumaNeimpozabila`) nu primește rândul", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    programeazaPerioada(server, "aprobat", [
+      rand("r1", { email_serviciu: "ion@firma.ro" }, [{ pas: "brut", valoare: 5000 }]),
+    ]);
+
+    await trimiteFluturasii({ id: ID_1 });
+
+    const date = vi.mocked(genereazaFluturas).mock.calls[0]?.[0];
+    expect(date).toBeDefined();
+    expect(date?.retineri.map((l) => l.eticheta)).not.toContain(
+      "Sumă neimpozabilă (OUG 89/2025 art. III)",
+    );
   });
 
   it("fără adresă (lipsă, goală sau doar spații): se numără, nu se trimite", async () => {
