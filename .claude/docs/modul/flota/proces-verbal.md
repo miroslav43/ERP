@@ -21,7 +21,7 @@ tabele: [vehicle_handovers, vehicle_assignments, vehicles, registru_documente, d
 permisiuni: [vehicles:read, vehicles:update, employees:read]
 feature: fleet
 capcane: [17, 18, 22, 23, 29, 30, 31]
-scris_pe: c8fb7e69e4929446f9df95a1d46174f7903ec3a7
+scris_pe: c1ed19723565547c8571b6735b5e3973189cd888
 scris_la: 2026-10-22
 tags: [modul, operations]
 ---
@@ -94,8 +94,11 @@ transfer: `capete-pv.ts`, din alocările deja citite.
 - **Decizia 3 (B3)**: `hr` sau orice rol fără `vehicles:read` vede PV-urile la care e parte și
   vehiculul alocat LUI (ramura din `vehicule_select`), fără documentele lui, alocări, foi sau
   restul parcului. „Mașina mea” îi arată mașina fără semafor. ATENȚIE: o politică nouă care
-  judecă după `exists (… from public.vehicles …)` SUB RLS moștenește ramura; tabelele copil
-  folosesc `app.poate_vedea_vehicul_dupa_id` (0199), care n-o are.
+  judecă după `exists (… from public.vehicles …)` SUB RLS moștenește ramura, la fel o funcție
+  SECURITY INVOKER care citește `vehicles`; tabelele copil folosesc
+  `app.poate_vedea_vehicul_dupa_id` (0199), care n-o are, iar `flota_fiscal_luna` filtrează pe
+  `app.poate_vedea_vehicul` (0205). Rândul vehiculului îi aduce și `valoare_achizitie`:
+  RLS-ul nu taie coloane (defect cunoscut, `[[modul/flota/roluri-si-portal]]`).
 - **Cine întocmește**: doar `vehicles:update = all` și membru. `super_admin` vede, nu scrie.
 - **Scanul hârtiei semnate** (`pregatesteScanPv` → urcare → `confirmaScanPv`) stă în
   `org-flota`, în folderul VEHICULULUI (0202): doar pe PV-ul finalizat, doar cine

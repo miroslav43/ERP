@@ -145,12 +145,14 @@ echipei; angajatul: mașina lui + pool, fără costuri); firma B numără zero.
 un singur fixture, fiecare tabelă și funcție `public.*` nouă din 0191, 0199–0206 și
 0210–0218, sub super_admin, org_admin, hr, manager, doi angajați și administratorul altei
 firme: SELECT numărat, INSERT și UPDATE efective (derulate înapoi), plus legarea din firma
-străină de obiectele firmei A. Defect cunoscut acolo: `flota_fiscal_luna` e SECURITY
-INVOKER peste `vehicles`, deci hr-ul cu mașină primește rândul ei (decizia 3 moștenită).
+străină de obiectele firmei A. `flota_fiscal_luna` (SECURITY INVOKER peste `vehicles`)
+filtrează pe `app.poate_vedea_vehicul`, deci hr-ul cu mașină nu moștenește ramura
+„decizia 3” în raportul fiscal (reparat în 0205).
 
-**Defecte cunoscute** (rândurile „DEFECT” ale probei): `vehicle_documents.cost` și
+**Defecte cunoscute** (rândurile „DEFECT” ale probelor): `vehicle_documents.cost` și
 `vehicles.valoare_achizitie` sunt COLOANE pe rânduri pe care angajatul și managerul
-(pool) le văd. RLS-ul nu taie coloane, iar privilegiul pe coloană e al rolului
+(pool) le văd; din 0215, și hr-ul își vede valoarea de achiziție a mașinii lui (ramura
+„decizia 3”). RLS-ul nu taie coloane, iar privilegiul pe coloană e al rolului
 `authenticated`, comun tuturor: repararea cere o decizie de model.
 
 ## Ce NU e aici

@@ -22,8 +22,8 @@ tabele: [vehicle_fiscal_regimes, vehicle_consumption_norms, organizations, trip_
 permisiuni: [vehicles:read, vehicles:update, organizations:update, payroll:read]
 feature: fleet
 capcane: [17, 23]
-scris_pe: 51ceab6ccd4023aeb1acc659894c409f6d67a9f1
-scris_la: 2026-10-12
+scris_pe: c1ed19723565547c8571b6735b5e3973189cd888
+scris_la: 2026-10-22
 tags: [modul, operations, fiscal]
 ---
 
@@ -48,7 +48,8 @@ Managerul și angajatul **văd vehiculul, nu și fiscalul lui**: tabelele fiscal
 `vehicles:read = all` pe SELECT, deci pentru ei întorc zero rânduri, fără eroare, iar
 ecranul nu le montează secțiunea (nu un tabel gol care ar spune „n-are regim”). `hr` n-are
 parcul (decizia 3), dar face statul de plată: de aceea avantajul trece printr-o funcție
-SECURITY DEFINER proprie, nu printr-un drept pe vehicule.
+SECURITY DEFINER proprie, nu printr-un drept pe vehicule. Luna fiscală îi întoarce zero
+rânduri și când conduce o mașină a firmei.
 
 ## Ce face fiecare piesă
 
@@ -64,7 +65,11 @@ SECURITY DEFINER proprie, nu printr-un drept pe vehicule.
 - **Luna fiscală** (`public.flota_fiscal_luna`, SECURITY INVOKER): zilele lunii cu
   deducere integrală, norma, foile aprobate și neaprobate. Zilele se numără pe zile, **foile
   pe luna întreagă** (⚠ în `NOTES.md`). Verdictul („deducere integrală fără nicio foaie”) îl
-  dă domeniul pur, `verdictLuna` — nu SQL-ul.
+  dă domeniul pur, `verdictLuna` — nu SQL-ul. Vehiculul trece și prin
+  `app.poate_vedea_vehicul` (scope-ul lui `vehicles:read`), nu doar prin politica
+  `vehicule_select`: ramura „decizia 3” din 0215 îi arată lui `hr` mașina lui în „Mașina
+  mea”, nu și în raportul fiscal (moștenită, ar fi dat un rând fals, „fără regim” toată
+  luna). O rescriere a funcției păstrează filtrul.
 - **Avantajul în natură** (`public.avantaj_natura_flota`, SECURITY DEFINER pe
   `payroll:read = all`): alocările cu folosință personală ale unui om într-o lună și faptele
   vehiculului. Ce se sugerează decide `sugereazaAvantaj`: 1,7% din valoarea de intrare sau
