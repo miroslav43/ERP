@@ -48,7 +48,7 @@ feature: fleet
 capcane: [18, 19, 21, 22, 23, 26]
 citeste_daca:
   - "foaie refuzată cu „Vehiculul ales nu vă este alocat” → [[modul/flota/roluri-si-portal]]; permis, aviz medical, șofer → [[modul/flota/soferi]]; amendă, art. 39, incident, daună → [[modul/flota/amenzi-si-daune]]"
-  - "curse, foaie trimisă, numărul FP, PDF, orele foilor → [[modul/flota/foaia-zilnica]]; service, costuri, anvelope → [[modul/flota/service-si-costuri]]; rapoarte lunare, Excel, pachet pentru contabil → [[modul/flota/rapoarte]]"
+  - "curse, foaie trimisă, numărul FP, PDF, orele foilor → [[modul/flota/foaia-zilnica]]; service, costuri, anvelope → [[modul/flota/service-si-costuri]]; rapoarte lunare, Excel, pachet pentru contabil → [[modul/flota/rapoarte]]; Saga, WinMentor, notă contabilă → [[modul/flota/export-contabil]]"
   - "alerte de scadență, /flota/setari → [[modul/flota/alerte-si-setari]]; regim fiscal, avantaj în natură, /flota/fiscal → [[modul/flota/fiscal]]"
 scris_pe: b6ed2c66abe3b535c04d7993c3465e8fff1629de
 scris_la: 2026-10-13
@@ -95,10 +95,6 @@ bonului, `org-flota`): `[[modul/flota/documente-si-erori]]`.
 (`/flota?vehicul=nou`, `/flota/foi?foaie=noua`), cu `deschisInitial` + `key` (o navigare pe
 ACEEAȘI rută nu remontează). Datele casetei de foaie: `foi/date-foaie-noua.ts`, doar
 vehicule `activ` (baza refuză foaia pe unul vândut sau casat).
-
-## Extensii (F12)
-
-- b, carduri de combustibil (0214): `[[modul/flota/carduri]]`
 
 ## Server Actions
 
@@ -225,8 +221,10 @@ capcane tăcute stau acolo, prinse de `valori-vehicul.test.ts` și `valori-docum
 
 ## Extensii
 
-- F12a, bonul citit de pe poză (0213): `[[modul/flota/bon-ocr]]`.
-- F12f, codul UIT (e-Transport) pe cursă (0217): `[[modul/flota/uit]]`.
+- F12a, bon OCR (0213): `[[modul/flota/bon-ocr]]`.
+- F12b, carduri (0214): `[[modul/flota/carduri]]`.
+- F12f, UIT pe cursă (0217): `[[modul/flota/uit]]`.
+- F12g, export contabil (Saga, WinMentor): `[[modul/flota/export-contabil]]`.
 
 ## Ce NU e aici
 
