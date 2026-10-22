@@ -188,7 +188,8 @@ export async function contextPotrivire(
   const [vehicule, alocari, foi] = await Promise.all([
     db
       .from("vehicles")
-      .select("id, nr_inmatriculare, tip_combustibil, deleted_at", {
+      // `data_iesire` (0218, I-h2): numărul păstrat poate sta pe două vehicule neșterse.
+      .select("id, nr_inmatriculare, tip_combustibil, deleted_at, data_iesire", {
         count: "exact",
       })
       .eq("organization_id", organizationId)

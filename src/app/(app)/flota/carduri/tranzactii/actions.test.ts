@@ -368,7 +368,13 @@ describe("repotrivesteTranzactii", () => {
     });
     server.raspunde("vehicles", "select", {
       data: [
-        { id: VEHICUL, nr_inmatriculare: "B100XYZ", tip_combustibil: "motorina", deleted_at: null },
+        {
+          id: VEHICUL,
+          nr_inmatriculare: "B100XYZ",
+          tip_combustibil: "motorina",
+          deleted_at: null,
+          data_iesire: null,
+        },
       ],
       count: 1,
     });

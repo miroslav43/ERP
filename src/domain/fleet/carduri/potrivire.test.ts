@@ -44,8 +44,20 @@ const ctx = (peste: Partial<ContextPotrivire> = {}): ContextPotrivire => ({
     },
   ],
   vehicule: [
-    { id: V1, nr_inmatriculare: "B100XYZ", tip_combustibil: "motorina", deleted_at: null },
-    { id: V2, nr_inmatriculare: "CJ12ABC", tip_combustibil: "benzina", deleted_at: null },
+    {
+      id: V1,
+      nr_inmatriculare: "B100XYZ",
+      tip_combustibil: "motorina",
+      deleted_at: null,
+      data_iesire: null,
+    },
+    {
+      id: V2,
+      nr_inmatriculare: "CJ12ABC",
+      tip_combustibil: "benzina",
+      deleted_at: null,
+      data_iesire: null,
+    },
   ],
   alocari: [],
   foi: [
@@ -262,6 +274,65 @@ describe("potrivesteTranzactii — reguli", () => {
     expect(r.vehicleId).toBe(V2);
     expect(r.stare).toBe("fara_foaie");
     expect(r.motiv).toContain("Cardul e înregistrat pe alt vehicul.");
+  });
+
+  // Din 0218 (F12h, implicita I-h2), numărul unui vehicul ieșit se poate pune pe
+  // o mașină nouă: același număr stă pe DOUĂ vehicule neșterse. Ordinea din
+  // context e arbitrară, deci fiecare caz pune vehiculul greșit primul.
+  it("numărul păstrat, pe mașina nouă: după ieșire, extrasul ajunge la mașina din parc", () => {
+    const V3 = "veh-3";
+    const c = ctx({
+      vehicule: [
+        {
+          id: V1,
+          nr_inmatriculare: "B100XYZ",
+          tip_combustibil: "motorina",
+          deleted_at: null,
+          data_iesire: "2026-09-30",
+        },
+        {
+          id: V3,
+          nr_inmatriculare: "B100XYZ",
+          tip_combustibil: "motorina",
+          deleted_at: null,
+          data_iesire: null,
+        },
+      ],
+    });
+    expect(unu(tx({ nrInmatriculare: "B100XYZ" }), c).vehicleId).toBe(V3);
+  });
+
+  it("numărul păstrat: o tranzacție din ziua ieșirii sau dinainte rămâne a vehiculului ieșit", () => {
+    const V3 = "veh-3";
+    const c = ctx({
+      vehicule: [
+        {
+          id: V3,
+          nr_inmatriculare: "B100XYZ",
+          tip_combustibil: "motorina",
+          deleted_at: null,
+          data_iesire: null,
+        },
+        {
+          id: V1,
+          nr_inmatriculare: "B100XYZ",
+          tip_combustibil: "motorina",
+          deleted_at: null,
+          data_iesire: "2026-10-05",
+        },
+      ],
+    });
+    expect(unu(tx({ nrInmatriculare: "B100XYZ" }), c).vehicleId).toBe(V1);
+    expect(
+      unu(
+        tx({
+          nrInmatriculare: "B100XYZ",
+          dataRo: "2026-09-28",
+          efectuatLa: "2026-09-28T08:00:00.000Z",
+        }),
+        c,
+      ).vehicleId,
+    ).toBe(V1);
   });
 
   it("foaia `respins` e ignorată", () => {

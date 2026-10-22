@@ -7,7 +7,8 @@
 // Pe rând, în ordinea asta:
 //   1. stornoul (cantitate sau valoare negativă) → `ignorata`, `corectie`;
 //   2. cardul: amprenta numărului întreg, altfel emitentul + cifrele pe SUFIX;
-//   3. vehiculul: numărul din extras (dacă e în parc) > vehiculul cardului >
+//   3. vehiculul: numărul din extras (vehiculul care îl purta în ziua aceea,
+//      chiar dacă a ieșit între timp din parc) > vehiculul cardului >
 //      foaia unică a șoferului titular în ziua aceea > alocarea lui la moment;
 //   4. ce nu e combustibil (AdBlue inclus) → `necombustibil`;
 //   5. foaia: vehiculul + ziua românească + starea ≠ `respins`;
@@ -79,6 +80,12 @@ export type VehiculContext = Readonly<{
   nr_inmatriculare: string;
   tip_combustibil: TipCombustibilVehicul;
   deleted_at: string | null;
+  /**
+   * Ziua ieșirii din parc (0218, F12h). Din implicita I-h2, numărul unui
+   * vehicul ieșit se poate pune pe o mașină nouă: același număr poate sta pe
+   * două vehicule neșterse, iar data ieșirii le desparte.
+   */
+  data_iesire: string | null;
 }>;
 
 export type AlocareContext = Readonly<{
@@ -196,10 +203,18 @@ function gasesteVehicul(
 ): Vehicul {
   const motive: string[] = [];
   if (tx.nrInmatriculare !== null && tx.nrInmatriculare.length > 0) {
+    // Câștigă vehiculul care purta numărul în ziua tranzacției. Din 0218 (I-h2),
+    // numărul păstrat al unui vehicul ieșit trece pe o mașină nouă, deci pot fi
+    // două neșterse: întâi cel ieșit în ziua tranzacției sau după ea (numărul
+    // era încă al lui), apoi cel din parc, apoi oricare neșters, apoi cel șters.
+    const cuNumarul = ctx.vehicule.filter((v) => v.nr_inmatriculare === tx.nrInmatriculare);
     const dinParc =
-      ctx.vehicule.find(
-        (v) => v.nr_inmatriculare === tx.nrInmatriculare && v.deleted_at === null,
-      ) ?? ctx.vehicule.find((v) => v.nr_inmatriculare === tx.nrInmatriculare);
+      cuNumarul.find(
+        (v) => v.deleted_at === null && v.data_iesire !== null && v.data_iesire >= tx.dataRo,
+      ) ??
+      cuNumarul.find((v) => v.deleted_at === null && v.data_iesire === null) ??
+      cuNumarul.find((v) => v.deleted_at === null) ??
+      cuNumarul[0];
     if (dinParc !== undefined) {
       const alCardului = card?.vehicle_id ?? null;
       if (alCardului !== null && alCardului !== dinParc.id) {
