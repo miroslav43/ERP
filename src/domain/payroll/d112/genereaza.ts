@@ -164,13 +164,14 @@ function verificaAsigurat(asigurat: AsiguratD112, index: number): readonly Probl
   // Beneficiarul sumei neimpozabile are în D112 tip de asigurat și rubrică
   // proprii (structura ANAF, Nomenclator 5 și câmpul `A_13S`), pe care
   // aplicația NU le generează: fișierul poartă `A_1` = 1 și nicio sumă pe
-  // `A_13S`. Doar `A_5` e corectat mai jos. Atenționarea e neblocantă, fiindcă
-  // ce lipsește se completează în DUKIntegrator, nu face fișierul nedepunibil.
+  // `A_13S`. Doar `A_5` e corectat mai jos. Atenționarea e neblocantă: ce
+  // lipsește se completează în FIȘIER, înainte de validare. DUKIntegrator doar
+  // validează XML-ul și face PDF-ul; nu are unde edita un câmp.
   const scutit = asigurat.sumaNeimpozabila ?? 0;
   if (scutit > 0) {
     probleme.push({
       camp: "A_1",
-      mesaj: `${prefix} are suma neimpozabilă de la salariul minim (OUG 89/2025 art. III): baza CAM (A_5) e deja scăzută cu ea, dar tipul de asigurat 51 (52 dacă își plătește CAS în sisteme proprii) și rubrica A_13S, suma netaxabilă de ${String(rotunjesteD112(scutit))} lei, nu sunt generate de aplicație. Completați-le în DUKIntegrator înainte de depunere.`,
+      mesaj: `${prefix} are suma neimpozabilă de la salariul minim (OUG 89/2025 art. III): baza CAM (A_5) e deja scăzută cu ea, dar tipul de asigurat 51 (52 dacă își plătește CAS în sisteme proprii) și rubrica A_13S, suma netaxabilă de ${String(rotunjesteD112(scutit))} lei, nu sunt generate de aplicație. Completați-le în fișier înainte de validarea cu DUKIntegrator și de depunere.`,
       blocant: false,
     });
   }

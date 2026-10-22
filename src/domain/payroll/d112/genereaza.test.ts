@@ -218,6 +218,13 @@ describe("suma neimpozabilă de la salariul minim (OUG 89/2025 art. III)", () =>
     expect(r.probleme.filter((x) => x.blocant)).toHaveLength(0);
   });
 
+  it("trimite la corectarea FIȘIERULUI: DUKIntegrator doar validează și face PDF-ul, nu editează câmpuri", () => {
+    const r = genereazaD112({ ...INTRARE, asigurati: [laMinim(200)] });
+    const p = r.probleme.find((x) => x.camp === "A_1");
+    expect(p?.mesaj).not.toMatch(/în DUKIntegrator înainte/u);
+    expect(p?.mesaj).toContain("înainte de validarea cu DUKIntegrator");
+  });
+
   it("câte o atenționare pe asigurat, nu una pe fișier", () => {
     const r = genereazaD112({
       ...INTRARE,
