@@ -219,6 +219,15 @@ function tara(valoare: string): string | null {
   return /^[A-Z]{2}$/u.test(t) ? t : null;
 }
 
+/** Plajele coloanelor din 0214 (tipul lor SQL), ca o celulă străină să nu ajungă la INSERT. */
+const LIMITA_VALOARE = 1e12; // numeric(14,2): |x| < 10^12
+const LIMITA_PRET = 1e8; // numeric(12,4): |x| < 10^8
+const LIMITA_KM = 2_147_483_647; // integer
+
+function inPlaja(valoare: number, limita: number): boolean {
+  return Number.isFinite(valoare) && Math.abs(valoare) < limita;
+}
+
 type Citire = Readonly<{
   randuri: RandLot[];
   respinse: { rand: number; mesaj: string }[];
@@ -272,6 +281,15 @@ async function parseazaRanduri(
       });
       continue;
     }
+    // `valoare_* numeric(14,2)`: peste plajă, INSERT-ul feliei ar cădea întreg
+    // pe 22003, după o previzualizare curată. Rândul se respinge aici, cu motiv.
+    if ([valoareBruta, valoareNeta, tva].some((v) => v !== null && !inPlaja(v, LIMITA_VALOARE))) {
+      respinse.push({
+        rand: rand.rand,
+        mesaj: "Valoarea nu e plauzibilă (coloana greșită în mapare?).",
+      });
+      continue;
+    }
     const cantitate = numar(rand, "cantitate");
     if (cantitate !== null && Math.abs(cantitate) > 5000) {
       respinse.push({
@@ -290,7 +308,10 @@ async function parseazaRanduri(
       });
       continue;
     }
+    // Km-ul și prețul doar informează: peste coloana lor (`integer`,
+    // `numeric(12,4)`) rămân goale, nu blochează rândul.
     const km = numar(rand, "km");
+    const pretUnitar = numar(rand, "pret_unitar");
     const { categorie, tipCombustibil } = categorieProdus(produs);
     randuri.push({
       rand: rand.rand,
@@ -309,7 +330,7 @@ async function parseazaRanduri(
       categorie,
       tipCombustibil,
       cantitate: cantitate === null ? null : rotunjeste(cantitate, 2),
-      pretUnitar: numar(rand, "pret_unitar"),
+      pretUnitar: pretUnitar === null || !inPlaja(pretUnitar, LIMITA_PRET) ? null : pretUnitar,
       valoareBruta: rotunjeste(valoareBruta, 2),
       valoareNeta: valoareNeta === null ? null : rotunjeste(valoareNeta, 2),
       tva: tva === null ? null : rotunjeste(tva, 2),
@@ -317,7 +338,7 @@ async function parseazaRanduri(
       statie: textSauNull(celula(rand, mapare, "statie"), 200),
       localitate: textSauNull(celula(rand, mapare, "localitate"), 120),
       tara: tara(celula(rand, mapare, "tara")),
-      kmDeclarat: km === null || km < 0 ? null : Math.round(km),
+      kmDeclarat: km === null || km < 0 || Math.round(km) > LIMITA_KM ? null : Math.round(km),
       numarBon: textSauNull(celula(rand, mapare, "numar_bon"), 60),
     });
   }
@@ -842,7 +863,24 @@ async function asiguraImportul(ctx: ActionContext, batchId: string, lot: LotExtr
   traduEroareCarduri(error);
 }
 
-/** Bloc, iar la 23505 rând cu rând: concurența sau un ID repetat în fișier. */
+const MOTIV_ALIMENTARE_LUATA =
+  "Alimentarea potrivită a fost legată între timp de altă tranzacție. Repotriviți luna.";
+
+/** Ce index unic a refuzat rândul: doar dedup-ul înseamnă „importat deja”. */
+function indexRefuzat(error: Readonly<{ code: string; message: string }>) {
+  if (error.code !== "23505") return null;
+  if (error.message.includes("fctx_dedup_uq")) return "dedup" as const;
+  if (error.message.includes("fctx_alimentare_uq")) return "alimentare" as const;
+  return null;
+}
+
+/**
+ * Bloc, iar la 23505 rând cu rând: concurența sau un ID repetat în fișier.
+ * Doar `fctx_dedup_uq` e un duplicat. `fctx_alimentare_uq` înseamnă că
+ * alimentarea potrivită a fost legată de alt rând după citirea contextului
+ * (legare manuală, repotrivire, alt import): tranzacția NU e importată deja, deci
+ * se scrie fără legătură, „fără alimentare”, nu se numără tăcut ca duplicat.
+ */
 async function scrieFelia(
   ctx: ActionContext,
   randuri: readonly RandDeScris[],
@@ -857,9 +895,24 @@ async function scrieFelia(
   let scrise = 0;
   let duplicate = 0;
   for (const rand of randuri) {
-    const unu = await ctx.supabase.from("fuel_card_transactions").insert(rand).select("id");
+    let unu = await ctx.supabase.from("fuel_card_transactions").insert(rand).select("id");
+    if (
+      unu.error !== null &&
+      rand.fuel_entry_id !== null &&
+      indexRefuzat(unu.error) === "alimentare"
+    ) {
+      unu = await ctx.supabase
+        .from("fuel_card_transactions")
+        .insert({
+          ...rand,
+          fuel_entry_id: null,
+          stare_potrivire: "fara_alimentare",
+          motiv: MOTIV_ALIMENTARE_LUATA,
+        })
+        .select("id");
+    }
     if (unu.error === null) scrise += unu.data.length;
-    else if (unu.error.code === "23505") duplicate += 1;
+    else if (indexRefuzat(unu.error) === "dedup") duplicate += 1;
     else traduEroareCarduri(unu.error);
   }
   return { scrise, duplicate };

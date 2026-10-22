@@ -32,7 +32,7 @@ vi.mock("@/lib/auth/permissions", async (orig) =>
   (await import("@/lib/teste/actiune")).falsuri.permissions(await orig()),
 );
 
-import { configureazaActiunea, ID_1, ORG_ID, USER_ID } from "@/lib/teste/actiune";
+import { configureazaActiunea, ID_1, ID_2, ID_3, ORG_ID, USER_ID } from "@/lib/teste/actiune";
 import { areFiltru, eroarePostgrest, type ClientFals } from "@/lib/teste/supabase-fals";
 import type { LotExtras } from "@/schemas/fleet-carduri";
 
@@ -154,6 +154,37 @@ describe("analizeazaExtras", () => {
     expect(eșantion).toContain("•••• 1234");
     expect(/\d{12,}/u.test(eșantion.replace(/[\s-]/gu, ""))).toBe(false);
     expect(server.apeluriStocare.some((a) => a.metoda === "upload")).toBe(false);
+  });
+
+  it("valorile peste coloanele bazei nu ajung în lot: km și prețul devin goale, valoarea absurdă respinge rândul", async () => {
+    // `km_declarat integer`, `pret_unitar numeric(12,4)`, `valoare_* numeric(14,2)`:
+    // o celulă peste ele trecea de previzualizare, apoi INSERT-ul felie cădea
+    // întreg pe 22003, la fiecare reluare, fără să spună rândul.
+    const { server, admin } = configureazaActiunea({ permisiuni: PERMISIUNI });
+    server.raspundeStocare(BUCKET, "download", {
+      data: csv(
+        "Numar card;Data;Produs;Cantitate;Pret;Valoare;Km\n" +
+          "1234;05.10.2026 14:02;Motorina;52,30;123456789,5;380,15;7002510000001234\n" +
+          "1234;06.10.2026 09:10;Motorina;40,00;7,25;1234567890123,00;150000\n",
+      ),
+    });
+    admin.raspundeStocare(BUCKET, "remove", { data: [] });
+    citiriAnaliza(server);
+    server.raspundeStocare(BUCKET, "upload", { data: { path: "x" } });
+
+    const r = await analizeazaExtras({ batchId: LOT, cale: CALE, emitent: "omv_petrom" });
+
+    if (!r.ok || r.data.cereMapare) throw new Error("trebuia previzualizare");
+    expect(r.data).toMatchObject({ deImportat: 1, numarRespinse: 1 });
+    expect(r.data.respinse).toEqual([{ rand: 3, mesaj: expect.stringContaining("Valoarea") }]);
+    const urcare = server.apeluriStocare.find((a) => a.metoda === "upload");
+    const lot = JSON.parse(await (urcare?.argumente[1] as Blob).text()) as LotExtras;
+    expect(lot.randuri).toHaveLength(1);
+    expect(lot.randuri[0]).toMatchObject({
+      kmDeclarat: null,
+      pretUnitar: null,
+      valoareBruta: 380.15,
+    });
   });
 
   it("extras recunoscut: lotul urcat fără numere întregi, rândul de total respins, AdBlue nu e combustibil", async () => {
@@ -450,6 +481,141 @@ describe("aplicaImportExtras", () => {
       data: { importate: 1, duplicate: 1, gata: true },
     });
     expect(server.apeluriPe("fuel_card_transactions", "insert")).toHaveLength(3);
+  });
+
+  it("23505 pe ALIMENTARE (legată între timp de altcineva): tranzacția se scrie fără legătură, nu se pierde ca „duplicat”", async () => {
+    // Între citirea contextului și scriere, alimentarea potrivită a fost legată
+    // de alt rând (legare manuală, altă felie, alt import). Indexul de dedup nu
+    // e atins: rândul nu e importat deja, deci numărat drept duplicat ar lipsi
+    // tăcut din registru, iar raportul ar spune „deja importate”.
+    const { server, admin } = configureazaActiunea({ permisiuni: PERMISIUNI });
+    const VEHICUL = ID_2;
+    const FOAIE = ID_3;
+    const ALIMENTARE = "99999999-9999-4999-8999-999999999999";
+    lotInStocare(server, lotDeTest(["h:a#1"]));
+    server.raspunde("fuel_card_imports", "select", {
+      data: {
+        id: LOT,
+        organization_id: ORG_ID,
+        emitent: "omv_petrom",
+        fisier_sha256: "a".repeat(64),
+        randuri_fisier: 1,
+        finalizat_la: null,
+        deleted_at: null,
+      },
+    });
+    server.raspunde("fuel_card_transactions", "select", { data: [] });
+    server.raspunde("fuel_cards", "select", {
+      data: [
+        {
+          id: "card-1",
+          emitent: "omv_petrom",
+          ultimele_cifre: "1234",
+          amprenta_numar: null,
+          vehicle_id: VEHICUL,
+          employee_id: null,
+        },
+      ],
+      count: 1,
+    });
+    server.raspunde("vehicles", "select", {
+      data: [
+        { id: VEHICUL, nr_inmatriculare: "B100XYZ", tip_combustibil: "motorina", deleted_at: null },
+      ],
+      count: 1,
+    });
+    server.raspunde("vehicle_assignments", "select", { data: [], count: 0 });
+    server.raspunde("trip_sheets", "select", {
+      data: [
+        {
+          id: FOAIE,
+          vehicle_id: VEHICUL,
+          employee_id: ID_1,
+          data: "2026-10-05",
+          status: "trimis",
+          km_plecare: 1,
+          km_sosire: 2,
+        },
+      ],
+      count: 1,
+    });
+    server.raspunde("fuel_entries", "select", {
+      data: [
+        {
+          id: ALIMENTARE,
+          trip_sheet_id: FOAIE,
+          litri: 50,
+          cost: 350,
+          alimentat_la: "2026-10-05T11:00:00.000Z",
+          numar_bon: null,
+        },
+      ],
+      count: 1,
+    });
+    server.raspunde("fuel_card_transactions", "select", { data: [] });
+    const luata = eroarePostgrest(
+      "23505",
+      'duplicate key value violates unique constraint "fctx_alimentare_uq"',
+    );
+    server.raspunde("fuel_card_transactions", "insert", { error: luata });
+    server.raspunde("fuel_card_transactions", "insert", { error: luata });
+    server.raspunde("fuel_card_transactions", "insert", { data: [{ id: ID_1 }] });
+    server.raspunde("fuel_card_transactions", "select", { count: 1 });
+    server.raspunde("fuel_card_imports", "update", { data: { id: LOT } });
+    admin.raspundeStocare(BUCKET, "remove", { data: [] });
+
+    const r = await aplicaImportExtras({ batchId: LOT, offset: 0 });
+
+    expect(r).toMatchObject({
+      ok: true,
+      data: { importate: 1, duplicate: 0, gata: true },
+    });
+    const scrieri = server.apeluriPe("fuel_card_transactions", "insert");
+    expect(scrieri).toHaveLength(3);
+    expect(scrieri[1]?.payload).toMatchObject({
+      fuel_entry_id: ALIMENTARE,
+      stare_potrivire: "potrivita",
+    });
+    expect(scrieri[2]?.payload).toMatchObject({
+      cheie_dedup: "h:a#1",
+      trip_sheet_id: FOAIE,
+      fuel_entry_id: null,
+      stare_potrivire: "fara_alimentare",
+      motiv: expect.stringContaining("legată între timp"),
+    });
+  });
+
+  it("23505 necunoscut la scrierea rând cu rând: nu se înghite ca duplicat", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: PERMISIUNI });
+    lotInStocare(server, lotDeTest(["h:a#1"]));
+    server.raspunde("fuel_card_imports", "select", {
+      data: {
+        id: LOT,
+        organization_id: ORG_ID,
+        emitent: "omv_petrom",
+        fisier_sha256: "a".repeat(64),
+        randuri_fisier: 1,
+        finalizat_la: null,
+        deleted_at: null,
+      },
+    });
+    server.raspunde("fuel_card_transactions", "select", { data: [] });
+    citiriPotrivire(server);
+    const alta = eroarePostgrest(
+      "23505",
+      'duplicate key value violates unique constraint "fuel_card_transactions_pkey"',
+    );
+    server.raspunde("fuel_card_transactions", "insert", { error: alta });
+    server.raspunde("fuel_card_transactions", "insert", { error: alta });
+    // Restul drumului, ca o înghițire tăcută să ajungă până la capăt.
+    server.raspunde("fuel_card_transactions", "select", { count: 0 });
+    server.raspunde("fuel_card_imports", "update", { data: { id: LOT } });
+    admin.raspundeStocare(BUCKET, "remove", { data: [] });
+
+    const r = await aplicaImportExtras({ batchId: LOT, offset: 0 });
+
+    expect(r).toMatchObject({ ok: false });
+    expect(server.apeluriPe("fuel_card_imports", "update")).toHaveLength(0);
   });
 
   it("lotul expirat din Storage: CONFLICT cu instrucțiunea de reluare", async () => {
