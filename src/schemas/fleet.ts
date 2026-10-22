@@ -235,12 +235,14 @@ export type VehiculNou = z.output<typeof vehiculNouSchema>;
  *
  * `vehicule_insert` cere literal `status = 'activ'`, `data_iesire is null` și
  * `motiv_iesire is null`: un vehicul nu poate intra direct „vândut” fără să fi
- * existat vreodată în parc. `vehicule_update` nu are restricția, deci ieșirea
- * din parc se face de aici.
+ * existat vreodată în parc. Din 0218 (F12h), ieșirea din parc NU se mai face de
+ * aici: o face asistentul „Scoate din parc” (`src/schemas/flota-iesire.ts`),
+ * iar `vehicles_iesire_garda` refuză trecerea directă în/din `vandut`/`casat`
+ * (P0001). Schema rămâne cu toate stările: caseta „Modifică” retrimite starea
+ * și motivul unui vehicul ieșit NESCHIMBATE, iar `superRefine` le verifică.
  *
- * `data_iesire` NU e în schemă deliberat: `internal.vehicles_normalizeaza()` o
- * pune singură la `vandut`/`casat` și o golește la orice altă stare. Trimisă și
- * din client, ar fi a doua sursă pentru aceeași dată.
+ * `data_iesire` NU e în schemă deliberat: o scrie asistentul, iar
+ * `internal.vehicles_normalizeaza()` o golește la orice stare din parc.
  */
 export const actualizeazaVehiculSchema = z
   .object({

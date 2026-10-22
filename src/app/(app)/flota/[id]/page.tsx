@@ -74,6 +74,12 @@ import { DialogPvNou } from "./dialog-pv-nou";
 // ── sfârșit bloc: procesul-verbal de predare ──
 // F12d (0216): rezervările mașinii de pool.
 import { SectiuneRezervariVehicul } from "../rezervari/sectiune-vehicul";
+// ── început bloc: ieșirea din parc (0218, F12h) ──
+import { iesireaVehiculului } from "@/lib/queries/flota-iesire";
+import { DialogIesire } from "./iesire/dialog-iesire";
+import { etichetaIesirii } from "./iesire/etichete-iesire";
+import { SectiuneIesire } from "./iesire/sectiune-iesire";
+// ── sfârșit bloc: ieșirea din parc ──
 
 export const metadata: Metadata = { title: "Fișa vehiculului" };
 
@@ -135,8 +141,12 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
   const filtreFila = filtreDinUrl(filtreServiceSchema, parametri);
   const fila = poateVedeaService ? filtreFila.fila : null;
 
+  // 0218 (F12h): ieșirea și termenele ei le citește doar `vehicles:read = all`,
+  // ca politicile (implicita I-h6); sub `team`/`own` ar veni zero rânduri.
+  const poateVedeaIesirea = can(permisiuni, "vehicles:read", "all");
+
   // Selectoarele (angajați, departamente) doar pentru cine poate scrie cu ele.
-  const [documente, nomenclator, alocari, angajati, departamente, pragFirma, pvuri] =
+  const [documente, nomenclator, alocari, angajati, departamente, pragFirma, pvuri, iesire] =
     await Promise.all([
       documenteleVehiculului(vehicul.id),
       // Nomenclatorul ÎNTREG al firmei (0202): un document pe un tip retras între
@@ -154,6 +164,10 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
       vehicul.prag_salt_km === null ? pragSaltVehicul(vehicul.id) : Promise.resolve(null),
       // 0215 (F12c): PV-urile vehiculului, grupate apoi pe capetele alocărilor.
       pvurileVehiculului(tenant.organizationId, vehicul.id),
+      // 0218 (F12h): ieșirea vie, doar pe un vehicul ieșit.
+      poateVedeaIesirea && (vehicul.status === "vandut" || vehicul.status === "casat")
+        ? iesireaVehiculului(tenant.organizationId, vehicul.id)
+        : Promise.resolve(null),
     ]);
   const departamentVehicul =
     vehicul.department_id === null
@@ -571,7 +585,10 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
           actiuni={
             <div className="flex flex-wrap items-center gap-3">
               <Badge ton={TONURI_STATUS_VEHICUL[vehicul.status]} className="shrink-0">
-                {ETICHETE_STATUS_VEHICUL[vehicul.status]}
+                {/* 0218 (F12h): felul ieșirii („Radiat — furt”), nu statusul intern. */}
+                {iesire === null
+                  ? ETICHETE_STATUS_VEHICUL[vehicul.status]
+                  : etichetaIesirii(iesire.tip, iesire.destinatie_epava, iesire.motiv_radiere)}
               </Badge>
               {/* Drumul vehicul → cursele lui nu exista deloc: `filtreFoiSchema`
                   avea `vehicul` de la început, dar nimic nu-l scria în adresă.
@@ -604,6 +621,21 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
               {poateAdministra ? (
                 <>
                   <DialogVehicul vehicul={vehicul} departamente={departamente} />
+                  {vehiculInParc ? (
+                    <DialogIesire
+                      vehiculId={vehicul.id}
+                      nrInmatriculare={vehicul.nr_inmatriculare}
+                      kmCurent={vehicul.km_curent}
+                      dataAchizitie={vehicul.data_achizitie}
+                      azi={azi}
+                      soferCurent={
+                        alocareDeschisa === undefined
+                          ? null
+                          : (alocareDeschisa.sofer?.full_name ?? "—")
+                      }
+                      foiDeAprobat={foiTrimise}
+                    />
+                  ) : null}
                   <DialogKilometraj vehiculId={vehicul.id} kmCurent={vehicul.km_curent} />
                   <ButonStergeVehicul
                     id={vehicul.id}
@@ -674,12 +706,26 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
                     : `${pragFirma.toLocaleString("ro-RO")} km, din setările flotei`
                   : `${vehicul.prag_salt_km.toLocaleString("ro-RO")} km`,
             },
-            ...(vehicul.motiv_iesire === null
+            // Cu o ieșire din asistent, motivul stă în secțiunea ei (0218).
+            ...(vehicul.motiv_iesire === null || iesire !== null
               ? []
               : [{ eticheta: "Motivul ieșirii din parc", valoare: vehicul.motiv_iesire }]),
           ]}
         />
       </section>
+
+      {/* 0218 (F12h): detaliile ieșirii, termenele ei și ieșirile anulate. */}
+      {poateVedeaIesirea ? (
+        <SectiuneIesire
+          organizationId={tenant.organizationId}
+          vehicul={vehicul}
+          iesire={iesire}
+          poateAdministra={poateAdministra}
+          alocari={alocari}
+          capete={capete}
+          azi={azi}
+        />
+      ) : null}
 
       {poateVedeaService ? (
         <BandaFile eticheta="Secțiunile fișei vehiculului">

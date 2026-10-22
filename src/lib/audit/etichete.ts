@@ -157,6 +157,11 @@ const ENTITATI: Readonly<Record<string, string>> = {
   // F12d (0216): tabela și literalul acțiunilor din `flota/rezervari/actions.ts`.
   vehicle_reservations: "Rezervare vehicul",
   vehicle_reservation: "Rezervare vehicul",
+  // F12h (0218): tabelele și literalele acțiunilor din `flota/[id]/iesire/actions.ts`.
+  vehicle_exits: "Ieșire din parc",
+  vehicle_exit: "Ieșire din parc",
+  vehicle_exit_obligations: "Termen de ieșire din parc",
+  vehicle_exit_obligation: "Termen de ieșire din parc",
   work_accidents: "Accident de muncă",
   work_accident: "Accident de muncă",
   fire_extinguishers: "Stingător",
