@@ -22,8 +22,8 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { fisaMea } from "@/lib/queries/portal";
 import {
   BUCKET_FLOTA,
-  caleFlotaValida,
-  construiesteCaleFlota,
+  caleScanPvValida,
+  construiesteCaleScanPv,
   verificaFisierFlota,
 } from "@/domain/fleet/fisiere";
 import {
@@ -359,8 +359,8 @@ export const confirmaPv = createAction({
 // Trei pași, ca scanarea documentelor de vehicul (`flota/actions-fisiere.ts`):
 // semnarea căii pe clientul UTILIZATORULUI (`flota_objects_insert` decide),
 // urcarea din browser, confirmarea cu mărimea REALĂ din Storage. Calea stă în
-// folderul vehiculului (`{org}/vehicles/{vehicul}/…`, 0202), iar baza o
-// verifică din nou pe rând (`internal.flota_cale_valida`). Doar pe PV-ul
+// folderul vehiculului (`{org}/vehicles/{vehicul}/pv-{PV}-…`, 0202 + X2), iar
+// baza o verifică din nou pe rând (`internal.pv_vehicul_inainte`). Doar pe PV-ul
 // finalizat: ciorna nu are hârtie semnată.
 
 const MESAJ_PREGATIRE_SCAN =
@@ -399,10 +399,12 @@ export const pregatesteScanPv = createAction({
       );
     }
 
-    const cale = construiesteCaleFlota(
+    // X2: numele fișierului e al ACESTUI PV (`pv-{id}-…`); baza (0215) nu leagă
+    // de `scan_path` alt fișier din folderul vehiculului.
+    const cale = construiesteCaleScanPv(
       ctx.tenant.organizationId,
-      "vehicles",
       input.vehicle_id,
+      input.id,
       input.numeFisier,
     );
     const { data, error: eroareSemnare } = await db.storage
@@ -427,8 +429,8 @@ export const confirmaScanPv = createAction({
   },
   revalidate: (input) => [`/flota/${input.vehicle_id}/pv/${input.id}`],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
-    if (!caleFlotaValida(input.cale, ctx.tenant.organizationId, "vehicles", input.vehicle_id)) {
-      throw invalidInput("Calea fișierului nu corespunde acestui vehicul.", {});
+    if (!caleScanPvValida(input.cale, ctx.tenant.organizationId, input.vehicle_id, input.id)) {
+      throw invalidInput("Calea fișierului nu corespunde acestui proces-verbal.", {});
     }
     const db = await createServerSupabase();
     const masura = await masoaraObiectul(db, BUCKET_FLOTA, input.cale);
