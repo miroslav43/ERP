@@ -129,12 +129,55 @@ _genereaza_stack() {
   echo "$dest"
 }
 
+# Poartă: codul nu pleacă peste o bază căreia îi lipsesc migrările lui.
+#
+# Deploy-ul nu aplică migrările (asta e `db:migrate`, cu confirmare), deci
+# main poate fi oricând înaintea bazei de producție. Pe 23 oct 2026 era cu 29
+# de migrări înainte (0192–0198 ale campaniei QA, plus lotul flotă–mentenanță),
+# iar un deploy de rutină din altă sesiune ar fi rulat codul nou peste schema
+# veche: 42703 pe coloane, P0001 pe triggere, ecrane goale. Pe staging poarta
+# trece mereu, fiindcă workflow-ul rulează `db:migrate` chiar înainte.
+#
+# Corpul e un SUBSHELL, cu paranteze: parola bazei vine prin `_load_env_db`
+# (pe producție, din `.env.local`), iar fișierul ăla are și `NEXT_PUBLIC_*` de
+# dezvoltare. Încărcat în shell-ul deploy-ului, ar suprascrie valorile de
+# producție chiar înainte de build, iar ele se coc în imagine.
+_poarta_migrari_aplicate() (
+  if [ "${ADM_FARA_POARTA_MIGRARI:-}" = "1" ]; then
+    warn "Poarta migrărilor e sărită (ADM_FARA_POARTA_MIGRARI=1)."
+    exit 0
+  fi
+  require_cmd psql
+  _load_env_db
+  # `|| exit`: un `exit` din `_db_url_sau_mori` iese doar din `$(...)`.
+  local u; u=$(_db_url_sau_mori) || exit 1
+  local aplicate
+  aplicate=$(psql "$u" -tAc "select nume from internal.migrari_aplicate;") || {
+    error "Nu pot citi registrul de migrări al mediului ${ADM_MEDIU} — refuz să fac deploy orbește."
+    exit 1
+  }
+  local lipsa=() f n
+  for f in "$ADMINISTRATIVO_ROOT"/supabase/migrations/*.sql; do
+    n=$(basename "$f")
+    grep -qxF "$n" <<<"$aplicate" || lipsa+=("$n")
+  done
+  if [ "${#lipsa[@]}" -gt 0 ]; then
+    error "Baza mediului ${ADM_MEDIU} nu are ${#lipsa[@]} migrări de pe disc: codul nou ar rula peste schema veche."
+    printf "     ${DIM}%s${NC}\n" "${lipsa[@]:0:12}" >&2
+    [ "${#lipsa[@]}" -gt 12 ] && echo -e "     ${DIM}… și încă $(( ${#lipsa[@]} - 12 )).${NC}" >&2
+    echo -e "     ${DIM}Întâi: ADM_MEDIU=${ADM_MEDIU} ./administrativo.sh db:migrate (cere confirmare), apoi deploy-ul.${NC}" >&2
+    exit 1
+  fi
+  _ok "migrări pe baza țintă" "toate cele de pe disc sunt aplicate"
+)
+
 # @cmd stack:deploy "Build + rolling update health-gated al stack-ului"
 cmd_stack__deploy() {
   header "Deploy stack '${ADM_STACK}'"
   require_cmd docker
   _load_env
   _validate_prod_env
+  _poarta_migrari_aplicate || exit 1
   _ensure_swarm
   _build_image
 
