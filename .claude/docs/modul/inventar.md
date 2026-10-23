@@ -7,6 +7,7 @@ cai:
   - "src/lib/queries/inventory.ts"
   - "src/schemas/inventory.ts"
   - "src/domain/inventory/**"
+  - "supabase/migrations/0233_oracol_intre_firme.sql"
 tabele: [inventory_items, inventory_allocations, inventory_categories, inventory_import_batches]
 permisiuni: [inventory:read, inventory:update]
 feature: inventory
@@ -76,6 +77,11 @@ prin trigger; ieșirea din `in_reparatie` are acțiune proprie.
 `.select("valoare.sum()")`.
 
 ## Ce refuză baza tăcut
+
+**Lotul de import se caută doar în firma obiectului** (0233):
+`internal.inventory_items_lot_propriu` dă un singur P0001 pentru lotul inexistent și
+pentru cel al altei firme, iar garda de firmă (42501) vine înaintea căutării. Proba:
+`tests/rls/proba-oracol-intre-firme.sql`.
 
 **Un obiect NEALOCAT e invizibil sub `all`.** Politica de SELECT pe `inventory_items`
 gradează după scope: la `all` se vede tot; la `team` doar dacă există o alocare pe un

@@ -13,6 +13,7 @@ cai:
   - "supabase/migrations/0004_hr.sql"
   - "supabase/migrations/0139_cod_departament_optional.sql"
   - "supabase/migrations/0143_seful_iese_din_departament.sql"
+  - "supabase/migrations/0233_oracol_intre_firme.sql"
 tabele: [departments, employees, profiles, organization_members]
 permisiuni:
   [
@@ -191,8 +192,8 @@ PostgREST. — capcana #2
 ## Ce refuză baza
 
 `public.tg_departments_path` rulează BEFORE INSERT sau UPDATE pe `parent_id` și ridică
-P0001 dacă: departamentul superior nu există sau e șters, aparține altei organizații,
-structura ar deveni **circulară**, sau arborele ar depăși **12 niveluri**. `path` și
+P0001 dacă: superiorul nu e în firma rândului (inexistent, șters sau străin: un mesaj,
+0233), structura ar deveni **circulară**, sau arborele ar depăși **12 niveluri**. `path` și
 `depth` sunt calculate de trigger, nu trimise de client.
 
 `mutaDepartament` mai adaugă o gardă în acțiune, înaintea bazei: un departament nu poate fi

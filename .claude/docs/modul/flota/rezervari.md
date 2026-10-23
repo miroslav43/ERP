@@ -11,6 +11,8 @@ cai:
   - "src/app/(portal)/portal/masina-mea/rezervari/**"
   - "src/app/(app)/flota/actions-setari.ts"
   - "tests/rls/proba-flota-rezervari.sql"
+  - "supabase/migrations/0233_oracol_intre_firme.sql"
+  - "tests/rls/proba-oracol-intre-firme.sql"
 tabele: [vehicle_reservations, trip_sheets, vehicle_assignments, vehicles, fleet_settings]
 permisiuni:
   [
@@ -75,6 +77,11 @@ prins `employees.full_name` nullable): `listeazaRezervari` și `rezervarileMele`
 
 ## Ce refuză baza tăcut sau cu P0001
 
+- **Garda de firmă vine prima** (Y2), înaintea lacătului pe vehicul: în
+  `rezervari_inainte`, în `alocari_rezervari` și în `internal.alocari_inainte` (0233,
+  primul BEFORE pe `vehicle_assignments`). Rulează înaintea WITH CHECK, deci un rând pus pe
+  altă firmă afla din refuzuri dacă vehiculul ei e în pool, ieșit din parc, alocat, cu foaie
+  sau din ce zi e rezervat. Acum 42501 neutru. Proba: `tests/rls/proba-oracol-intre-firme.sql`.
 - **Statusul îl pune triggerul** (`rezervari_inainte`): `confirmata` fără aprobare sau pentru
   cine are `approve = all` (și rezervarea proprie a administratorului, decizia I-d9),
   altfel `ceruta`. O cerere `ceruta` blochează zilele ca una confirmată (EXCLUDE pe gist).

@@ -10,6 +10,8 @@ cai:
   - "supabase/migrations/0212_mentenanta_fisiere_scriu_doar_membrii.sql"
   - "tests/rls/proba-sesizari-roluri.sql"
   - "tests/rls/proba-sesizari-tehnician-cu-drept.sql"
+  - "supabase/migrations/0233_oracol_intre_firme.sql"
+  - "tests/rls/proba-oracol-intre-firme.sql"
   - "src/lib/queries/maintenance.ts"
 tabele:
   [
@@ -102,6 +104,11 @@ P0001 tradus. Așa regula trăiește într-un singur loc, probat de
 
 ## Ce refuză baza tăcut
 
+- **Garda de firmă vine prima** (0233): `internal.fault_reports_garda` e primul BEFORE pe
+  `fault_reports` și rulează înaintea WITH CHECK, deci o sesizare pusă pe altă firmă
+  primea alt răspuns după cum echipamentul sau tehnicianul existau acolo. Acum 42501
+  neutru, înaintea oricărei căutări; aceeași gardă stă și în
+  `internal.fault_reports_tehnician_cu_drept`. Proba: `tests/rls/proba-oracol-intre-firme.sql`.
 - **Garda fixează coloanele scrise de triggere pentru actorii nominali.** `rezolvat_la`,
   `inchis_la`, `atribuit_la`, `redeschisa_de_ori`, `motiv_respingere_tip`, `numar`,
   `raportat_la` trimise de raportor sau tehnician se întorc la valoarea veche înainte de
