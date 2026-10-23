@@ -15,7 +15,7 @@ permisiuni:
   [vehicles:read, trip_sheets:read, trip_sheets:create, trip_sheets:update, trip_sheets:approve]
 feature: fleet
 capcane: [17, 18]
-scris_pe: 9db525aeb5cc48094f85f4fe37b4a424e68ed3f8
+scris_pe: cf35535c22a8126c8901d50e9ad66f96d31fc430
 scris_la: 2026-10-23
 tags: [modul, operations]
 ---
