@@ -40,7 +40,7 @@ zeci de erori false — adică prima impresie ar fi „poarta e stricată".
 | `B`   | migrarea citată există în `supabase/migrations/`                                                                                                                                                |
 | `J`   | ruta citată se rezolvă la un `page.tsx` sau `route.ts`                                                                                                                                          |
 | `G`   | `capcana #N` există în `docs/design/ecrane/capcane.md`, iar `capcane:` din frontmatter la fel                                                                                                   |
-| `H`   | wikilink-urile duc undeva; capcanele NU se scriu ca wikilink; nicio pagină nu se leagă de ea însăși; o subpagină (`<mamă>/<sub>.md`) e legată din pagina-mamă                                   |
+| `H`   | wikilink-urile duc undeva; capcanele NU se scriu ca wikilink; nicio pagină nu se leagă de ea însăși; pagina-mamă își leagă fiecare subpagină (`<mamă>/<sub>.md`) — eroarea stă pe mamă          |
 
 Clasa `R` e singura care produce și avertismente: peste **țintă** avertizează, peste
 **plafonul dur** e eroare și pagina se sparge — nocturna o sparge singură, după

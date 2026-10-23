@@ -41,8 +41,8 @@ rânduri se extrage în `modul/<slug>/actiuni.md`, indiferent de rute.
   complet, cu `cai:` restrâns la ce ține ea.
 - Legătura merge în ambele sensuri: subpagina începe cu „Secțiune extrasă din
   [[modul/pontaj]]”, iar mama o trece în tabelul „Paginile modulului”. Lintul refuză
-  subpagina pe care mama n-o leagă: CLAUDE.md trimite la pagina-mamă, deci o subpagină
-  nelegată nu e citită de nimeni.
+  mama care nu-și leagă o subpagină (eroarea stă pe mamă, deci ea se revertește):
+  CLAUDE.md trimite la pagina-mamă, deci o subpagină nelegată nu e citită de nimeni.
 - Secțiunile se mută întregi, cu textul neschimbat.
 - Nocturna (`.github/workflows/documentatie.yml`) sparge singură: lintul măsoară corpul
   după rescriere, iar peste plafonul dur urmează o a doua trecere, doar de spargere.

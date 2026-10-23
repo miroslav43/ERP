@@ -146,8 +146,10 @@ describe("docs:lint — subpaginile rămân sub poartă", () => {
     });
 
     expect(r.cod).toBe(1);
-    const erori = r.pag(NOU)?.erori ?? [];
-    expect(erori.some((e) => e.clasa === "H" && e.mesaj.includes("[[modul/x]]"))).toBe(true);
+    // Eroarea e a mamei: ea trebuie să lege subpagina, ea se revertește.
+    const erori = r.pag(MAMA)?.erori ?? [];
+    expect(erori.some((e) => e.clasa === "H" && e.mesaj.includes("[[modul/x/nou]]"))).toBe(true);
+    expect(r.pag(NOU)?.erori).toEqual([]);
   });
 
   it("legată din mamă, subpagina trece", () => {
@@ -488,6 +490,45 @@ describe.skipIf(process.platform === "win32")(
       expect(r.iesire).toContain("Nicio eroare în plus");
       expect(existsSync(join(r.dir, NOU))).toBe(true);
       expect(readFileSync(join(r.dir, MAMA), "utf8")).toContain("[[modul/x/nou]]");
+    });
+
+    it("o mamă rescrisă care pierde legătura spre o subpagină EXISTENTĂ e revertită ea, iar noaptea continuă", () => {
+      // Vina e a mamei: ea a scos rândul din tabelul paginilor. Dacă eroarea
+      // stă pe subpagină, revertul face `git checkout` pe subpagina neatinsă
+      // (nimic de revertit), verificarea finală o găsește tot stricată și se
+      // anulează publicarea TUTUROR paginilor din noaptea aia.
+      const VECHI = ".claude/docs/modul/x/vechi.md";
+      const continutMama = pagina("X", "# X\n\nTrunchiul. Restul: [[modul/x/vechi]].\n");
+      const { dir, env } = repo({
+        [MAMA]: continutMama,
+        [VECHI]: pagina("X — vechi", "# vechi\n\nSecțiune extrasă din [[modul/x]].\n"),
+        "supabase/migrations/.gitkeep": "",
+        "scripts/docs/.gitkeep": "",
+      });
+      for (const s of ["lint-vault.mjs", "lint-compara.mjs"])
+        copyFileSync(join(RADACINA_REPO, "scripts/docs", s), join(dir, "scripts/docs", s));
+      const temp = join(dirname(dir), "temp");
+      mkdirSync(temp);
+      const inainte = spawnSync("node", ["scripts/docs/lint-vault.mjs", "--json"], {
+        cwd: dir,
+        env,
+        encoding: "utf8",
+      });
+      expect(inainte.status).toBe(0);
+      writeFileSync(join(temp, "lint-inainte.json"), inainte.stdout);
+
+      scrie(dir, MAMA, pagina("X", "# X\n\nTrunchiul, rescris fără tabelul paginilor.\n"));
+      writeFileSync(join(temp, "familii.txt"), `${MAMA}\n`);
+
+      const r = ruleazaPas("Lint după, comparat independent", dir, {
+        ...env,
+        RUNNER_TEMP: temp,
+        GITHUB_STEP_SUMMARY: join(temp, "rezumat.md"),
+      });
+
+      expect(r.iesire).not.toContain("Revertul n-a curățat regresiile");
+      expect(r.cod).toBe(0);
+      expect(readFileSync(join(dir, MAMA), "utf8")).toBe(continutMama);
     });
   },
 );

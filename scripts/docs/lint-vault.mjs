@@ -378,18 +378,25 @@ const verifica = (cale) => {
   // pagina-mamă — CLAUDE.md trimite agentul la `modul/<slug>.md`, nu la
   // subarbore. Nelegată de acolo, e o pagină pe care n-o deschide nimeni, iar
   // spargerea făcută de nocturnă ar fi o ștergere tăcută a secțiunii mutate.
-  const segmenteProprii = propria.split("/");
-  if (segmenteProprii.length >= 3) {
-    const mama = segmenteProprii.slice(0, -1).join("/");
-    const caleMama = join(VAULT, `${mama}.md`);
-    if (existsSync(caleMama)) {
+  //
+  // Eroarea stă pe MAMĂ, nu pe subpagină: mama a pierdut (sau n-a primit)
+  // rândul din tabel, deci ea se repară sau se revertește. Pusă pe subpagină,
+  // poarta nocturnei revertea subpagina neatinsă, rămânea roșie și anula
+  // publicarea TUTUROR paginilor din noaptea aia.
+  const dirSubpagini = cale.replace(/\.md$/, "");
+  if (existsSync(dirSubpagini) && statSync(dirSubpagini).isDirectory()) {
+    const subpagini = readdirSync(dirSubpagini, { withFileTypes: true })
+      .filter((d) => d.isFile() && d.name.endsWith(".md"))
+      .map((d) => `${propria}/${d.name.slice(0, -".md".length)}`)
+      .sort();
+    for (const sub of subpagini) {
       num("H");
-      const scapat = propria.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      if (!new RegExp(`\\[\\[\\s*${scapat}\\s*(\\||\\]\\])`).test(readFileSync(caleMama, "utf8")))
+      const scapat = sub.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      if (!new RegExp(`\\[\\[\\s*${scapat}\\s*(\\||\\]\\])`).test(text))
         E(
           "H",
           1,
-          `subpagina nu e legată din [[${mama}]] — adaugă \`[[${propria}]]\` în tabelul paginilor modulului`,
+          `subpagina \`${sub}.md\` nu e legată de aici — adaugă \`[[${sub}]]\` în tabelul paginilor modulului`,
         );
     }
   }

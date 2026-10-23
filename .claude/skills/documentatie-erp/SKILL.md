@@ -93,8 +93,9 @@ Regulile, din `.claude/docs/meta/conventii.md`:
    **copiate din mamă** (consolidarea le suprascrie mecanic la publicare).
 5. **Legătura în ambele sensuri.** Subpagina începe cu „Secțiune extrasă din
    [[modul/<slug>]]: …”. Mama primește (sau completează) tabelul „Paginile modulului”,
-   cu un rând `[[modul/<slug>/<sub>]]` și ce ține. Lintul refuză o subpagină pe care
-   mama n-o leagă.
+   cu un rând `[[modul/<slug>/<sub>]]` și ce ține. Rândurile subpaginilor care există
+   deja rămân: lintul refuză mama care nu-și leagă FIECARE subpagină, iar atunci
+   workflow-ul revertește mama împreună cu spargerea.
 6. **Poarta e lintul.** Subpagina e o pagină ca oricare: căile în backticks trebuie să
    existe, wikilink-urile pe cale completă, fără cifre volatile. Dacă mama SAU oricare
    subpagină nouă capătă erori, workflow-ul retrage spargerea ÎNTREAGĂ.
@@ -128,5 +129,7 @@ ca să pari util.
 - Nu modifici o subpagină care există deja.
 - Nu modifici cod, teste, migrări sau configurație.
 - Nu comiți și nu dai push — nu ai unelte pentru asta, și e intenționat.
-- Nu scrii `scris_pe`.
+- Nu scrii `scris_pe` de la tine. Singura atingere permisă e copierea lui neschimbată
+  din mamă pe o subpagină nouă (regula 4 de la „Peste plafon”): fără câmpul ăsta,
+  lintul respinge subpagina și spargerea se retrage întreagă.
 - Nu rescrii pagina de la zero „ca să fie mai bună".
