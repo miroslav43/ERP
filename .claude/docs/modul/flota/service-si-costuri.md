@@ -156,10 +156,11 @@ din `pragSaltVehicul` (`[[modul/flota/alerte-si-setari]]`).
   rând pe firma altcuiva ia 42501 orice id ar purta (fără sondă de existență). Proba:
   `proba-costuri-compatibilitate.sql` (1).
 - **Inserarea costului cere `vehicles:update = all`**; `create = all` singur o face DOAR
-  pe vehiculul / documentul creat de el (`app.vehicul_creat_de_apelant`,
-  `app.document_creat_de_apelant`), adică valoarea inițială. Corectura (`do update`) îi
-  rămâne refuzată. Altfel un membru cu `create` fără `update` scria valoarea oricărui
-  vehicul existent fără rând de cost (revizia, constatarea k). Proba: (1l).
+  pe vehiculul / documentul creat de el în ultimele 5 minute
+  (`app.vehicul_creat_de_apelant`, `app.document_creat_de_apelant`), adică valoarea
+  inițială, din a doua cerere a acțiunii. `created_at`-ul lor îl scrie baza la INSERT
+  (`internal.flota_creat_acum`), deci fereastra nu se mută. Corectura (`do update`) îi
+  rămâne refuzată. Proba: (1l), (1m).
 - **Tipul de document `revizie` e retras pe platformă** (0203); documentele deja scrise
   pe el rămân și se corectează; o firmă îl reactivează din setările de tipuri (0202).
 

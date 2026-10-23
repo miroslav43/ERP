@@ -118,6 +118,11 @@ intervenției și triggerul AFTER al liniilor), deci o sumă tastată se înlocu
   un rând pus pe altă firmă atingea registrul ei de PV-uri (o firmă inexistentă cădea pe
   cheia străină a registrului), iar piesa spunea dacă intervenția există acolo. Acum 42501
   neutru, înaintea oricărei căutări. Proba: `tests/rls/proba-oracol-intre-firme.sql`.
+- **Un id existent nu consumă numărul PV.** Triggerul de număr rulează înaintea
+  conflictului din `INSERT … ON CONFLICT`; un rând sărit lăsa o gaură în registru, fără
+  audit. Acum id-ul existent (orice firmă, și anulat) dă 23505 pe cheia primară, ca un
+  INSERT obișnuit, sub un zăvor pe id; `inregistreazaInterventie` îl citește ca
+  trimitere dublă. Proba: `proba-interventii.sql` (11).
 - **Anularea intervenției care a rezolvat o sesizare** `rezolvat` → P0001 cu numărul
   sesizării („Redeschideți întâi…”); pe una `inchis` → definitiv (cazul 31). După
   redeschidere, `intervention_id` e golit de gardă și anularea trece.
