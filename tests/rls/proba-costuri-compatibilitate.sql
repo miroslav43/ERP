@@ -24,7 +24,14 @@
 --      coloana veche → rândul de cost al firmei, coloana goală       [POZITIVĂ];
 -- (1i) corectura legitimă prin coloana veche pe vehiculul propriu    [POZITIVĂ];
 -- (1j) upsert ignore-duplicates pe documentul PROPRIU: nimic mutat, nimic
---      stricat (golire fără mutare, ca pe orice id existent).
+--      stricat (golire fără mutare, ca pe orice id existent);
+-- (1k) fără oracol între firme: un rând de cost pus pe firma B cu id-ul REAL al
+--      vehiculului / documentului lui B primește același răspuns ca unul cu un
+--      id inventat (garda de firmă e prima în vc_inainte / vdc_inainte);
+-- (1l) constatarea (k): un membru cu `vehicles:create = all` și `update = none`
+--      nu scrie valoarea unui vehicul / cost al unui document EXISTENT creat de
+--      altcineva (42501); pe vehiculul și documentul abia create de el, da
+--      [POZITIVĂ]; corectura lor (upsert `do update`) îi rămâne refuzată.
 -- Mentenanța (0232): valoarea de achiziție a echipamentului
 -- (2a) responsabilul echipamentului (employee) își vede utilajul, dar nu
 --      valoarea: nici în rând, nici în `equipment_costuri`;
@@ -42,7 +49,9 @@
 --      echipamentul lui B e refuzată (P0001);
 -- (2j) compatibilitatea legitimă: echipament nou și corectură prin coloana
 --      veche → rândul de cost al firmei, coloana goală               [POZITIVĂ];
--- (2k) calea nouă: upsert pe `equipment_costuri`, și cu `null`      [POZITIVĂ].
+-- (2k) calea nouă: upsert pe `equipment_costuri`, și cu `null`      [POZITIVĂ];
+-- (2l) fără oracol între firme: rândul pus pe firma B cu id-ul real al
+--      echipamentului lui B și cu unul inventat primesc același răspuns.
 -- Excepția intenționată (0225 §8, neschimbată)
 -- (3)  `avantaj_natura_flota` (`payroll:read = all`: org_admin, hr) dă valoarea
 --      de intrare DOAR pe vehiculul alocat cu folosință personală; vehiculul
@@ -141,6 +150,12 @@ declare
   v_db2     uuid := gen_random_uuid();
   v_db3     uuid := gen_random_uuid();
   v_da_nou  uuid := gen_random_uuid();
+  -- (1l): membrul cu `vehicles:create = all` fără `update`
+  v_u_c     uuid := gen_random_uuid();
+  v_m_c     uuid;
+  v_vc_nou  uuid := gen_random_uuid();
+  v_dc_nou  uuid := gen_random_uuid();
+  v_da2     uuid := gen_random_uuid();
   -- mentenanța
   v_u_mgr   uuid := gen_random_uuid();
   v_u_hr    uuid := gen_random_uuid();
@@ -332,6 +347,82 @@ begin
     'upsert ignore-duplicates pe documentul propriu: nimic mutat, costul rămâne',
     v_a);
 
+  -- (1k) Oracolul: triggerul BEFORE rulează înaintea lui WITH CHECK. Fără garda
+  -- de firmă întâi, id-ul real al lui B trecea de căutare și cădea pe politică
+  -- (42501), iar cel inventat primea P0001 din trigger.
+  v_a := pg_temp.ruleaza(v_u_a, format(
+    $q$insert into public.vehicle_costuri (organization_id, vehicle_id, valoare_achizitie, created_by, updated_by)
+       values (%L, %L, 1, %L, %L)$q$, v_org_b, v_vb2, v_u_a, v_u_a));
+  v_b := pg_temp.ruleaza(v_u_a, format(
+    $q$insert into public.vehicle_costuri (organization_id, vehicle_id, valoare_achizitie, created_by, updated_by)
+       values (%L, %L, 1, %L, %L)$q$, v_org_b, gen_random_uuid(), v_u_a, v_u_a));
+  v_c := pg_temp.ruleaza(v_u_a, format(
+    $q$insert into public.vehicle_document_costuri (organization_id, document_id, cost, created_by, updated_by)
+       values (%L, %L, 1, %L, %L)$q$, v_org_b, v_db2, v_u_a, v_u_a));
+  v_d := pg_temp.ruleaza(v_u_a, format(
+    $q$insert into public.vehicle_document_costuri (organization_id, document_id, cost, created_by, updated_by)
+       values (%L, %L, 1, %L, %L)$q$, v_org_b, gen_random_uuid(), v_u_a, v_u_a));
+  v_esecuri := v_esecuri + pg_temp.verifica('1k',
+    v_a like '42501:%' and v_a = v_b and v_c like '42501:%' and v_c = v_d,
+    'rândul de cost pe firma B: id-ul real și cel inventat primesc același 42501 (fără oracol)',
+    'vc ' || v_a || ' / ' || v_b || ' · vdc ' || v_c || ' / ' || v_d);
+
+  -- (1l) Constatarea (k). Membrul C: manager cu `vehicles:create = all`,
+  -- `update = none` și `read = all` (suprascriere pe membru, 0063).
+  insert into auth.users (id, email, email_confirmed_at) values
+    (v_u_c, 'y1-c-' || v_sufix || '@proba.test', now());
+  insert into public.organization_members (organization_id, user_id, role) values (v_org, v_u_c, 'manager');
+  select id into v_m_c from public.organization_members where organization_id = v_org and user_id = v_u_c;
+  insert into public.role_permissions (organization_id, member_id, role, resource, action, scope) values
+    (v_org, v_m_c, 'manager', 'vehicles', 'create', 'all'),
+    (v_org, v_m_c, 'manager', 'vehicles', 'update', 'none'),
+    (v_org, v_m_c, 'manager', 'vehicles', 'read', 'all');
+  -- VA2 (creat de A) n-are rând de cost. Un document al lui A, tot fără cost.
+  insert into public.vehicle_documents (id, organization_id, vehicle_id, document_type_id, numar, expira_la,
+                                        created_by, updated_by)
+  values (v_da2, v_org, v_va2, v_itp, 'ITP-YA2', v_zi + 200, v_u_a, v_u_a);
+  v_a := pg_temp.ruleaza(v_u_c, format(
+    $q$insert into public.vehicle_costuri (organization_id, vehicle_id, valoare_achizitie, created_by, updated_by)
+       values (%L, %L, 777, %L, %L)$q$, v_org, v_va2, v_u_c, v_u_c));
+  v_b := pg_temp.ruleaza(v_u_c, format(
+    $q$insert into public.vehicle_document_costuri (organization_id, document_id, cost, created_by, updated_by)
+       values (%L, %L, 777, %L, %L)$q$, v_org, v_da2, v_u_c, v_u_c));
+  v_esecuri := v_esecuri + pg_temp.verifica('1l-refuz',
+    v_a like '42501:%' and v_b like '42501:%'
+    and not exists (select 1 from public.vehicle_costuri where vehicle_id = v_va2)
+    and not exists (select 1 from public.vehicle_document_costuri where document_id = v_da2),
+    'create fără update: valoarea vehiculului / costul documentului EXISTENT al altcuiva, refuzate',
+    v_a || ' · ' || v_b);
+  -- Vehiculul și documentul lui: două cereri, ca în aplicație (creeazaVehicul,
+  -- adaugaDocument), apoi costul.
+  v_a := pg_temp.ruleaza(v_u_c, format(
+    $q$insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent, created_by, updated_by)
+       values (%L, %L, 'B996YAC', 'Dacia', 'Sandero', 0, %L, %L)$q$, v_vc_nou, v_org, v_u_c, v_u_c));
+  v_b := pg_temp.ruleaza(v_u_c, format(
+    $q$insert into public.vehicle_documents (id, organization_id, vehicle_id, document_type_id, numar, expira_la,
+                                            created_by, updated_by)
+       values (%L, %L, %L, %L, 'ITP-YC', %L, %L, %L)$q$, v_dc_nou, v_org, v_vc_nou, v_itp, v_zi + 300, v_u_c, v_u_c));
+  v_c := pg_temp.ruleaza(v_u_c, format(
+    $q$insert into public.vehicle_costuri (organization_id, vehicle_id, valoare_achizitie, created_by, updated_by)
+       values (%L, %L, 33000, %L, %L)$q$, v_org, v_vc_nou, v_u_c, v_u_c));
+  v_d := pg_temp.ruleaza(v_u_c, format(
+    $q$insert into public.vehicle_document_costuri (organization_id, document_id, cost, created_by, updated_by)
+       values (%L, %L, 210, %L, %L)$q$, v_org, v_dc_nou, v_u_c, v_u_c));
+  v_esecuri := v_esecuri + pg_temp.verifica('1l-propriu',
+    v_a = 'ok:1' and v_b = 'ok:1' and v_c = 'ok:1' and v_d = 'ok:1'
+    and (select valoare_achizitie from public.vehicle_costuri where vehicle_id = v_vc_nou) = 33000
+    and (select cost from public.vehicle_document_costuri where document_id = v_dc_nou) = 210,
+    'create fără update: valoarea inițială pe vehiculul și documentul abia create de el',
+    v_a || ' · ' || v_b || ' · ' || v_c || ' · ' || v_d);
+  v_a := pg_temp.ruleaza(v_u_c, format(
+    $q$insert into public.vehicle_costuri (organization_id, vehicle_id, valoare_achizitie, created_by, updated_by)
+       values (%L, %L, 1, %L, %L)
+       on conflict (vehicle_id) do update set valoare_achizitie = excluded.valoare_achizitie,
+                                             updated_by = excluded.updated_by$q$, v_org, v_vc_nou, v_u_c, v_u_c));
+  v_esecuri := v_esecuri + pg_temp.verifica('1l-corectura',
+    v_a like '42501:%' and (select valoare_achizitie from public.vehicle_costuri where vehicle_id = v_vc_nou) = 33000,
+    'create fără update: corectura valorii (upsert do update) rămâne refuzată', v_a);
+
   -- ═══ (2) Mentenanța: valoarea de achiziție a echipamentului ═════════════════
   -- Fișele ÎNAINTEA membrilor (0083 creează una doar pentru org_admin fără fișă).
   insert into auth.users (id, email, email_confirmed_at) values
@@ -476,14 +567,28 @@ begin
     'upsert pe equipment_costuri: valoare nouă, apoi golire cu null',
     v_a || ' · ' || v_b || ' · ' || coalesce(v_c, 'null') || ' · ' || v_d);
 
+  -- (2l) Oracolul, ca la (1k): garda de firmă e prima în ec_inainte.
+  v_a := pg_temp.ruleaza(v_u_a, format(
+    $q$insert into public.equipment_costuri (organization_id, equipment_id, valoare_achizitie, created_by, updated_by)
+       values (%L, %L, 1, %L, %L)$q$, v_org_b, v_eqb2, v_u_a, v_u_a));
+  v_b := pg_temp.ruleaza(v_u_a, format(
+    $q$insert into public.equipment_costuri (organization_id, equipment_id, valoare_achizitie, created_by, updated_by)
+       values (%L, %L, 1, %L, %L)$q$, v_org_b, gen_random_uuid(), v_u_a, v_u_a));
+  v_esecuri := v_esecuri + pg_temp.verifica('2l',
+    v_a like '42501:%' and v_a = v_b,
+    'rândul de cost pe firma B: id-ul real al echipamentului și cel inventat primesc același 42501',
+    v_a || ' / ' || v_b);
+
   -- ═══ (3) Excepția intenționată: avantajul în natură (0225 §8) ═══════════════
   -- `avantaj_natura_flota` e a salarizării (`payroll:read = all`: org_admin și
   -- hr) și întoarce valoarea de intrare DOAR pentru vehiculele alocate angajatului
   -- cu folosință personală în luna cerută: e baza legală a avantajului (Codul
   -- fiscal art. 76 alin. (3) lit. j), nu o fereastră spre costurile parcului.
   -- Radu primește VA cu folosință personală și VA2 fără; VA2 are și ea valoare.
+  -- `on conflict`: pe o formă defectă (1l-refuz) membrul C a lăsat deja un rând aici.
   insert into public.vehicle_costuri (organization_id, vehicle_id, valoare_achizitie, created_by, updated_by)
-  values (v_org, v_va2, 90000, v_u_a, v_u_a);
+  values (v_org, v_va2, 90000, v_u_a, v_u_a)
+  on conflict (vehicle_id) do update set valoare_achizitie = excluded.valoare_achizitie;
   insert into public.vehicle_assignments (organization_id, vehicle_id, employee_id, de_la, folosinta_personala,
                                           created_by, updated_by)
   values (v_org, v_va2, v_e_resp, now() - interval '2 hours', false, v_u_a, v_u_a),

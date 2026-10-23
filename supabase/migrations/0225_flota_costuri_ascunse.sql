@@ -132,8 +132,53 @@ as $$
   select d.vehicle_id from public.vehicle_documents d where d.id = p_document_id;
 $$;
 
+-- Ramura `create` a inserării (revizia, constatarea k): cine are DOAR
+-- `vehicles:create = all` pune valoarea INIȚIALĂ a vehiculului sau a
+-- documentului pe care l-a creat EL, nu a unuia existent al altcuiva fără rând
+-- de cost. Aplicația face două cereri (părintele, apoi costul), deci „aceeași
+-- tranzacție” nu se poate cere; autorul rândului-părinte, da (`vehicule_insert`
+-- și `vdoc_insert` cer `created_by = auth.uid()`, iar `created_by` îl rescrie
+-- doar cine are `update = all`). O singură dată: corectura (`do update`) cere
+-- `vc_update` / `vdc_update`, adică `update = all`. Citit fără RLS: un membru
+-- cu `create` poate să nu aibă `vehicles:read` pe vehiculul lui.
+create or replace function app.vehicul_creat_de_apelant(p_organization_id uuid, p_vehicle_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+      from public.vehicles v
+     where v.id = p_vehicle_id
+       and v.organization_id = p_organization_id
+       and v.deleted_at is null
+       and v.created_by = (select auth.uid()));
+$$;
+
+create or replace function app.document_creat_de_apelant(p_organization_id uuid, p_document_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+      from public.vehicle_documents d
+     where d.id = p_document_id
+       and d.organization_id = p_organization_id
+       and d.deleted_at is null
+       and d.created_by = (select auth.uid()));
+$$;
+
 revoke all on function app.vehicul_documentului(uuid) from public, anon;
+revoke all on function app.vehicul_creat_de_apelant(uuid, uuid) from public, anon;
+revoke all on function app.document_creat_de_apelant(uuid, uuid) from public, anon;
 grant execute on function app.vehicul_documentului(uuid) to authenticated, service_role;
+grant execute on function app.vehicul_creat_de_apelant(uuid, uuid) to authenticated, service_role;
+grant execute on function app.document_creat_de_apelant(uuid, uuid) to authenticated, service_role;
 
 -- ============================================================
 -- 3. Gărzile tabelelor de costuri
@@ -147,6 +192,13 @@ grant execute on function app.vehicul_documentului(uuid) to authenticated, servi
 -- nu există încă nicăieri, deci verificarea trece; orice altă cale (steagul pus
 -- de altcineva, un rând de cost lipit de vehiculul altei firmei) cade aici.
 -- Mesajul e același ca pentru vehiculul inexistent: fără oracol între firme.
+--
+-- Garda de firmă e PRIMA (lecția X2, constatarea d): triggerul BEFORE rulează
+-- ÎNAINTEA lui WITH CHECK, deci un rând pus pe firma ALTCUIVA trecea de
+-- căutările de mai jos când vehiculul exista acolo (apoi 42501 de la politică)
+-- și primea P0001 când nu exista: o sondă „există vehiculul X în firma Y?”.
+-- Refuzul e același 42501 orice ar conține rândul. Pe drumul de compatibilitate
+-- (§6) firma e a rândului-părinte, pe care politica lui o judecă oricum.
 create or replace function internal.vc_inainte()
 returns trigger
 language plpgsql
@@ -154,6 +206,11 @@ security definer
 set search_path = ''
 as $$
 begin
+  if not app.is_service_context()
+     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a scrie costurile vehiculelor în această organizație.';
+  end if;
   if tg_op = 'UPDATE'
      and (new.organization_id, new.vehicle_id) is distinct from (old.organization_id, old.vehicle_id) then
     raise exception using errcode = 'P0001',
@@ -183,6 +240,12 @@ security definer
 set search_path = ''
 as $$
 begin
+  -- Garda de firmă PRIMA, ca la `vc_inainte`.
+  if not app.is_service_context()
+     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a scrie costurile vehiculelor în această organizație.';
+  end if;
   if tg_op = 'UPDATE'
      and (new.organization_id, new.document_id) is distinct from (old.organization_id, old.document_id) then
     raise exception using errcode = 'P0001',
@@ -240,17 +303,21 @@ create policy vdc_select on public.vehicle_document_costuri
     )
   );
 
--- Scrierea: cheile rândului-părinte. Inserarea o face și cine CREEAZĂ vehiculul
--- sau documentul (`vehicule_insert` / `vdoc_insert` cer `vehicles:create =
--- all`), corectura cere `vehicles:update = all` (`vehicule_update` /
--- `vdoc_update`).
+-- Scrierea: cheile rândului-părinte. Corectura cere `vehicles:update = all`
+-- (`vehicule_update` / `vdoc_update`), iar inserarea la fel, cu o singură
+-- excepție: cine CREEAZĂ vehiculul sau documentul (`vehicule_insert` /
+-- `vdoc_insert` cer `vehicles:create = all`) îi pune valoarea inițială, dar
+-- DOAR pe rândul-părinte creat de el (§2, constatarea k). Altfel un membru cu
+-- `create` fără `update` (suprascriere pe firmă sau pe membru) scria valoarea
+-- oricărui vehicul existent care n-avea încă rând de cost.
 create policy vc_insert on public.vehicle_costuri
   for insert to authenticated
   with check (
     organization_id = any ((select app.current_org_ids())::uuid[])
     and app.feature_on(organization_id, 'fleet')
-    and (app.has_permission(organization_id, 'vehicles', 'create') = 'all'
-         or app.has_permission(organization_id, 'vehicles', 'update') = 'all')
+    and (app.has_permission(organization_id, 'vehicles', 'update') = 'all'
+         or (app.has_permission(organization_id, 'vehicles', 'create') = 'all'
+             and app.vehicul_creat_de_apelant(organization_id, vehicle_id)))
     and created_by = (select auth.uid())
     and updated_by = (select auth.uid())
   );
@@ -260,8 +327,9 @@ create policy vdc_insert on public.vehicle_document_costuri
   with check (
     organization_id = any ((select app.current_org_ids())::uuid[])
     and app.feature_on(organization_id, 'fleet')
-    and (app.has_permission(organization_id, 'vehicles', 'create') = 'all'
-         or app.has_permission(organization_id, 'vehicles', 'update') = 'all')
+    and (app.has_permission(organization_id, 'vehicles', 'update') = 'all'
+         or (app.has_permission(organization_id, 'vehicles', 'create') = 'all'
+             and app.document_creat_de_apelant(organization_id, document_id)))
     and created_by = (select auth.uid())
     and updated_by = (select auth.uid())
   );

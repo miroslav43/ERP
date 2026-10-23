@@ -125,6 +125,12 @@ grant execute on function app.poate_vedea_valoarea_echipamentelor(uuid) to authe
 -- Verificarea de firmă rămâne și cu steagul pus, și la UPDATE: un echipament
 -- care EXISTĂ trebuie să fie al firmei rândului de cost (lecția constatării (e)
 -- din 0225). Mesajul e același ca pentru echipamentul inexistent: fără oracol.
+--
+-- Garda de firmă e PRIMA (lecția X2, constatarea d): triggerul BEFORE rulează
+-- ÎNAINTEA lui WITH CHECK, deci un rând pus pe firma ALTCUIVA ar trece de
+-- căutările de mai jos când echipamentul există acolo (apoi 42501 de la
+-- politică) și ar primi P0001 când nu: o sondă „există echipamentul X în firma
+-- Y?”. Refuzul e același 42501 orice ar conține rândul.
 create or replace function internal.ec_inainte()
 returns trigger
 language plpgsql
@@ -132,6 +138,11 @@ security definer
 set search_path = ''
 as $$
 begin
+  if not app.is_service_context()
+     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a scrie valoarea echipamentelor în această organizație.';
+  end if;
   if tg_op = 'UPDATE'
      and (new.organization_id, new.equipment_id) is distinct from (old.organization_id, old.equipment_id) then
     raise exception using errcode = 'P0001',
