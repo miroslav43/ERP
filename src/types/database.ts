@@ -4671,6 +4671,54 @@ export type Database = {
           },
         ]
       }
+      equipment_costuri: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          equipment_id: string
+          id: string
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+          valoare_achizitie: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          equipment_id: string
+          id?: string
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+          valoare_achizitie?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          equipment_id?: string
+          id?: string
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          valoare_achizitie?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ec_echipament_fk"
+            columns: ["equipment_id"]
+            isOneToOne: true
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_costuri_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipment_meters: {
         Row: {
           citire: number

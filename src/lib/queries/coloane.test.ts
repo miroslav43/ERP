@@ -275,9 +275,12 @@ describe("coloanele cerute de citiri există în bază", () => {
 // Pe coloana veche, costul ajungea la oricine vedea rândul (angajatul pe mașina
 // lui și pe pool, managerul pe pool, hr pe mașina lui). O citire nouă din ea n-ar
 // da nicio eroare: ar arăta tăcut „—” acolo unde costul există.
+// Din 0232 (Y1), la fel `equipment.valoare_achizitie`: stă în `equipment_costuri`
+// (o vedeau responsabilul echipamentului și tehnicianul atribuit unei sesizări).
 const RETRASE: ReadonlyMap<string, ReadonlySet<string>> = new Map([
   ["vehicles", new Set(["valoare_achizitie"])],
   ["vehicle_documents", new Set(["cost"])],
+  ["equipment", new Set(["valoare_achizitie"])],
 ]);
 
 describe("coloanele retrase nu se mai citesc", () => {

@@ -1,6 +1,6 @@
 -- tests/rls/proba-migrari-pe-date.sql
 --
--- MIGRĂRILE FLOTEI ȘI ALE MENTENANȚEI (0191, 0199–0206, 0210–0218, 0225, 0226)
+-- MIGRĂRILE FLOTEI ȘI ALE MENTENANȚEI (0191, 0199–0206, 0210–0218, 0225, 0226, 0232)
 -- PE DATE
 -- EXISTENTE.
 --
@@ -47,7 +47,12 @@
 --  (11) 0225: valoarea de achiziție și costul documentelor se mută EXACT în
 --      tabelele 1:1 (aceleași rânduri, aceleași sume, aceeași firmă), coloanele
 --      vechi rămân goale și păzite de CHECK; vehiculele nu se ating (amprenta
---      din (6) include `updated_at`).
+--      din (6) include `updated_at`);
+--  (12) 0232: valoarea de achiziție a echipamentelor se mută EXACT în
+--      `equipment_costuri` (aceleași rânduri, aceleași sume, aceeași firmă),
+--      coloana veche rămâne goală și păzită de CHECK; (10m) administratorul o
+--      corectează acolo [POZITIVĂ]; (10n) responsabilul și tehnicianul
+--      utilajului (e3) își văd utilajul, dar nu valoarea.
 --
 -- ── CUM SE RULEAZĂ ──────────────────────────────────────────────────────────
 -- Cere o bază în starea lui origin/main: migrările ramurii le aplică EA, prin
@@ -84,7 +89,7 @@ do $$ begin raise exception 'PROBA MIGRĂRI PE DATE: baza e parțial migrată (u
 \endif
 
 \echo ''
-\echo '  PROBA „MIGRĂRI PE DATE EXISTENTE" (0191, 0199–0206, 0210–0218, 0225, 0226)'
+\echo '  PROBA „MIGRĂRI PE DATE EXISTENTE" (0191, 0199–0206, 0210–0218, 0225, 0226, 0232)'
 \echo '  ─────────────────────────────────────────────────────────'
 \echo '  ▶ populez trei firme peste starea origin/main'
 
@@ -499,6 +504,15 @@ begin
     end loop;
   end loop;
 
+  -- Valoarea de achiziție pe o parte din echipamente (0232 o mută în
+  -- `equipment_costuri`): A-eq1 (cu responsabil și tehnician e3), una cu bani
+  -- mărunți în B, una în C. Restul rămân fără valoare, ca pe producție.
+  alter table public.equipment disable trigger user;
+  update public.equipment e set valoare_achizitie = x.val
+    from (values ('A-eq1', 45000.00), ('B-eq2', 12000.50), ('C-eq3', 8000.00)) x(k, val)
+   where e.id = pg_temp.u(x.k);
+  alter table public.equipment enable trigger user;
+
   -- ── Setările mentenanței ───────────────────────────────────────────────
   -- A: responsabil activ, închidere la 7 zile. B: responsabil plecat (e3 inactiv).
   -- C: fără rând de setări.
@@ -572,6 +586,12 @@ create temp table x5_costuri as
     from public.vehicle_documents d
    where d.organization_id in (select id from x5_firme) and d.cost is not null;
 
+-- Valorile echipamentelor care trebuie să ajungă în `equipment_costuri` (0232).
+create temp table x5_costuri_echipamente as
+  select e.id, e.organization_id, e.valoare_achizitie as suma
+    from public.equipment e
+   where e.organization_id in (select id from x5_firme) and e.valoare_achizitie is not null;
+
 \echo '  ▶ aplic migrările ramurii, în ordine lexicală'
 \ir ../../supabase/migrations/0191_mentenanta_zilnica.sql
 \ir ../../supabase/migrations/0199_flota_roluri.sql
@@ -593,6 +613,7 @@ create temp table x5_costuri as
 \ir ../../supabase/migrations/0218_flota_iesire_din_parc.sql
 \ir ../../supabase/migrations/0225_flota_costuri_ascunse.sql
 \ir ../../supabase/migrations/0226_securitate_reziduala.sql
+\ir ../../supabase/migrations/0232_mentenanta_costuri_echipament.sql
 \echo '  ▶ verific'
 
 do $$
@@ -810,6 +831,38 @@ begin
     raise warning '  ✗ (11) coloane vechi încă pline: vehicule %, documente % (sau CHECK-ul lipsește)', v_n, v_m;
   end if;
 
+  -- ═══ (12) 0232: valoarea echipamentelor se mută exact ════════════════════
+  if to_regclass('public.equipment_costuri') is null then
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (12) lipsește tabela equipment_costuri';
+  else
+    execute $q$
+      select count(*) from x5_costuri_echipamente x
+       where not exists (
+         select 1 from public.equipment_costuri c
+          where c.equipment_id = x.id and c.organization_id = x.organization_id
+            and c.valoare_achizitie = x.suma)
+    $q$ into v_n;
+    execute $q$
+      select (select count(*) from public.equipment_costuri c where c.organization_id in (select id from x5_firme))
+           - (select count(*) from x5_costuri_echipamente)
+    $q$ into v_txt;
+    select count(*) into v_m from public.equipment
+     where organization_id in (select id from x5_firme) and valoare_achizitie is not null;
+    if v_n = 0 and v_txt = '0' and v_m = 0
+       and (select count(*) from x5_costuri_echipamente) = 3
+       and exists (select 1 from pg_constraint where conrelid = 'public.equipment'::regclass and contype = 'c'
+                      and pg_get_constraintdef(oid) like '%valoare_achizitie IS NULL%'
+                      and pg_get_constraintdef(oid) not like '%>=%') then
+      raise notice '  ✓ (12) 0232 mută exact % valori de achiziție ale echipamentelor; coloana veche e goală și păzită de CHECK',
+        (select count(*) from x5_costuri_echipamente);
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (12) echipamente nemutate: %, rânduri în plus: %, coloană veche plină: % (sau CHECK-ul lipsește)',
+        v_n, v_txt, v_m;
+    end if;
+  end if;
+
   if v_esecuri > 0 then
     raise exception 'PROBA MIGRĂRI PE DATE (invariante): % verificări picate', v_esecuri;
   end if;
@@ -884,6 +937,8 @@ declare
   v_st  text;
   v_nr  text;
   v_n   int;
+  v_m   int;
+  v_txt text;
   v_ok  boolean;
   v_asteptat text;
 begin
@@ -1161,6 +1216,47 @@ begin
   exception when others then
     reset role; v_esecuri := v_esecuri + 1;
     raise warning '  ✗ (10l) corectarea valorii mutate: % (%)', sqlerrm, sqlstate;
+  end;
+
+  -- (10m) 0232: administratorul corectează valoarea echipamentului mutată
+  perform set_config('request.jwt.claim.sub', pg_temp.u('A-admin')::text, true);
+  set local role authenticated;
+  begin
+    execute 'update public.equipment_costuri set valoare_achizitie = 46000, updated_by = auth.uid() where equipment_id = $1'
+      using pg_temp.u('A-eq1');
+    get diagnostics v_n = row_count;
+    reset role;
+    if v_n = 1 then
+      raise notice '  ✓ (10m) valoarea de achiziție mutată a echipamentului se corectează în equipment_costuri';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (10m) corectarea valorii echipamentului: % rânduri', v_n;
+    end if;
+  exception when others then
+    reset role; v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (10m) corectarea valorii echipamentului: % (%)', sqlerrm, sqlstate;
+  end;
+
+  -- (10n) 0232: e3, responsabilul lui A-eq1 și tehnicianul sesizărilor lui, își
+  -- vede utilajul, dar nu valoarea (nici în rând, nici în equipment_costuri).
+  perform set_config('request.jwt.claim.sub', pg_temp.u('A-e3')::text, true);
+  set local role authenticated;
+  begin
+    execute 'select count(*) from public.equipment where id = $1' into v_n using pg_temp.u('A-eq1');
+    execute 'select count(*) from public.equipment where id = $1 and valoare_achizitie is not null'
+      into v_m using pg_temp.u('A-eq1');
+    execute 'select count(*)::text from public.equipment_costuri where equipment_id = $1'
+      into v_txt using pg_temp.u('A-eq1');
+    reset role;
+    if v_n = 1 and v_m = 0 and v_txt = '0' then
+      raise notice '  ✓ (10n) responsabilul și tehnicianul își văd utilajul, fără valoarea de achiziție';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (10n) e3 pe A-eq1: rând %, valoare în rând %, rânduri de cost %', v_n, v_m, v_txt;
+    end if;
+  exception when others then
+    reset role; v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (10n) citirea lui e3: % (%)', sqlerrm, sqlstate;
   end;
 
   raise notice '  ─────────────────────────────────────────────────────────';

@@ -298,6 +298,7 @@ export default async function PaginaEchipamente({ searchParams }: ProprietatiPag
                   categorii={categorii}
                   ssmActiv={features.has("ssm")}
                   poateDerogare={can(permisiuni, "maintenance:update", "all")}
+                  poateScrieValoarea={can(permisiuni, "maintenance:update", "all")}
                   {...(model === null ? {} : { model })}
                 />
               ),

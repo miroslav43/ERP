@@ -219,6 +219,10 @@ export interface EchipamentRaport {
   readonly id: string;
   readonly cod: string;
   readonly denumire: string;
+  /**
+   * Din `equipment_costuri` (0232), nu din rândul echipamentului. `null` = fără
+   * valoare SAU cititor fără drept pe ea: „Cost / valoare” devine „—”, fără semnal.
+   */
   readonly valoare_achizitie: number | null;
   readonly casat_la: string | null;
   readonly data_punerii_in_functiune: string | null;

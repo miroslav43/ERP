@@ -57,6 +57,13 @@ export interface ProprietatiCampuriEchipament<TData> {
   readonly ssmActiv: boolean;
   /** `can(permisiuni, "maintenance:update", "all")` — deschide câmpul de derogare. */
   readonly poateDerogare: boolean;
+  /**
+   * `can(permisiuni, "maintenance:update", "all")` — câmpul „Valoare achiziție”.
+   * Din 0232 valoarea stă în `equipment_costuri`, pe care o scrie doar
+   * `update = all`; gestionarul pe `team` nu primește câmpul, deci nu trimite
+   * nimic și nu golește valoarea administratorului.
+   */
+  readonly poateScrieValoarea: boolean;
   readonly echipament?: ValoriInitialeEchipament | undefined;
 }
 
@@ -100,6 +107,7 @@ export function CampuriEchipament<TData>({
   categorii,
   ssmActiv,
   poateDerogare,
+  poateScrieValoarea,
   echipament,
 }: ProprietatiCampuriEchipament<TData>): ReactElement {
   // Formularul rămâne montat după un refuz, deci repornește de la ce s-a
@@ -369,22 +377,24 @@ export function CampuriEchipament<TData>({
           {(a) => <input {...a} type="date" defaultValue={text("data_punerii_in_functiune")} />}
         </Camp>
 
-        <Camp
-          nume="valoare_achizitie"
-          id={idc("valoare")}
-          eticheta="Valoare achiziție (lei)"
-          erori={stare.erori["valoare_achizitie"] ?? []}
-        >
-          {(a) => (
-            <input
-              {...a}
-              type="number"
-              step="0.01"
-              min="0"
-              defaultValue={trimise["valoare_achizitie"] ?? cifra(echipament?.valoare_achizitie)}
-            />
-          )}
-        </Camp>
+        {poateScrieValoarea ? (
+          <Camp
+            nume="valoare_achizitie"
+            id={idc("valoare")}
+            eticheta="Valoare achiziție (lei)"
+            erori={stare.erori["valoare_achizitie"] ?? []}
+          >
+            {(a) => (
+              <input
+                {...a}
+                type="number"
+                step="0.01"
+                min="0"
+                defaultValue={trimise["valoare_achizitie"] ?? cifra(echipament?.valoare_achizitie)}
+              />
+            )}
+          </Camp>
+        ) : null}
 
         <Camp
           nume="garantie_expira"

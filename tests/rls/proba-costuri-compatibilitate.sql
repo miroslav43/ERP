@@ -25,6 +25,30 @@
 -- (1i) corectura legitimă prin coloana veche pe vehiculul propriu    [POZITIVĂ];
 -- (1j) upsert ignore-duplicates pe documentul PROPRIU: nimic mutat, nimic
 --      stricat (golire fără mutare, ca pe orice id existent).
+-- Mentenanța (0232): valoarea de achiziție a echipamentului
+-- (2a) responsabilul echipamentului (employee) își vede utilajul, dar nu
+--      valoarea: nici în rând, nici în `equipment_costuri`;
+-- (2b) tehnicianul atribuit unei sesizări: la fel;
+-- (2c) managerul (`maintenance:read = team`) vede valoarea — e cheia sub care
+--      citește deja costurile intervențiilor și raportul            [POZITIVĂ];
+-- (2d) org_admin o vede [POZITIVĂ]; hr și administratorul altei firme, nu;
+-- (2e) managerul nu scrie valoarea (`maintenance:update = all`): 42501;
+-- (2f) gestionarul pe `team` (suprascriere pe membru) editează echipamentul
+--      [POZITIVĂ], dar nu valoarea, nici prin coloana veche (42501);
+-- (2g) upsert ignore-duplicates pe `equipment` cu id-ul echipamentului firmei
+--      B: valoarea lui B rămâne;
+-- (2h) pe un echipament al lui B fără valoare: niciun rând nu apare;
+-- (2i) cu steagul `app.mentenanta_cost_mutat` pus, inserarea directă pe
+--      echipamentul lui B e refuzată (P0001);
+-- (2j) compatibilitatea legitimă: echipament nou și corectură prin coloana
+--      veche → rândul de cost al firmei, coloana goală               [POZITIVĂ];
+-- (2k) calea nouă: upsert pe `equipment_costuri`, și cu `null`      [POZITIVĂ].
+-- Excepția intenționată (0225 §8, neschimbată)
+-- (3)  `avantaj_natura_flota` (`payroll:read = all`: org_admin, hr) dă valoarea
+--      de intrare DOAR pe vehiculul alocat cu folosință personală; vehiculul
+--      alocat fără folosință personală nu apare; managerul și angajatul: nimic.
+-- Referințele la `equipment_costuri` sunt SQL dinamic: proba rulează și pe o
+-- bază fără 0232, unde (2a) și (2b) pică — scurgerea pe care o închide 0232.
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh
@@ -51,6 +75,36 @@ begin
     reset role;
     return sqlstate || ':' || sqlerrm;
   end;
+end
+$f$;
+
+-- Câte rânduri vede `p_user` prin `p_sql`; -1 la eroare (de pildă tabela lipsă).
+create function pg_temp.numara(p_user uuid, p_sql text) returns bigint
+language plpgsql as $f$
+declare
+  v_n bigint;
+begin
+  perform set_config('request.jwt.claim.sub', p_user::text, true);
+  set local role authenticated;
+  execute 'select count(*) from (' || p_sql || ') z' into v_n;
+  reset role;
+  return v_n;
+exception when others then
+  reset role;
+  return -1;
+end
+$f$;
+
+-- O valoare citită fără RLS (ca proprietar), prin SQL dinamic; `null` la eroare.
+create function pg_temp.valoare(p_sql text) returns numeric
+language plpgsql as $f$
+declare
+  v numeric;
+begin
+  execute p_sql into v;
+  return v;
+exception when others then
+  return null;
 end
 $f$;
 
@@ -87,6 +141,24 @@ declare
   v_db2     uuid := gen_random_uuid();
   v_db3     uuid := gen_random_uuid();
   v_da_nou  uuid := gen_random_uuid();
+  -- mentenanța
+  v_u_mgr   uuid := gen_random_uuid();
+  v_u_hr    uuid := gen_random_uuid();
+  v_u_resp  uuid := gen_random_uuid();
+  v_u_teh   uuid := gen_random_uuid();
+  v_u_gest  uuid := gen_random_uuid();
+  v_e_mgr   uuid := gen_random_uuid();
+  v_e_resp  uuid := gen_random_uuid();
+  v_e_teh   uuid := gen_random_uuid();
+  v_m_gest  uuid;
+  v_eq1     uuid := gen_random_uuid();
+  v_eq2     uuid := gen_random_uuid();
+  v_eqb     uuid := gen_random_uuid();
+  v_eqb2    uuid := gen_random_uuid();
+  v_eqb3    uuid := gen_random_uuid();
+  v_eq_nou  uuid := gen_random_uuid();
+  v_c       text;
+  v_d       text;
   v_a       text;
   v_b       text;
   v_n       numeric;
@@ -94,7 +166,7 @@ declare
   v_esecuri int := 0;
 begin
   raise notice '';
-  raise notice '  PROBA „COSTURI: COMPATIBILITATE ÎNTRE FIRME” (Y1: 0225)';
+  raise notice '  PROBA „COSTURI: COMPATIBILITATE ÎNTRE FIRME” (Y1: 0225, 0232)';
   raise notice '  ─────────────────────────────────────────────────────────';
 
   select id into v_itp from public.vehicle_document_types where organization_id is null and cod = 'itp';
@@ -259,6 +331,178 @@ begin
     v_a = 'ok:0' and (select cost from public.vehicle_document_costuri where document_id = v_da) = 350,
     'upsert ignore-duplicates pe documentul propriu: nimic mutat, costul rămâne',
     v_a);
+
+  -- ═══ (2) Mentenanța: valoarea de achiziție a echipamentului ═════════════════
+  -- Fișele ÎNAINTEA membrilor (0083 creează una doar pentru org_admin fără fișă).
+  insert into auth.users (id, email, email_confirmed_at) values
+    (v_u_mgr,  'y1-mgr-'  || v_sufix || '@proba.test', now()),
+    (v_u_hr,   'y1-hr-'   || v_sufix || '@proba.test', now()),
+    (v_u_resp, 'y1-resp-' || v_sufix || '@proba.test', now()),
+    (v_u_teh,  'y1-teh-'  || v_sufix || '@proba.test', now()),
+    (v_u_gest, 'y1-gest-' || v_sufix || '@proba.test', now());
+  insert into public.employees (id, organization_id, marca, first_name, last_name,
+                                hired_on, status, user_id, manager_employee_id) values
+    (v_e_mgr,  v_org, 'Y1-M', 'Mihai', 'Manager',     v_zi - 800, 'activ', v_u_mgr,  null),
+    (v_e_resp, v_org, 'Y1-R', 'Radu',  'Responsabil', v_zi - 600, 'activ', v_u_resp, v_e_mgr),
+    (v_e_teh,  v_org, 'Y1-T', 'Tudor', 'Tehnician',   v_zi - 500, 'activ', v_u_teh,  v_e_mgr);
+  insert into public.organization_members (organization_id, user_id, role) values
+    (v_org, v_u_mgr,  'manager'),
+    (v_org, v_u_hr,   'hr'),
+    (v_org, v_u_resp, 'employee'),
+    (v_org, v_u_teh,  'employee'),
+    (v_org, v_u_gest, 'manager');
+  -- Gestionarul pe `team`: un manager căruia firma i-a dat `maintenance:update =
+  -- team` (suprascriere pe membru, 0063): scrie echipamentul, nu valoarea.
+  select id into v_m_gest from public.organization_members where organization_id = v_org and user_id = v_u_gest;
+  insert into public.role_permissions (organization_id, member_id, role, resource, action, scope)
+  values (v_org, v_m_gest, 'manager', 'maintenance', 'update', 'team');
+
+  -- Valorile intră prin coloana veche, în contextul de serviciu: pe o bază fără
+  -- 0232 rămân în rând (scurgerea), pe una cu 0232 se mută în `equipment_costuri`.
+  insert into public.equipment (id, organization_id, cod, denumire, responsabil_employee_id, valoare_achizitie) values
+    (v_eq1,  v_org,   'Y1-PRS-' || v_sufix, 'Presă hidraulică', v_e_resp, 45000),
+    (v_eq2,  v_org,   'Y1-CMP-' || v_sufix, 'Compresor',        null,     null),
+    (v_eqb,  v_org_b, 'Y1-B1-'  || v_sufix, 'Strung',           null,     30000),
+    (v_eqb2, v_org_b, 'Y1-B2-'  || v_sufix, 'Freză',            null,     null),
+    (v_eqb3, v_org_b, 'Y1-B3-'  || v_sufix, 'Polizor',          null,     null);
+  insert into public.fault_reports (organization_id, equipment_id, raportat_de_employee_id, descriere, atribuit_employee_id)
+  values (v_org, v_eq1, v_e_resp, 'Presa pierde ulei pe la cilindru.', v_e_teh);
+
+  v_n := pg_temp.numara(v_u_resp, format('select 1 from public.equipment where id = %L', v_eq1));
+  v_m := pg_temp.numara(v_u_resp, format('select 1 from public.equipment where id = %L and valoare_achizitie is not null', v_eq1));
+  v_a := pg_temp.numara(v_u_resp, format('select 1 from public.equipment_costuri where equipment_id = %L', v_eq1))::text;
+  v_esecuri := v_esecuri + pg_temp.verifica('2a', v_n = 1 and v_m = 0 and v_a = '0',
+    'responsabilul își vede utilajul, dar nu valoarea (nici în rând, nici în equipment_costuri)',
+    'rând ' || v_n::text || ' · valoare în rând ' || v_m::text || ' · costuri ' || v_a);
+
+  v_n := pg_temp.numara(v_u_teh, format('select 1 from public.equipment where id = %L', v_eq1));
+  v_m := pg_temp.numara(v_u_teh, format('select 1 from public.equipment where id = %L and valoare_achizitie is not null', v_eq1));
+  v_a := pg_temp.numara(v_u_teh, format('select 1 from public.equipment_costuri where equipment_id = %L', v_eq1))::text;
+  v_esecuri := v_esecuri + pg_temp.verifica('2b', v_n = 1 and v_m = 0 and v_a = '0',
+    'tehnicianul atribuit își vede utilajul, dar nu valoarea',
+    'rând ' || v_n::text || ' · valoare în rând ' || v_m::text || ' · costuri ' || v_a);
+
+  v_n := pg_temp.numara(v_u_mgr, format(
+    'select 1 from public.equipment_costuri where equipment_id = %L and valoare_achizitie = 45000', v_eq1));
+  v_esecuri := v_esecuri + pg_temp.verifica('2c', v_n = 1,
+    'managerul (maintenance:read = team) vede valoarea, ca pe costurile intervențiilor', v_n::text);
+
+  v_n := pg_temp.numara(v_u_a, format(
+    'select 1 from public.equipment_costuri where equipment_id = %L and valoare_achizitie = 45000', v_eq1));
+  v_m := pg_temp.numara(v_u_hr, format('select 1 from public.equipment_costuri where organization_id = %L', v_org));
+  v_a := pg_temp.numara(v_u_b, format('select 1 from public.equipment_costuri where organization_id = %L', v_org))::text;
+  v_esecuri := v_esecuri + pg_temp.verifica('2d', v_n = 1 and v_m = 0 and v_a = '0',
+    'org_admin vede valoarea; hr și administratorul firmei B nu',
+    'adm ' || v_n::text || ' · hr ' || v_m::text || ' · B ' || v_a);
+
+  v_a := pg_temp.ruleaza(v_u_mgr, format(
+    $q$insert into public.equipment_costuri (organization_id, equipment_id, valoare_achizitie, created_by, updated_by)
+       values (%L, %L, 10, %L, %L)$q$, v_org, v_eq2, v_u_mgr, v_u_mgr));
+  v_b := pg_temp.ruleaza(v_u_mgr, format(
+    'update public.equipment_costuri set valoare_achizitie = 1, updated_by = %L where equipment_id = %L', v_u_mgr, v_eq1));
+  v_esecuri := v_esecuri + pg_temp.verifica('2e', v_a like '42501:%' and v_b = 'ok:0',
+    'managerul nu scrie valoarea: INSERT 42501, UPDATE zero rânduri', v_a || ' · ' || v_b);
+
+  v_a := pg_temp.ruleaza(v_u_gest, format(
+    'update public.equipment set denumire = %L where id = %L', 'Compresor cu șurub', v_eq2));
+  v_b := pg_temp.ruleaza(v_u_gest, format(
+    'update public.equipment set valoare_achizitie = 5 where id = %L', v_eq2));
+  v_c := pg_temp.ruleaza(v_u_gest, format(
+    $q$insert into public.equipment_costuri (organization_id, equipment_id, valoare_achizitie, created_by, updated_by)
+       values (%L, %L, 5, %L, %L)$q$, v_org, v_eq2, v_u_gest, v_u_gest));
+  v_esecuri := v_esecuri + pg_temp.verifica('2f',
+    v_a = 'ok:1' and v_b like '42501:%' and v_c like '42501:%'
+    and pg_temp.valoare(format('select count(*) from public.equipment_costuri where equipment_id = %L', v_eq2)) = 0,
+    'gestionarul pe team editează echipamentul, dar nu valoarea (coloana veche și tabela nouă: 42501)',
+    v_a || ' · ' || v_b || ' · ' || v_c);
+
+  v_a := pg_temp.ruleaza(v_u_a, format(
+    $q$insert into public.equipment (id, organization_id, cod, denumire, valoare_achizitie)
+       values (%L, %L, 'Y1-FALS-1', 'Fals', 1) on conflict do nothing$q$, v_eqb, v_org));
+  v_n := coalesce(
+    pg_temp.valoare(format('select valoare_achizitie from public.equipment_costuri where equipment_id = %L', v_eqb)),
+    pg_temp.valoare(format('select valoare_achizitie from public.equipment where id = %L', v_eqb)));
+  v_esecuri := v_esecuri + pg_temp.verifica('2g', v_n = 30000,
+    'upsert ignore-duplicates cu id-ul echipamentului firmei B: valoarea lui B rămâne 30000',
+    'valoare B = ' || coalesce(v_n::text, 'null') || ' · ' || v_a);
+
+  v_a := pg_temp.ruleaza(v_u_a, format(
+    $q$insert into public.equipment (id, organization_id, cod, denumire, valoare_achizitie)
+       values (%L, %L, 'Y1-FALS-2', 'Fals', 3) on conflict (id) do nothing$q$, v_eqb2, v_org));
+  v_n := pg_temp.valoare(format('select count(*) from public.equipment_costuri where equipment_id = %L', v_eqb2));
+  v_esecuri := v_esecuri + pg_temp.verifica('2h',
+    coalesce(v_n, 0) = 0
+    and pg_temp.valoare(format('select valoare_achizitie from public.equipment where id = %L', v_eqb2)) is null,
+    'pe echipamentul lui B fără valoare nu apare niciun rând de cost',
+    coalesce(v_n::text, 'null') || ' rânduri · ' || v_a);
+
+  perform set_config('app.mentenanta_cost_mutat', 'on', true);
+  v_a := pg_temp.ruleaza(v_u_a, format(
+    $q$insert into public.equipment_costuri (organization_id, equipment_id, valoare_achizitie, created_by, updated_by)
+       values (%L, %L, 9, %L, %L)$q$, v_org, v_eqb3, v_u_a, v_u_a));
+  perform set_config('app.mentenanta_cost_mutat', '', true);
+  v_esecuri := v_esecuri + pg_temp.verifica('2i',
+    v_a like 'P0001:%'
+    and pg_temp.valoare(format('select count(*) from public.equipment_costuri where equipment_id = %L', v_eqb3)) = 0,
+    'cu steagul pus, rândul de cost pe echipamentul firmei B e refuzat', v_a);
+
+  v_a := pg_temp.ruleaza(v_u_a, format(
+    $q$insert into public.equipment (id, organization_id, cod, denumire, valoare_achizitie)
+       values (%L, %L, 'Y1-NOU-' || %L, 'Generator', 70000)$q$, v_eq_nou, v_org, v_sufix));
+  v_b := pg_temp.ruleaza(v_u_a, format(
+    'update public.equipment set valoare_achizitie = 46000 where id = %L', v_eq1));
+  v_esecuri := v_esecuri + pg_temp.verifica('2j',
+    v_a = 'ok:1' and v_b = 'ok:1'
+    and pg_temp.valoare(format('select valoare_achizitie from public.equipment_costuri where equipment_id = %L and organization_id = %L', v_eq_nou, v_org)) = 70000
+    and pg_temp.valoare(format('select valoare_achizitie from public.equipment_costuri where equipment_id = %L', v_eq1)) = 46000
+    and (select count(*) from public.equipment where id in (v_eq_nou, v_eq1) and valoare_achizitie is not null) = 0,
+    'echipament nou și corectură prin coloana veche: rândul de cost al firmei, coloana goală',
+    v_a || ' · ' || v_b);
+
+  v_a := pg_temp.ruleaza(v_u_a, format(
+    $q$insert into public.equipment_costuri (organization_id, equipment_id, valoare_achizitie, created_by, updated_by)
+       values (%L, %L, 12000, %L, %L)
+       on conflict (equipment_id) do update set valoare_achizitie = excluded.valoare_achizitie,
+                                               updated_by = excluded.updated_by$q$, v_org, v_eq2, v_u_a, v_u_a));
+  v_b := pg_temp.ruleaza(v_u_a, format(
+    $q$insert into public.equipment_costuri (organization_id, equipment_id, valoare_achizitie, created_by, updated_by)
+       values (%L, %L, null, %L, %L)
+       on conflict (equipment_id) do update set valoare_achizitie = excluded.valoare_achizitie,
+                                               updated_by = excluded.updated_by$q$, v_org, v_eq1, v_u_a, v_u_a));
+  v_c := pg_temp.valoare(format('select valoare_achizitie from public.equipment_costuri where equipment_id = %L', v_eq2))::text;
+  v_d := coalesce(pg_temp.valoare(format('select valoare_achizitie from public.equipment_costuri where equipment_id = %L', v_eq1))::text, 'null');
+  v_esecuri := v_esecuri + pg_temp.verifica('2k',
+    v_a = 'ok:1' and v_b = 'ok:1' and v_c = '12000.00' and v_d = 'null',
+    'upsert pe equipment_costuri: valoare nouă, apoi golire cu null',
+    v_a || ' · ' || v_b || ' · ' || coalesce(v_c, 'null') || ' · ' || v_d);
+
+  -- ═══ (3) Excepția intenționată: avantajul în natură (0225 §8) ═══════════════
+  -- `avantaj_natura_flota` e a salarizării (`payroll:read = all`: org_admin și
+  -- hr) și întoarce valoarea de intrare DOAR pentru vehiculele alocate angajatului
+  -- cu folosință personală în luna cerută: e baza legală a avantajului (Codul
+  -- fiscal art. 76 alin. (3) lit. j), nu o fereastră spre costurile parcului.
+  -- Radu primește VA cu folosință personală și VA2 fără; VA2 are și ea valoare.
+  insert into public.vehicle_costuri (organization_id, vehicle_id, valoare_achizitie, created_by, updated_by)
+  values (v_org, v_va2, 90000, v_u_a, v_u_a);
+  insert into public.vehicle_assignments (organization_id, vehicle_id, employee_id, de_la, folosinta_personala,
+                                          created_by, updated_by)
+  values (v_org, v_va2, v_e_resp, now() - interval '2 hours', false, v_u_a, v_u_a),
+         (v_org, v_va,  v_e_resp, now() - interval '1 hour',  true,  v_u_a, v_u_a);
+  v_a := '';
+  for v_b in select unnest(array['adm', 'hr', 'mgr', 'resp']) loop
+    v_n := pg_temp.numara(case v_b when 'adm' then v_u_a when 'hr' then v_u_hr
+                                   when 'mgr' then v_u_mgr else v_u_resp end,
+      format('select 1 from public.avantaj_natura_flota(%L, %L, %L::date) where vehicle_id = %L and valoare_intrare = 45000',
+             v_org, v_e_resp, v_zi, v_va));
+    v_m := pg_temp.numara(case v_b when 'adm' then v_u_a when 'hr' then v_u_hr
+                                   when 'mgr' then v_u_mgr else v_u_resp end,
+      format('select 1 from public.avantaj_natura_flota(%L, %L, %L::date) where vehicle_id = %L', v_org, v_e_resp, v_zi, v_va2));
+    v_a := v_a || v_b || '=' || v_n::text || '/' || v_m::text || ' ';
+  end loop;
+  v_esecuri := v_esecuri + pg_temp.verifica('3',
+    v_a = 'adm=1/0 hr=1/0 mgr=0/0 resp=0/0 ',
+    'avantaj_natura_flota: valoarea de intrare doar pe mașina cu folosință personală, doar pentru payroll:read = all',
+    'personală/fără folosință personală: ' || v_a);
 
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri > 0 then
