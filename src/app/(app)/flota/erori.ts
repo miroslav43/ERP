@@ -473,6 +473,9 @@ const CAMPURI_AMENZI: readonly (readonly [RegExp, readonly string[]])[] = [
   [/^Data primirii/u, ["primita_la"]],
   [/^Termenul de răspuns/u, ["termen_raspuns"]],
   [/^Alegeți șoferul pe care/u, ["employee_id"]],
+  // X2: fișa ștearsă logic, inexistentă sau din altă firmă — un singur mesaj.
+  [/^Șoferul desemnat nu există/u, ["employee_id"]],
+  [/^Șoferul incidentului nu există/u, ["sofer_id"]],
   [/^Scrieți data la care a plecat răspunsul/u, ["raspuns_trimis_la"]],
   [/^Data trimiterii răspunsului/u, ["raspuns_trimis_la"]],
   [/^Scrieți motivul anulării/u, ["motiv"]],

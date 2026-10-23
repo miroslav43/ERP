@@ -69,6 +69,40 @@ export function caleFlotaValida(
   return rest.length > 0 && !rest.includes("/") && cale.length <= 400;
 }
 
+/**
+ * Scanul semnat al unui proces-verbal de predare (0215): în folderul
+ * vehiculului, dar cu numele LEGAT de PV — `pv-{id PV}-{uuid}-{fișier}`.
+ * Poarta bucketului îl dă și celor care văd doar PV-ul (fostul șofer), deci
+ * calea nu poate fi a altui fișier din folder (RCA, talon). Baza cere aceeași
+ * formă pe rând (`internal.pv_vehicul_inainte`, X2).
+ */
+function prefixScanPv(organizationId: string, vehiculId: string, pvId: string): string {
+  return `${prefixCaleFlota(organizationId, "vehicles", vehiculId)}pv-${pvId}-`;
+}
+
+export function construiesteCaleScanPv(
+  organizationId: string,
+  vehiculId: string,
+  pvId: string,
+  numeFisier: string,
+): string {
+  return `${prefixScanPv(organizationId, vehiculId, pvId)}${crypto.randomUUID()}-${slugFisier(numeFisier)}`;
+}
+
+export function caleScanPvValida(
+  cale: string,
+  organizationId: string,
+  vehiculId: string,
+  pvId: string,
+): boolean {
+  const prefix = prefixScanPv(organizationId, vehiculId, pvId);
+  return (
+    caleFlotaValida(cale, organizationId, "vehicles", vehiculId) &&
+    cale.startsWith(prefix) &&
+    cale.length > prefix.length
+  );
+}
+
 export function verificaFisierFlota(mime: string, dimensiune: number): string | null {
   if (!MIME_FLOTA.some((acceptat) => acceptat === mime)) {
     return "Acceptăm doar PDF sau fotografii (JPG, PNG, WEBP, HEIC).";

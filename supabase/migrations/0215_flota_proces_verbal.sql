@@ -420,12 +420,23 @@ begin
     end if;
 
     -- Scanul hârtiei semnate stă în folderul VEHICULULUI din `org-flota`
-    -- (0202: `{org}/vehicles/{vehicul}/{uuid}-{fișier}`), cu aceeași regulă de
-    -- cale ca scanarea documentelor (`internal.flota_cale_valida`).
+    -- (0202: `{org}/vehicles/{vehicul}/…`), cu aceeași regulă de cale ca
+    -- scanarea documentelor (`internal.flota_cale_valida`).
+    --
+    -- X2: și numele fișierului e al ACESTUI PV: `pv-{id PV}-{uuid}-{fișier}`,
+    -- forma pe care o semnează doar `pregatesteScanPv`. Poarta bucketului
+    -- (`app.flota_poate_fisier`, mai jos) dă fișierul egal cu `scan_path` și
+    -- celor care văd PV-ul, nu doar vehiculul (fostul șofer, managerul lui).
+    -- Fără prefix, administratorul putea lega de PV orice document din
+    -- folderul vehiculului (RCA, talon, o factură), iar fostul șofer îl citea
+    -- prin PV. Documentele de bord se urcă `{uuid}-{fișier}`, deci nu încep
+    -- niciodată cu `pv-`.
     if new.scan_path is distinct from old.scan_path and new.scan_path is not null
-       and not internal.flota_cale_valida(new.scan_path, new.organization_id, 'vehicles', new.vehicle_id) then
+       and not (internal.flota_cale_valida(new.scan_path, new.organization_id, 'vehicles', new.vehicle_id)
+                and left(pg_catalog.split_part(new.scan_path, '/', 4), 40) = 'pv-' || new.id::text || '-'
+                and pg_catalog.char_length(pg_catalog.split_part(new.scan_path, '/', 4)) > 40) then
       raise exception using errcode = 'P0001',
-        message = 'Calea scanului nu corespunde vehiculului procesului-verbal.';
+        message = 'Calea scanului nu corespunde procesului-verbal: încărcați scanul din pagina acestui proces-verbal.';
     end if;
 
     -- Cine NU administrează parcul poate schimba DOAR coloana lui de

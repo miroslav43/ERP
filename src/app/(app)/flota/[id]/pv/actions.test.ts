@@ -458,7 +458,9 @@ describe("pregatesteScanPv și confirmaScanPv (sub-commitul 8.8)", () => {
 
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.data.cale.startsWith(`${ORG_ID}/vehicles/${VEHICUL}/`)).toBe(true);
+    // X2: numele fișierului poartă PV-ul (`pv-{id}-`), forma pe care o cere 0215.
+    expect(r.data.cale.startsWith(`${ORG_ID}/vehicles/${VEHICUL}/pv-${PV}-`)).toBe(true);
+    expect(r.data.cale.split("/")).toHaveLength(4);
     const [citire] = server.apeluriPe("vehicle_handovers", "select");
     expect(areFiltru(citire, "eq", "stare", "finalizat")).toBe(true);
     expect(areFiltru(citire, "eq", "vehicle_id", VEHICUL)).toBe(true);
@@ -487,7 +489,7 @@ describe("pregatesteScanPv și confirmaScanPv (sub-commitul 8.8)", () => {
 
   it("confirmarea măsoară obiectul REAL și leagă calea, cu `.select()` după UPDATE", async () => {
     const { server } = configureazaActiunea({ permisiuni: ADMIN });
-    const cale = `${ORG_ID}/vehicles/${VEHICUL}/abc-pv-semnat.pdf`;
+    const cale = `${ORG_ID}/vehicles/${VEHICUL}/pv-${PV}-abc-pv-semnat.pdf`;
     server.raspundeStocare("org-flota", "info", {
       data: { size: 120_000, contentType: "application/pdf" },
     });
@@ -521,6 +523,21 @@ describe("pregatesteScanPv și confirmaScanPv (sub-commitul 8.8)", () => {
     expect(server.apeluri).toHaveLength(0);
   });
 
+  it.each([
+    [
+      "un document de bord din folderul vehiculului",
+      `${ORG_ID}/vehicles/${VEHICUL}/abc-polita-rca.pdf`,
+    ],
+    ["scanul altui PV", `${ORG_ID}/vehicles/${VEHICUL}/pv-${ALOCARE}-abc.pdf`],
+    ["prefixul PV-ului fără nume de fișier", `${ORG_ID}/vehicles/${VEHICUL}/pv-${PV}-`],
+  ])("X2: %s nu se leagă de PV (VALIDARE, fără drum la bază)", async (_caz, cale) => {
+    const { server } = configureazaActiunea({ permisiuni: ADMIN });
+    const r = await confirmaScanPv({ id: PV, vehicle_id: VEHICUL, cale, numeFisier: "abc.pdf" });
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    expect(server.apeluri).toHaveLength(0);
+    expect(server.apeluriStocare).toHaveLength(0);
+  });
+
   it("zero rânduri la legare (PV șters între timp): CONFLICT", async () => {
     const { server } = configureazaActiunea({ permisiuni: ADMIN });
     server.raspundeStocare("org-flota", "info", {
@@ -530,7 +547,7 @@ describe("pregatesteScanPv și confirmaScanPv (sub-commitul 8.8)", () => {
     const r = await confirmaScanPv({
       id: PV,
       vehicle_id: VEHICUL,
-      cale: `${ORG_ID}/vehicles/${VEHICUL}/abc.pdf`,
+      cale: `${ORG_ID}/vehicles/${VEHICUL}/pv-${PV}-abc.pdf`,
       numeFisier: "abc.pdf",
     });
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });

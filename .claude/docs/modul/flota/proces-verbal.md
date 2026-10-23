@@ -21,7 +21,7 @@ tabele: [vehicle_handovers, vehicle_assignments, vehicles, registru_documente, d
 permisiuni: [vehicles:read, vehicles:update, employees:read]
 feature: fleet
 capcane: [17, 18, 22, 23, 29, 30, 31]
-scris_pe: ca7fd6650c12802aecce55d1ac9c3fc467ad265e
+scris_pe: ba781f3ae6b4f86b485459dac636d2e5a5cc728d
 scris_la: 2026-10-23
 tags: [modul, operations]
 ---
@@ -66,6 +66,12 @@ portal), `documenteleCurenteLaBord`. Gruparea pe capetele alocărilor și propun
 transfer: `capete-pv.ts`, din alocările deja citite.
 
 ## Ce refuză baza tăcut sau cu P0001
+
+- **Scanul semnat e fișierul PV-ului** (X2): `scan_path` = `{org}/vehicles/{vehicul}/pv-{id PV}-{uuid}-{fișier}`,
+  forma pe care o semnează doar `pregatesteScanPv` (`construiesteCaleScanPv`); altă cale din
+  folderul vehiculului (RCA, talon) dă P0001. Poarta bucketului dă fișierul egal cu
+  `scan_path` și celor care văd doar PV-ul (fostul șofer), deci fără prefix adminul putea
+  expune orice document de bord. Proba: `proba-flota-pv.sql` (31).
 
 - **Politica SELECT nu filtrează `deleted_at`** (0164): cu filtrul, ștergerea logică a ciornei
   ar da 42501. Fiecare citire pune explicit `.is("deleted_at", null)`. — capcana #31

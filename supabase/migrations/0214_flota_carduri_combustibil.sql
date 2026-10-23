@@ -1146,6 +1146,84 @@ with check (
 );
 
 -- ============================================================
+-- 11b. Repotrivirea unei luni, într-o singură tranzacție (X2)
+-- ============================================================
+-- `repotrivesteTranzactii` calculează potrivirea în aplicație și o scria rând
+-- cu rând, câte o cerere HTTP pe UPDATE. O cădere la mijloc (rețea, un rând
+-- anulat între timp, un 23505) lăsa luna pe jumătate: unele rânduri în forma
+-- nouă, altele în cea veche, iar rândurile „eliberate” rămâneau „fără
+-- alimentare” până la repotrivirea următoare — adică raportul spunea, între
+-- timp, alimentări nedeclarate care nu existau. Acum lista de scrieri pleacă
+-- într-un singur apel și se aplică ATOMIC: un singur rând refuzat oprește tot.
+--
+-- Ordinea rămâne a aplicației (întâi eliberările, apoi formele finale), fiindcă
+-- `fctx_alimentare_uq` e judecat la fiecare UPDATE, nu la sfârșitul tranzacției.
+-- INVOKER: `tranzactii_card_update` și `internal.tranzactii_card_inainte`
+-- judecă fiecare rând exact ca la scrierea directă (firma, `vehicles:update =
+-- all`, imutabilitatea datelor din extras). Se scriu DOAR coloanele potrivirii.
+-- În `public`, fiindcă `.rpc()` nu ajunge la `app` (PostgREST expune `public`).
+create or replace function public.repotriveste_tranzactii_card(
+  p_organization_id uuid,
+  p_scrieri jsonb
+)
+returns integer
+language plpgsql
+volatile
+security invoker
+set search_path = ''
+as $$
+declare
+  v_s     jsonb;
+  v_n     integer;
+  v_total integer := 0;
+begin
+  if p_scrieri is null or pg_catalog.jsonb_typeof(p_scrieri) <> 'array' then
+    raise exception using errcode = 'P0001',
+      message = 'Lista de scrieri a repotrivirii lipsește.';
+  end if;
+  if pg_catalog.jsonb_array_length(p_scrieri) > 10000 then
+    raise exception using errcode = 'P0001',
+      message = 'Repotrivirea are prea multe scrieri într-un singur pas. Repotriviți o lună mai scurtă.';
+  end if;
+
+  for v_s in select e from pg_catalog.jsonb_array_elements(p_scrieri) e loop
+    update public.fuel_card_transactions t
+       set card_id         = case when v_s ? 'card_id' then (v_s ->> 'card_id')::uuid else t.card_id end,
+           vehicle_id      = case when v_s ? 'vehicle_id' then (v_s ->> 'vehicle_id')::uuid else t.vehicle_id end,
+           trip_sheet_id   = case when v_s ? 'trip_sheet_id' then (v_s ->> 'trip_sheet_id')::uuid else t.trip_sheet_id end,
+           fuel_entry_id   = case when v_s ? 'fuel_entry_id' then (v_s ->> 'fuel_entry_id')::uuid else t.fuel_entry_id end,
+           stare_potrivire = case when v_s ? 'stare_potrivire'
+                                  then (v_s ->> 'stare_potrivire')::public.fuel_card_tx_potrivire
+                                  else t.stare_potrivire end,
+           categorie       = case when v_s ? 'categorie'
+                                  then (v_s ->> 'categorie')::public.fuel_card_tx_categorie
+                                  else t.categorie end,
+           motiv           = case when v_s ? 'motiv' then v_s ->> 'motiv' else t.motiv end,
+           updated_by      = (select auth.uid())
+     where t.id = (v_s ->> 'id')::uuid
+       and t.organization_id = p_organization_id
+       and t.deleted_at is null;
+    get diagnostics v_n = row_count;
+    -- Zero rânduri (anulat cu importul, altă firmă, fără drept: USING) = tot
+    -- apelul se derulează înapoi. Același text ca CONFLICT-ul acțiunii.
+    if v_n = 0 then
+      raise exception using errcode = 'P0001',
+        message = 'Tranzacția s-a schimbat între timp sau a fost anulată odată cu importul. Reîncărcați pagina.';
+    end if;
+    v_total := v_total + v_n;
+  end loop;
+  return v_total;
+end;
+$$;
+
+comment on function public.repotriveste_tranzactii_card(uuid, jsonb) is
+  'Aplică ATOMIC lista de scrieri a repotrivirii unei luni (X2): ordinea dată, doar coloanele potrivirii, '
+  'sub RLS-ul apelantului; un rând refuzat derulează înapoi tot apelul.';
+
+revoke all on function public.repotriveste_tranzactii_card(uuid, jsonb) from public, anon;
+grant execute on function public.repotriveste_tranzactii_card(uuid, jsonb) to authenticated;
+
+-- ============================================================
 -- 12. Actor, audit, drepturi
 -- ============================================================
 -- `set_actor` completează `created_by`/`updated_by` din sesiune când lipsesc;

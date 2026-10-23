@@ -37,7 +37,8 @@
 --  (29) DECIZIA 3: hr NU vede restul parcului, documentele, alocările,
 --       PV-urile altora și nu scrie PV                                    [NEGATIVĂ]
 --  (30) managerul nu întocmește PV și nu anulează PV-ul subordonatei
---  (31) scanul semnat: doar pe finalizat, în folderul vehiculului, de administrator
+--  (31) scanul semnat: doar pe finalizat, în folderul vehiculului, de administrator,
+--       și doar fișierul urcat pentru PV (`pv-{id}-…`), nu un document de bord (X2)
 --  (32) `id` și `created_at` nu se rescriu, nici de partea la PV, nici pe ciornă
 --  (33) ștergerea ciornei nu poartă număr, părți sau finalizare: P0001
 --  (34) scanul semnat îl citește cine vede PV-ul (fostul șofer, managerul lui),
@@ -664,14 +665,27 @@ begin
   v_m := 0;
   perform set_config('request.jwt.claim.sub', v_u_admin::text, true);
   set local role authenticated;
+  -- X2: numele fișierului e al ACESTUI PV (`pv-{id}-…`), forma semnată de
+  -- `pregatesteScanPv`. Un document de bord din același folder (RCA, talon)
+  -- nu se leagă: poarta bucketului l-ar da fostului șofer prin PV.
   update public.vehicle_handovers
-     set scan_path = v_org::text || '/vehicles/' || v_v1::text || '/' || gen_random_uuid()::text || '-pv-semnat.pdf',
+     set scan_path = v_org::text || '/vehicles/' || v_v1::text || '/pv-' || v_pv2::text || '-'
+                     || gen_random_uuid()::text || '-pv-semnat.pdf',
          updated_by = v_u_admin
    where id = v_pv2;
   get diagnostics v_k = row_count;
   begin
     update public.vehicle_handovers
-       set scan_path = v_org::text || '/vehicles/' || v_v2::text || '/' || gen_random_uuid()::text || '-alt-vehicul.pdf',
+       set scan_path = v_org::text || '/vehicles/' || v_v2::text || '/pv-' || v_pv2::text || '-'
+                       || gen_random_uuid()::text || '-alt-vehicul.pdf',
+           updated_by = v_u_admin
+     where id = v_pv2;
+  exception when raise_exception then
+    v_n := v_n + 1;
+  end;
+  begin
+    update public.vehicle_handovers
+       set scan_path = v_org::text || '/vehicles/' || v_v1::text || '/' || gen_random_uuid()::text || '-polita-rca.pdf',
            updated_by = v_u_admin
      where id = v_pv2;
   exception when raise_exception then
@@ -693,12 +707,13 @@ begin
     v_n := v_n + 1;
   end;
   reset role;
-  if v_k = 1 and v_n = 2 and v_m = 1
-     and (select scan_path from public.vehicle_handovers where id = v_pv2) like v_org::text || '/vehicles/' || v_v1::text || '/%' then
-    raise notice '  ✓ (31) scanul: pe finalizat, în folderul vehiculului (1 rând); alt vehicul, ciorna și șoferul: P0001';
+  if v_k = 1 and v_n = 3 and v_m = 1
+     and (select scan_path from public.vehicle_handovers where id = v_pv2)
+         like v_org::text || '/vehicles/' || v_v1::text || '/pv-' || v_pv2::text || '-%' then
+    raise notice '  ✓ (31) scanul: pe finalizat, fișierul PV-ului (1 rând); alt vehicul, documentul de bord, ciorna și șoferul: P0001';
   else
     v_esecuri := v_esecuri + 1;
-    raise warning '  ✗ (31) scanul: % rânduri, refuzuri cale/șofer %, ciornă %', v_k, v_n, v_m;
+    raise warning '  ✗ (31) scanul: % rânduri, refuzuri cale/document/șofer % (din 3), ciornă %', v_k, v_n, v_m;
   end if;
 
   -- ── (32) cheia și data creării nu se rescriu ─────────────────────────

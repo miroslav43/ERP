@@ -77,6 +77,10 @@ describe("traduEroareAmenzi — mesajele triggerelor din 0206", () => {
     // 0206 §F, declarația șoferului: nu țin de un câmp al formularului.
     /^Declarantul unui incident/u,
     /^Contul dumneavoastră nu e legat de o fișă de angajat/u,
+    // X2 (revizie): garda de firmă a triggerelor (42501, rândul pus pe altă
+    // firmă). Nu ține de un câmp: e refuzul întregului rând.
+    /^Nu aveți dreptul de a înregistra amenzi/u,
+    /^Nu aveți dreptul de a înregistra incidente/u,
   ];
 
   const mesaje = mesajeleTriggerelor();
@@ -133,6 +137,15 @@ describe("traduEroareAmenzi — mesajele triggerelor din 0206", () => {
       [
         "Cercetarea SSM aleasă nu există în organizația dumneavoastră sau nu o puteți consulta.",
         "work_accident_id",
+      ],
+      // X2: fișa ștearsă logic (sau inexistentă, sau din altă firmă).
+      [
+        "Șoferul desemnat nu există în organizația dumneavoastră sau fișa lui a fost ștearsă.",
+        "employee_id",
+      ],
+      [
+        "Șoferul incidentului nu există în organizația dumneavoastră sau fișa lui a fost ștearsă.",
+        "sofer_id",
       ],
     ];
     for (const [mesaj, camp] of cazuri) {

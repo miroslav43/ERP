@@ -323,6 +323,17 @@ declare
   v_zi_fapta date;
   v_serviciu boolean := app.is_service_context();
 begin
+  -- X2 (revizie): triggerul BEFORE rulează ÎNAINTEA WITH CHECK. Fără garda de
+  -- firmă întâi, un rând pus de altă firmă pe firma victimei deosebea vehiculul
+  -- și șoferul care există acolo (trec, apoi 42501 de la politică) de cele
+  -- inexistente (P0001 mai jos) — o sondă între firme. Refuzul e neutru și
+  -- nu depinde de nimic din rând în afară de firmă.
+  if not v_serviciu
+     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a înregistra amenzi în această organizație.';
+  end if;
+
   if tg_op = 'UPDATE' and not v_serviciu then
     if old.deleted_at is not null then
       raise exception using errcode = 'P0001',
@@ -363,6 +374,24 @@ begin
       raise exception using errcode = 'P0001',
         message = 'Vehiculul ales nu aparține organizației dumneavoastră.';
     end if;
+  end if;
+
+  -- X2: șoferul comunicat autorității e o fișă VIE a firmei. Cheia străină
+  -- compusă `vf_sofer_fk` prinde doar firma, nu și ștergerea logică: o fișă
+  -- ștearsă (introdusă din greșeală) trecea. Judecat la desemnare și la
+  -- schimbare; o desemnare veche rămâne valabilă dacă fișa e ștearsă ulterior.
+  -- Un singur mesaj pentru „nu există”, „e ștearsă” și „e în altă firmă”, ca
+  -- refuzul să nu fie o sondă între firme.
+  if new.sofer_desemnat_id is not null
+     and (tg_op = 'INSERT' or new.sofer_desemnat_id is distinct from old.sofer_desemnat_id)
+     and not exists (
+       select 1 from public.employees e
+        where e.id = new.sofer_desemnat_id
+          and e.organization_id = new.organization_id
+          and e.deleted_at is null
+     ) then
+    raise exception using errcode = 'P0001',
+      message = 'Șoferul desemnat nu există în organizația dumneavoastră sau fișa lui a fost ștearsă.';
   end if;
 
   if tg_op = 'INSERT' or new.constatata_la is distinct from old.constatata_la then
@@ -574,6 +603,13 @@ declare
   v_fisa    uuid;
   v_serviciu boolean := app.is_service_context();
 begin
+  -- X2 (revizie): garda de firmă înaintea oricărei căutări (vezi amenzile).
+  if not v_serviciu
+     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a înregistra incidente în această organizație.';
+  end if;
+
   if tg_op = 'UPDATE' and not v_serviciu then
     -- §F: declarantul e un fapt, nu un câmp de corectat.
     new.declarat_de_employee_id := old.declarat_de_employee_id;
@@ -645,6 +681,20 @@ begin
         end if;
       end if;
     end if;
+  end if;
+
+  -- X2: șoferul incidentului, la fel ca șoferul amenzii: o fișă vie a firmei,
+  -- judecată la schimbare, cu un singur mesaj pentru toate cazurile.
+  if new.sofer_id is not null
+     and (tg_op = 'INSERT' or new.sofer_id is distinct from old.sofer_id)
+     and not exists (
+       select 1 from public.employees e
+        where e.id = new.sofer_id
+          and e.organization_id = new.organization_id
+          and e.deleted_at is null
+     ) then
+    raise exception using errcode = 'P0001',
+      message = 'Șoferul incidentului nu există în organizația dumneavoastră sau fișa lui a fost ștearsă.';
   end if;
 
   if (tg_op = 'INSERT' or new.produs_la is distinct from old.produs_la)

@@ -425,6 +425,18 @@ declare
   -- 0199 §C4: singurele coloane care se mișcă pe o foaie aprobată, la stornare.
   c_stornare constant text[] := array['deleted_at', 'updated_at', 'updated_by', 'km_parcursi', 'data'];
 begin
+  -- X2: un trigger BEFORE ROW rulează ÎNAINTEA politicii de INSERT (`WITH
+  -- CHECK` se judecă pe rândul final, după triggere). Fără garda asta, un rând
+  -- pus pe o firmă a cărei membru apelantul NU e trecea de gărzile de mai jos
+  -- (vehiculul și șoferul sunt căutați în firma RÂNDULUI, iar scope-ul `none`
+  -- sare peste garda de alocare) și ajungea la mesajul de regres, care spunea
+  -- kilometrajul vehiculului altei firme. Refuzul e neutru și vine primul.
+  if not app.is_service_context()
+     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a scrie foi de parcurs în această organizație.';
+  end if;
+
   -- 0199 §C4: semnăturile foii sunt ale BAZEI, nu ale payload-ului.
   if tg_op = 'UPDATE' and not app.is_service_context() then
     new.created_by := old.created_by;
@@ -636,10 +648,20 @@ begin
     end if;
 
     -- REGRES = imposibil fizic => refuz. (Saltul se tratează în triggerul AFTER.)
+    -- X2: cifra cunoscută (`km_curent` sau ultima foaie aprobată) e a
+    -- vehiculului; o spune doar cui vede vehiculul (`vehicule_select`, 0199).
+    -- Cine întocmește pe o mașină pe care n-o mai vede (o zi trecută, alocare
+    -- închisă) sau un rol fără scope de foi (garda de alocare nu-l oprește)
+    -- primește același refuz, fără cifră. Garda nu se schimbă.
     if new.km_plecare < v_ultim then
+      if app.is_service_context()
+         or app.poate_vedea_vehicul(new.organization_id, v_vehicul.employee_id, v_vehicul.pool) then
+        raise exception using errcode = 'P0001',
+          message = format('Kilometrajul de plecare (%s km) este mai mic decât ultimul kilometraj cunoscut al vehiculului (%s km). Un odometru nu poate da înapoi: verificaţi cifra introdusă sau corectaţi foaia de parcurs anterioară.',
+                           new.km_plecare, v_ultim);
+      end if;
       raise exception using errcode = 'P0001',
-        message = format('Kilometrajul de plecare (%s km) este mai mic decât ultimul kilometraj cunoscut al vehiculului (%s km). Un odometru nu poate da înapoi: verificaţi cifra introdusă sau corectaţi foaia de parcurs anterioară.',
-                         new.km_plecare, v_ultim);
+        message = 'Kilometrajul de plecare este mai mic decât ultimul kilometraj cunoscut al vehiculului. Un odometru nu poate da înapoi: verificați cifra introdusă sau cereți administratorului flotei kilometrajul corect.';
     end if;
   end if;
 
@@ -1197,8 +1219,21 @@ revoke all on function internal.aloca_numar_foaie(uuid, integer) from public, an
 -- mai apărea nici în caseta „Cursă nouă”, nici pe pagina de unde se șterge.
 -- Plafonul ține de resursă, nu de drepturi, deci se aplică oricui scrie.
 -- DEFINER: numără toate șabloanele active ale firmei, nu doar pe cele pe care
--- le vede apelantul. Fără lacăt: le scrie doar `trip_sheets:update = all`, iar
--- două inserări simultane depășesc plafonul cel mult cu una.
+-- le vede apelantul.
+--
+-- X2: numărarea se face SUB LACĂT. Fără el, sub READ COMMITTED două scrieri
+-- simultane numărau amândouă 99 și treceau amândouă (n inserări paralele
+-- depășeau plafonul cu n − 1, nu „cel mult cu una”). Lacătul consultativ e pe
+-- firmă și pe tranzacție: a doua scriere așteaptă commit-ul primei, iar
+-- `count(*)` rulat DUPĂ ce lacătul e luat vede (READ COMMITTED: instantaneu
+-- nou pe fiecare instrucțiune) rândul deja comis. Se ia doar când rândul
+-- chiar ocupă un loc, deci redenumirile și ștergerile nu se așteaptă între ele.
+--
+-- X2 (revizie): garda de firmă vine ÎNAINTEA lacătului și a numărării. Un
+-- trigger BEFORE rulează înaintea WITH CHECK, deci un rând pus de altă firmă
+-- pe firma victimei lua lacătul victimei și, pe o firmă plină, primea mesajul
+-- plafonului (o sondă „are firma Y 100 de șabloane?”). Contextul de serviciu
+-- rămâne sub plafon, ca oricine scrie.
 
 create or replace function internal.sabloane_traseu_inainte()
 returns trigger language plpgsql security definer set search_path = '' as $$
@@ -1206,11 +1241,21 @@ declare
   v_numara boolean;
   c_plafon_sabloane constant integer := 100;
 begin
+  if not app.is_service_context()
+     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a scrie șabloane de traseu în această organizație.';
+  end if;
+
   -- `old` se citește într-un `if` separat: pe INSERT nu are rând.
   if tg_op = 'INSERT' then
     v_numara := new.deleted_at is null;
   else
     v_numara := old.deleted_at is not null and new.deleted_at is null;
+  end if;
+  if v_numara then
+    perform pg_catalog.pg_advisory_xact_lock(
+      pg_catalog.hashtextextended('trip_route_templates:' || new.organization_id::text, 0));
   end if;
   if v_numara
      and (select count(*) from public.trip_route_templates s

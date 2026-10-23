@@ -93,6 +93,14 @@ describe("traduEroare — refuzurile bazei ajung pe câmpul vinovat", () => {
     expect(pecamp).not.toMatch(/[şţŞŢ]/u);
     expect(eroare.message).not.toMatch(/[şţŞŢ]/u);
   });
+
+  it("X2: regresul spus cuiva care nu vede vehiculul (fără cifră) ajunge tot pe `km_plecare`", () => {
+    const mesaj =
+      "Kilometrajul de plecare este mai mic decât ultimul kilometraj cunoscut al vehiculului. Un odometru nu poate da înapoi: verificați cifra introdusă sau cereți administratorului flotei kilometrajul corect.";
+    const eroare = prinde(p0001(mesaj));
+    expect(eroare.fieldErrors?.km_plecare).toEqual([mesaj]);
+    expect(mesaj).not.toMatch(/\d/u);
+  });
 });
 
 describe("traduEroareAlocare — P0001 ajunge cu virgulă dedesubt", () => {

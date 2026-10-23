@@ -102,6 +102,19 @@ Reproduse pe banc ca `employee` înainte de reparare; proba e `proba-flota-plafo
   un coleg sau un utilizator din altă firmă care știa id-ul afla din P0001 ziua, orele și
   starea foii și numărul foilor declarate ale șoferului.
 
+## Gărzile X2 (0200, pe loc)
+
+- **Garda de firmă vine prima** în `foi_parcurs_inainte`: un BEFORE ROW rulează înaintea
+  `WITH CHECK`, deci un rând pus pe o firmă străină ajungea la mesajul de regres și afla
+  kilometrajul vehiculului ei. Acum: 42501 neutru, înaintea oricărei căutări.
+- **Cifra din mesajul de regres** (km-ul vehiculului) o primește doar cine vede vehiculul
+  (`app.poate_vedea_vehicul`); restul (hr, șoferul pe o mașină care nu mai e a lui) primește
+  același refuz fără cifră, pe `km_plecare`.
+- **Plafonul de 100 de șabloane e sub lacăt** (`pg_advisory_xact_lock` pe firmă): fără el,
+  două inserări simultane la 99 treceau amândouă (101, măsurat pe banc). Garda de firmă
+  vine și aici înaintea lacătului: de pe altă firmă, 42501, nu plafonul victimei.
+- **`foi_select` are ramura `is_platform_admin`** (0226): super_admin vedea zero foi.
+
 ## Paritatea stării (0200 §D, din revizia de securitate pe 20776502)
 
 În afara contextului de serviciu, PE ORICE SCOPE (și `org_admin`):

@@ -251,8 +251,10 @@ begin
   v_text := pg_temp.ruleaza(v_u_admin, format(
     $q$update public.vehicle_fines set stadiu = 'sofer_desemnat', sofer_desemnat_id = %L where id = %L$q$,
     v_e_strain, v_f1));
-  v_esecuri := v_esecuri + pg_temp.verifica('5', v_text like '23503:%vf_sofer_fk%',
-    'șoferul altei firme: cheia străină compusă refuză (23503)', v_text);
+  -- X2: triggerul judecă fișa înaintea cheii străine compuse: o fișă din altă
+  -- firmă, una inexistentă și una ștearsă logic primesc același P0001.
+  v_esecuri := v_esecuri + pg_temp.verifica('5', v_text like 'P0001:Șoferul desemnat nu există%',
+    'șoferul altei firme: refuzat cu mesajul neutru al fișei inexistente (P0001)', v_text);
 
   -- (6) desemnare fără șofer
   v_text := pg_temp.ruleaza(v_u_admin, format(

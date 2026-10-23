@@ -16,6 +16,12 @@
 //    aplicare). Reluarea de la același offset nu dublează nimic: cheile deja
 //    importate se filtrează, iar contoarele se recalculează din bază.
 //
+// LOTUL E EMIS DE SERVER (X2, `import_uploads`, 0226): pregătirea înregistrează
+// `batchId` și calea; analiza consumă rândul (o dată, doar creatorul, doar pe
+// calea înregistrată) ÎNAINTE să șteargă sursa cu clientul de serviciu, iar
+// aplicarea cere un lot deja analizat. Fără asta, un `batchId` egal cu id-ul unui
+// vehicul ștergea orice .csv/.xlsx din folderul acelui vehicul.
+//
 // Calea: `{org}/vehicles/{batchId}/…` în `org-documents`. Segmentul 2 e resursa
 // `vehicles` (contractul din `src/lib/documents/cale.ts`); `storage_objects_insert`
 // cere `vehicles:create`. Pe `team`/`own`, `app.can_path` verifică segmentul 3 ca
@@ -68,6 +74,11 @@ import {
 import { citesteCsv, decodeazaText, detecteazaDelimitator } from "@/lib/import/csv";
 import { citesteExcelDinBuffer, type FoaieCitita, type RandBrut } from "@/lib/import/excel";
 import {
+  consumaIncarcarea,
+  incarcareAnalizata,
+  inregistreazaIncarcarea,
+} from "@/lib/import/incarcare";
+import {
   cardurilePentruPotrivire,
   cheiDejaImportate,
   citesteImport,
@@ -113,8 +124,20 @@ export const pregatesteIncarcareaExtrasului = createAction({
   ): Promise<Readonly<{ batchId: string; cale: string; urlSemnat: string }>> => {
     const problema = verificaFisierExtras(input.numeFisier, input.dimensiune);
     if (problema !== null) throw invalidInput(problema, { fisier: [problema] });
-    const batchId = crypto.randomUUID();
-    const cale = caleSursaExtras(ctx.tenant.organizationId, batchId, input.numeFisier);
+    const caleProvizorie = caleSursaExtras(
+      ctx.tenant.organizationId,
+      crypto.randomUUID(),
+      input.numeFisier,
+    );
+    // Lotul se înregistrează ÎNAINTEA URL-ului semnat: nu există încărcare fără
+    // chitanță. Id-ul și folderul le emite BAZA (0226); se semnează calea întoarsă.
+    const lot = await inregistreazaIncarcarea(ctx, "vehicles", caleProvizorie);
+    if (lot === null) {
+      throw businessRule(
+        "Nu am putut pregăti încărcarea fișierului. Încercați din nou în câteva secunde.",
+      );
+    }
+    const { batchId, cale } = lot;
     const { data, error } = await ctx.supabase.storage
       .from(BUCKET_DOCUMENTE)
       .createSignedUploadUrl(cale);
@@ -443,13 +466,22 @@ export const analizeazaExtras = createAction({
     }
     const octeti = new Uint8Array(await descarcare.data.arrayBuffer());
 
+    // X2: lotul emis de server se consumă ÎNAINTEA ștergerii. Prefixul de mai sus
+    // nu ajunge: `batchId` vine din client și putea fi id-ul unui vehicul.
+    if (!(await consumaIncarcarea(ctx, "vehicles", input.batchId, input.cale))) {
+      throw businessRule(
+        "Încărcarea nu mai este valabilă: fișierul a fost deja analizat sau nu a fost pregătit de dumneavoastră. Reluați încărcarea.",
+      );
+    }
+
     /*
      * Sursa pleacă din Storage imediat ce e în memorie: are numerele ÎNTREGI ale
      * cardurilor, pe care produsul nu le păstrează nicăieri. `storage.objects` n-are
      * politică DELETE (nici `org_admin` n-o poate scoate), deci ștergerea cere
-     * `service_role` — DE ACEEA clientul admin, și doar pe calea verificată mai sus
-     * că e sub prefixul organizației din sesiune, niciodată crezută pe cuvânt.
-     * Eșecul ștergerii nu oprește analiza, dar se vede în jurnal.
+     * `service_role` — DE ACEEA clientul admin, și doar pe calea ÎNREGISTRATĂ de
+     * server pentru lotul apelantului și consumată chiar acum (`import_uploads`),
+     * niciodată crezută pe cuvânt. Eșecul ștergerii nu oprește analiza, dar se
+     * vede în jurnal.
      */
     const sterge = await createAdminSupabase().storage.from(BUCKET_DOCUMENTE).remove([input.cale]);
     if (sterge.error !== null) {
@@ -945,6 +977,13 @@ export const aplicaImportExtras = createAction({
     }>
   > => {
     const org = ctx.tenant.organizationId;
+    // X2: doar un lot emis de server pentru apelant și deja analizat se aplică
+    // (și doar pe el se șterge, la final, lotul din Storage cu clientul admin).
+    if (!(await incarcareAnalizata(ctx, "vehicles", input.batchId))) {
+      throw businessRule(
+        "Previzualizarea a expirat. Reluați importul de la încărcarea fișierului.",
+      );
+    }
     const lot = await citesteLot(ctx, input.batchId);
     await asiguraImportul(ctx, input.batchId, lot);
 
