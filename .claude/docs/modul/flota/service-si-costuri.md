@@ -133,7 +133,9 @@ din `pragSaltVehicul` (`[[modul/flota/alerte-si-setari]]`).
   stau în `vehicle_costuri` și `vehicle_document_costuri` (1:1, fără `deleted_at`, unic
   TOTAL pe părinte — `on_conflict` nu poate numi un index parțial, 42P10), citite prin
   `app.poate_vedea_costurile_vehiculului`: `vehicles:update = all`, sau citirea lui
-  `vex_select` (echipa, fără pool). Restul primește embed-ul `null`, fără eroare; fișa
+  `vex_select` (echipa, fără pool) — strânsă: la `team`, pool-ul e exclus și când e alocat
+  unui om din echipă (`vex_select` îl arată atunci managerului). Restul primește embed-ul
+  `null`, fără eroare; fișa
   ascunde rândul „Valoare” și coloana „Cost”. Aplicația scrie explicit (insert la creare
   doar cu valoare, upsert la corectură, și cu `null`, ca golirea să golească).
 - **Coloanele vechi sunt goale, nu aruncate** (aplicația veche le citește până la deploy).

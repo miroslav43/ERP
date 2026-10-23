@@ -548,6 +548,41 @@ begin
   v_celule := v_celule + 1;
   raise notice '  %  %', rpad('coloanele vechi: intrare, null, E1, CHECK', 40), case when v_esecuri = v_brut then 'OK' else '✗' end;
 
+  -- ── Pool-ul cu șofer din echipă (revizia X1) ─────────────────────────────
+  -- Baza lasă o mașină din pool să fie alocată (`vehicles.employee_id` se
+  -- umple). Fără o condiție pe `pool`, managerul șoferului ar vedea costurile
+  -- mașinii comune, deși decizia din 21 oct le dă doar pe ale echipei, „nu și ale
+  -- pool-ului”, iar fișa (`poateVedeaService`) ascunde costurile oricărui pool.
+  -- Vehiculul îl vede în continuare (ramura de pool a lui `vehicule_select`).
+  v_brut := v_esecuri;
+  insert into public.vehicle_assignments (organization_id, vehicle_id, employee_id, de_la, created_by, updated_by)
+  values ((a->>'org')::uuid, (a->>'vp')::uuid, (a->>'e_e2')::uuid, now() - interval '2 days',
+          (a->>'u_adm')::uuid, (a->>'u_adm')::uuid);
+  if (select employee_id from public.vehicles where id = (a->>'vp')::uuid) is distinct from (a->>'e_e2')::uuid then
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ pool cu șofer: alocarea nu a ajuns pe vehicul (fixture greșit)';
+  end if;
+  v_celule := v_celule + 3;
+  v_n := pg_temp.numara(v_useri[3], pg_temp.sub(
+    'select 1 from public.vehicles where id = {vp}', a));
+  if v_n <> 1 then
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ pool cu șofer: managerul nu mai vede vehiculul (%; intenționat 1)', v_n;
+  end if;
+  v_n := pg_temp.numara(v_useri[3], pg_temp.sub(
+    'select 1 from public.vehicle_costuri where vehicle_id = {vp}', a));
+  if v_n <> 0 then
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ pool cu șofer: managerul vede valoarea de achiziție a pool-ului (%; intenționat 0)', v_n;
+  end if;
+  v_n := pg_temp.numara(v_useri[3], pg_temp.sub(
+    'select 1 from public.vehicle_document_costuri c join public.vehicle_documents d on d.id = c.document_id where d.vehicle_id = {vp}', a));
+  if v_n <> 0 then
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ pool cu șofer: managerul vede costul documentelor pool-ului (%; intenționat 0)', v_n;
+  end if;
+  raise notice '  %  %', rpad('pool cu șofer: mgr fără costuri', 40), case when v_esecuri = v_brut then 'OK' else '✗' end;
+
   raise notice '  ─────────────────────────────────────────────────────────────────────────────────';
   if v_esecuri > 0 then
     raise exception 'PROBA FLOTA MATRICE: % celule abat de la matricea intenționată (din %)', v_esecuri, v_celule;
