@@ -85,6 +85,49 @@ Reguli obligatorii, pentru că plasa locală acoperă doar DDL-ul:
 3. **Niciun push direct pe `main`.** CI-ul este singura barieră rămasă înaintea
    cloud-ului, deci trebuie să ruleze pe fiecare PR.
 
+### Migrări care ating rânduri existente: proba pe date
+
+Bancul (`banc-migrare.sh`, CI) aplică migrările pe o bază GOALĂ: o umplere
+retroactivă, un index unic nou sau un UPDATE pe rânduri vechi nu atinge acolo
+niciun rând. Pentru livrarea flotă–mentenanță (0191, 0199–0206, 0210–0218),
+`tests/rls/proba-migrari-pe-date.sql` pornește de la starea lui `origin/main`,
+populează trei firme, aplică ea migrările (prin `\ir`) și verifică invarianții.
+Prin globul bancului rulează doar pe baza deja migrată, unde se oprește singură
+cu „SĂRITĂ", deci **se rulează manual**, din worktree-ul ramurii, înainte de
+aplicarea pe producție:
+
+```bash
+D=$(mktemp -d)
+git archive origin/main supabase/migrations scripts/checks tests/rls | tar -x -C "$D"
+CLAUDE_PROJECT_DIR="$D" bash .claude/skills/administrativo/scripts/banc-migrare.sh --pastreaza
+U="postgresql://postgres:banc@localhost:<portul afișat>"
+psql "$U/postgres" -c 'create database pe_date'
+for f in "$D"/supabase/migrations/*.sql; do
+  psql "$U/pe_date" -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null || { echo "✗ $f"; break; }
+done
+psql "$U/pe_date" -v ON_ERROR_STOP=1 -f tests/rls/proba-migrari-pe-date.sql
+# apoi: docker rm -f administrativo-banc-<pid>
+```
+
+Proba rulează pe baza NOUĂ `pe_date`, nu pe `postgres`: bancul a lăsat acolo
+datele probelor de pe `main`, iar una dintre ele (`proba-flota-integritate`)
+lasă trei ciorne ale aceluiași vehicul în aceeași zi, deci 0200 s-ar opri,
+corect, cu lista lor. Bancul servește aici doar containerul și portul (rețeta
+verificată pe 23 oct 2026: EXIT 0).
+
+**Imediat înainte de 0200 pe producție**, aceeași verificare pe datele reale
+(la 23 oct 2026: zero dubluri pe 9 foi). Până la aplicare, aplicația permite
+încă două foi active pe același vehicul în aceeași zi (doi șoferi pe o mașină de
+pool), iar 0200 refuză atunci întreaga migrare și cere respingerea sau ștergerea
+logică a foilor în plus — o decizie de luat cu utilizatorul, nu de migrare:
+
+```sql
+select vehicle_id, (plecare_la at time zone 'Europe/Bucharest')::date as zi, count(*)
+  from public.trip_sheets
+ where deleted_at is null and status <> 'respins'
+ group by 1, 2 having count(*) > 1;
+```
+
 ---
 
 ## 2. Decizii de arhitectură

@@ -232,20 +232,23 @@ begin
 end;
 $$;
 
-drop trigger if exists maintenance_settings_praguri on public.maintenance_settings;
-create trigger maintenance_settings_praguri
-  after insert or update on public.maintenance_settings
-  for each row execute function internal.mentenanta_setari_praguri();
-
 -- Rândurile de setări EXISTENTE au primit default-ul 30/14/7 la ALTER, fără
 -- nicio regulă în `alert_rules`: motorul (`genereaza_alerte`, 0008) le aplică
 -- regula '*' a firmei, iar formularul ar fi afișat 30/14/7 până la prima
 -- salvare. Pentru fiecare rând viu se citește regula pe care o aplică motorul
 -- unui plan (aceeași ordine: tipul exact înaintea lui '*', apoi cea mai nouă
--- versiune) și, doar dacă diferă, se scrie în coloană — triggerul de mai sus o
--- fixează atunci și pe cele trei tipuri. Unde regula '*' e implicitul, nu se
--- scrie nimic. Un prag peste 365 nu încape în CHECK-ul coloanei: firma aceea
--- rămâne pe regula ei '*', fără reguli specifice.
+-- versiune) și, doar dacă diferă, se scrie în coloană. Unde regula '*' e
+-- implicitul, nu se scrie nimic. Un prag peste 365 nu încape în CHECK-ul
+-- coloanei: firma aceea rămâne pe regula ei '*'.
+--
+-- ÎNAINTEA triggerului, deliberat (verificat pe date existente, X5): cu
+-- triggerul deja creat, umplerea scria regula PLANULUI și pe
+-- `iscir_authorization` și `equipment`. O firmă cu regulă proprie pe
+-- `maintenance_plan` (90/30) și '*' (60/30/7) își vedea scadențele ISCIR și
+-- garanțiile mutate tăcut pe 90/30 la migrare. Acum migrarea nu scrie nicio
+-- regulă: motorul aplică aceleași praguri ca înainte pe toate tipurile, iar
+-- formularul arată pragurile planurilor; prima salvare care SCHIMBĂ pragurile le
+-- aliniază pe toate trei (cu pragurile neschimbate triggerul nu scrie nimic).
 update public.maintenance_settings s
    set praguri_alerta_zile = ef.praguri
   from (
@@ -266,6 +269,11 @@ update public.maintenance_settings s
  where ef.id = s.id
    and s.praguri_alerta_zile is distinct from ef.praguri
    and 365 >= all (ef.praguri);
+
+drop trigger if exists maintenance_settings_praguri on public.maintenance_settings;
+create trigger maintenance_settings_praguri
+  after insert or update on public.maintenance_settings
+  for each row execute function internal.mentenanta_setari_praguri();
 
 -- ============================================================
 -- 5. Rezumatul zilnic al unei firme
