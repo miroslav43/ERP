@@ -45,8 +45,10 @@ export function traduEroare(error: unknown): never {
       );
     }
     if (error.code === "P0001") {
-      // Mesajele vechi din bază (0012/0018/0172) au ş/ţ cu sedilă. Nu se
-      // retranscriu funcțiile ca să le corecteze — se corectează la afișare.
+      // Triggerele foii și ale alimentărilor (0199/0200), al documentelor
+      // (0202) și anomalia de km (0201) scriu ș/ț cu virgulă. Funcțiile din
+      // 0012/0018/0172 pe care nu le-a rescris nimeni au încă litere cu sedilă
+      // (U+015F/U+0163): plasa le corectează la afișare.
       const mesaj = cuVirgula(error.message.slice(0, 300));
       const campuri = campurileMesajului(mesaj);
       if (campuri.length > 0) {
@@ -77,19 +79,19 @@ const UNICITATI: readonly (readonly [string, string, string])[] = [
 /**
  * Câmpul (sau câmpurile) de care ține un refuz al triggerelor de flotă, după
  * începutul mesajului. Cu el, eroarea ajunge ÎN caseta vinovată, înroșită, nu
- * într-un banner deasupra formularului. Mesajele din bază (0012/0018) sunt
- * scrise cu ş/ţ cu sedilă; potrivirea ocolește literele acelea (rulează după
- * `cuVirgula`, dar tiparele rămân valabile pentru ambele forme).
+ * într-un banner deasupra formularului. Potrivirea rulează DUPĂ `cuVirgula`,
+ * deci tiparele se scriu cu ș/ț cu virgulă, forma din 0199/0200; un mesaj vechi
+ * cu sedilă ajunge aici deja corectat.
  */
 const CAMPURI_DUPA_MESAJ: readonly (readonly [RegExp, readonly string[]])[] = [
   [/^Kilometrajul de sosire/u, ["km_sosire"]],
   [/^Kilometrajul de plecare/u, ["km_plecare"]],
   [/^Ora de sosire/u, ["sosire_la"]],
-  [/^Completa.i ora .i kilometrajul de sosire/u, ["sosire_la", "km_sosire"]],
+  [/^Completați ora și kilometrajul de sosire/u, ["sosire_la", "km_sosire"]],
   [/^Data aliment/u, ["alimentat_la"]],
   [/^Cantitatea de combustibil/u, ["litri"]],
   [/^Vehiculul/u, ["vehicle_id"]],
-  [/^.oferul selectat/u, ["employee_id"]],
+  [/^Șoferul selectat/u, ["employee_id"]],
   // 0199 §C3: mutarea foii pe un șofer pentru care apelantul n-are drept de
   // scriere. Niciun ecran nu mută azi o foaie; tiparul e aici ca un viitor
   // formular de corectură să primească mesajul pe câmp, nu sub buton.
@@ -160,8 +162,8 @@ export function traduEroareAlocare(error: unknown): never {
       }
     }
     if (error.code === "P0001") {
-      // Mesajele vechi din bază (0012/0018/0172) au ş/ţ cu sedilă. Nu se
-      // retranscriu funcțiile ca să le corecteze — se corectează la afișare.
+      // Mesajele din 0172 (alocările), nerescrise, au încă litere cu sedilă
+      // (U+015F/U+0163): se corectează la afișare.
       const mesaj = cuVirgula(error.message.slice(0, 300));
       const campuri = CAMPURI_ALOCARE.find(([re]) => re.test(mesaj))?.[1] ?? [];
       if (campuri.length > 0) {
@@ -212,7 +214,8 @@ export function traduEroareSetari(error: unknown): never {
 /**
  * Traducerea pentru nomenclatorul firmei (0202): tipurile proprii și setarea pe
  * tipurile de platformă. Mesajele noi au ș/ț corecte; cel din 0018 §F6
- * („Codul … Alegeţi alt cod”) e cu sedilă, deci tiparul ocolește litera.
+ * („Codul … Alegeți alt cod”) e scris în bază cu sedilă (U+0163), deci tiparul
+ * ocolește litera.
  */
 export function traduEroareTipuri(error: unknown): never {
   if (isPostgrestError(error)) {

@@ -107,7 +107,10 @@ lărgește DOAR celulele tabelelor, deci uneltele publice (`DocumentTabelar`, te
 neschimbate. **Fără subsolul „Generat gratuit cu administrativo.ro”**: opțiunea `subsol` a
 lui `randeazaXlsx` e obligatorie; `raspunsDocument` (uneltele) trimite `"unealta"`, exporturile
 aplicației `"aplicatie"`. Testele: `src/lib/unelte/xlsx.test.ts` (ambele căi). Răspunsul
-trece prin `raspunsBinar`: `private, no-store`.
+trece prin `raspunsBinar`: `private, no-store`. PDF-ul și Word-ul comune (`randeazaPdf*`,
+`randeazaDocx*`) au aceeași opțiune, cu implicitul `"aplicatie"` (fără rând și fără
+legătură); `raspuns.ts` cere `"unealta"` pe toate formatele
+(`src/lib/unelte/subsol-aplicatie.test.ts`, ambele căi).
 
 ## Pachetul lunar
 

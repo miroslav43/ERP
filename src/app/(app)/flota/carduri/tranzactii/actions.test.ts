@@ -41,7 +41,12 @@ import {
 } from "@/lib/teste/actiune";
 import { areFiltru, eroarePostgrest } from "@/lib/teste/supabase-fals";
 
-import { ignoraTranzactie, leagaTranzactie, repotrivesteTranzactii } from "./actions";
+import {
+  ignoraTranzactie,
+  leagaTranzactie,
+  reactiveazaTranzactie,
+  repotrivesteTranzactii,
+} from "./actions";
 
 const PERMISIUNI = {
   "vehicles:update": "all",
@@ -98,6 +103,170 @@ describe("ignoraTranzactie", () => {
       ok: false,
       error: { code: "CONFLICT" },
     });
+  });
+});
+
+/*
+ * F12b: lipsea „Reactivează” — o tranzacție ignorată din greșeală rămânea
+ * ignorată pentru totdeauna (repotrivirea le sare pe ignorate).
+ */
+describe("reactiveazaTranzactie", () => {
+  const ignorata = {
+    id: ID_1,
+    categorie: "combustibil",
+    card_id: "card-1",
+    vehicle_id: VEHICUL,
+    trip_sheet_id: FOAIE,
+    data_ro: "2026-10-05",
+    stare_potrivire: "ignorata",
+    fuel_entry_id: null,
+  };
+  const randLuna = {
+    emitent: "omv_petrom",
+    card_id: "card-1",
+    card_ultimele_cifre: "1234",
+    nr_inmatriculare_extras: null,
+    efectuat_la: "2026-10-05T11:02:00.000Z",
+    data_ro: "2026-10-05",
+    are_ora: true,
+    categorie: "combustibil",
+    tip_combustibil: "motorina",
+    cantitate: 52.3,
+    valoare_bruta: 380.15,
+    moneda: "RON",
+    km_declarat: null,
+    numar_bon: null,
+    vehicle_id: VEHICUL,
+    trip_sheet_id: FOAIE,
+    fuel_entry_id: null,
+    motiv: null,
+  };
+
+  function contextLuna(server: ReturnType<typeof configureazaActiunea>["server"]): void {
+    server.raspunde("fuel_cards", "select", {
+      data: [
+        {
+          id: "card-1",
+          emitent: "omv_petrom",
+          ultimele_cifre: "1234",
+          amprenta_numar: null,
+          vehicle_id: VEHICUL,
+          employee_id: null,
+        },
+      ],
+      count: 1,
+    });
+    server.raspunde("vehicles", "select", {
+      data: [
+        { id: VEHICUL, nr_inmatriculare: "B100XYZ", tip_combustibil: "motorina", deleted_at: null },
+      ],
+      count: 1,
+    });
+    server.raspunde("vehicle_assignments", "select", { data: [], count: 0 });
+    server.raspunde("trip_sheets", "select", {
+      data: [
+        {
+          id: FOAIE,
+          vehicle_id: VEHICUL,
+          employee_id: ID_3,
+          data: "2026-10-05",
+          status: "aprobat",
+          km_plecare: 1,
+          km_sosire: 2,
+        },
+      ],
+      count: 1,
+    });
+    server.raspunde("fuel_entries", "select", {
+      data: [
+        {
+          id: ALIMENTARE,
+          trip_sheet_id: FOAIE,
+          litri: 52.3,
+          cost: 380,
+          alimentat_la: "2026-10-05T11:00:00.000Z",
+          numar_bon: null,
+        },
+      ],
+      count: 1,
+    });
+    server.raspunde("fuel_card_transactions", "select", { data: [] });
+  }
+
+  it("iese din `ignorata` fără notă, apoi se repotrivește DOAR ea: se leagă de alimentare", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMISIUNI });
+    server.raspunde("fuel_card_transactions", "select", { data: ignorata });
+    server.raspunde("fuel_card_transactions", "update", { data: { id: ID_1 } });
+    // Luna, după prima scriere: rândul reactivat și un altul, nepotrivit, pe
+    // care reactivarea NU are voie să-l atingă.
+    server.raspunde("fuel_card_transactions", "select", {
+      data: [
+        { ...randLuna, id: ID_1, stare_potrivire: "fara_alimentare" },
+        {
+          ...randLuna,
+          id: "tx-alta",
+          card_id: null,
+          vehicle_id: null,
+          trip_sheet_id: null,
+          stare_potrivire: "card_necunoscut",
+        },
+      ],
+      count: 2,
+    });
+    contextLuna(server);
+    server.raspunde("fuel_card_transactions", "update", { data: { id: ID_1 } });
+    server.raspunde("fuel_card_transactions", "select", {
+      data: { ...ignorata, fuel_entry_id: ALIMENTARE, stare_potrivire: "potrivita" },
+    });
+
+    const r = await reactiveazaTranzactie({ id: ID_1 });
+    await asteaptaDupa();
+
+    expect(r).toEqual({ ok: true, data: { id: ID_1, stare: "potrivita" } });
+    const scrieri = server.apeluriPe("fuel_card_transactions", "update");
+    expect(scrieri).toHaveLength(2);
+    expect(scrieri[0]?.payload).toEqual({
+      stare_potrivire: "fara_alimentare",
+      nota: null,
+      updated_by: USER_ID,
+    });
+    expect(areFiltru(scrieri[0], "eq", "stare_potrivire", "ignorata")).toBe(true);
+    expect(areFiltru(scrieri[0], "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(scrieri[0]?.selectDupaScriere).toBe("id");
+    expect(scrieri.every((s) => areFiltru(s, "eq", "id", ID_1))).toBe(true);
+    expect(scrieri[1]?.payload).toMatchObject({
+      fuel_entry_id: ALIMENTARE,
+      stare_potrivire: "potrivita",
+    });
+  });
+
+  it("o tranzacție care nu e ignorată: CONFLICT, fără scriere", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMISIUNI });
+    server.raspunde("fuel_card_transactions", "select", {
+      data: { ...ignorata, stare_potrivire: "fara_foaie" },
+    });
+    expect(await reactiveazaTranzactie({ id: ID_1 })).toMatchObject({
+      ok: false,
+      error: { code: "CONFLICT" },
+    });
+    expect(server.apeluriPe("fuel_card_transactions", "update")).toHaveLength(0);
+  });
+
+  it("zero rânduri la scriere (reactivată între timp): CONFLICT, fără repotrivire", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMISIUNI });
+    server.raspunde("fuel_card_transactions", "select", { data: ignorata });
+    server.raspunde("fuel_card_transactions", "update", { data: null });
+    expect(await reactiveazaTranzactie({ id: ID_1 })).toMatchObject({
+      ok: false,
+      error: { code: "CONFLICT" },
+    });
+    expect(server.apeluriPe("fuel_cards")).toHaveLength(0);
+  });
+
+  it("fără `vehicles:update = all`: refuz, fără drum la bază", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "team" } });
+    expect(await reactiveazaTranzactie({ id: ID_1 })).toMatchObject({ ok: false });
+    expect(server.apeluri).toHaveLength(0);
   });
 });
 

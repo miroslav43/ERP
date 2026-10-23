@@ -46,9 +46,10 @@ afterEach(() => {
 });
 
 describe("PDF pe mai multe pagini", { timeout: 30_000 }, () => {
+  // Calea uneltelor publice: rândul de jos se cere explicit (A5, implicitul e fără el).
   it("rândul de jos apare o dată pe fiecare pagină, cu numărul paginii", async () => {
     const desene = spioneaza();
-    const citit = await PDFDocument.load(await randeazaPdf(LUNG));
+    const citit = await PDFDocument.load(await randeazaPdf(LUNG, { subsol: "unealta" }));
     const total = citit.getPageCount();
     expect(total).toBeGreaterThan(2);
     const cuSemnatura = desene.filter((d) => d.text === SEMNATURA_FISIER).map((d) => d.pagina);
@@ -58,7 +59,7 @@ describe("PDF pe mai multe pagini", { timeout: 30_000 }, () => {
   });
 
   it("fiecare pagină are adnotarea Link spre unealtă", async () => {
-    const citit = await PDFDocument.load(await randeazaPdf(LUNG));
+    const citit = await PDFDocument.load(await randeazaPdf(LUNG, { subsol: "unealta" }));
     for (const pagina of citit.getPages()) {
       expect(pagina.node.Annots()?.size()).toBe(1);
     }

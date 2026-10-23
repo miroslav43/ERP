@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { ListaDefinitii, type Definitie } from "@/components/ui/lista-definitii";
 import { Scadenta } from "@/components/ui/scadenta";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
+import { ETICHETE_TIP_INCIDENT } from "@/domain/fleet/amenzi";
 import { stareScadentaFlota } from "@/domain/fleet/scadente";
 import { formatDate, formatDateTime, toBucharestDateString } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
@@ -173,6 +174,27 @@ function IesireaVie({
         ]
       : []),
     { eticheta: "Documentul", valoare: iesire.nr_document },
+    // F12h: incidentul legat (`incident_id`). Încorporarea vine NULL fără
+    // `vehicle_incidents:read` (capcana #18): legătura există, dar nu se arată.
+    ...(iesire.incident_id === null
+      ? []
+      : [
+          {
+            eticheta: "Incidentul",
+            valoare:
+              iesire.incident === null ? (
+                "Legat, dar nu aveți acces la incidente"
+              ) : (
+                <Link
+                  href={`/flota/incidente/${iesire.incident.id}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  {ETICHETE_TIP_INCIDENT[iesire.incident.tip]} din{" "}
+                  {formatDateTime(new Date(iesire.incident.produs_la))}
+                </Link>
+              ),
+          },
+        ]),
     ...(iesire.pastreaza_numarul
       ? [{ eticheta: "Numărul de înmatriculare", valoare: "Păstrat de firmă" }]
       : []),

@@ -292,6 +292,27 @@ const SCURT: Readonly<Record<CodAvertisment, string>> = {
   fara_delegatie: "fără delegație",
 };
 
+/**
+ * Ce spune secțiunea „Permis de conducere” când citește permisul unui angajat.
+ *
+ * `inregistrat` = rândul a venit. Fără rând, singurul lucru care îndreptățește
+ * „Niciun permis înregistrat” e `permis_exista === false`: baza a putut judeca
+ * permisul și nu l-a găsit. `null` (apelantul n-ar trece `driver_licenses_select`
+ * pe acel angajat, sau angajatul lipsește din harta faptelor) e „nu se știe”: a
+ * scrie „niciun permis” ar afirma ceva fals despre un permis ascuns de RLS.
+ * `true` fără rând (o cursă între cele două citiri) e tratat la fel: nu se
+ * afirmă lipsa.
+ */
+export type StarePermisCitit = "inregistrat" | "lipsa" | "fara_acces";
+
+export function starePermisCitit(
+  permisCitit: boolean,
+  permisExista: boolean | null,
+): StarePermisCitit {
+  if (permisCitit) return "inregistrat";
+  return permisExista === false ? "lipsa" : "fara_acces";
+}
+
 /** Eticheta scurtă din selectorul de șofer („permis expirat, aviz lipsă”), sau `null`. */
 export function rezumatScurt(avertismente: readonly Avertisment[]): string | null {
   if (avertismente.length === 0) return null;

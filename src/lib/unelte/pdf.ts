@@ -24,6 +24,7 @@ import {
   type Coloana,
   type DocumentTabelar,
   type SectiuneCasete,
+  type SubsolFisier,
 } from "./document-tabelar";
 
 /**
@@ -197,8 +198,19 @@ export function inlocuiesteGlifeLipsa(text: string, are: (cod: number) => boolea
  */
 let glifeComune: ReadonlySet<number> | null = null;
 
-export async function randeazaPdf(d: DocumentTabelar, sonda?: SondaPdf): Promise<Uint8Array> {
-  return randeazaPdfMultiplu([d], sonda);
+/**
+ * Opțiunile randării PDF.
+ * - `subsol`: `"unealta"` pune „Generat gratuit cu administrativo.ro” și legătura
+ *   spre unealtă pe fiecare pagină (uneltele publice de la `/unelte`, prin
+ *   `raspuns.ts`); `"aplicatie"` (IMPLICIT) nu pune nimic. Implicitul e partea
+ *   sigură: o randare nouă care uită opțiunea nu face reclamă pe fișierul
+ *   clientului (A5; XLSX-ul a fost reparat la fel în `randeazaXlsx`).
+ * - `sonda`: doar pentru teste.
+ */
+export type OptiuniPdf = Readonly<{ subsol?: SubsolFisier; sonda?: SondaPdf }>;
+
+export async function randeazaPdf(d: DocumentTabelar, o: OptiuniPdf = {}): Promise<Uint8Array> {
+  return randeazaPdfMultiplu([d], o);
 }
 
 /**
@@ -208,8 +220,10 @@ export async function randeazaPdf(d: DocumentTabelar, sonda?: SondaPdf): Promise
  */
 export async function randeazaPdfMultiplu(
   bruteDocumente: readonly DocumentTabelar[],
-  sonda?: SondaPdf,
+  o: OptiuniPdf = {},
 ): Promise<Uint8Array> {
+  const { sonda } = o;
+  const subsol = o.subsol ?? "aplicatie";
   const primul = bruteDocumente[0];
   if (primul === undefined) throw new Error("Niciun document de randat.");
   const { doc, fonturi } = await pornesteDocument(primul.titlu, "Administrativo");
@@ -236,7 +250,7 @@ export async function randeazaPdfMultiplu(
     return latimeText;
   };
 
-  for (const d of documente) deseneaza(doc, fonturi, masoara, d, sonda);
+  for (const d of documente) deseneaza(doc, fonturi, masoara, d, sonda, subsol);
   return doc.save();
 }
 
@@ -246,6 +260,7 @@ function deseneaza(
   masoara: Masurare,
   d: DocumentTabelar,
   sonda: SondaPdf | undefined,
+  subsol: SubsolFisier,
 ): void {
   const [latime, inaltime] = dimensiuni(d);
   const util = latime - 2 * MARGINE;
@@ -619,28 +634,34 @@ function deseneaza(
   // scanează și circulă pe bucăți. Textul devine clicabil printr-o adnotare
   // `Link` cu acțiune `URI`, întinsă exact peste el. `pdf-lib` n-are un API
   // pentru legături; dicționarul e cel din specificația PDF (ISO 32000, 12.5.6.5).
+  //
+  // A5: rândul și legătura există DOAR pe calea uneltelor publice
+  // (`subsol: "unealta"`). Exportul din aplicație păstrează numerotarea și
+  // antetul rulant, fără reclamă pe fișierul clientului.
   const latimeText = fonturi.normal.widthOfTextAtSize(SEMNATURA_FISIER, MARIME_MARGINE);
   const adresa = adresaDinFisier(d, "pdf", ADRESA_SITE);
   const masoaraMic = masoara(fonturi.normal, MARIME_MARGINE);
   const antetRulant = taie(textAntetRulant(d), util, masoaraMic);
   pagini.forEach((p, i) => {
-    p.drawText(SEMNATURA_FISIER, {
-      x: MARGINE,
-      y: MARGINE / 2,
-      size: MARIME_MARGINE,
-      font: fonturi.normal,
-      color: GRI,
-    });
-    const legatura = doc.context.register(
-      doc.context.obj({
-        Type: "Annot",
-        Subtype: "Link",
-        Rect: [MARGINE, MARGINE / 2 - 2, MARGINE + latimeText, MARGINE / 2 + 8],
-        Border: [0, 0, 0],
-        A: { Type: "Action", S: "URI", URI: PDFString.of(adresa) },
-      }),
-    );
-    p.node.set(PDFName.of("Annots"), doc.context.obj([legatura]));
+    if (subsol === "unealta") {
+      p.drawText(SEMNATURA_FISIER, {
+        x: MARGINE,
+        y: MARGINE / 2,
+        size: MARIME_MARGINE,
+        font: fonturi.normal,
+        color: GRI,
+      });
+      const legatura = doc.context.register(
+        doc.context.obj({
+          Type: "Annot",
+          Subtype: "Link",
+          Rect: [MARGINE, MARGINE / 2 - 2, MARGINE + latimeText, MARGINE / 2 + 8],
+          Border: [0, 0, 0],
+          A: { Type: "Action", S: "URI", URI: PDFString.of(adresa) },
+        }),
+      );
+      p.node.set(PDFName.of("Annots"), doc.context.obj([legatura]));
+    }
     if (i > 0) {
       p.drawText(antetRulant, {
         x: MARGINE,

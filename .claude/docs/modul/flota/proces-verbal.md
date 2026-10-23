@@ -43,6 +43,10 @@ Alocările sunt în `[[modul/flota]]`; drepturile pe roluri, în `[[modul/flota/
 | `/api/export/flota/pv/[id]` | modulul `fleet` + RLS, FĂRĂ poartă pe `vehicles:read` (decizia 3)      |
 | `/portal/masina-mea`        | modulul `fleet` și fișa principală; foile doar cu `trip_sheets:read`   |
 
+În portal, fiecare PV finalizat al omului are „Descarcă PDF” și, când e atașat, „Scanul
+semnat”: `pvurileMele` aduce `scan_path`, iar pagina semnează URL-ul sub sesiunea lui
+(`urlSemnateFlota`); bucketul îl dă părții pe calea exactă (proba 34).
+
 ## Server Actions
 
 `src/app/(app)/flota/[id]/pv/actions.ts` (calea `actions.ts`, nu `actions-pv.ts`: auditul,

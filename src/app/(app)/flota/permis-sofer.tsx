@@ -4,6 +4,7 @@ import type { ReactElement } from "react";
 import { ListaDefinitii } from "@/components/ui/lista-definitii";
 import { Scadenta } from "@/components/ui/scadenta";
 import { stareScadentaFlota } from "@/domain/fleet/scadente";
+import { starePermisCitit } from "@/domain/fleet/soferi";
 import { formatDate } from "@/lib/format/date";
 import { permisulAngajatului, verificariSoferi } from "@/lib/queries/soferi";
 
@@ -55,6 +56,12 @@ export async function PermisSofer({
     verificariSoferi(organizationId, [employeeId], azi),
   ]);
   const aviz = fapte.get(employeeId)?.aviz ?? null;
+  // A1: permisul lipsă din citire NU înseamnă „n-are permis” — RLS îl poate
+  // ascunde. Doar `permis_exista === false` (baza a putut verifica) o spune.
+  const stareCitire = starePermisCitit(
+    permis !== null,
+    fapte.get(employeeId)?.permis_exista ?? null,
+  );
   const treapta = stareScadentaFlota(permis?.expira_la ?? null, azi);
   const idTitlu = `titlu-permis-${employeeId}`;
 
@@ -65,7 +72,9 @@ export async function PermisSofer({
           {titlu}
         </h2>
         <div className="flex items-center gap-1">
-          {permis === null && poateCrea ? (
+          {/* Adăugarea doar când baza a confirmat lipsa: peste un permis
+              ascuns, a doua înregistrare ar cădea pe unicitate. */}
+          {stareCitire === "lipsa" && poateCrea ? (
             <DialogPermis employeeId={employeeId} numeAngajat={numeAngajat} permis={null} />
           ) : null}
           {permis !== null && poateModifica ? (
@@ -83,10 +92,13 @@ export async function PermisSofer({
 
       {permis === null ? (
         <p className="text-muted-foreground text-corp">
-          Niciun permis de conducere înregistrat.
-          {poateCrea
-            ? " Înregistrați-l ca foile de parcurs și predările de vehicul să poată verifica valabilitatea lui."
-            : ""}
+          {stareCitire === "lipsa"
+            ? `Niciun permis de conducere înregistrat.${
+                poateCrea
+                  ? " Înregistrați-l ca foile de parcurs și predările de vehicul să poată verifica valabilitatea lui."
+                  : ""
+              }`
+            : "Nu aveți acces la permisul de conducere al acestui angajat."}
         </p>
       ) : (
         <ListaDefinitii

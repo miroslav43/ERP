@@ -540,18 +540,18 @@ begin
    where v.id = new.vehicle_id and v.deleted_at is null;
   if not found or v_vehicul.organization_id <> new.organization_id then
     raise exception using errcode = 'P0001',
-      message = 'Vehiculul selectat nu aparţine organizaţiei dumneavoastră.';
+      message = 'Vehiculul selectat nu aparține organizației dumneavoastră.';
   end if;
   if not exists (
     select 1 from public.employees e
      where e.id = new.employee_id and e.organization_id = new.organization_id and e.deleted_at is null
   ) then
     raise exception using errcode = 'P0001',
-      message = 'Şoferul selectat nu aparţine organizaţiei dumneavoastră.';
+      message = 'Șoferul selectat nu aparține organizației dumneavoastră.';
   end if;
   if tg_op = 'INSERT' and v_vehicul.status in ('vandut', 'casat') then
     raise exception using errcode = 'P0001',
-      message = 'Vehiculul este ieşit din parc (vândut sau casat). Nu se mai pot întocmi foi de parcurs pentru el.';
+      message = 'Vehiculul este ieșit din parc (vândut sau casat). Nu se mai pot întocmi foi de parcurs pentru el.';
   end if;
 
   -- 0200 §A: cursele există, deci ziua foii nu se mută pe sub ele.
@@ -599,7 +599,7 @@ begin
      and (old.vehicle_id, old.employee_id, old.plecare_la, old.sosire_la, old.km_plecare, old.km_sosire)
          is distinct from (new.vehicle_id, new.employee_id, new.plecare_la, new.sosire_la, new.km_plecare, new.km_sosire) then
     raise exception using errcode = 'P0001',
-      message = 'Foaia de parcurs este aprobată. Pentru corecţii, stornaţi-o şi întocmiţi una nouă.';
+      message = 'Foaia de parcurs este aprobată. Pentru corecții, stornați-o și întocmiți una nouă.';
   end if;
 
   -- 0199 §C4, și pentru `update = all`: pe foaia aprobată se mișcă doar
@@ -631,7 +631,7 @@ begin
       message = 'Foaia de parcurs este respinsă și nu se mai modifică așa. Redeschideți-o în ciornă, corectați-o și trimiteți-o din nou.';
   end if;
 
-  -- 0018 §F1: doar la INSERT sau la tranziţia draft→trimis.
+  -- 0018 §F1: doar la INSERT sau la tranziția draft→trimis.
   if tg_op = 'INSERT' or (tg_op = 'UPDATE' and old.status = 'draft' and new.status = 'trimis') then
     select max(t.km_sosire) into v_ultim
       from public.trip_sheets t
@@ -642,7 +642,7 @@ begin
        and (tg_op = 'INSERT' or t.id <> new.id);
     v_ultim := greatest(coalesce(v_ultim, 0), coalesce(v_vehicul.km_curent, 0));
 
-    -- Prepopulare: şoferul nu trebuie să caute cifra de pe foaia precedentă.
+    -- Prepopulare: șoferul nu trebuie să caute cifra de pe foaia precedentă.
     if new.km_plecare is null then
       new.km_plecare := v_ultim;
     end if;
@@ -657,7 +657,7 @@ begin
       if app.is_service_context()
          or app.poate_vedea_vehicul(new.organization_id, v_vehicul.employee_id, v_vehicul.pool) then
         raise exception using errcode = 'P0001',
-          message = format('Kilometrajul de plecare (%s km) este mai mic decât ultimul kilometraj cunoscut al vehiculului (%s km). Un odometru nu poate da înapoi: verificaţi cifra introdusă sau corectaţi foaia de parcurs anterioară.',
+          message = format('Kilometrajul de plecare (%s km) este mai mic decât ultimul kilometraj cunoscut al vehiculului (%s km). Un odometru nu poate da înapoi: verificați cifra introdusă sau corectați foaia de parcurs anterioară.',
                            new.km_plecare, v_ultim);
       end if;
       raise exception using errcode = 'P0001',
@@ -761,7 +761,7 @@ begin
 
     if new.status in ('trimis', 'aprobat') and (new.km_sosire is null or new.sosire_la is null) then
       raise exception using errcode = 'P0001',
-        message = 'Completaţi ora şi kilometrajul de sosire înainte de a trimite foaia spre aprobare.';
+        message = 'Completați ora și kilometrajul de sosire înainte de a trimite foaia spre aprobare.';
     end if;
 
     if new.status = 'trimis' then new.trimis_la := now(); end if;
@@ -770,17 +770,17 @@ begin
       if not app.is_service_context() then
         if not app.can(new.organization_id, 'trip_sheets', 'approve', 'team') then
           raise exception using errcode = 'P0001',
-            message = 'Nu aveţi dreptul de a aproba foi de parcurs.';
+            message = 'Nu aveți dreptul de a aproba foi de parcurs.';
         end if;
         if app.has_permission(new.organization_id, 'trip_sheets', 'approve') = 'team'
            and not app.is_manager_of(new.organization_id, new.employee_id) then
           raise exception using errcode = 'P0001',
-            message = 'Puteţi aproba doar foile de parcurs ale angajaţilor din subordinea dumneavoastră.';
+            message = 'Puteți aproba doar foile de parcurs ale angajaților din subordinea dumneavoastră.';
         end if;
         if new.employee_id = app.current_employee_id(new.organization_id)
            and app.has_permission(new.organization_id, 'trip_sheets', 'approve') <> 'all' then
           raise exception using errcode = 'P0001',
-            message = 'Nu vă puteţi aproba singur propria foaie de parcurs.';
+            message = 'Nu vă puteți aproba singur propria foaie de parcurs.';
         end if;
         if old.created_by = (select auth.uid())
            and app.has_permission(new.organization_id, 'trip_sheets', 'approve') <> 'all' then
@@ -797,7 +797,7 @@ begin
 
     if new.status = 'respins' and coalesce(btrim(new.motiv_respingere), '') = '' then
       raise exception using errcode = 'P0001',
-        message = 'Precizaţi motivul respingerii, ca şoferul să ştie ce are de corectat.';
+        message = 'Precizați motivul respingerii, ca șoferul să știe ce are de corectat.';
     end if;
   end if;
 

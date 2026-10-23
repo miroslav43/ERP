@@ -250,14 +250,14 @@ begin
     into v_baza, v_prag;
 
   -- SALT: nu blocăm. Cauza cea mai frecventă e o foaie de parcurs necompletată,
-  -- iar un refuz ar împinge şoferul să scrie o cifră falsă ca să poată salva.
-  -- Semnalăm şi lăsăm un om să decidă.
+  -- iar un refuz ar împinge șoferul să scrie o cifră falsă ca să poată salva.
+  -- Semnalăm și lăsăm un om să decidă.
   if v_baza > 0 and new.km_plecare - v_baza > v_prag then
     insert into public.odometer_anomalies
       (organization_id, vehicle_id, trip_sheet_id, km_asteptat, km_declarat, tip, explicatie)
     values
       (new.organization_id, new.vehicle_id, new.id, v_baza, new.km_plecare, 'salt',
-       'Diferenţă între kilometrajul de plecare declarat şi ultimul kilometraj cunoscut. Verificaţi dacă lipseşte o foaie de parcurs.')
+       'Diferență între kilometrajul de plecare declarat și ultimul kilometraj cunoscut. Verificați dacă lipsește o foaie de parcurs.')
     on conflict (trip_sheet_id, tip) where trip_sheet_id is not null and deleted_at is null
     do nothing;
   end if;

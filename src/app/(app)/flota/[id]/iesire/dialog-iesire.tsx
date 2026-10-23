@@ -46,6 +46,12 @@ interface Proprietati {
   readonly soferCurent: string | null;
   /** Foile trimise și neaprobate: rămân lucrabile după ieșire. */
   readonly foiDeAprobat: number;
+  /**
+   * Incidentele vehiculului (F11), cu eticheta gata făcută pe server, pentru
+   * legătura opțională a daunei totale (`incident_id`). Goală = selectorul nu
+   * apare (vehicul fără incidente, sau fără `vehicle_incidents:read`).
+   */
+  readonly incidente?: readonly Readonly<{ id: string; eticheta: string }>[];
 }
 
 const tipDin = (v: string | undefined): TipIesire | "" =>
@@ -132,6 +138,28 @@ function CampuriIesire<TData>({
                 {DESTINATII_EPAVA.map((d) => (
                   <option key={d} value={d}>
                     {ETICHETE_DESTINATIE_EPAVA[d]}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Camp>
+        ) : null}
+
+        {tip === "dauna_totala" && (p.incidente ?? []).length > 0 ? (
+          <Camp
+            nume="incident_id"
+            id={idc("incident_id")}
+            eticheta="Incidentul care a dus la daună"
+            fel="select"
+            ajutor="Opțional. Leagă ieșirea de dosarul incidentului din flotă."
+            erori={stare.erori["incident_id"] ?? []}
+          >
+            {(a) => (
+              <select {...a} defaultValue={trimis["incident_id"] ?? ""}>
+                <option value="">Fără incident legat</option>
+                {(p.incidente ?? []).map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {i.eticheta}
                   </option>
                 ))}
               </select>

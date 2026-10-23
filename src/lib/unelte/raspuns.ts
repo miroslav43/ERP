@@ -16,11 +16,17 @@ const TIP: Readonly<Record<Format, string>> = {
   xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 };
 
+/*
+ * Calea uneltelor publice: fișierul poartă „Generat gratuit cu administrativo.ro”,
+ * pe TOATE formatele. Randările comune au implicit `"aplicatie"` (fără rând,
+ * A5), deci aici se cere explicit.
+ */
+const UNEALTA = { subsol: "unealta" } as const;
+
 const RANDARI: Readonly<Record<Format, (d: DocumentTabelar) => Promise<Uint8Array>>> = {
-  pdf: randeazaPdf,
-  docx: randeazaDocx,
-  // Calea uneltelor publice: fișierul poartă „Generat gratuit cu administrativo.ro”.
-  xlsx: (d) => randeazaXlsx(d, { subsol: "unealta" }),
+  pdf: (d) => randeazaPdf(d, UNEALTA),
+  docx: (d) => randeazaDocx(d, UNEALTA),
+  xlsx: (d) => randeazaXlsx(d, UNEALTA),
 };
 
 /**
@@ -68,6 +74,8 @@ export async function raspunsDocumente(
   // (U+000B) nu are voie să strice tot fișierul cu 60 de fișe.
   const curate = documente.map((d) => curataDocument(d));
   const continut =
-    format === "pdf" ? await randeazaPdfMultiplu(curate) : await randeazaDocxMultiplu(curate);
+    format === "pdf"
+      ? await randeazaPdfMultiplu(curate, UNEALTA)
+      : await randeazaDocxMultiplu(curate, UNEALTA);
   return raspunsBinar(continut, format, numeFisier);
 }

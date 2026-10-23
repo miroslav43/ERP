@@ -144,6 +144,12 @@ export interface PvulMeu {
   readonly confirmat_primitor_la: string | null;
   readonly anulat_la: string | null;
   readonly snapshot: Json | null;
+  /**
+   * Scanul hârtiei semnate, dacă e atașat. Partea îl citește pe calea EXACTĂ
+   * (`app.flota_poate_fisier`, forma 0215), deci portalul îi semnează URL-ul
+   * sub sesiunea omului, ca pe fișa PV-ului.
+   */
+  readonly scan_path: string | null;
 }
 
 /**
@@ -163,7 +169,7 @@ export async function pvurileMele(
     .from("vehicle_handovers")
     .select(
       "id, tip, moment, numar, predator_employee_id, primitor_employee_id, " +
-        "confirmat_predator_la, confirmat_primitor_la, anulat_la, snapshot",
+        "confirmat_predator_la, confirmat_primitor_la, anulat_la, snapshot, scan_path",
     )
     .eq("organization_id", organizationId)
     .eq("stare", "finalizat")

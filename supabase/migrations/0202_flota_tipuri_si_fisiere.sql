@@ -170,7 +170,7 @@ begin
    where v.id = new.vehicle_id and v.deleted_at is null;
   if v_org is null or v_org <> new.organization_id then
     raise exception using errcode = 'P0001',
-      message = 'Vehiculul selectat nu aparţine organizaţiei dumneavoastră.';
+      message = 'Vehiculul selectat nu aparține organizației dumneavoastră.';
   end if;
 
   if (tg_op = 'INSERT' or new.document_type_id is distinct from old.document_type_id) then
@@ -208,7 +208,7 @@ begin
 
   -- `este_curent` este calculat. În afara recalculării, valoarea trimisă de
   -- client se ignoră tăcut: nu e o tentativă de fraudă, e un câmp pe care
-  -- interfaţa nu ar trebui să îl trimită.
+  -- interfața nu ar trebui să îl trimită.
   if coalesce(pg_catalog.current_setting('app.flota_recalcul', true), 'off') <> 'on' then
     if tg_op = 'INSERT' then
       new.este_curent := false;

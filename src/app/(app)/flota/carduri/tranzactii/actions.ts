@@ -18,9 +18,11 @@
  */
 
 import { potrivesteTranzactii, type TranzactieDePotrivit } from "@/domain/fleet/carduri/potrivire";
+import { stareDupaReactivare } from "@/domain/fleet/carduri/reactivare";
 import { intervalLuna } from "@/domain/fleet/rapoarte";
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule, invalidInput } from "@/lib/actions/errors";
+import type { ActionContext } from "@/lib/actions/types";
 import {
   alimentareCuFoaie,
   cardurilePentruPotrivire,
@@ -31,6 +33,7 @@ import {
 import {
   ignoraTranzactieSchema,
   leagaTranzactieSchema,
+  reactiveazaTranzactieSchema,
   repotrivesteSchema,
 } from "@/schemas/fleet-carduri";
 
@@ -39,6 +42,156 @@ import { traduEroareCarduri } from "../erori";
 const CAI = ["/flota/carduri/tranzactii"] as const;
 const MESAJ_CONFLICT =
   "Tranzacția s-a schimbat între timp sau a fost anulată odată cu importul. Reîncărcați pagina.";
+const MESAJ_NU_E_IGNORATA =
+  "Tranzacția nu mai este ignorată: a fost reactivată între timp sau anulată odată cu importul. Reîncărcați pagina.";
+
+/**
+ * Repotrivirea unei luni, comună lui `repotrivesteTranzactii` (toată luna) și
+ * lui `reactiveazaTranzactie` (doar rândul reactivat, `doarId`). Cu `doarId`,
+ * legăturile TUTUROR celorlalte rânduri rămân ocupate: rândul reactivat nu ia
+ * alimentarea altuia și nu schimbă nimic în restul lunii.
+ */
+async function repotrivesteLuna(
+  ctx: ActionContext,
+  luna: string,
+  doarId: string | null,
+): Promise<Readonly<{ verificate: number; schimbate: number }>> {
+  const org = ctx.tenant.organizationId;
+  const toate = await tranzactiiDeRepotrivit(org, luna);
+  const { deLa, panaLa } = intervalLuna(luna);
+  const [carduri, context] = await Promise.all([
+    cardurilePentruPotrivire(org),
+    contextPotrivire(org, deLa, panaLa),
+  ]);
+  const alimentariVii = new Set(context.alimentari.map((a) => a.id));
+
+  /*
+   * Care se repotrivesc: tot ce nu e potrivit sau ignorat, plus legăturile
+   * spre o alimentare ștearsă logic între timp (FK-ul `set null` nu se
+   * activează la `deleted_at`). O legătură `potrivita` vie rămâne neatinsă:
+   * poate fi una făcută de mână, pe care automatul n-o mai poate reface.
+   */
+  const deRefacut = toate.filter(
+    (t) =>
+      (doarId === null || t.id === doarId) &&
+      (t.stare_potrivire !== "potrivita" ||
+        (t.fuel_entry_id !== null && !alimentariVii.has(t.fuel_entry_id))),
+  );
+  const idRefacute = new Set(deRefacut.map((t) => t.id));
+  // Legăturile ținute de rândurile care NU se refac rămân ocupate.
+  const ocupate = new Set(
+    [...context.legaturi.entries()]
+      .filter(([, txId]) => !idRefacute.has(txId))
+      .map(([alimentare]) => alimentare),
+  );
+  const cardDupaId = new Map(carduri.map((c) => [c.id, c]));
+
+  const deFacut: TranzactieDePotrivit[] = deRefacut.map((t) => {
+    const card = t.card_id === null ? undefined : cardDupaId.get(t.card_id);
+    return {
+      emitent: t.emitent,
+      // Un card deja recunoscut se păstrează (cifrele lui, amprenta lui).
+      cifreCard: card?.ultimele_cifre ?? t.card_ultimele_cifre,
+      amprentaCard: card?.amprenta_numar ?? null,
+      nrInmatriculare: t.nr_inmatriculare_extras,
+      efectuatLa: t.efectuat_la,
+      dataRo: t.data_ro ?? "",
+      areOra: t.are_ora,
+      categorie: t.categorie,
+      tipCombustibil:
+        t.tip_combustibil === "benzina" ||
+        t.tip_combustibil === "motorina" ||
+        t.tip_combustibil === "gpl" ||
+        t.tip_combustibil === "gnc"
+          ? t.tip_combustibil
+          : null,
+      cantitate: t.cantitate,
+      valoareBruta: t.valoare_bruta,
+      moneda: t.moneda,
+      kmDeclarat: t.km_declarat,
+      numarBon: t.numar_bon,
+    };
+  });
+  const rezultate = potrivesteTranzactii(deFacut, {
+    carduri,
+    vehicule: context.vehicule,
+    alocari: context.alocari,
+    foi: context.foi,
+    alimentari: context.alimentari,
+    alimentariDejaLegate: ocupate,
+  });
+
+  const schimbari = deRefacut.flatMap((t, i) => {
+    const r = rezultate[i];
+    if (r === undefined) return [];
+    const neschimbat =
+      r.stare === t.stare_potrivire &&
+      r.cardId === t.card_id &&
+      r.vehicleId === t.vehicle_id &&
+      r.tripSheetId === t.trip_sheet_id &&
+      r.fuelEntryId === t.fuel_entry_id &&
+      r.motiv === t.motiv;
+    return neschimbat ? [] : [{ t, r }];
+  });
+
+  const finala = (r: (typeof schimbari)[number]["r"]) => ({
+    card_id: r.cardId,
+    vehicle_id: r.vehicleId,
+    trip_sheet_id: r.tripSheetId,
+    fuel_entry_id: r.fuelEntryId,
+    stare_potrivire: r.stare,
+    categorie: r.categorie,
+    motiv: r.motiv,
+  });
+
+  /*
+   * Întâi se ELIBEREAZĂ alimentările pe care le ia alt rând din lot, apoi se
+   * iau. `fctx_alimentare_uq` e un index unic, judecat la fiecare UPDATE:
+   * scrisă înaintea eliberării, legarea cade pe 23505, iar ordinea e fixă (după
+   * oră), deci la fiecare reîncercare. Se întâmplă când repotrivirea (după oră)
+   * dă alimentarea altui rând decât importul (după ordinea din fișier), sau
+   * când două rânduri își schimbă alimentările între ele (niciunul nu poate
+   * scrie primul). Rândul care pierde alimentarea fără să primească alta se
+   * scrie direct în forma finală; cel care primește alta trece întâi prin
+   * „fără alimentare” (starea corectă fără legătură, `fctx_stare_ck`).
+   *
+   * X2: lista de scrieri pleacă într-un SINGUR apel
+   * (`repotriveste_tranzactii_card`, 0214 §11b), aplicat atomic în ordinea
+   * dată, sub RLS-ul utilizatorului. Înainte, fiecare scriere era o cerere
+   * separată: o cădere la mijloc lăsa luna pe jumătate repotrivită, cu rânduri
+   * „fără alimentare” care spuneau, până la repotrivirea următoare, alimentări
+   * nedeclarate inexistente. Acum un singur rând refuzat (anulat între timp,
+   * 23505) derulează înapoi tot, iar luna rămâne exact cum era.
+   */
+  const luateDeAltii = new Set(
+    schimbari.flatMap(({ t, r }) =>
+      r.fuelEntryId !== null && r.fuelEntryId !== t.fuel_entry_id ? [r.fuelEntryId] : [],
+    ),
+  );
+  const scrieri: Record<string, string | null>[] = [];
+  const scriseFinal = new Set<string>();
+  for (const { t, r } of schimbari) {
+    if (t.fuel_entry_id === null || r.fuelEntryId === t.fuel_entry_id) continue;
+    if (!luateDeAltii.has(t.fuel_entry_id)) continue;
+    if (r.fuelEntryId === null) {
+      scrieri.push({ id: t.id, ...finala(r) });
+      scriseFinal.add(t.id);
+    } else {
+      scrieri.push({ id: t.id, fuel_entry_id: null, stare_potrivire: "fara_alimentare" });
+    }
+  }
+  for (const { t, r } of schimbari) {
+    if (!scriseFinal.has(t.id)) scrieri.push({ id: t.id, ...finala(r) });
+  }
+  if (scrieri.length > 0) {
+    const { error } = await ctx.supabase.rpc("repotriveste_tranzactii_card", {
+      p_organization_id: org,
+      p_scrieri: scrieri,
+    });
+    if (error !== null) traduEroareCarduri(error);
+  }
+  return { verificate: deRefacut.length, schimbate: schimbari.length };
+}
 
 export const repotrivesteTranzactii = createAction({
   name: "fleet.card_tx.rematch",
@@ -52,141 +205,57 @@ export const repotrivesteTranzactii = createAction({
     allow: ["luna"],
   },
   revalidate: CAI,
-  handler: async (ctx, input): Promise<Readonly<{ verificate: number; schimbate: number }>> => {
+  handler: async (ctx, input): Promise<Readonly<{ verificate: number; schimbate: number }>> =>
+    repotrivesteLuna(ctx, input.luna, null),
+});
+
+/**
+ * „Reactivează”: tranzacția ignorată din greșeală revine în potrivire. Iese din
+ * `ignorata` într-o stare fără legătură (`stareDupaReactivare`), cu nota golită
+ * (motivul ignorării nu mai e adevărat; istoricul rămâne în audit), apoi se
+ * repotrivește DOAR ea, pe luna ei. Cei doi pași nu sunt atomici: dacă al doilea
+ * cade, rândul rămâne în starea fără legătură, pe care „Repotrivește luna” o
+ * reia. Stornoul din extras se întoarce singur în `ignorata` la repotrivire.
+ */
+export const reactiveazaTranzactie = createAction({
+  name: "fleet.card_tx.reactivate",
+  feature: "fleet",
+  permission: "vehicles:update",
+  minScope: "all",
+  input: reactiveazaTranzactieSchema,
+  audit: {
+    action: "update",
+    entityType: "fuel_card_transactions",
+    entityId: (input) => input.id,
+    allow: ["id"],
+  },
+  revalidate: CAI,
+  handler: async (ctx, input): Promise<Readonly<{ id: string; stare: string }>> => {
     const org = ctx.tenant.organizationId;
-    const toate = await tranzactiiDeRepotrivit(org, input.luna);
-    const { deLa, panaLa } = intervalLuna(input.luna);
-    const [carduri, context] = await Promise.all([
-      cardurilePentruPotrivire(org),
-      contextPotrivire(org, deLa, panaLa),
-    ]);
-    const alimentariVii = new Set(context.alimentari.map((a) => a.id));
-
-    /*
-     * Care se repotrivesc: tot ce nu e potrivit sau ignorat, plus legăturile
-     * spre o alimentare ștearsă logic între timp (FK-ul `set null` nu se
-     * activează la `deleted_at`). O legătură `potrivita` vie rămâne neatinsă:
-     * poate fi una făcută de mână, pe care automatul n-o mai poate reface.
-     */
-    const deRefacut = toate.filter(
-      (t) =>
-        t.stare_potrivire !== "potrivita" ||
-        (t.fuel_entry_id !== null && !alimentariVii.has(t.fuel_entry_id)),
-    );
-    const idRefacute = new Set(deRefacut.map((t) => t.id));
-    // Legăturile ținute de rândurile care NU se refac rămân ocupate.
-    const ocupate = new Set(
-      [...context.legaturi.entries()]
-        .filter(([, txId]) => !idRefacute.has(txId))
-        .map(([alimentare]) => alimentare),
-    );
-    const cardDupaId = new Map(carduri.map((c) => [c.id, c]));
-
-    const deFacut: TranzactieDePotrivit[] = deRefacut.map((t) => {
-      const card = t.card_id === null ? undefined : cardDupaId.get(t.card_id);
-      return {
-        emitent: t.emitent,
-        // Un card deja recunoscut se păstrează (cifrele lui, amprenta lui).
-        cifreCard: card?.ultimele_cifre ?? t.card_ultimele_cifre,
-        amprentaCard: card?.amprenta_numar ?? null,
-        nrInmatriculare: t.nr_inmatriculare_extras,
-        efectuatLa: t.efectuat_la,
-        dataRo: t.data_ro ?? "",
-        areOra: t.are_ora,
-        categorie: t.categorie,
-        tipCombustibil:
-          t.tip_combustibil === "benzina" ||
-          t.tip_combustibil === "motorina" ||
-          t.tip_combustibil === "gpl" ||
-          t.tip_combustibil === "gnc"
-            ? t.tip_combustibil
-            : null,
-        cantitate: t.cantitate,
-        valoareBruta: t.valoare_bruta,
-        moneda: t.moneda,
-        kmDeclarat: t.km_declarat,
-        numarBon: t.numar_bon,
-      };
-    });
-    const rezultate = potrivesteTranzactii(deFacut, {
-      carduri,
-      vehicule: context.vehicule,
-      alocari: context.alocari,
-      foi: context.foi,
-      alimentari: context.alimentari,
-      alimentariDejaLegate: ocupate,
-    });
-
-    const schimbari = deRefacut.flatMap((t, i) => {
-      const r = rezultate[i];
-      if (r === undefined) return [];
-      const neschimbat =
-        r.stare === t.stare_potrivire &&
-        r.cardId === t.card_id &&
-        r.vehicleId === t.vehicle_id &&
-        r.tripSheetId === t.trip_sheet_id &&
-        r.fuelEntryId === t.fuel_entry_id &&
-        r.motiv === t.motiv;
-      return neschimbat ? [] : [{ t, r }];
-    });
-
-    const finala = (r: (typeof schimbari)[number]["r"]) => ({
-      card_id: r.cardId,
-      vehicle_id: r.vehicleId,
-      trip_sheet_id: r.tripSheetId,
-      fuel_entry_id: r.fuelEntryId,
-      stare_potrivire: r.stare,
-      categorie: r.categorie,
-      motiv: r.motiv,
-    });
-
-    /*
-     * Întâi se ELIBEREAZĂ alimentările pe care le ia alt rând din lot, apoi se
-     * iau. `fctx_alimentare_uq` e un index unic, judecat la fiecare UPDATE:
-     * scrisă înaintea eliberării, legarea cade pe 23505, iar ordinea e fixă (după
-     * oră), deci la fiecare reîncercare. Se întâmplă când repotrivirea (după oră)
-     * dă alimentarea altui rând decât importul (după ordinea din fișier), sau
-     * când două rânduri își schimbă alimentările între ele (niciunul nu poate
-     * scrie primul). Rândul care pierde alimentarea fără să primească alta se
-     * scrie direct în forma finală; cel care primește alta trece întâi prin
-     * „fără alimentare” (starea corectă fără legătură, `fctx_stare_ck`).
-     *
-     * X2: lista de scrieri pleacă într-un SINGUR apel
-     * (`repotriveste_tranzactii_card`, 0214 §11b), aplicat atomic în ordinea
-     * dată, sub RLS-ul utilizatorului. Înainte, fiecare scriere era o cerere
-     * separată: o cădere la mijloc lăsa luna pe jumătate repotrivită, cu rânduri
-     * „fără alimentare” care spuneau, până la repotrivirea următoare, alimentări
-     * nedeclarate inexistente. Acum un singur rând refuzat (anulat între timp,
-     * 23505) derulează înapoi tot, iar luna rămâne exact cum era.
-     */
-    const luateDeAltii = new Set(
-      schimbari.flatMap(({ t, r }) =>
-        r.fuelEntryId !== null && r.fuelEntryId !== t.fuel_entry_id ? [r.fuelEntryId] : [],
-      ),
-    );
-    const scrieri: Record<string, string | null>[] = [];
-    const scriseFinal = new Set<string>();
-    for (const { t, r } of schimbari) {
-      if (t.fuel_entry_id === null || r.fuelEntryId === t.fuel_entry_id) continue;
-      if (!luateDeAltii.has(t.fuel_entry_id)) continue;
-      if (r.fuelEntryId === null) {
-        scrieri.push({ id: t.id, ...finala(r) });
-        scriseFinal.add(t.id);
-      } else {
-        scrieri.push({ id: t.id, fuel_entry_id: null, stare_potrivire: "fara_alimentare" });
-      }
+    const tx = await citesteTranzactie(org, input.id);
+    if (tx === null || tx.stare_potrivire !== "ignorata") {
+      throw businessRule(MESAJ_NU_E_IGNORATA);
     }
-    for (const { t, r } of schimbari) {
-      if (!scriseFinal.has(t.id)) scrieri.push({ id: t.id, ...finala(r) });
-    }
-    if (scrieri.length > 0) {
-      const { error } = await ctx.supabase.rpc("repotriveste_tranzactii_card", {
-        p_organization_id: org,
-        p_scrieri: scrieri,
-      });
-      if (error !== null) traduEroareCarduri(error);
-    }
-    return { verificate: deRefacut.length, schimbate: schimbari.length };
+    const { data, error } = await ctx.supabase
+      .from("fuel_card_transactions")
+      .update({
+        stare_potrivire: stareDupaReactivare(tx),
+        nota: null,
+        updated_by: ctx.user.id,
+      })
+      .eq("id", input.id)
+      .eq("organization_id", org)
+      .eq("stare_potrivire", "ignorata")
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroareCarduri(error);
+    if (data === null) throw businessRule(MESAJ_NU_E_IGNORATA);
+
+    // `data_ro` e generată din `efectuat_la` (NOT NULL); tipul generat o lasă nulă.
+    if (tx.data_ro !== null) await repotrivesteLuna(ctx, tx.data_ro.slice(0, 7), input.id);
+    const dupa = await citesteTranzactie(org, input.id);
+    return { id: data.id, stare: dupa?.stare_potrivire ?? stareDupaReactivare(tx) };
   },
 });
 

@@ -85,6 +85,15 @@ describe("pvurileMele", () => {
     expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
     expect(argumente(apel, "limit")).toEqual([[PLAFON_PV]]);
   });
+
+  it("aduce `scan_path`: partea PV-ului își deschide scanul semnat din portal (F12c)", async () => {
+    const rand = { id: ID_1, numar: "PVP-2026-0001", scan_path: "org/vehicles/v/pv.pdf" };
+    db.raspunde("vehicle_handovers", "select", { data: [rand] });
+    expect(await pvurileMele(ORG_ID, ID_2)).toEqual([rand]);
+
+    const [apel] = db.apeluriPe("vehicle_handovers");
+    expect(apel?.coloane).toContain("scan_path");
+  });
 });
 
 describe("pvuriDeConfirmat", () => {

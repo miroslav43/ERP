@@ -45,8 +45,12 @@ import { PastileFiltre } from "@/components/ui/pastile-filtre";
 import { PRAG_FLOTA_AVERTIZARE_ZILE } from "@/domain/fleet/scadente";
 import { LinkEntitate } from "@/components/ui/link-entitate";
 import { hrefFisa } from "@/lib/navigare/fisa";
+import { PanouTermeneIesire } from "./[id]/iesire/panou-termene-iesire";
 
 export const metadata: Metadata = { title: "Parc auto" };
+
+/** Cursorul keyset din URL (base64url); orice altceva e ignorat. */
+const TIPAR_CURSOR = /^[A-Za-z0-9_-]{1,512}$/u;
 
 interface ProprietatiPagina {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -322,6 +326,10 @@ export default async function PaginaFlota({ searchParams }: ProprietatiPagina) {
   const departamente = poateAdauga ? await departamentePentruVehicul(tenant.organizationId) : [];
 
   const conformitateFiltrata = filtreDinUrl(filtreVehiculeSchema, parametri).conformitate;
+  // Cursorul panoului de termene de ieșire: text străin din URL, deci validat.
+  const termeneBrut = parametri["termene"];
+  const cursorTermene =
+    typeof termeneBrut === "string" && TIPAR_CURSOR.test(termeneBrut) ? termeneBrut : null;
   return (
     <div className="space-y-6">
       <AntetPagina
@@ -362,6 +370,18 @@ export default async function PaginaFlota({ searchParams }: ProprietatiPagina) {
               ]
         }
       />
+
+      {/* F12h: termenele deschise ale vehiculelor ieșite. Doar `vehicles:read =
+          all` le citește (politica); aici duce notificarea lor zilnică. */}
+      {can(permisiuni, "vehicles:read", "all") ? (
+        <Suspense key={cursorTermene ?? "prima"} fallback={null}>
+          <PanouTermeneIesire
+            organizationId={tenant.organizationId}
+            cursor={cursorTermene}
+            azi={todayInBucharest()}
+          />
+        </Suspense>
+      ) : null}
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={8} />}>
         <TabelVehicule

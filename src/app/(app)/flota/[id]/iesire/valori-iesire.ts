@@ -27,6 +27,8 @@ export type ValoriIesire = Readonly<{
   nr_document: string | null;
   pastreaza_numarul: boolean;
   observatii: string | null;
+  /** Doar la daună totală; opțiunea „fără incident” e șirul gol, deci `null`. */
+  incident_id: string | null;
 }>;
 
 function text(date: FormData, cheie: string): string {
@@ -61,5 +63,6 @@ export function valoriIesire(date: FormData, vehiculId: string): ValoriIesire {
     nr_document: textSauNull(date, "nr_document"),
     pastreaza_numarul: pastrare && date.get("pastreaza_numarul") === "on",
     observatii: textSauNull(date, "observatii"),
+    incident_id: tip === "dauna_totala" ? textSauNull(date, "incident_id") : null,
   };
 }

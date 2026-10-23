@@ -26,8 +26,8 @@ permisiuni:
   ]
 feature: fleet
 capcane: [17, 19, 26]
-scris_pe: 7cbfec68d4744258ddfacdca86560a1484cd8680
-scris_la: 2026-10-22
+scris_pe: bdf23c28f5dd664ad437a27a555b034b9f907214
+scris_la: 2026-10-23
 tags: [modul, operations, hr]
 ---
 
@@ -133,7 +133,9 @@ diacritice), etichetele scurte.
 
 ## Unde apar
 
-- Fișa angajatului: `PermisSofer` (HR și administratorul scriu prin `DialogPermis`).
+- Fișa angajatului: `PermisSofer` (HR și administratorul scriu prin `DialogPermis`). Fără
+  rând citit, „Niciun permis înregistrat” apare DOAR pe `permis_exista === false`; `null`
+  (RLS ascunde permisul) dă „Nu aveți acces…”, fără „Adaugă” (`starePermisCitit`).
 - „Mașina mea”: „Permisul meu”, doar citire.
 - Foaia (aplicație și portal): `SoferulFoii` — avertismentele + legătura cu deplasarea.
 - Fișa vehiculului: avertismentele șoferului de acum; în selectorul de predare și în

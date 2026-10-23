@@ -140,7 +140,7 @@ function sonda() {
 describe("PDF cu secțiuni", () => {
   it("scrie fiecare titlu de secțiune și fiecare rubrică de semnătură, întreagă", async () => {
     const { s, texte } = sonda();
-    await randeazaPdf(CU_SECTIUNI, s);
+    await randeazaPdf(CU_SECTIUNI, { sonda: s });
     const tot = texte.map((t) => t.text).join("\n");
     for (const titlu of [
       "Instruirea la angajare",
@@ -157,7 +157,7 @@ describe("PDF cu secțiuni", () => {
 
   it("rândurile de completat de mână au înălțimea cerută (28 pt ≈ 9,9 mm)", async () => {
     const { s, cutii } = sonda();
-    await randeazaPdf(CU_SECTIUNI, s);
+    await randeazaPdf(CU_SECTIUNI, { sonda: s });
     // 40 de rânduri cu 28 pt; antetele și tabelul fără `inaltimeRand` rămân mai joase.
     expect(cutii.filter((c) => c.inaltime === 28)).toHaveLength(40);
     expect(cutii.filter((c) => c.inaltime === 16).length).toBeGreaterThanOrEqual(5);
@@ -165,13 +165,13 @@ describe("PDF cu secțiuni", () => {
 
   it("desenează câte o casetă de viză pentru fiecare, inclusiv ultima, fără pereche", async () => {
     const { s, cutii } = sonda();
-    await randeazaPdf(CU_SECTIUNI, s);
+    await randeazaPdf(CU_SECTIUNI, { sonda: s });
     expect(cutii.filter((c) => c.inaltime === INALT_CASETA)).toHaveLength(7);
   });
 
   it("pune numele pe fiecare pagină de la a doua și „Pagina x din y” pe toate", async () => {
     const { s, texte } = sonda();
-    const pdf = await PDFDocument.load(await randeazaPdf(CU_SECTIUNI, s));
+    const pdf = await PDFDocument.load(await randeazaPdf(CU_SECTIUNI, { sonda: s }));
     const n = pdf.getPageCount();
     expect(n).toBeGreaterThan(1);
     for (let p = 1; p <= n; p += 1) {
@@ -187,7 +187,7 @@ describe("PDF cu secțiuni", () => {
     const lung = `Fișă de instruire individuală SSM — ${"Popescu ".repeat(18)}— ${"Firma ".repeat(18)}`;
     expect(lung.length).toBeGreaterThan(250);
     const { s, texte } = sonda();
-    await randeazaPdf({ ...CU_SECTIUNI, antetRulant: lung }, s);
+    await randeazaPdf({ ...CU_SECTIUNI, antetRulant: lung }, { sonda: s });
     const antet = texte.find((t) => t.pagina === 2 && t.text.startsWith("Fișă de instruire"));
     expect(antet?.text.endsWith("…")).toBe(true);
     expect(antet?.text.length ?? 999).toBeLessThanOrEqual(160);

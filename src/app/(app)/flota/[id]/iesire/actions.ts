@@ -51,6 +51,7 @@ export const scoateDinParc = createAction({
       "motiv",
       "nr_document",
       "pastreaza_numarul",
+      "incident_id",
     ],
   },
   revalidate: (input) => caiVehicul(input.vehicle_id),
@@ -72,6 +73,8 @@ export const scoateDinParc = createAction({
         nr_document: input.nr_document,
         pastreaza_numarul: input.pastreaza_numarul,
         observatii: input.observatii,
+        // F12h: incidentul care a dus la dauna totală (0218, `vexit_incident_ck`).
+        incident_id: input.incident_id,
         created_by: ctx.user.id,
         updated_by: ctx.user.id,
       })

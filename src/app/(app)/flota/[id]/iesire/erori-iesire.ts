@@ -21,6 +21,8 @@ const CAMPURI_DUPA_MESAJ: readonly (readonly [RegExp, readonly string[]])[] = [
   // al vehiculului și sub predarea către șoferul actual.
   [/^Kilometrajul la ieșire/u, ["km_iesire"]],
   [/^Data la care s-a făcut pasul/u, ["finalizat_la"]],
+  // Incidentul se alege în casetă (F12h): refuzul lui stă pe câmp.
+  [/^Incidentul ales/u, ["incident_id"]],
 ];
 
 /** CHECK-urile tabelelor → câmpul și mesajul pentru om. */
@@ -52,6 +54,7 @@ const CAMPURI_DUPA_CHECK: readonly (readonly [string, string, string])[] = [
     "pastreaza_numarul",
     "Păstrarea numărului nu se cere la acest fel de ieșire.",
   ],
+  ["vexit_incident_ck", "incident_id", "Incidentul se leagă doar la daună totală."],
   ["vexit_anulare_ck", "motiv_anulare", "Motivul anulării are între 5 și 500 de caractere."],
   [
     "vexob_inchis_ck",
