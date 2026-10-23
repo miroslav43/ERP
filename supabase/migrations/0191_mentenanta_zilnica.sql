@@ -247,7 +247,8 @@ $$;
 -- `maintenance_plan` (90/30) și '*' (60/30/7) își vedea scadențele ISCIR și
 -- garanțiile mutate tăcut pe 90/30 la migrare. Acum migrarea nu scrie nicio
 -- regulă: motorul aplică aceleași praguri ca înainte pe toate tipurile, iar
--- formularul arată pragurile planurilor; prima salvare le aliniază pe toate trei.
+-- formularul arată pragurile planurilor; prima salvare care SCHIMBĂ pragurile le
+-- aliniază pe toate trei (cu pragurile neschimbate triggerul nu scrie nimic).
 update public.maintenance_settings s
    set praguri_alerta_zile = ef.praguri
   from (

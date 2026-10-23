@@ -100,14 +100,20 @@ aplicarea pe producție:
 D=$(mktemp -d)
 git archive origin/main supabase/migrations scripts/checks tests/rls | tar -x -C "$D"
 CLAUDE_PROJECT_DIR="$D" bash .claude/skills/administrativo/scripts/banc-migrare.sh --pastreaza
-psql "postgresql://postgres:banc@localhost:<portul afișat>/postgres" -v ON_ERROR_STOP=1 \
-     -f tests/rls/proba-migrari-pe-date.sql   # apoi: docker rm -f administrativo-banc-<pid>
+U="postgresql://postgres:banc@localhost:<portul afișat>"
+psql "$U/postgres" -c 'create database pe_date'
+for f in "$D"/supabase/migrations/*.sql; do
+  psql "$U/pe_date" -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null || { echo "✗ $f"; break; }
+done
+psql "$U/pe_date" -v ON_ERROR_STOP=1 -f tests/rls/proba-migrari-pe-date.sql
+# apoi: docker rm -f administrativo-banc-<pid>
 ```
 
-Pe baza bancului rămân datele probelor de pe `main`, iar una dintre ele
-(`proba-flota-integritate`) lasă trei ciorne ale aceluiași vehicul în aceeași
-zi: 0200 se oprește atunci, corect, cu lista lor. Pe o bază curată
-(`createdb` + migrările lui `origin/main`, fără probe) proba trece direct.
+Proba rulează pe baza NOUĂ `pe_date`, nu pe `postgres`: bancul a lăsat acolo
+datele probelor de pe `main`, iar una dintre ele (`proba-flota-integritate`)
+lasă trei ciorne ale aceluiași vehicul în aceeași zi, deci 0200 s-ar opri,
+corect, cu lista lor. Bancul servește aici doar containerul și portul (rețeta
+verificată pe 23 oct 2026: EXIT 0).
 
 **Imediat înainte de 0200 pe producție**, aceeași verificare pe datele reale
 (la 23 oct 2026: zero dubluri pe 9 foi). Până la aplicare, aplicația permite

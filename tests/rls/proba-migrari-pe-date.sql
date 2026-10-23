@@ -46,11 +46,12 @@
 -- Cere o bază în starea lui origin/main: migrările ramurii le aplică EA, prin
 -- `\ir`. Pe o bază deja migrată (bancul obișnuit, care o rulează prin globul
 -- `proba-*.sql`) se oprește cu un anunț și iese cu 0: acolo nu are ce verifica.
--- Pasul manual, înainte de aplicarea pe producție, e în NOTES.md §1:
---   D=$(mktemp -d); git archive origin/main supabase/migrations scripts/checks tests/rls | tar -x -C "$D"
---   CLAUDE_PROJECT_DIR="$D" bash .claude/skills/administrativo/scripts/banc-migrare.sh --pastreaza
---   psql "postgresql://postgres:banc@localhost:<port>/postgres" -v ON_ERROR_STOP=1 -f tests/rls/proba-migrari-pe-date.sql
--- (din worktree-ul ramurii; NICIODATĂ pe cloud). Lista migrărilor de mai jos e
+-- Pasul manual, înainte de aplicarea pe producție, e în NOTES.md §1: bancul
+-- pornit pe `git archive origin/main` cu --pastreaza dă doar containerul; proba
+-- rulează pe o bază NOUĂ din el (`create database pe_date` + migrările lui
+-- origin/main), nu pe `postgres`, unde datele probelor de pe main au trei ciorne
+-- pe același vehicul și zi și opresc 0200 (din worktree-ul ramurii; NICIODATĂ
+-- pe cloud). Lista migrărilor de mai jos e
 -- cea a livrării flotă–mentenanță; o migrare nouă a ramurii se adaugă în listă.
 \set ON_ERROR_STOP on
 \pset pager off
@@ -428,7 +429,8 @@ begin
               r.d + time '10:00', case when r.sters then r.d + 1 end);
     end loop;
 
-    -- sesizări: nou, în lucru, rezolvat vechi (40 și 10 zile), rezolvat de ieri,
+    -- sesizări: nou, în lucru, rezolvat vechi (40 și 10 zile), rezolvat de 6 zile
+    -- (între implicitul de 5 al lui C și pragul de 7 al lui A), rezolvat de ieri,
     -- închis, respins; una critică neatribuită veche
     for r in select * from (values
         ('nou',       'medie',   0,  false),
@@ -436,6 +438,7 @@ begin
         ('in_lucru',  'ridicata',5,  false),
         ('rezolvat',  'medie',   40, false),
         ('rezolvat',  'scazuta', 10, false),
+        ('rezolvat',  'ridicata', 6, false),
         ('rezolvat',  'medie',   1,  false),
         ('inchis',    'medie',   60, false),
         ('respins',   'scazuta', 20, false)
@@ -770,7 +773,9 @@ begin
     raise warning '  ✗ (9) rezumate multiple pe om: %; la a doua rulare: %', v_txt, v_m;
   end if;
 
-  -- Închiderea automată: A la 7 zile, B la 14, C fără setări (implicitul coloanei).
+  -- Închiderea automată: A la 7 zile, B la 14, C fără setări (5 zile, implicitul
+  -- din `internal.sesizari_inchide_rezolvate`, 0181:1045, același cu al coloanei).
+  -- Sesizarea de 6 zile se închide doar la C.
   select string_agg(format('%s %s', f.slug, (
            select count(*) from public.fault_reports r join x5_f0 o on o.id = r.id
             where r.organization_id = f.id and o.status = 'rezolvat' and r.status = 'inchis')), ', ' order by f.slug)
@@ -779,8 +784,8 @@ begin
    where o.status = 'rezolvat' and r.status = 'inchis'
      and o.rezolvat_la > now() - make_interval(days => coalesce(
            (select s.inchidere_automata_zile from public.maintenance_settings s
-             where s.organization_id = r.organization_id and s.deleted_at is null), 7));
-  if v_txt = 'x5-firma-a 2, x5-firma-b 1, x5-firma-c 2' and v_n = 0 then
+             where s.organization_id = r.organization_id and s.deleted_at is null), 5));
+  if v_txt = 'x5-firma-a 2, x5-firma-b 1, x5-firma-c 3' and v_n = 0 then
     raise notice '  ✓ (9) sesizări „rezolvat” închise automat după pragul firmei: %', v_txt;
   else
     v_esecuri := v_esecuri + 1;
