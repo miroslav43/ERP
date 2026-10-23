@@ -214,7 +214,8 @@ describe("reactiveazaTranzactie", () => {
       count: 2,
     });
     contextLuna(server);
-    server.raspunde("fuel_card_transactions", "update", { data: { id: ID_1 } });
+    // Repotrivirea rândului reactivat trece prin RPC-ul atomic al lunii (X2).
+    server.raspundeRpc("repotriveste_tranzactii_card", { data: 1 });
     server.raspunde("fuel_card_transactions", "select", {
       data: { ...ignorata, fuel_entry_id: ALIMENTARE, stare_potrivire: "potrivita" },
     });
@@ -224,7 +225,7 @@ describe("reactiveazaTranzactie", () => {
 
     expect(r).toEqual({ ok: true, data: { id: ID_1, stare: "potrivita" } });
     const scrieri = server.apeluriPe("fuel_card_transactions", "update");
-    expect(scrieri).toHaveLength(2);
+    expect(scrieri).toHaveLength(1);
     expect(scrieri[0]?.payload).toEqual({
       stare_potrivire: "fara_alimentare",
       nota: null,
@@ -232,9 +233,19 @@ describe("reactiveazaTranzactie", () => {
     });
     expect(areFiltru(scrieri[0], "eq", "stare_potrivire", "ignorata")).toBe(true);
     expect(areFiltru(scrieri[0], "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(scrieri[0], "eq", "id", ID_1)).toBe(true);
     expect(scrieri[0]?.selectDupaScriere).toBe("id");
-    expect(scrieri.every((s) => areFiltru(s, "eq", "id", ID_1))).toBe(true);
-    expect(scrieri[1]?.payload).toMatchObject({
+    const apeluri = server.apeluriRpc.filter((a) => a.nume === "repotriveste_tranzactii_card");
+    expect(apeluri).toHaveLength(1);
+    const argumente = apeluri[0]?.argumente as {
+      p_organization_id: string;
+      p_scrieri: Record<string, unknown>[];
+    };
+    expect(argumente.p_organization_id).toBe(ORG_ID);
+    // DOAR rândul reactivat: „tx-alta” din aceeași lună rămâne neatins.
+    expect(argumente.p_scrieri).toHaveLength(1);
+    expect(argumente.p_scrieri[0]).toMatchObject({
+      id: ID_1,
       fuel_entry_id: ALIMENTARE,
       stare_potrivire: "potrivita",
     });
