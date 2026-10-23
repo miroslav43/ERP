@@ -341,6 +341,9 @@ begin
   insert into public.equipment (id, organization_id, cod, denumire, este_iscir) values
     (eq1,    v_org, 'CMP-' || s, 'Compresor', false),
     (eq_isc, v_org, 'MAC-' || s, 'Macara capră', true);
+  -- 0232 (Y1): valoarea de achiziție a compresorului, în tabela ei 1:1.
+  insert into public.equipment_costuri (organization_id, equipment_id, valoare_achizitie, created_by, updated_by)
+  values (v_org, eq1, 9000, u_adm, u_adm);
 
   -- Ce întocmește administratorul, sub identitatea lui (triggerele de
   -- numerotare și de derivare rulează ca în aplicație).
@@ -566,6 +569,15 @@ begin
       ('vehicles.valoare_achizitie (coloana veche)', 'SELECT',
        $q$select 1 from public.vehicles where organization_id = {org} and valoare_achizitie is not null$q$,
        array['0', '0', '0', '0', '0', '0', '0']),
+      -- 0232 (Y1): valoarea de achiziție a echipamentului stă în `equipment_costuri`
+      -- (`maintenance:update = all` sau `read >= team`). E1, executantul
+      -- intervenției pe compresor, vede intervenția, nu și valoarea utilajului.
+      ('equipment_costuri', 'SELECT',
+       $q$select 1 from public.equipment_costuri where organization_id = {org}$q$,
+       array['1', '1', '0', '1', '0', '0', '0']),
+      ('equipment.valoare_achizitie (coloana veche)', 'SELECT',
+       $q$select 1 from public.equipment where organization_id = {org} and valoare_achizitie is not null$q$,
+       array['0', '0', '0', '0', '0', '0', '0']),
       ('maintenance_rezumat_trimis', 'SELECT',
        $q$select 1 from public.maintenance_rezumat_trimis where organization_id = {org}$q$,
        array['2', '1', '0', '1', '0', '0', '0']),
@@ -712,6 +724,10 @@ begin
       ('UPSERT vehicle_costuri', 'INSERT',
        $q$insert into public.vehicle_costuri (organization_id, vehicle_id, valoare_achizitie, created_by, updated_by) values ({org}, {v1}, 61000, auth.uid(), auth.uid()) on conflict (vehicle_id) do update set valoare_achizitie = excluded.valoare_achizitie, updated_by = excluded.updated_by$q$,
        array['refuz', 'ok:1', 'refuz', 'refuz', 'refuz', 'refuz', 'refuz']),
+      -- 0232: upsert-ul aplicației pe valoarea echipamentului (doar `maintenance:update = all`).
+      ('UPSERT equipment_costuri', 'INSERT',
+       $q$insert into public.equipment_costuri (organization_id, equipment_id, valoare_achizitie, created_by, updated_by) values ({org}, {eq1}, 9500, auth.uid(), auth.uid()) on conflict (equipment_id) do update set valoare_achizitie = excluded.valoare_achizitie, updated_by = excluded.updated_by$q$,
+       array['refuz', 'ok:1', 'refuz', 'refuz', 'refuz', 'refuz', 'refuz']),
       ('INSERT driver_licenses (permisul lui hr)', 'INSERT',
        $q$insert into public.driver_licenses (organization_id, employee_id, numar, categorii, expira_la) values ({org}, {e_hr}, 'P-HR-PROBA', array['B'], app.azi_local() + 300)$q$,
        array['refuz', 'ok:1', 'ok:1', 'refuz', 'refuz', 'refuz', 'refuz']),
@@ -801,6 +817,9 @@ begin
       ('UPDATE vehicle_costuri', 'UPDATE',
        $q$update public.vehicle_costuri set valoare_achizitie = 1000, updated_by = auth.uid() where organization_id = {org}$q$,
        array['refuz', 'ok:6', 'refuz', 'refuz', 'refuz', 'refuz', 'refuz']),
+      ('UPDATE equipment_costuri', 'UPDATE',
+       $q$update public.equipment_costuri set valoare_achizitie = 9100, updated_by = auth.uid() where organization_id = {org}$q$,
+       array['refuz', 'ok:1', 'refuz', 'refuz', 'refuz', 'refuz', 'refuz']),
       ('UPDATE driver_licenses', 'UPDATE',
        $q$update public.driver_licenses set updated_by = auth.uid() where organization_id = {org}$q$,
        array['refuz', 'ok:3', 'ok:3', 'refuz', 'refuz', 'refuz', 'refuz']),
