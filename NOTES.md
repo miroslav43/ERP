@@ -90,7 +90,7 @@ Reguli obligatorii, pentru că plasa locală acoperă doar DDL-ul:
 Bancul (`banc-migrare.sh`, CI) aplică migrările pe o bază GOALĂ: o umplere
 retroactivă, un index unic nou sau un UPDATE pe rânduri vechi nu atinge acolo
 niciun rând. Pentru livrarea flotă–mentenanță (0191, 0199–0206, 0210–0218,
-0225, 0226),
+0225, 0226, 0232, 0233),
 `tests/rls/proba-migrari-pe-date.sql` pornește de la starea lui `origin/main`,
 populează trei firme, aplică ea migrările (prin `\ir`) și verifică invarianții.
 Prin globul bancului rulează doar pe baza deja migrată, unde se oprește singură
@@ -114,7 +114,9 @@ Proba rulează pe baza NOUĂ `pe_date`, nu pe `postgres`: bancul a lăsat acolo
 datele probelor de pe `main`, iar una dintre ele (`proba-flota-integritate`)
 lasă trei ciorne ale aceluiași vehicul în aceeași zi, deci 0200 s-ar opri,
 corect, cu lista lor. Bancul servește aici doar containerul și portul (rețeta
-verificată pe 23 oct 2026: EXIT 0).
+verificată pe 23 oct 2026: EXIT 0, și după integrarea Y1–Y3, cu 0232 și 0233 în
+listă). O migrare nouă a ramurii intră în lista `\ir` a probei, în ordine
+lexicală; altfel proba trece fără s-o fi aplicat.
 
 ### Lotul flotă–mentenanță pe producție: ordinea exactă
 
@@ -187,18 +189,23 @@ expunerea de mai sus rămâne deschisă; oprirea ei e o decizie a utilizatorului
 verificat pe staging. Între migrare și deploy aplicația veche: nu mai poate
 trimite foi (`trimiteFoaie` scrie orele și kilometrii pe antet, refuzat de 0200
 cu P0001), nu creează a doua foaie pe aceeași mașină și zi (23505), arată „—” la
-valoarea vehiculului și la costul documentelor (0225 le-a golit), nu poate trece
-un vehicul în `vandut`/`casat` (garda din 0218), nu adaugă documente „Revizie”
-(0203) și refuză atribuirea unui tehnician fără cont sau fără `maintenance:read`,
-suspendarea ISCIR fără motiv și mutarea unei intervenții (0210–0212). Datele nu
-se strică; toate se închid prin deploy.
+valoarea vehiculului, la costul documentelor (0225 le-a golit) și la valoarea
+echipamentelor (0232), refuză (42501) valoarea unui echipament scrisă de cine
+n-are `maintenance:update = all` (0232 §6), nu poate trece un vehicul în
+`vandut`/`casat` (garda din 0218), nu adaugă documente „Revizie” (0203) și
+refuză atribuirea unui tehnician fără cont sau fără `maintenance:read`,
+suspendarea ISCIR fără motiv și mutarea unei intervenții (0210–0212). 0233
+rescrie doar funcții deja pe producție (aceleași coduri de eroare, un singur
+mesaj pentru „nu există” și „altă firmă”); aplicația veche nu depinde de text.
+Datele nu se strică; toate se închid prin deploy.
 
 **6. După deploy:** o foaie trimisă cap-coadă, `/portal/masina-mea` răspunde,
-fișa vehiculului arată valoarea (din `vehicle_costuri`).
+fișa vehiculului arată valoarea (din `vehicle_costuri`), fișa echipamentului pe a
+lui (din `equipment_costuri`).
 
-**7. Datorie:** coloanele golite `vehicles.valoare_achizitie` și
-`vehicle_documents.cost` (CHECK `is null`) se aruncă într-o migrare ULTERIOARĂ
-deploy-ului.
+**7. Datorie:** coloanele golite `vehicles.valoare_achizitie`,
+`vehicle_documents.cost` și `equipment.valoare_achizitie` (CHECK `is null`) se
+aruncă într-o migrare ULTERIOARĂ deploy-ului.
 
 ---
 

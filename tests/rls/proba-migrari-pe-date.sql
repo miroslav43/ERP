@@ -1,6 +1,7 @@
 -- tests/rls/proba-migrari-pe-date.sql
 --
--- MIGRĂRILE FLOTEI ȘI ALE MENTENANȚEI (0191, 0199–0206, 0210–0218, 0225, 0226, 0232)
+-- MIGRĂRILE FLOTEI ȘI ALE MENTENANȚEI (0191, 0199–0206, 0210–0218, 0225, 0226, 0232,
+-- 0233)
 -- PE DATE
 -- EXISTENTE.
 --
@@ -52,7 +53,10 @@
 --      `equipment_costuri` (aceleași rânduri, aceleași sume, aceeași firmă),
 --      coloana veche rămâne goală și păzită de CHECK; (10m) administratorul o
 --      corectează acolo [POZITIVĂ]; (10n) responsabilul și tehnicianul
---      utilajului (e3) își văd utilajul, dar nu valoarea.
+--      utilajului (e3) își văd utilajul, dar nu valoarea;
+--  (13) 0233: rescrie doar funcții (gărzile de firmă, mesajul unic „nu există”),
+--      fără date atinse; se aplică peste setul populat, iar căile de scriere de
+--      la (10) — alocarea, sesizarea, predarea, fișa — rulează pe formele noi.
 --
 -- ── CUM SE RULEAZĂ ──────────────────────────────────────────────────────────
 -- Cere o bază în starea lui origin/main: migrările ramurii le aplică EA, prin
@@ -89,7 +93,7 @@ do $$ begin raise exception 'PROBA MIGRĂRI PE DATE: baza e parțial migrată (u
 \endif
 
 \echo ''
-\echo '  PROBA „MIGRĂRI PE DATE EXISTENTE" (0191, 0199–0206, 0210–0218, 0225, 0226, 0232)'
+\echo '  PROBA „MIGRĂRI PE DATE EXISTENTE" (0191, 0199–0206, 0210–0218, 0225, 0226, 0232, 0233)'
 \echo '  ─────────────────────────────────────────────────────────'
 \echo '  ▶ populez trei firme peste starea origin/main'
 
@@ -614,6 +618,7 @@ create temp table x5_costuri_echipamente as
 \ir ../../supabase/migrations/0225_flota_costuri_ascunse.sql
 \ir ../../supabase/migrations/0226_securitate_reziduala.sql
 \ir ../../supabase/migrations/0232_mentenanta_costuri_echipament.sql
+\ir ../../supabase/migrations/0233_oracol_intre_firme.sql
 \echo '  ▶ verific'
 
 do $$
