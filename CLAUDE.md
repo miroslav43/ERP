@@ -106,9 +106,18 @@ care spune DE CE ocolești RLS și cu filtru explicit pe `organization_id`.
 - `manager` are `attendance:approve=team` dar `attendance:create` doar `own` (din
   `0161`: se pontează pe sine, nu scrie ziua echipei — foaia rămâne read-only); are
   `per_diem:approve=team` dar `per_diem:create/update/delete` doar `own` (din
-  `0154`: își face propria deplasare, nu o scrie pe a echipei); **niciun** `vehicles:*`.
+  `0154`: își face propria deplasare, nu o scrie pe a echipei). Din `0199` are
+  `vehicles:read = team` (echipa + pool, fără scriere) și `trip_sheets`
+  `read/approve = team`, `create/update = own`; costurile (valoare, documente,
+  service, cheltuieli) le vede doar pe mașinile echipei, **niciodată pe pool**
+  (`app.poate_vedea_costurile_vehiculului`, `0225`).
+- `employee` are din `0199` `vehicles:read = own` (mașina lui + pool) și
+  `trip_sheets:read/create/update = own`, dar **zero costuri** de flotă.
 - `hr` administrează SSM dar n-are `compliance:read` — `expirables` îi întoarce
-  zero rânduri, fără eroare. N-are niciun `users:*`.
+  zero rânduri, fără eroare. N-are niciun `users:*`. Pe flotă n-are niciun
+  `vehicles:*` (doar permisele șoferilor); valoarea de intrare a mașinii cu
+  folosință personală o primește doar prin RPC-ul `avantaj_natura_flota`
+  (`payroll:read = all`, Codul fiscal art. 76) — deliberat, cerut de probă.
 
 Un UPDATE respins de clauza `USING` afectează **zero rânduri, fără eroare** —
 orice tranziție face `.select()` după `.update()` și tratează rezultatul gol
