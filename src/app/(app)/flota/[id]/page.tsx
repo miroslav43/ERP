@@ -76,7 +76,8 @@ import { DialogPvNou } from "./dialog-pv-nou";
 // F12d (0216): rezervările mașinii de pool.
 import { SectiuneRezervariVehicul } from "../rezervari/sectiune-vehicul";
 // ── început bloc: ieșirea din parc (0218, F12h) ──
-import { iesireaVehiculului } from "@/lib/queries/flota-iesire";
+import { iesireaVehiculului, incidentePentruIesire } from "@/lib/queries/flota-iesire";
+import { ETICHETE_TIP_INCIDENT } from "@/domain/fleet/amenzi";
 import { DialogIesire } from "./iesire/dialog-iesire";
 import { etichetaIesirii } from "./iesire/etichete-iesire";
 import { SectiuneIesire } from "./iesire/sectiune-iesire";
@@ -151,29 +152,50 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
   const poateVedeaIesirea = can(permisiuni, "vehicles:read", "all");
 
   // Selectoarele (angajați, departamente) doar pentru cine poate scrie cu ele.
-  const [documente, nomenclator, alocari, angajati, departamente, pragFirma, pvuri, iesire] =
-    await Promise.all([
-      documenteleVehiculului(vehicul.id),
-      // Nomenclatorul ÎNTREG al firmei (0202): un document pe un tip retras între
-      // timp rămâne pe fișă; selectoarele primesc doar tipurile active (`tipuri`).
-      nomenclatorDocumente(tenant.organizationId),
-      alocarileVehiculului(tenant.organizationId, vehicul.id),
-      poateAdministra ? angajatiPentruAlocare(tenant.organizationId) : Promise.resolve([]),
-      // Și pentru cine doar citește: departamentul vehiculului se AFIȘA nicăieri.
-      poateAdministra || vehicul.department_id !== null
-        ? departamentePentruVehicul(tenant.organizationId)
-        : Promise.resolve([]),
-      // Pragul de salt al firmei (0201), afișat când vehiculul n-are unul propriu.
-      // Prin funcția îngustă, nu prin `fleet_settings`: tabela e închisă celor
-      // care nu administrează parcul (managerul cu `team` deschide această fișă).
-      vehicul.prag_salt_km === null ? pragSaltVehicul(vehicul.id) : Promise.resolve(null),
-      // 0215 (F12c): PV-urile vehiculului, grupate apoi pe capetele alocărilor.
-      pvurileVehiculului(tenant.organizationId, vehicul.id),
-      // 0218 (F12h): ieșirea vie, doar pe un vehicul ieșit.
-      poateVedeaIesirea && (vehicul.status === "vandut" || vehicul.status === "casat")
-        ? iesireaVehiculului(tenant.organizationId, vehicul.id)
-        : Promise.resolve(null),
-    ]);
+  // F12h: incidentele vehiculului, pentru legătura opțională a daunei totale
+  // din asistent. Doar pentru cine îl vede (pe vehiculul încă în parc) și le
+  // poate citi; altfel lista goală ascunde selectorul.
+  const incarcaIncidente =
+    poateAdministra &&
+    poateVedeaIesirea &&
+    vehicul.status !== "vandut" &&
+    vehicul.status !== "casat" &&
+    can(permisiuni, "vehicle_incidents:read", "all");
+  const [
+    documente,
+    nomenclator,
+    alocari,
+    angajati,
+    departamente,
+    pragFirma,
+    pvuri,
+    iesire,
+    incidenteIesire,
+  ] = await Promise.all([
+    documenteleVehiculului(vehicul.id),
+    // Nomenclatorul ÎNTREG al firmei (0202): un document pe un tip retras între
+    // timp rămâne pe fișă; selectoarele primesc doar tipurile active (`tipuri`).
+    nomenclatorDocumente(tenant.organizationId),
+    alocarileVehiculului(tenant.organizationId, vehicul.id),
+    poateAdministra ? angajatiPentruAlocare(tenant.organizationId) : Promise.resolve([]),
+    // Și pentru cine doar citește: departamentul vehiculului se AFIȘA nicăieri.
+    poateAdministra || vehicul.department_id !== null
+      ? departamentePentruVehicul(tenant.organizationId)
+      : Promise.resolve([]),
+    // Pragul de salt al firmei (0201), afișat când vehiculul n-are unul propriu.
+    // Prin funcția îngustă, nu prin `fleet_settings`: tabela e închisă celor
+    // care nu administrează parcul (managerul cu `team` deschide această fișă).
+    vehicul.prag_salt_km === null ? pragSaltVehicul(vehicul.id) : Promise.resolve(null),
+    // 0215 (F12c): PV-urile vehiculului, grupate apoi pe capetele alocărilor.
+    pvurileVehiculului(tenant.organizationId, vehicul.id),
+    // 0218 (F12h): ieșirea vie, doar pe un vehicul ieșit.
+    poateVedeaIesirea && (vehicul.status === "vandut" || vehicul.status === "casat")
+      ? iesireaVehiculului(tenant.organizationId, vehicul.id)
+      : Promise.resolve(null),
+    incarcaIncidente
+      ? incidentePentruIesire(tenant.organizationId, vehicul.id)
+      : Promise.resolve([]),
+  ]);
   const departamentVehicul =
     vehicul.department_id === null
       ? null
@@ -641,6 +663,10 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
                           : (alocareDeschisa.sofer?.full_name ?? "—")
                       }
                       foiDeAprobat={foiTrimise}
+                      incidente={incidenteIesire.map((i) => ({
+                        id: i.id,
+                        eticheta: `${ETICHETE_TIP_INCIDENT[i.tip]} din ${formatDateTime(new Date(i.produs_la))}`,
+                      }))}
                     />
                   ) : null}
                   <DialogKilometraj vehiculId={vehicul.id} kmCurent={vehicul.km_curent} />

@@ -91,8 +91,21 @@ export const iesireDinParcSchema = z
     nr_document: textOptional(60),
     pastreaza_numarul: z.boolean().default(false),
     observatii: textOptional(1000),
+    /**
+     * Incidentul (F11) care a dus la dauna totală. Opțional; `vexit_incident_ck`
+     * îl permite doar la `dauna_totala`, iar `internal.iesire_inainte` cere să
+     * fie al aceluiași vehicul (P0001 „Incidentul ales…”).
+     */
+    incident_id: optional(z.uuid("Alegeți incidentul din listă.")),
   })
   .superRefine((v, ctx) => {
+    if (v.tip !== "dauna_totala" && v.incident_id !== null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["incident_id"],
+        message: "Incidentul se leagă doar la daună totală.",
+      });
+    }
     if (v.tip === "dauna_totala" && v.destinatie_epava === null) {
       ctx.addIssue({
         code: "custom",

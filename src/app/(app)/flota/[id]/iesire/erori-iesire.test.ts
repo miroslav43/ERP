@@ -34,6 +34,8 @@ const CAMP_ASTEPTAT: readonly (readonly [RegExp, string])[] = [
   [/^Data ieșirii/u, "data_iesire"],
   [/^Kilometrajul la ieșire/u, "km_iesire"],
   [/^Data la care s-a făcut pasul/u, "finalizat_la"],
+  // F12h: incidentul se alege acum în casetă, deci refuzul lui stă pe câmp.
+  [/^Incidentul ales/u, "incident_id"],
 ];
 
 describe("traduEroareIesire", () => {

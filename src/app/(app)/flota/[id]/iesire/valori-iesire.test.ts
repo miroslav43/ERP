@@ -93,4 +93,23 @@ describe("valoriIesire", () => {
     expect(v.km_iesire).toBeNull();
     expect(iesireDinParcSchema.parse(v).km_iesire).toBeNull();
   });
+
+  // F12h: incidentul legat se trimite doar la daună totală; „fără” = `null`.
+  it("incidentul: doar la daună totală, altfel `null`; opțiunea goală e `null`", () => {
+    const INCIDENT = "77777777-7777-4777-8777-777777777777";
+    const dauna = {
+      tip: "dauna_totala",
+      destinatie_epava: "casata",
+      data_iesire: "2026-10-19",
+      motiv: "Daună totală după accident",
+    };
+    const cu = valoriIesire(formular({ ...dauna, incident_id: INCIDENT }), VEHICUL);
+    expect(cu.incident_id).toBe(INCIDENT);
+    expect(iesireDinParcSchema.parse(cu).incident_id).toBe(INCIDENT);
+    expect(valoriIesire(formular({ ...dauna, incident_id: "" }), VEHICUL).incident_id).toBeNull();
+    // Omul a ales întâi „Daună totală” și un incident, apoi a trecut pe „Vânzare”.
+    const ramas = valoriIesire(formular({ ...vanzare, incident_id: INCIDENT }), VEHICUL);
+    expect(ramas.incident_id).toBeNull();
+    expect(iesireDinParcSchema.safeParse(ramas).success).toBe(true);
+  });
 });

@@ -114,6 +114,7 @@ describe("scoateDinParc", () => {
       nr_document: "C-17",
       pastreaza_numarul: true,
       observatii: null,
+      incident_id: null,
       created_by: USER_ID,
       updated_by: USER_ID,
     });
@@ -142,8 +143,52 @@ describe("scoateDinParc", () => {
       motiv: "Vândută unui client",
       nr_document: "C-17",
       pastreaza_numarul: true,
+      incident_id: null,
     });
     expect(JSON.stringify(audit)).not.toContain("Ion Popescu");
+  });
+
+  // F12h: incidentul legat (0218, `vexit_incident_ck`) intră în INSERT și în audit.
+  it("daună totală cu incidentul ei: `incident_id` în INSERT și în audit", async () => {
+    const INCIDENT = "77777777-7777-4777-8777-777777777777";
+    const { server } = configureazaActiunea({ permisiuni: ADMIN });
+    server.raspunde("vehicle_exits", "insert", { data: { id: IESIRE } });
+    const r = await scoateDinParc({
+      vehicle_id: VEHICUL,
+      tip: "dauna_totala",
+      destinatie_epava: "casata",
+      data_iesire: "2026-10-19",
+      motiv: "Daună totală după accident",
+      incident_id: INCIDENT,
+    });
+    await asteaptaDupa();
+
+    expect(r).toEqual({ ok: true, data: { id: IESIRE } });
+    const [scriere] = server.apeluriPe("vehicle_exits", "insert");
+    expect(scriere?.payload).toMatchObject({ tip: "dauna_totala", incident_id: INCIDENT });
+    expect(server.audituri()[0]?.p_after).toMatchObject({ incident_id: INCIDENT });
+  });
+
+  it("P0001 „Incidentul ales…” ajunge pe câmpul `incident_id`", async () => {
+    const { server } = configureazaActiunea({ permisiuni: ADMIN });
+    server.raspunde("vehicle_exits", "insert", {
+      error: eroarePostgrest("P0001", "Incidentul ales nu aparține acestui vehicul."),
+    });
+    const r = await scoateDinParc({
+      vehicle_id: VEHICUL,
+      tip: "dauna_totala",
+      destinatie_epava: "casata",
+      data_iesire: "2026-10-19",
+      motiv: "Daună totală după accident",
+      incident_id: "77777777-7777-4777-8777-777777777777",
+    });
+    expect(r).toMatchObject({
+      ok: false,
+      error: {
+        code: "VALIDARE",
+        fieldErrors: { incident_id: ["Incidentul ales nu aparține acestui vehicul."] },
+      },
+    });
   });
 
   it("P0001 „Data ieșirii…” ajunge pe câmpul `data_iesire`, fără revalidare", async () => {

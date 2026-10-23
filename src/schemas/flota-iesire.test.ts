@@ -194,3 +194,33 @@ describe("finalizeazaObligatiaSchema", () => {
     expect(r).toMatchObject({ stare: "nu_se_aplica", finalizat_la: null, nota: null });
   });
 });
+
+/*
+ * F12h: `vehicle_exits.incident_id` exista în bază (0218, `vexit_incident_ck`:
+ * doar la daună totală), dar nu în asistent. Schema îl primește acum, cu
+ * aceeași regulă ca CHECK-ul.
+ */
+describe("iesireDinParcSchema — incidentul legat", () => {
+  const INCIDENT = "77777777-7777-4777-8777-777777777777";
+  const dauna = { ...baza, tip: "dauna_totala", destinatie_epava: "casata" };
+
+  it("lipsă: `null`", () => {
+    expect(iesireDinParcSchema.parse(dauna).incident_id).toBeNull();
+  });
+
+  it("la daună totală: trece", () => {
+    expect(iesireDinParcSchema.parse({ ...dauna, incident_id: INCIDENT }).incident_id).toBe(
+      INCIDENT,
+    );
+  });
+
+  it("la alt fel de ieșire: refuzat pe câmpul lui", () => {
+    const r = iesireDinParcSchema.safeParse({ ...baza, incident_id: INCIDENT });
+    expect(campuriCuEroare(r)).toEqual(["incident_id"]);
+  });
+
+  it("un identificator stricat: refuzat", () => {
+    const r = iesireDinParcSchema.safeParse({ ...dauna, incident_id: "nu-e-uuid" });
+    expect(campuriCuEroare(r)).toContain("incident_id");
+  });
+});
