@@ -489,8 +489,11 @@ formele consolidate de pe legislatie.just.ro, descărcate cu `curl`:
   fără amortizare) și art. 298 alin. (1)–(3) (50% la TVA, aceleași excepții, plus
   închirierea și leasingul la lit. e)). `171282` e id-ul actului de BAZĂ, sub care
   portalul servește mereu ultima consolidare: la 23.10.2026 servea forma din
-  25.10.2026 (`315385`), după cea din 18.10.2026 (`314311`); ambele au atins doar
-  art. 291 și 342, nu art. 25 sau 298.
+  25.10.2026 (`315385`), după cea din 18.10.2026 (`314311`). În textul în vigoare
+  ele au atins doar art. 291 și 342; în plus, cea din 18.10.2026 a adăugat note
+  pentru modificările Legii 202/2026 (conturile CEI, de la 01.01.2027) la art. 60,
+  68, 76, 78, 91–93, 96^2, 130, 142, 155 și 223. Niciuna nu atinge art. 25 sau 298
+  (diff-ul textului față de `312601`, 23.10.2026).
 - Normele HG 1/2016 (`DetaliiDocument/307847`, consolidarea din 31.03.2026, cea mai
   nouă din istoricul portalului, reverificat cu `curl` pe 23.10.2026; aici scria
   `212504`, care e consolidarea din 12.04.2019): titlul
