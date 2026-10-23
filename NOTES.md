@@ -487,8 +487,13 @@ formele consolidate de pe legislatie.just.ro, descărcate cu `curl`:
 - Codul fiscal (`DetaliiDocument/171282`, consolidat la 08.08.2026): art. 25
   alin. (3) lit. l) pct. 1–5 (50% la impozitul pe profit, ≤ 3.500 kg, ≤ 9 scaune,
   fără amortizare) și art. 298 alin. (1)–(3) (50% la TVA, aceleași excepții, plus
-  închirierea și leasingul la lit. e)).
-- Normele HG 1/2016 (`DetaliiDocument/212504`, consolidat la 31.03.2026): titlul
+  închirierea și leasingul la lit. e)). `171282` e id-ul actului de BAZĂ, sub care
+  portalul servește mereu ultima consolidare: la 23.10.2026 servea forma din
+  25.10.2026 (`315385`), după cea din 18.10.2026 (`314311`); ambele au atins doar
+  art. 291 și 342, nu art. 25 sau 298.
+- Normele HG 1/2016 (`DetaliiDocument/307847`, consolidarea din 31.03.2026, cea mai
+  nouă din istoricul portalului, reverificat cu `curl` pe 23.10.2026; aici scria
+  `212504`, care e consolidarea din 12.04.2019): titlul
   II pct. 16 alin. (2) și titlul VII pct. 68 alin. (2) cer în foaia de parcurs
   „cel puțin … categoria de vehicul utilizat, scopul și locul deplasării,
   kilometrii parcurși, norma proprie de consum carburant pe kilometru parcurs”;
@@ -778,10 +783,12 @@ contabil sau de un jurist; până la confirmare, termenele bazate pe interpretar
   scos din auditul acțiunii și din `audit_logs` (`internal.audit_campuri_excluse` →
   `vehicle_exits`: `cumparator`, `pret`) și neexpus asistentului AI (I-T6).
 
-**De corectat, semnalat de specificații (în afara F12):** eticheta din secțiunea „Foaia de
-parcurs” de mai sus, `DetaliiDocument/212504` „consolidat la 31.03.2026”, e greșită după
-F12e: 212504 e consolidarea din 12.04.2019, iar ultima consolidare citită a HG 1/2016 e
-`307847`, din 31.03.2026. Nereverificat la integrare. Garda din `0023:89` are același defect de
+**Corectat pe 23.10.2026 (semnalat de F12e):** eticheta din secțiunea „Foaia de parcurs” de
+mai sus spunea `DetaliiDocument/212504` „consolidat la 31.03.2026”. Reverificat cu `curl` pe
+legislatie.just.ro: în istoricul paginii `307847`, `212504` apare drept „Consolidarea din
+12.04.2019”, iar în istoricul paginii `212504` cea mai nouă e `307847`, „Consolidarea din
+31.03.2026”, fără alta după ea. Pct. 16 alin. (2), pct. 68 alin. (2), (4) și (8) au textul citat
+și în `307847`. Eticheta arată acum spre `307847`. Garda din `0023:89` are același defect de
 spațiere pe care 0218 îl evită (datorie preexistentă).
 
 ### Retenție și arhivare · `retention_policies`

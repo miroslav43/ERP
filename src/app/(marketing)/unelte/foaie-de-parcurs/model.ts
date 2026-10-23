@@ -8,8 +8,9 @@ import { construiesteFoaie, normalizeazaAn, normalizeazaLuna } from "../foaie-de
  *
  * ── CE CER NORMELE, LITERAL ───────────────────────────────────────────────
  * HG 1/2016 (normele Codului fiscal), titlul II pct. 16 alin. (2) și titlul VII
- * pct. 68 alin. (2), forma consolidată la 31.03.2026 descărcată de pe
- * legislatie.just.ro/Public/DetaliiDocument/212504 pe 8 oct 2026: foaia de
+ * pct. 68 alin. (2), forma consolidată la 31.03.2026 — DetaliiDocument/307847,
+ * reverificată pe 23 oct 2026 (aici scria 212504, care e consolidarea din
+ * 12.04.2019; textul citat e identic în ambele): foaia de
  * parcurs „trebuie să cuprindă [la pct. 68: «să conțină»] cel puțin următoarele
  * informații: categoria de vehicul utilizat, scopul și locul deplasării,
  * kilometrii parcurși, norma proprie de consum carburant pe kilometru
