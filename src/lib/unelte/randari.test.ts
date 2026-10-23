@@ -160,7 +160,7 @@ describe("legătura din subsolul fișierului", () => {
   const TINTA = /\/unelte\/foaie-de-parcurs\?utm_source=fisier&(amp;)?utm_medium=/;
 
   it("PDF: adnotare URI peste text", async () => {
-    const pdf = await PDFDocument.load(await randeazaPdf(CU_SURSA));
+    const pdf = await PDFDocument.load(await randeazaPdf(CU_SURSA, { subsol: "unealta" }));
     const text = new TextDecoder("latin1").decode(await pdf.save({ useObjectStreams: false }));
     expect(text).toMatch(/\/Subtype \/Link/);
     expect(text).toMatch(/\/S \/URI/);
@@ -168,7 +168,7 @@ describe("legătura din subsolul fișierului", () => {
   });
 
   it("Word: hyperlink extern", async () => {
-    const zip = await JSZip.loadAsync(await randeazaDocx(CU_SURSA));
+    const zip = await JSZip.loadAsync(await randeazaDocx(CU_SURSA, { subsol: "unealta" }));
     const relatii = (await zip.file("word/_rels/document.xml.rels")?.async("string")) ?? "";
     expect(relatii).toMatch(TINTA);
     expect((await zip.file("word/document.xml")?.async("string")) ?? "").toMatch(/<w:hyperlink/);
@@ -183,7 +183,7 @@ describe("legătura din subsolul fișierului", () => {
   });
 
   it("fără sursă, duce la lista uneltelor", async () => {
-    const zip = await JSZip.loadAsync(await randeazaDocx(DOC));
+    const zip = await JSZip.loadAsync(await randeazaDocx(DOC, { subsol: "unealta" }));
     const relatii = (await zip.file("word/_rels/document.xml.rels")?.async("string")) ?? "";
     expect(relatii).toMatch(/\/unelte\?utm_source=fisier/);
   });

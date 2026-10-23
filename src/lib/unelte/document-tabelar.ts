@@ -151,6 +151,16 @@ export type Sectiune = SectiuneText | SectiuneTabel | SectiuneCasete;
 export const SEMNATURA_FISIER = "Generat gratuit cu administrativo.ro";
 
 /**
+ * Cine primește fișierul, deci dacă poartă `SEMNATURA_FISIER` (A5):
+ * `"unealta"` = uneltele publice de la `/unelte` (rândul, cu legătura spre
+ * unealtă); `"aplicatie"` = un export din aplicația plătită, fără reclamă pe
+ * fișierul clientului. PDF-ul și Word-ul au `"aplicatie"` IMPLICIT; calea
+ * uneltelor (`raspuns.ts`) cere `"unealta"` explicit. XLSX-ul cere opțiunea
+ * mereu (`OptiuniXlsx`).
+ */
+export type SubsolFisier = "unealta" | "aplicatie";
+
+/**
  * Rândul de sus de pe paginile 2+ (PDF) și din antetul Word: o foaie ruptă din
  * teanc spune singură ce lună și ce firmă are.
  */

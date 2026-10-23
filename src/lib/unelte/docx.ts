@@ -30,6 +30,7 @@ import {
   type Coloana,
   type DocumentTabelar,
   type Sectiune,
+  type SubsolFisier,
 } from "./document-tabelar";
 
 /** Înălțimile de rând din `docx` sunt în twipi: 20 pe punct. */
@@ -181,7 +182,7 @@ function subsol(): Footer {
 }
 
 /** Un `DocumentTabelar` ca secțiune Word. Mărimile în `docx` sunt în jumătăți de punct: 16 = 8 pt. */
-function sectiune(d: DocumentTabelar): ISectionOptions {
+function sectiune(d: DocumentTabelar, subsolFisier: SubsolFisier): ISectionOptions {
   /** `procent` = lățimea coloanei din tabelul ei; `umbrita` = weekend, sărbătoare. */
   const celula = (text: string, procent: number, umbrita: boolean, aldin: boolean) =>
     new TableCell({
@@ -326,18 +327,21 @@ function sectiune(d: DocumentTabelar): ISectionOptions {
       }),
     );
   }
-  copii.push(
-    new Paragraph({
-      children: [
-        new ExternalHyperlink({
-          link: adresaDinFisier(d, "docx", ADRESA_SITE),
-          children: [
-            new TextRun({ text: SEMNATURA_FISIER, size: 14, color: "6B7280", underline: {} }),
-          ],
-        }),
-      ],
-    }),
-  );
+  // A5: rândul cu legătura spre unealtă DOAR pe calea uneltelor publice.
+  if (subsolFisier === "unealta") {
+    copii.push(
+      new Paragraph({
+        children: [
+          new ExternalHyperlink({
+            link: adresaDinFisier(d, "docx", ADRESA_SITE),
+            children: [
+              new TextRun({ text: SEMNATURA_FISIER, size: 14, color: "6B7280", underline: {} }),
+            ],
+          }),
+        ],
+      }),
+    );
+  }
 
   return {
     properties: {
@@ -365,21 +369,30 @@ function sectiune(d: DocumentTabelar): ISectionOptions {
   };
 }
 
+/**
+ * Opțiunile randării Word. `subsol`: `"unealta"` adaugă rândul „Generat gratuit
+ * cu administrativo.ro”, cu legătura spre unealtă (uneltele publice, prin
+ * `raspuns.ts`); `"aplicatie"` (IMPLICIT) nu-l adaugă — vezi `SubsolFisier`.
+ */
+export type OptiuniDocx = Readonly<{ subsol?: SubsolFisier }>;
+
 /** Mai multe documente într-un singur .docx, câte o secțiune (deci pagină nouă) fiecare. */
 export async function randeazaDocxMultiplu(
   documente: readonly DocumentTabelar[],
+  o: OptiuniDocx = {},
 ): Promise<Uint8Array> {
   const primul = documente[0];
   if (primul === undefined) throw new Error("Niciun document de randat.");
+  const subsolFisier = o.subsol ?? "aplicatie";
   const document = new Document({
     creator: "Administrativo",
     title: primul.titlu,
-    sections: documente.map((d) => sectiune(d)),
+    sections: documente.map((d) => sectiune(d, subsolFisier)),
   });
   return new Uint8Array(await Packer.toBuffer(document));
 }
 
 /** `DocumentTabelar` → .docx. */
-export async function randeazaDocx(d: DocumentTabelar): Promise<Uint8Array> {
-  return randeazaDocxMultiplu([d]);
+export async function randeazaDocx(d: DocumentTabelar, o: OptiuniDocx = {}): Promise<Uint8Array> {
+  return randeazaDocxMultiplu([d], o);
 }
