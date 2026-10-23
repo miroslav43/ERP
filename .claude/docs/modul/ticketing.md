@@ -9,6 +9,7 @@ cai:
   - "supabase/migrations/0045_ticketing_it.sql"
   - "supabase/migrations/0046_ticketing_it_reguli.sql"
   - "supabase/migrations/0062_ticketing_recursie_politici.sql"
+  - "supabase/migrations/0233_oracol_intre_firme.sql"
 tabele: [tickets, ticket_comments, ticket_history, ticket_watchers, ticket_attachments]
 permisiuni: [tickets:read, tickets:create, tickets:update, tickets:approve]
 feature: ticketing
@@ -140,6 +141,10 @@ niciun rând acolo, deci nimeni nu le citise vreodată sub o identitate reală.
 
 ## Ce refuză baza tăcut
 
+- **Obiectul de inventar al defecțiunii se caută doar în firma tichetului** (0233):
+  `internal.tickets_valideaza_inventarul` dă un singur P0001 pentru obiectul inexistent și
+  pentru cel al altei firme; garda de firmă (42501, administratorul de platformă trece, ca
+  în `tickets_update`) vine înaintea căutării. Proba: `tests/rls/proba-oracol-intre-firme.sql`.
 - **Tranzițiile de status fac `.select()` după `.update()`.** `ticket_status` are nouă
   valori — `nou`, `in_aprobare`, `respins`, `in_lucru`, `in_asteptare`, `rezolvat`,
   `inchis`, `anulat`, `redeschis`; un tichet care nu mai e în starea așteptată nu produce

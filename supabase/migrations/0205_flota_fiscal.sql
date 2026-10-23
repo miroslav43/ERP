@@ -199,6 +199,15 @@ as $$
 declare
   v_vehicul public.vehicles%rowtype;
 begin
+  -- Y2: garda de firmă, prima. Vehiculul se caută în firma RÂNDULUI, înaintea
+  -- WITH CHECK: pe un rând pus pe firma B, vehiculul de acolo trecea, iar
+  -- regimul „peste 3.500 kg” îi spunea în mesaj masa și locurile.
+  if not app.is_service_context()
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a scrie datele fiscale ale vehiculelor în această organizație.';
+  end if;
+
   if tg_op = 'UPDATE' and not app.is_service_context() then
     if old.deleted_at is not null then
       raise exception using errcode = 'P0001',

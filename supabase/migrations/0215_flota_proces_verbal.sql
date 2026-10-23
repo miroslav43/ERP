@@ -357,6 +357,16 @@ declare
   -- `updated_at` o scrie triggerul de după, `updated_by` o cere politica.
   v_mereu_libere text[] := array['sofer_employee_id', 'updated_at', 'updated_by'];
 begin
+  -- Y2: garda de firmă, prima. Alocările se caută înaintea WITH CHECK: pe un
+  -- rând pus pe firma B, alocarea care există acolo trecea (și spunea, prin
+  -- refuzurile ei, dacă e încheiată, pe ce vehicul și cu ce km), cea
+  -- inexistentă primea P0001.
+  if not v_serviciu
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a scrie procese-verbale de predare în această organizație.';
+  end if;
+
   -- Cheia și data creării nu se schimbă, pe nicio stare: registrul,
   -- notificarea, legătura din registru spre PDF și urma de audit se leagă de
   -- `id`. Un `id` rescris de partea la PV (ramura ei din `pv_vehicul_update`)

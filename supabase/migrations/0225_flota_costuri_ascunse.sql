@@ -211,8 +211,10 @@ security definer
 set search_path = ''
 as $$
 begin
+  -- Y2: `coalesce(…, false)` — pe `organization_id` null comparația e NULL,
+  -- iar `not NULL` nu ridică (proba-oracol-intre-firme §n).
   if not app.is_service_context()
-     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
     raise exception using errcode = '42501',
       message = 'Nu aveți dreptul de a scrie costurile vehiculelor în această organizație.';
   end if;
@@ -247,9 +249,9 @@ as $$
 begin
   -- Garda de firmă PRIMA, ca la `vc_inainte`.
   if not app.is_service_context()
-     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
     raise exception using errcode = '42501',
-      message = 'Nu aveți dreptul de a scrie costurile vehiculelor în această organizație.';
+      message = 'Nu aveți dreptul de a scrie costurile documentelor în această organizație.';
   end if;
   if tg_op = 'UPDATE'
      and (new.organization_id, new.document_id) is distinct from (old.organization_id, old.document_id) then

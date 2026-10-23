@@ -10,6 +10,7 @@ cai:
   - "supabase/migrations/0060_salarizare_diurna.sql"
   - "supabase/migrations/0147_diurna_valori_legale.sql"
   - "supabase/migrations/0156_diurna_zile_calendaristice.sql"
+  - "supabase/migrations/0233_oracol_intre_firme.sql"
 tabele:
   [
     business_trips,
@@ -94,7 +95,9 @@ reproduce momentul stocat. Înainte, șirul fără fus ajungea neatins în Postg
 `sosire_la`, „două țări diferite” pe `to_country_id`. `creeazaPolitica` pune pe
 `valabil_de_la` atât 23505 (`per_diem_policies_uk` — o singură versiune pe zi) cât și P0001-ul
 valorilor legale. Formularele înroșesc câmpul vinovat și lasă sub buton doar „Corectați
-câmpurile marcate”.
+câmpurile marcate”. Din 0233 (§10) triggerul începe cu garda de firmă (42501, și pe firmă
+null) și caută deplasarea doar în firma etapei: una inexistentă și una străină dau același
+P0001, iar intervalul altei firme nu mai iese în mesaj.
 
 ## Citiri
 

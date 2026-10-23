@@ -138,8 +138,10 @@ security definer
 set search_path = ''
 as $$
 begin
+  -- `coalesce(…, false)`: pe `organization_id` null comparația e NULL, iar
+  -- `not NULL` nu ridică (0233, „gaura lui NULL”; §11 de acolo o verifică).
   if not app.is_service_context()
-     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
     raise exception using errcode = '42501',
       message = 'Nu aveți dreptul de a scrie valoarea echipamentelor în această organizație.';
   end if;

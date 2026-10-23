@@ -7,7 +7,9 @@ cai:
   - "src/lib/import/incarcare.ts"
   - "supabase/migrations/0226_securitate_reziduala.sql"
   - "tests/rls/proba-securitate-reziduala.sql"
-tabele: [import_uploads, employees, employee_sensitive_data, leave_balances]
+  - "supabase/migrations/0233_oracol_intre_firme.sql"
+  - "tests/rls/proba-oracol-intre-firme.sql"
+tabele: [import_uploads, employees, employee_sensitive_data, leave_balances, employment_contracts]
 permisiuni: [employees:read, employees:create, employees:update]
 capcane: []
 scris_pe: 39b722927256b17b7eb5903a5404da19db53378a
@@ -56,6 +58,13 @@ deci un rând pus pe firma VICTIMEI trecea când managerul exista acolo (apoi 42
 politică) și primea P0001 când nu. `tg_employees_manager_path` începe de aceea cu garda de
 firmă (42501 neutru, proba (1f)); fiind primul BEFORE pe `employees`, îi acoperă și pe
 ceilalți.
+
+Garda se scrie `not coalesce(org = any (current_org_ids()), false)`: pe `organization_id`
+null, forma fără `coalesce` e NULL și nu ridică, iar NOT NULL se judecă abia după WITH
+CHECK (0233 §3, proba-oracol-intre-firme §n). Tot din 0233 (§8), contractul
+(`tg_contracts_validari`) caută angajatul doar în firma lui, după aceeași gardă: un singur
+P0001, „Angajatul indicat nu există în organizația dumneavoastră.”, în locul perechii cu
+„aparțin unor organizații diferite”.
 
 Cheile străine COMPUSE spre `employees` (`(employee_id, organization_id)`) nu sunt o
 sondă: id-ul inventat și cel din altă firmă dau același 23503, cu același mesaj (proba (8)),

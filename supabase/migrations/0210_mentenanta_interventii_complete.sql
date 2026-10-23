@@ -163,6 +163,16 @@ security definer
 set search_path = ''
 as $$
 begin
+  -- Y2: garda de firmă, prima. Numerotarea scrie în registrul firmei RÂNDULUI
+  -- înaintea WITH CHECK: pe un rând pus pe firma B, registrul ei se atingea (și
+  -- rămânea blocat până la sfârșitul tranzacției), iar o firmă inexistentă cădea
+  -- pe cheia străină a registrului (23503 față de 42501).
+  if not app.is_service_context()
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a înregistra intervenții în această organizație.';
+  end if;
+
   if not app.is_service_context() or coalesce(new.numar, '') = '' then
     new.numar := internal.aloca_numar_pv_interventie(
       new.organization_id, internal.an_pv_interventie(new.data));
@@ -288,6 +298,14 @@ security definer
 set search_path = ''
 as $$
 begin
+  -- Y2: garda de firmă, prima: pe un rând pus pe firma B, intervenția de acolo
+  -- trecea (apoi 42501 de la politică), cea inexistentă primea P0001.
+  if not app.is_service_context()
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a scrie piesele intervențiilor în această organizație.';
+  end if;
+
   if tg_op = 'UPDATE' and new.intervention_id is distinct from old.intervention_id then
     raise exception using errcode = 'P0001',
       message = 'O linie de piese nu se mută pe altă intervenție. Ștergeți-o și adăugați-o acolo.';

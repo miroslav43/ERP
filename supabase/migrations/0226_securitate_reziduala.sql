@@ -336,8 +336,10 @@ as $$
 declare
   v_mgr_path uuid[];
 begin
+  -- `coalesce(…, false)`: pe `organization_id` null comparația e NULL, iar
+  -- `not NULL` nu ridică (Y2, proba-oracol-intre-firme §n).
   if not app.is_service_context()
-     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
     raise exception using errcode = '42501',
       message = 'Nu aveți dreptul de a scrie fișe de angajat în această organizație.';
   end if;

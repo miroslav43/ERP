@@ -9,6 +9,7 @@ cai:
   - "src/app/(app)/mentenanta/planuri/dialog-executa-plan.tsx"
   - "supabase/migrations/0210_mentenanta_interventii_complete.sql"
   - "tests/rls/proba-interventii.sql"
+  - "tests/rls/proba-oracol-intre-firme.sql"
 tabele:
   [
     maintenance_interventions,
@@ -112,6 +113,11 @@ intervenției și triggerul AFTER al liniilor), deci o sumă tastată se înlocu
 
 ## Ce refuză baza tăcut
 
+- **Garda de firmă vine prima** (Y2): `internal.maintenance_interventions_numar` și
+  `internal.maintenance_intervention_parts_garda` rulează înaintea WITH CHECK. Fără gardă,
+  un rând pus pe altă firmă atingea registrul ei de PV-uri (o firmă inexistentă cădea pe
+  cheia străină a registrului), iar piesa spunea dacă intervenția există acolo. Acum 42501
+  neutru, înaintea oricărei căutări. Proba: `tests/rls/proba-oracol-intre-firme.sql`.
 - **Anularea intervenției care a rezolvat o sesizare** `rezolvat` → P0001 cu numărul
   sesizării („Redeschideți întâi…”); pe una `inchis` → definitiv (cazul 31). După
   redeschidere, `intervention_id` e golit de gardă și anularea trece.

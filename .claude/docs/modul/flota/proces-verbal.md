@@ -17,6 +17,7 @@ cai:
   - "src/app/api/export/flota/pv/**"
   - "src/app/(portal)/portal/masina-mea/confirma-pv.tsx"
   - "tests/rls/proba-flota-pv.sql"
+  - "tests/rls/proba-oracol-intre-firme.sql"
 tabele: [vehicle_handovers, vehicle_assignments, vehicles, registru_documente, document_sequences]
 permisiuni: [vehicles:read, vehicles:update, employees:read]
 feature: fleet
@@ -71,6 +72,9 @@ transfer: `capete-pv.ts`, din alocările deja citite.
 
 ## Ce refuză baza tăcut sau cu P0001
 
+- **Garda de firmă vine prima** (Y2) în `pv_vehicul_inainte`: alocările se caută înaintea
+  WITH CHECK, deci un PV pus pe altă firmă afla dacă alocarea există acolo.
+  Acum 42501 neutru. Proba: `tests/rls/proba-oracol-intre-firme.sql`.
 - **Scanul semnat e fișierul PV-ului** (X2): `scan_path` = `{org}/vehicles/{vehicul}/pv-{id PV}-{uuid}-{fișier}`,
   forma pe care o semnează doar `pregatesteScanPv` (`construiesteCaleScanPv`); altă cale din
   folderul vehiculului (RCA, talon) dă P0001. Poarta bucketului dă fișierul egal cu
