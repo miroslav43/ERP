@@ -12,6 +12,7 @@ cai:
   - "src/app/(portal)/portal/masina-mea/**"
   - "src/app/api/export/flota/**"
   - "src/app/(app)/flota/fiscal/**"
+  - "supabase/migrations/0225_flota_costuri_ascunse.sql"
 tabele:
   [
     vehicles,
@@ -32,6 +33,8 @@ tabele:
     vehicle_service_plans,
     vehicle_service_entries,
     vehicle_expenses,
+    vehicle_costuri,
+    vehicle_document_costuri,
   ]
 permisiuni:
   [
@@ -67,7 +70,7 @@ majoritatea celor de mai jos nu dau nicio eroare.
 | --------------------------------------- | ------------------------------------------------------------------- |
 | `/flota`, `/flota/[id]`                 | `vehicles:read` own; creare cere `vehicles:create` all              |
 | `/flota/foi`, `/flota/foi/[id]`         | `trip_sheets:read`/`update` own                                     |
-| `/flota/aprobari`, `/flota/anomalii`    | `trip_sheets:approve` team; confirmarea cere `vehicles:update` team |
+| `/flota/aprobari`, `/flota/anomalii`    | `trip_sheets:approve` team; anomaliile: `vehicles:update` team      |
 | `/flota/foi/sabloane`                   | `trip_sheets:update` all — șabloanele de traseu (0200)              |
 | `/flota/setari`                         | `vehicles:update` all — responsabili, praguri (0201)                |
 | `/flota/setari/documente`               | `vehicles:update` all — tipurile de document ale firmei (0202)      |
@@ -75,7 +78,7 @@ majoritatea celor de mai jos nu dau nicio eroare.
 | `/flota/amenzi`, `/flota/incidente`     | `vehicle_fines`/`vehicle_incidents` read all (0206)                 |
 | `/api/export/flota/foaie/[id]`          | `trip_sheets:read` own + RLS — PDF-ul foii (0200)                   |
 | `/flota/rapoarte`, `/api/export/flota*` | `vehicles:read` + `trip_sheets:read` all; export: `vehicles:export` |
-| `/portal/masina-mea*`                   | `trip_sheets:read` own — portalul șoferului, din 0199               |
+| `/portal/masina-mea*`                   | modulul (0215: și fără drept pe foi); foile: `trip_sheets:read` own |
 
 Drepturile pe roluri (0199), garda de vehicul alocat sau pool, „aprobatorul doar decide” și
 „Mașina mea”: `[[modul/flota/roluri-si-portal]]`. **Șoferii** și permisele (0204):
@@ -95,14 +98,15 @@ casetele fără rută (vehicul nou, foaie nouă) și traducerea din `FormData`:
 
 ## Ce refuză baza tăcut
 
-Citește-o înainte de orice scriere în modul.
-
 - **Un vehicul fără șofer și fără `pool` e invizibil sub `vehicles:read` own/team.**
   Managerul vede, din 0199, mașinile echipei și pool-ul; angajatul, mașina lui și
   pool-ul. Pe o foaie de pe o mașină care nu mai e a șoferului, embed-ul
   `vehicles!vehicle_id` vine **NULL, fără eroare**: tipează câmpul `| null` și afișează
   „—". Nu compensa cu `createAdminSupabase`. Caseta „Foaie nouă" devine explicație sau
   link spre parc când lista vine goală. — capcana #18
+- **Costurile nu vin cu rândul vehiculului** (0225): valoarea de achiziție și costul
+  documentelor stau în tabele 1:1; angajatul, hr-ul și managerul pe pool primesc `null`,
+  fără eroare — `[[modul/flota/service-si-costuri]]`.
 - **Semaforul de scadențe NU se citește din `expirables`.** Politica de acolo cere ȘI
   dreptul pe vehicul ȘI `compliance:read`, pe care în seed îl au doar `super_admin` și
   `org_admin`. Pentru `hr`, `manager` și `employee` tabela întoarce **zero rânduri,
@@ -164,8 +168,9 @@ consum stau în `src/domain/fleet/`. Traducerea din `FormData` (`valori-vehicul.
 
 ## Ce NU e aici
 
-Mentenanța vehiculelor (plan, intervenții, ITP) e modul separat. Diurna pentru deplasări
-e alt modul (vehiculul deplasării: `[[modul/flota/soferi]]`). Fișa șoferului: `[[modul/angajati]]`.
+Utilajele și ISCIR: `[[modul/mentenanta]]`; service-ul vehiculelor e al flotei (0203).
+Diurna pentru deplasări e alt modul (vehiculul deplasării: `[[modul/flota/soferi]]`). Fișa
+șoferului: `[[modul/angajati]]`.
 
 ## Când NU e suficientă pagina asta
 

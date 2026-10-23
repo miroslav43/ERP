@@ -155,8 +155,9 @@ filtrează pe `app.poate_vedea_vehicul`, deci hr-ul cu mașină nu moștenește 
 
 **Costurile nu urmează rândul vizibil** (0225, pachetul X1): valoarea de achiziție și
 costul documentelor stau în `vehicle_costuri` / `vehicle_document_costuri`, cu citirea
-costurilor (`vehicles:update = all`, sau `read >= team` pe mașina echipei, fără pool):
-angajatul și hr-ul (și cu mașină) — nimic, managerul — echipa. Coloanele vechi sunt
+costurilor (`vehicles:update = all`, `vehicles:read = all`, sau `read = team` pe mașina
+echipei care nu e în pool): angajatul și hr-ul (și cu mașină) — nimic, managerul — echipa,
+fără pool. Coloanele vechi sunt
 goale; detaliile: `[[modul/flota/service-si-costuri]]`. La incidente, șoferul nu mai
 citește rândul: `[[modul/flota/declaratia-soferului]]`. Probele numără celulele, fără
 rânduri „DEFECT”.

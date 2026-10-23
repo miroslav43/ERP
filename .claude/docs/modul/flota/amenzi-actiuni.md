@@ -34,7 +34,9 @@ modul e [[modul/flota]].
 
 ## Server Actions
 
-`src/app/(app)/flota/actions-amenzi.ts`, toate cu `minScope: "all"`.
+`src/app/(app)/flota/actions-amenzi.ts`, toate cu `minScope: "all"`, în afară de
+`declaraIncident` (`vehicle_incidents:create` / own, declarația șoferului din portal:
+`[[modul/flota/declaratia-soferului]]`).
 
 | Funcție                                                                         | Permisiune                 |
 | ------------------------------------------------------------------------------- | -------------------------- |
@@ -60,7 +62,8 @@ fără nicio cale de a-l închide.
 `listeazaIncidente` (cursor keyset pe momentul faptei, cu total exact), `citesteAmenda`,
 `citesteIncident`, `rezumatAmenzi` (numărători exacte, nu citire de rânduri),
 `soferSugerat`, `soferiPentruDesemnare` (și angajații plecați), `vehiculePentruAmenzi`
-(și vehiculele vândute), `cercetariSsm`, `datePersonaleSofer` (doar pentru scrisoare).
+(și vehiculele vândute), `cercetariSsm`, `datePersonaleSofer` (doar pentru scrisoare) și
+`declaratiileMele` (portalul, prin `incidente_declarate_de_mine`).
 
 ## Erori traduse
 

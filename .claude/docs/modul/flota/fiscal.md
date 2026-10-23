@@ -18,7 +18,9 @@ cai:
   - "src/lib/queries/flota-fiscal.ts"
   - "src/schemas/flota-fiscal.ts"
   - "tests/rls/proba-flota-fiscal.sql"
-tabele: [vehicle_fiscal_regimes, vehicle_consumption_norms, organizations, trip_sheets]
+  - "supabase/migrations/0225_flota_costuri_ascunse.sql"
+tabele:
+  [vehicle_fiscal_regimes, vehicle_consumption_norms, organizations, trip_sheets, vehicle_costuri]
 permisiuni: [vehicles:read, vehicles:update, organizations:update, payroll:read]
 feature: fleet
 capcane: [17, 23]
@@ -73,7 +75,10 @@ rânduri și când conduce o mașină a firmei.
 - **Avantajul în natură** (`public.avantaj_natura_flota`, SECURITY DEFINER pe
   `payroll:read = all`): alocările cu folosință personală ale unui om într-o lună și faptele
   vehiculului. Ce se sugerează decide `sugereazaAvantaj`: 1,7% din valoarea de intrare sau
-  chiria; nimic la 50%, la firmă micro/specific sau la mașina personală.
+  chiria; nimic la 50%, la firmă micro/specific sau la mașina personală. Din 0225 (§8,
+  rescrisă de la forma 0205) valoarea de intrare vine din `vehicle_costuri`: funcția o dă
+  cui are `payroll:read = all`, deci și lui hr, care altfel nu citește costurile parcului —
+  e baza legală a avantajului (Codul fiscal art. 76 alin. (3) lit. j), nu o citire a flotei.
 
 ## Ce refuză baza tăcut
 

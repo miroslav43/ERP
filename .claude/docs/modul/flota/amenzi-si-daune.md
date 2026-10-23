@@ -102,10 +102,11 @@ pagina de prezentare (`matrice-roluri.ts`) are două rânduri pentru ele, doar `
   să se piardă (trigger: răspuns fără șofer = P0001; după răspuns, înghețarea obișnuită). De
   la „contestată” nu există tranziție înapoi spre „șofer desemnat” (proba 14c).
 - **`app.poate_vedea_expirabil` a fost rescrisă integral** (rândul `vehicle_fine` cere
-  `vehicle_fines:read` all). Orice `entity_type` nou pornește de la forma din 0206, care
-  poartă și `driver_license` (0204) și `vehicle_service` (ramura F7): fără ele, scadențele
-  respective ar dispărea din lista de conformitate fără nicio eroare. Proba (28) o păzește.
-  — capcana #26
+  `vehicle_fines:read` all). Forma din 0206 poartă și `driver_license` (0204) și
+  `vehicle_service` (ramura F7): fără ele, scadențele respective ar dispărea din lista de
+  conformitate fără nicio eroare. Proba (28) o păzește. După 0206 au rescris-o 0214
+  (`fuel_card`) și 0218 (`vehicle_exit`), deci un `entity_type` nou pornește de la forma
+  ULTIMĂ (azi 0218; grep pe toate migrările). — capcana #26
 - **Din 0206 §G termenul intră în rezumatul zilnic**, DOAR la responsabilii (sau
   administratorii) care citesc amenzile la `all`, niciodată la șofer:
   `[[modul/flota/declaratia-soferului]]`.

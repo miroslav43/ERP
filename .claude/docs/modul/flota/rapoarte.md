@@ -22,6 +22,7 @@ cai:
   - "src/lib/pdf/foaie-din-date.ts"
   - "src/lib/pdf/pachet-flota.ts"
   - "tests/rls/proba-flota-rapoarte.sql"
+  - "supabase/migrations/0225_flota_costuri_ascunse.sql"
 tabele:
   [
     trip_sheets,
@@ -64,7 +65,8 @@ Trei tabele pe lună, toate din foile **APROBATE** (funcțiile pure sunt în
 `src/domain/fleet/rapoarte.ts`):
 
 - **Cost pe vehicul**: service, cheltuieli fără foaie, documente cu valabilitatea începută
-  în lună și combustibilul foilor; lei/km din kilometrii foilor. Aceleași patru surse și
+  în lună (costul din `vehicle_document_costuri`, 0225) și combustibilul foilor; lei/km din
+  kilometrii foilor. Aceleași patru surse și
   aceleași formule ca fila Costuri (`[[modul/flota/service-si-costuri]]`).
 - **Consum față de normă**: litri la 100 km din foile lunii, comparați cu norma de pe
   INSTANTANEUL fiecărei foi (nu cu cea de azi a vehiculului), media ponderată cu km.
@@ -73,7 +75,8 @@ Trei tabele pe lună, toate din foile **APROBATE** (funcțiile pure sunt în
 
 Foile ciornă, trimise și respinse ale lunii se numără separat și se spun pe față
 (`Callout`), cu legătură spre „De aprobat" doar pentru cine are poarta acelei rute.
-„Vehicul 100% fără foi în luna X" depinde de regimul fiscal din F10 și NU există încă.
+„Vehicul 100% fără foi în luna X" nu e în raport: verdictul lunii îl dă luna fiscală (F10,
+`/flota/fiscal`, `[[modul/flota/fiscal]]`).
 
 ## Ce refuză baza tăcut
 
@@ -90,9 +93,11 @@ Foile ciornă, trimise și respinse ale lunii se numără separat și se spun pe
   rezolvă** (citește doar `.select("literal")`). Coloanele lor sunt lipite de
   `database.ts` în `fleet-rapoarte.test.ts`; o coloană inventată n-ar da eroare de
   compilare, ci 42703 în producție.
-- **Un vehicul șters dispare din `vehicles` pentru oricine** (`vehicule_select` cere
-  `deleted_at is null`), iar service-ul lui odată cu el. Foile lui rămân, cu numărul din
-  instantaneu; rândul fără niciun număr se numește „Vehicul șters", nu dispare.
+- **Un vehicul șters logic rămâne în cifre, fără numărul de azi.** RLS-ul nu filtrează
+  `deleted_at` pe vehicule (forma din 0018 §F2, păstrată de 0199), deci service-ul,
+  cheltuielile, documentele și foile lui intră în total: au existat. Eticheta o filtrează
+  aplicația (`vehiculeDupaId` cere `deleted_at is null`), așa că rândul ia numărul din
+  instantaneul foii sau se numește „Vehicul șters", nu dispare.
 
 ## Excelul
 
@@ -141,8 +146,8 @@ omului înainte de clic.
 
 ## Ce NU e aici
 
-Vehiculul fără nicio foaie într-o lună (F10), formatul Saga/WinMentor (F12) și pachet
-pentru intervale mai lungi de o lună. Pagina nu a rulat într-un
+Verdictul fiscal al lunii (F10: `[[modul/flota/fiscal]]`), formatul Saga/WinMentor (F12g:
+`[[modul/flota/export-contabil]]`) și pachet pentru intervale mai lungi de o lună. Pagina nu a rulat într-un
 browser pe date reale: baza din cloud n-are încă migrările fazelor F4–F7.
 
 ## Când NU e suficientă pagina asta
