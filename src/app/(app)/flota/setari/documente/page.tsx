@@ -91,7 +91,9 @@ export default async function PaginaTipuriDocument() {
     {
       cheie: "setare",
       antet: "Pentru firma dumneavoastră",
-      peTelefon: "meta",
+      // `actiuni`, nu `meta`: celula e un `<form>`, iar `meta` se randează pe
+      // telefon într-un `<p>` — marcaj nevalid, hidratare ratată (React #418).
+      peTelefon: "actiuni",
       celula: (t) => (
         <SetareTip tipId={t.id} denumire={t.denumire} activ={t.activ} obligatoriu={t.obligatoriu} />
       ),

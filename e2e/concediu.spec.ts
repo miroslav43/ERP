@@ -198,7 +198,9 @@ test("concediu de odihnă: angajatul cere, managerul aprobă, angajatul vede apr
         .getByRole("listitem")
         // Coada afișează „Nume Prenume (marca)": „Georgescu Ioana (DEMO-004)".
         .filter({ hasText: "Georgescu Ioana (DEMO-004)" })
-        .filter({ hasText: `${ziRo} – ${ziRo}` });
+        // O zi singură apare ca o singură dată, nu „01.11.2027 – 01.11.2027”
+        // (intervalele unificate din 7c65883d).
+        .filter({ hasText: ziRo });
       await expect(rand).toHaveCount(1);
       const confirma = rand.getByRole("button", { name: "Confirmă aprobarea" });
       await apasaPanaApare(rand.getByRole("button", { name: "Aprobă" }), confirma);

@@ -146,7 +146,9 @@ test("sesizare de la capăt la capăt: echipament nou, QR, raportare, triaj, teh
       await admin.waitForURL(new RegExp(`/mentenanta/echipamente/${UUID}$`), { timeout: 45_000 });
       idEchipament = new URL(admin.url()).pathname.split("/").pop() ?? null;
       expect(idEchipament, "id-ul echipamentului creat").not.toBeNull();
-      await expect(admin.getByRole("heading", { level: 1 })).toContainText(denumire);
+      // Antetul fișei pune codul în titlu și denumirea în descriere.
+      await expect(admin.getByRole("heading", { level: 1 })).toContainText(cod);
+      await expect(admin.getByText(denumire).first()).toBeVisible();
     });
 
     const adresaQr =
