@@ -38,7 +38,7 @@ tabele:
 permisiuni: [vehicles:read, vehicles:update]
 feature: fleet
 capcane: [19, 22, 26]
-scris_pe: 2eb73b5ae86623be53c160e06c06fe67b20fc67d
+scris_pe: b06fb2e640bedcc3c3bfa2e19aa9a08a2914e678
 scris_la: 2026-10-23
 tags: [modul, operations]
 ---
