@@ -101,7 +101,8 @@ fără nicio cale de a-l închide.
 ## Ce refuză baza tăcut
 
 - **Șoferul desemnat / al incidentului e o fișă VIE a firmei** (X2): una ștearsă logic,
-  inexistentă sau din altă firmă dă același P0001, judecat înaintea cheii compuse.
+  inexistentă sau din altă firmă dă același P0001. Garda de firmă vine prima (42501): un
+  rând pus pe altă firmă nu mai află ce vehicule și șoferi există acolo.
 
 - **Stadiul îl judecă baza, nu pagina** (`internal.amenzi_inainte`). Amenda plătită sau
   anulată e închisă: orice UPDATE dă P0001. „Răspuns trimis” nu se mai întoarce, iar după el

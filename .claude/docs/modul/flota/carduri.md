@@ -74,8 +74,9 @@ de atunci. Sursa (cu numere întregi de card) se șterge la PRIMA analiză, cu c
 o re-analiză după pasul de mapare re-urcă fișierul cu alt `batchId`. Calea:
 `{org}/vehicles/{batchId}/…` (`prefixExtrasCard`, `src/lib/documents/cale.ts`).
 
-**Lotul e emis de server** (X2, `import_uploads` din 0226, `src/lib/import/incarcare.ts`):
-pregătirea înregistrează `batchId` și calea ÎNAINTEA URL-ului semnat; analiza consumă rândul
+**Lotul e emis de bază** (X2, `import_uploads` din 0226, `src/lib/import/incarcare.ts`):
+pregătirea înregistrează lotul ÎNAINTEA URL-ului semnat, iar baza îi dă id-ul și folderul
+(un id trimis direct prin PostgREST se ignoră); analiza consumă rândul
 (o dată, doar creatorul, doar pe calea înregistrată, UPDATE cu `.select()`) și abia apoi
 șterge; aplicarea cere un lot al apelantului deja analizat. Prefixul singur nu ajungea: un
 `batchId` egal cu id-ul unui vehicul ștergea orice .csv/.xlsx din folderul lui. Importul de

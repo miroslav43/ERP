@@ -10,7 +10,7 @@ cai:
 tabele: [import_uploads, employees, employee_sensitive_data, leave_balances]
 permisiuni: [employees:read, employees:create, employees:update]
 capcane: []
-scris_pe: badb5eb4b92d1909061892bc1210a4d21a037593
+scris_pe: 39b722927256b17b7eb5903a5404da19db53378a
 scris_la: 2026-10-23
 tags: [modul, hr, nucleu]
 ---
@@ -20,17 +20,22 @@ tags: [modul, hr, nucleu]
 Secțiune extrasă din [[modul/angajati]] (pagina principală e la plafon): două reguli de
 securitate din 0226 (X2), cu proba lor în `tests/rls/proba-securitate-reziduala.sql`.
 
-## Lotul de import e emis de server
+## Lotul de import e emis de bază
 
-`pregatesteIncarcareaImportului` scrie lotul în `public.import_uploads` (id = `batchId`
-generat pe server, calea construită pe server, `resursa = 'employees'`) ÎNAINTEA URL-ului
-semnat. `analizeazaImportAngajati` descarcă fișierul, apoi CONSUMĂ rândul — un UPDATE cu
-`.select()` pe id, firmă, resursă, cale, `created_by = apelantul`, `consumat_la is null` —
-și abia atunci șterge sursa cu clientul admin. Zero rânduri = CONFLICT, nimic șters.
+`pregatesteIncarcareaImportului` scrie lotul în `public.import_uploads` (`resursa =
+'employees'`) ÎNAINTEA URL-ului semnat, FĂRĂ id: `internal.import_uploads_inainte` dă un
+id nou și mută calea sub folderul lui, păstrând doar numele fișierului. Acțiunea semnează
+exact `id, cale` întoarse de `.select()`. `analizeazaImportAngajati` descarcă fișierul,
+apoi CONSUMĂ rândul — un UPDATE cu `.select()` pe id, firmă, resursă, cale, `created_by =
+apelantul`, `consumat_la is null` — și abia atunci șterge sursa cu clientul admin. Zero
+rânduri = CONFLICT, nimic șters.
 
 De ce: segmentul 3 al unei căi `{org}/employees/…` e de obicei id-ul unei FIȘE. Cu
 `batchId` = id-ul unui angajat și calea unui document al lui, prefixul trecea, iar
 clientul de serviciu ștergea contractul sau buletinul scanat, ocolind orice politică.
+Id-ul NU poate veni de la client nici în registru: tabela se scrie și direct prin
+PostgREST, iar cu id-ul păstrat un hr înregistra `id` = fișa, `cale` = contractul, și
+consumul trecea (proba (3g)).
 Helperii sunt în `src/lib/import/incarcare.ts`; importul extraselor de card folosește
 aceeași poartă, pe `vehicles` ([[modul/flota/carduri]]).
 
@@ -46,6 +51,13 @@ spuneau „aparține altei organizații” pentru un id din altă firmă și „
 unul inventat: orice utilizator autentificat afla, id cu id, ce angajați au celelalte
 firme. Acum toate trei cazurile (inexistentă, ștearsă, străină) dau același P0001.
 
+La un trigger, căutarea în firma rândului nu ajunge: BEFORE rulează înaintea WITH CHECK,
+deci un rând pus pe firma VICTIMEI trecea când managerul exista acolo (apoi 42501 de la
+politică) și primea P0001 când nu. `tg_employees_manager_path` începe de aceea cu garda de
+firmă (42501 neutru, proba (1f)); fiind primul BEFORE pe `employees`, îi acoperă și pe
+ceilalți.
+
 Cheile străine COMPUSE spre `employees` (`(employee_id, organization_id)`) nu sunt o
-sondă: id-ul inventat și cel din altă firmă dau același 23503, cu același mesaj (proba (8)).
-Un trigger care caută angajatul ÎNAINTE de cheie trebuie să păstreze aceeași simetrie.
+sondă: id-ul inventat și cel din altă firmă dau același 23503, cu același mesaj (proba (8)),
+iar pe un rând al altei firme RLS-ul refuză înaintea cheii. Un trigger care caută angajatul
+ÎNAINTE de cheie trebuie să înceapă cu garda de firmă.
