@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, Link2, RefreshCw, Undo2 } from "lucide-react";
+import { Ban, Link2, RefreshCw, RotateCcw, Undo2 } from "lucide-react";
 import type { ReactElement } from "react";
 
 import { Camp } from "@/components/ui/camp";
@@ -9,7 +9,12 @@ import type { CandidatAlimentare } from "@/lib/queries/fleet-carduri";
 
 import { ButonConfirmat } from "../buton-confirmat";
 import { anuleazaImport } from "../import/actions";
-import { ignoraTranzactie, leagaTranzactie, repotrivesteTranzactii } from "./actions";
+import {
+  ignoraTranzactie,
+  leagaTranzactie,
+  reactiveazaTranzactie,
+  repotrivesteTranzactii,
+} from "./actions";
 
 const ORA = new Intl.DateTimeFormat("ro-RO", {
   timeZone: "Europe/Bucharest",
@@ -127,6 +132,31 @@ export function DialogIgnora({
         </Camp>
       )}
     </FormularDialog>
+  );
+}
+
+/**
+ * „Reactivează”: tranzacția ignorată din greșeală revine în potrivire. Nota
+ * ignorării se golește, iar tranzacția se repotrivește pe loc.
+ */
+export function ButonReactiveaza({
+  tranzactieId,
+  descriere,
+}: Readonly<{ tranzactieId: string; descriere: string }>): ReactElement {
+  return (
+    <ButonConfirmat
+      pictograma={<RotateCcw aria-hidden="true" className="size-4" />}
+      ariaLabel={`Reactivează tranzacția ${descriere}`}
+      titlu="Reactivați tranzacția?"
+      consecinta={`Tranzacția ${descriere} revine între cele de verificat și se compară din nou cu foile și alimentările de acum. Nota cu motivul ignorării se șterge.`}
+      etichetaConfirmare="Reactivează"
+      mesajReusita={(r) =>
+        r.stare === "ignorata"
+          ? "Tranzacția e un storno din extras și rămâne ignorată."
+          : "Tranzacția a fost reactivată și potrivită din nou."
+      }
+      executa={() => reactiveazaTranzactie({ id: tranzactieId })}
+    />
   );
 }
 

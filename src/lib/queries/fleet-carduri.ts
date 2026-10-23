@@ -97,6 +97,44 @@ export async function listeazaCarduri(
 }
 export type RandCard = Awaited<ReturnType<typeof listeazaCarduri>>[number];
 
+/** Câte carduri arată „Mașina mea”: un om are unul, două, nu sute. */
+export const PLAFON_CARDURI_MELE = 20;
+
+/**
+ * Cardurile de combustibil ale omului din portal (F12b): pe fișa lui SAU pe una
+ * dintre mașinile pe care le conduce (alocată lui, ori comună). Notificarea
+ * cardului care expiră îl duce, fără `team`/`all`, la `/portal/masina-mea`;
+ * de aceea cardul trebuie să fie acolo.
+ *
+ * Filtrul pe fișă e EXPLICIT (ca `pvurileMele`): un administrator care e și
+ * șofer vede prin RLS toate cardurile firmei. Fără anulate. Doar ultimele cifre:
+ * numărul întreg nu se păstrează, iar amprenta nu iese din server.
+ */
+export async function carduleMele(
+  organizationId: string,
+  employeeId: string,
+  vehiculIds: readonly string[],
+) {
+  const unice = [...new Set(vehiculIds)];
+  const conditii = [`employee_id.eq.${employeeId}`];
+  if (unice.length > 0) conditii.push(`vehicle_id.in.(${unice.join(",")})`);
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("fuel_cards")
+    .select("id, emitent, denumire, ultimele_cifre, vehicle_id, employee_id, valabil_pana, status")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .neq("status", "anulat")
+    .or(conditii.join(","))
+    .order("emitent")
+    .order("ultimele_cifre")
+    .order("id")
+    .limit(PLAFON_CARDURI_MELE);
+  if (error !== null) throw error;
+  return data ?? [];
+}
+export type CardulMeu = Awaited<ReturnType<typeof carduleMele>>[number];
+
 export async function citesteCard(organizationId: string, id: string) {
   const db = await createServerSupabase();
   const { data, error } = await db
@@ -485,12 +523,14 @@ export async function tranzactiiDeRepotrivit(organizationId: string, luna: strin
   return data ?? [];
 }
 
-/** Câteva câmpuri ale unei tranzacții, pentru legarea manuală. */
+/** Câteva câmpuri ale unei tranzacții, pentru legarea manuală și reactivare. */
 export async function citesteTranzactie(organizationId: string, id: string) {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("fuel_card_transactions")
-    .select("id, categorie, vehicle_id, data_ro, stare_potrivire, fuel_entry_id")
+    .select(
+      "id, categorie, card_id, vehicle_id, trip_sheet_id, data_ro, stare_potrivire, fuel_entry_id",
+    )
     .eq("organization_id", organizationId)
     .eq("id", id)
     .is("deleted_at", null)

@@ -25,7 +25,15 @@ import {
 import { declaratiileMele } from "@/lib/queries/flota-amenzi";
 import { fisaMea } from "@/lib/queries/portal";
 import { ETICHETE_STADIU_INCIDENT, ETICHETE_TIP_INCIDENT } from "@/domain/fleet/amenzi";
-import { semaforVehicul, tipuriObligatoriiPentru } from "@/domain/fleet/scadente";
+import {
+  semaforVehicul,
+  stareScadentaFlota,
+  tipuriObligatoriiPentru,
+} from "@/domain/fleet/scadente";
+import { mascheaza, valabilitateScurta } from "@/domain/fleet/carduri/card";
+import { etichetaEmitent } from "@/domain/fleet/carduri/emitenti";
+import { carduleMele } from "@/lib/queries/fleet-carduri";
+import { ETICHETE_STATUS_CARD, TON_STATUS_CARD } from "@/app/(app)/flota/carduri/etichete";
 import { filtreFoiSchema } from "@/schemas/fleet";
 import {
   ETICHETE_SCADENTA,
@@ -123,7 +131,7 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
   const toateMasinile: readonly RandVehicul[] = [...masini.alocate, ...masini.pool];
   // Numărul vehiculului pe foaie se citește separat: foaia de luna trecută poate
   // fi pe o mașină care nu mai e a lui, iar `vehiculeDupaId` trece prin RLS.
-  const [scadente, vehiculeFoi, urlScanPv] = await Promise.all([
+  const [scadente, vehiculeFoi, urlScanPv, carduri] = await Promise.all([
     poateVedeaMasina ? scadenteCurente(masini.alocate.map((v) => v.id)) : Promise.resolve([]),
     vehiculeDupaId(tenant.organizationId, [
       ...(foi?.randuri ?? []).map((f) => f.vehicle_id),
@@ -133,6 +141,15 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
     // dă părții pe calea exactă `scan_path` (`app.flota_poate_fisier`, 0215),
     // și omului fără `vehicles:read`.
     urlSemnateFlota(pvuri.map((p) => p.scan_path)),
+    // F12b: cardurile de combustibil ale lui — aici duce notificarea cardului
+    // care expiră pe cine n-are `team`/`all` pe vehicule.
+    poateVedeaMasina
+      ? carduleMele(
+          tenant.organizationId,
+          fisaId,
+          toateMasinile.map((v) => v.id),
+        )
+      : Promise.resolve([]),
   ]);
   const numarVehicul = new Map<string, string>([
     ...[...vehiculeFoi.values()].map((v) => [v.id, v.nr_inmatriculare] as const),
@@ -256,6 +273,53 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
           </div>
         )}
       </section>
+
+      {/* ── ÎNCEPUT BLOC: cardurile mele de combustibil (0214, F12b) ──
+          Doar ultimele cifre; tranzacțiile rămân la administratorul flotei. */}
+      {carduri.length === 0 ? null : (
+        <section aria-labelledby="titlu-carduri" id="carduri" className="space-y-3">
+          <h2 id="titlu-carduri" className="text-sectiune font-semibold">
+            Carduri de combustibil
+          </h2>
+          <ul className="space-y-2">
+            {carduri.map((c) => {
+              const valabil = valabilitateScurta(c.valabil_pana);
+              const treapta = stareScadentaFlota(c.valabil_pana, azi);
+              return (
+                <li key={c.id} className="bg-surface border-border rounded-panou border p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-foreground text-corp font-medium">
+                        {etichetaEmitent(c.emitent)} {mascheaza(c.ultimele_cifre)}
+                      </p>
+                      <p className="text-muted-foreground text-corp mt-0.5">
+                        {c.vehicle_id === null
+                          ? "Pe numele dumneavoastră"
+                          : `Al mașinii ${numarVehicul.get(c.vehicle_id) ?? "din parc"}`}
+                        {valabil === null ? "" : ` · valabil până la ${valabil}`}
+                      </p>
+                      {c.denumire === null ? null : (
+                        <p className="text-muted-foreground text-nota mt-0.5">{c.denumire}</p>
+                      )}
+                    </div>
+                    {c.status !== "activ" ? (
+                      <Badge ton={TON_STATUS_CARD[c.status]}>
+                        {ETICHETE_STATUS_CARD[c.status]}
+                      </Badge>
+                    ) : valabil === null ? null : (
+                      <Scadenta treapta={treapta}>{ETICHETE_SCADENTA[treapta]}</Scadenta>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="text-muted-foreground text-nota">
+            Când cardul expiră sau se pierde, anunțați responsabilul de flotă: el îl înlocuiește.
+          </p>
+        </section>
+      )}
+      {/* ── SFÂRȘIT BLOC: cardurile mele de combustibil ── */}
 
       <CardRezervariUrmatoare
         organizationId={tenant.organizationId}

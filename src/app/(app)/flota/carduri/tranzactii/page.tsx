@@ -38,6 +38,7 @@ import {
 } from "../etichete";
 import {
   ButonAnuleazaImport,
+  ButonReactiveaza,
   ButonRepotriveste,
   DialogIgnora,
   DialogLeaga,
@@ -228,6 +229,10 @@ export default async function PaginaTranzactiiCard({ searchParams }: Proprietati
       antet: "Acțiuni",
       peTelefon: "actiuni",
       celula: (r) => {
+        // F12b: ignorarea nu mai e un drum fără întoarcere.
+        if (r.stare_potrivire === "ignorata") {
+          return <ButonReactiveaza tranzactieId={r.id} descriere={descriere(r)} />;
+        }
         if (!STARI_DE_DECIS.has(r.stare_potrivire)) return null;
         const optiuni =
           r.vehicle_id === null || r.data_ro === null

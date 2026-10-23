@@ -276,4 +276,7 @@ export const ignoraTranzactieSchema = z.object({
     .max(1000, "Nota are cel mult 1000 de caractere."),
 });
 
+/** „Reactivează”: tranzacția ignorată revine în potrivire. Nota ignorării se golește. */
+export const reactiveazaTranzactieSchema = z.object({ id });
+
 export const repotrivesteSchema = z.object({ luna: lunaSchema });
