@@ -25,6 +25,7 @@ cai:
   - "src/lib/queries/fleet-service.ts"
   - "src/schemas/fleet-service.ts"
   - "tests/rls/proba-flota-service.sql"
+  - "tests/rls/proba-costuri-compatibilitate.sql"
 tabele:
   [
     vehicle_service_plans,
@@ -38,7 +39,7 @@ tabele:
 permisiuni: [vehicles:read, vehicles:update]
 feature: fleet
 capcane: [19, 22, 26]
-scris_pe: b06fb2e640bedcc3c3bfa2e19aa9a08a2914e678
+scris_pe: 9db525aeb5cc48094f85f4fe37b4a424e68ed3f8
 scris_la: 2026-10-23
 tags: [modul, operations]
 ---
@@ -54,14 +55,16 @@ de bord.
 
 Nu există rute noi: fișa `/flota/[id]` primește file prin `?fila=service` și
 `?fila=costuri` (plus `?perioada=3|6|12|tot` și `?cursor=` pe Costuri). Fila se oferă
-doar cui poate citi service-ul, adică `vehicles:read` cel puțin `team` ȘI vehiculul
-echipei, FĂRĂ pool (`poate_vedea_vehicul(…, false)`); pe un pool, sub `team`, filele
-lipsesc. Un `?fila=` scris de mână pe un cont fără drept cade pe fișa obișnuită, nu pe un
-ecran gol. Scrierea cere `vehicles:update` all — literal ca politicile. Managerul
-citește planurile, intervențiile și cheltuielile mașinii echipei lui, nu și ale mașinii
-comune (proba `proba-flota-matrice-roluri.sql`); șoferul (`own`) și
-`hr` nu citesc nimic, fără eroare: află de scadență din notificare. Fila Costuri a
-managerului NU arată cifrele derivate din foi (vezi „Costuri”).
+doar cui poate citi service-ul: `vehicles:update = all`, `vehicles:read = all`, sau `team`
+pe o mașină care NU e în pool — exact `app.poate_vedea_costurile_vehiculului` (0203 §7),
+regula TUTUROR costurilor flotei. Pe un pool, sub `team`, filele lipsesc. Un `?fila=`
+scris de mână pe un cont fără drept cade pe fișa obișnuită, nu pe un ecran gol. Scrierea
+cere `vehicles:update` all — literal ca politicile. Managerul citește planurile,
+intervențiile și cheltuielile mașinii echipei lui, nu și ale mașinii comune, nici când
+e alocată unui om din echipă (blocurile „pool cu șofer” din `proba-flota-matrice-roluri.sql`
+și `proba-livrare-roluri.sql`); șoferul (`own`) și `hr` nu citesc nimic, fără eroare:
+află de scadență din notificare. Fila Costuri a managerului NU arată cifrele derivate
+din foi (vezi „Costuri”).
 
 ## Server Actions
 
@@ -132,18 +135,23 @@ din `pragSaltVehicul` (`[[modul/flota/alerte-si-setari]]`).
   lui, pool), managerul (pool) și hr-ul cu mașină (0215): RLS-ul nu taie coloane. Acum
   stau în `vehicle_costuri` și `vehicle_document_costuri` (1:1, fără `deleted_at`, unic
   TOTAL pe părinte — `on_conflict` nu poate numi un index parțial, 42P10), citite prin
-  `app.poate_vedea_costurile_vehiculului`: `vehicles:update = all`, sau citirea lui
-  `vex_select` (echipa, fără pool) — strânsă: la `team`, pool-ul e exclus și când e alocat
-  unui om din echipă (`vex_select` îl arată atunci managerului). Restul primește embed-ul
-  `null`, fără eroare; fișa
-  ascunde rândul „Valoare” și coloana „Cost”. Aplicația scrie explicit (insert la creare
-  doar cu valoare, upsert la corectură, și cu `null`, ca golirea să golească).
+  `app.poate_vedea_costurile_vehiculului` — aceeași funcție ca planurile, intervențiile și
+  cheltuielile (definită în 0203, 0225 n-o rescrie). Restul primește embed-ul `null`,
+  fără eroare; fișa ascunde rândul „Valoare” și coloana „Cost”. Aplicația scrie explicit
+  (insert la creare doar cu valoare, upsert la corectură, și cu `null`, ca golirea să golească).
 - **Coloanele vechi sunt goale, nu aruncate** (aplicația veche le citește până la deploy).
   O valoare NENULĂ scrisă în ele (aplicația veche, scripturi, fixture-uri) se mută în
   tabela de costuri în aceeași instrucțiune (BEFORE, cheie străină DEFERRABLE); `null` se
   ignoră, ca o corectură din aplicația veche să nu șteargă costul mutat. CHECK `is null`
   e plasa dacă triggerul e oprit (23514). Citirea lor e oprită de `coloane.test.ts`.
   Mutarea pe date existente o verifică `proba-migrari-pe-date.sql` (11) și (10l).
+- **Triggerul de mutare rulează ÎNAINTEA conflictului** din
+  `INSERT … ON CONFLICT DO NOTHING` (upsert-ul PostgREST cu `ignore-duplicates`): cu id-ul
+  unui rând al altei firme, WITH CHECK trecea pe rândul propus, iar costul străin era
+  rescris. Acum un id care EXISTĂ golește coloana fără mutare, `do update` atinge doar
+  rândul aceleiași firme (altfel P0001), iar `vc_inainte` / `vdc_inainte` verifică firma
+  părintelui și cu steagul `app.flota_cost_mutat` pus. Proba:
+  `proba-costuri-compatibilitate.sql` (1).
 - **Tipul de document `revizie` e retras pe platformă** (0203); documentele deja scrise
   pe el rămân și se corectează; o firmă îl reactivează din setările de tipuri (0202).
 

@@ -17,9 +17,11 @@ cai:
   - "src/domain/maintenance/indicatori.ts"
   - "src/lib/queries/maintenance-rapoarte.ts"
   - "tests/rls/proba-mentenanta-rapoarte.sql"
+  - "supabase/migrations/0232_mentenanta_costuri_echipament.sql"
 tabele:
   [
     equipment,
+    equipment_costuri,
     maintenance_interventions,
     maintenance_plans,
     fault_reports,
@@ -33,8 +35,8 @@ citeste_daca:
   - "o cifră din raport pare prea mică sau „—” → „Ce refuză baza tăcut”"
   - "„la timp”, disponibilitatea sau MTBF nu se potrivesc cu socoteala de mână → „Cum se calculează”"
   - "CSV-ul diferă de ecran → „Exportul”"
-scris_pe: 36afdf0905a3aaa8dbce09cd7877a04b6219058a
-scris_la: 2026-10-12
+scris_pe: 9db525aeb5cc48094f85f4fe37b4a424e68ed3f8
+scris_la: 2026-10-23
 tags: [modul, operations]
 ---
 
@@ -80,6 +82,9 @@ fără milisecunde: punctul ar rupe filtrul `or=` al opririlor.
 - **Cost / valoare**: costul suportat pe ultimele 12 luni până la capătul perioadei, oricât
   de scurtă e perioada, împărțit la `valoare_achizitie`; strict peste
   `PRAG_COST_VALOARE_INLOCUIRE` = semnal de înlocuire. Fără valoare: „—”, fără semnal.
+  Valoarea vine din `equipment_costuri` (0232), încorporată: o văd
+  `maintenance:update = all` și `maintenance:read >= team`, deci orice cititor al
+  paginii; pentru restul embed-ul e `null`, adică tot „—”.
 - **Program**: `ore_functionare_pe_zi` în primele `zile_pe_saptamana` zile (luni = 1), din
   setări. Echipamentul intră în parc de la punerea în funcțiune și iese la casare; opririle
   lui se taie la aceeași fereastră (oprirea lăsată deschisă la casare nu mai scade nimic

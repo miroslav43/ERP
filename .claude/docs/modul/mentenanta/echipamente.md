@@ -10,9 +10,11 @@ cai:
   - "src/app/(portal)/portal/sesizari/dialog-citire-rapida.tsx"
   - "supabase/migrations/0182_echipamente_ciclu.sql"
   - "tests/rls/proba-echipamente-ciclu.sql"
+  - "supabase/migrations/0232_mentenanta_costuri_echipament.sql"
 tabele:
   [
     equipment,
+    equipment_costuri,
     equipment_meters,
     maintenance_plans,
     iscir_authorizations,
@@ -42,8 +44,8 @@ citeste_daca:
   - "casarea sau ștergerea unui utilaj e refuzată → „Ce refuză baza tăcut”"
   - "un responsabil-angajat nu-și vede utilajul sau nu poate citi contorul → „Responsabilul”"
   - "o parte din citirile în lot intră și restul nu → „Server Actions”"
-scris_pe: edd51fa9be907ae26d1faa9eceae838a5ca4d69b
-scris_la: 2026-10-12
+scris_pe: 9db525aeb5cc48094f85f4fe37b4a424e68ed3f8
+scris_la: 2026-10-23
 tags: [modul, operations]
 ---
 
@@ -178,6 +180,16 @@ acțiune): la lot decide politica de INSERT, nu harta de permisiuni.
   caseta „Utilajul nu funcționează” și în istoricul opririlor.
 - **Ștergerea logică cere `maintenance:delete = all` în gardă** (nu doar în acțiune), iar
   un echipament șters nu se restaurează din aplicație.
+- **Valoarea de achiziție NU stă pe rândul echipamentului** (0232, Y1): îl văd și
+  responsabilul și tehnicianul atribuit, iar RLS-ul nu taie coloane. Stă în
+  `equipment_costuri` (1:1, fără `deleted_at`, unic total — `on_conflict`), citită de
+  `app.poate_vedea_valoarea_echipamentelor`: `maintenance:update = all` sau `read >= team`
+  (cheia costurilor intervențiilor). Responsabilul și tehnicianul primesc embed-ul `null`,
+  fără eroare. O scrie doar `update = all`: gestionarul pe `team` nu primește câmpul, iar o
+  valoare trimisă totuși de el e INTERZIS în acțiune, 42501 în bază. Coloana veche e
+  goală, cu CHECK `is null`; o valoare nenulă scrisă în ea se mută (trigger BEFORE), fără
+  defectul de upsert al lui 0225 (`[[modul/flota/service-si-costuri]]`). Probele:
+  `proba-costuri-compatibilitate.sql` (2), `proba-migrari-pe-date.sql` (12).
 - **Exportul CSV** e un eveniment de audit (`log_audit_event`, `equipment`), plafonat la
   `MAX_RANDURI` din lista filtrată — iar faptul că a tăiat intră în audit ca `trunchiat`,
   fiindcă în fișier nu se vede.
