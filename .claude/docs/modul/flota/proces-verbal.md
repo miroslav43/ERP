@@ -21,8 +21,8 @@ tabele: [vehicle_handovers, vehicle_assignments, vehicles, registru_documente, d
 permisiuni: [vehicles:read, vehicles:update, employees:read]
 feature: fleet
 capcane: [17, 18, 22, 23, 29, 30, 31]
-scris_pe: c1ed19723565547c8571b6735b5e3973189cd888
-scris_la: 2026-10-22
+scris_pe: ca7fd6650c12802aecce55d1ac9c3fc467ad265e
+scris_la: 2026-10-23
 tags: [modul, operations]
 ---
 
@@ -97,8 +97,9 @@ transfer: `capete-pv.ts`, din alocările deja citite.
   judecă după `exists (… from public.vehicles …)` SUB RLS moștenește ramura, la fel o funcție
   SECURITY INVOKER care citește `vehicles`; tabelele copil folosesc
   `app.poate_vedea_vehicul_dupa_id` (0199), care n-o are, iar `flota_fiscal_luna` filtrează pe
-  `app.poate_vedea_vehicul` (0205). Rândul vehiculului îi aduce și `valoare_achizitie`:
-  RLS-ul nu taie coloane (defect cunoscut, `[[modul/flota/roluri-si-portal]]`).
+  `app.poate_vedea_vehicul` (0205). Valoarea de achiziție NU mai vine cu rândul
+  vehiculului: din 0225 stă în `vehicle_costuri`, sub citirea costurilor, iar hr-ul cu
+  mașină primește embed-ul `null` (`[[modul/flota/service-si-costuri]]`).
 - **Cine întocmește**: doar `vehicles:update = all` și membru. `super_admin` vede, nu scrie.
 - **Scanul hârtiei semnate** (`pregatesteScanPv` → urcare → `confirmaScanPv`) stă în
   `org-flota`, în folderul VEHICULULUI (0202): doar pe PV-ul finalizat, doar cine
