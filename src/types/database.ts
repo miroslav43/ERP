@@ -11,6 +11,10 @@
 // regenerarea rupe fișierele care apelează aceste RPC-uri fără nicio schimbare
 // reală de schemă. Patch-ul e mecanic, aplicat de script.
 //
+// Coloanele de `returns table` care pot fi NULL primesc tot `| null`, din lista
+// `LARGIRI_RETURNS` a scriptului: acolo catalogul nu poate spune nullabilitatea,
+// iar generatorul le tipează pe toate `T`.
+//
 // Generatorul CLI poate adăuga și schema `graphql_public`; e eliminată tot
 // acolo, pentru că `src/lib/supabase/server.ts` tipează clientul strict pe
 // `public`.
