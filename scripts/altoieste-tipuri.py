@@ -108,6 +108,9 @@ LARGIRI_RETURNS: dict[str, frozenset[str]] = {
     ),
     # 0216: ramura „foaie” a uniunii întoarce `null::text` și `null::uuid`.
     "ocuparea_vehiculelor_pool": frozenset({"rezervare_id", "status"}),
+    # 0206: `vehicle_incidents.locul` și `inchis_la` sunt nullable (incidentul
+    # deschis n-are închidere; locul e opțional la declarare).
+    "incidente_declarate_de_mine": frozenset({"inchis_la", "locul"}),
     # 0212: `employees.full_name` e nullable (funcția ordonează `nulls last`).
     "tehnicieni_mentenanta": frozenset({"full_name"}),
 }
