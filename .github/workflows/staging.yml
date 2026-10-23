@@ -22,7 +22,10 @@ concurrency:
 jobs:
   deploy:
     runs-on: [self-hosted, administrativo]
-    timeout-minutes: 30
+    # 50, nu 30: pe 21 oct 2026 (39686509086) migrările și deploy-ul au trecut,
+    # dar `verify` a durat 13 min pe VM-ul încărcat, iar e2e a fost tăiat la
+    # minutul 30 — un „cancelled" care arăta ca o anulare, nu ca o limită.
+    timeout-minutes: 50
     permissions:
       contents: write # pentru comentariul pe commit
 
