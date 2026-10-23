@@ -951,25 +951,75 @@ with check (
 alter table public.vehicle_incidents enable row level security;
 alter table public.vehicle_incidents force row level security;
 
--- §F: ramura `own` a citirii — șoferul își vede DOAR declarațiile lui (cât are
--- încă cheia de declarare), nu incidentele colegilor și nici pe cele
--- înregistrate de administrator pe mașina lui.
+-- Citirea RÂNDULUI e doar a celui care administrează incidentele (`read =
+-- all`). Șoferul își vede declarațiile prin `public.incidente_declarate_de_mine`
+-- (§F, mai jos), care întoarce doar câmpurile declarației. (X1) Forma dintâi
+-- avea aici o ramură `own`: RLS-ul taie rânduri, nu coloane, deci șoferul
+-- primea prin PostgREST rândul întreg — costul estimat și cel final,
+-- despăgubirea, asigurătorul, dosarul, observațiile interne și legătura cu
+-- cercetarea SSM, pe care le scrie responsabilul.
 create policy vehicle_incidents_select on public.vehicle_incidents
 for select to authenticated
 using (
   (select app.is_platform_admin()) or (
     organization_id = any ((select app.current_org_ids())::uuid[])
     and app.feature_on(organization_id, 'fleet')
-    and (
-      app.has_permission(organization_id, 'vehicle_incidents', 'read') = 'all'
-      or (
-        declarat_de_employee_id is not null
-        and declarat_de_employee_id = app.fisa_mea(organization_id)
-        and app.has_permission(organization_id, 'vehicle_incidents', 'create') <> 'none'
-      )
-    )
+    and app.has_permission(organization_id, 'vehicle_incidents', 'read') = 'all'
   )
 );
+
+-- §F: „declarațiile mele” din portal. Fără ramura de citire a rândului,
+-- INSERT-ul șoferului nu poate cere `RETURNING`: id-ul îl pune aplicația.
+-- Aceeași judecată ca vechea ramură `own`: declarantul e fișa PRINCIPALĂ a
+-- contului (`app.fisa_mea`), cât are încă cheia de declarare; o suprascriere
+-- `create = none` îi ia și lista. Cursor keyset pe (produs_la, id), descrescător;
+-- `total` numără TOATE declarațiile, nu doar pe cele de după cursor.
+create or replace function public.incidente_declarate_de_mine(
+  p_organization_id uuid,
+  p_limita integer,
+  p_dupa_produs_la timestamptz default null,
+  p_dupa_id uuid default null
+)
+returns table (
+  id          uuid,
+  vehicle_id  uuid,
+  tip         public.incident_tip,
+  produs_la   timestamptz,
+  locul       text,
+  descriere   text,
+  stadiu      public.incident_stadiu,
+  inchis_la   timestamptz,
+  total       bigint
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  with ale_mele as (
+    select i.id, i.vehicle_id, i.tip, i.produs_la, i.locul, i.descriere, i.stadiu, i.inchis_la
+      from public.vehicle_incidents i
+     where p_organization_id is not null
+       and p_organization_id = any ((select app.current_org_ids())::uuid[])
+       and app.feature_on(p_organization_id, 'fleet')
+       and app.has_permission(p_organization_id, 'vehicle_incidents', 'create') <> 'none'
+       and i.organization_id = p_organization_id
+       and i.deleted_at is null
+       and i.declarat_de_employee_id is not null
+       and i.declarat_de_employee_id = app.fisa_mea(p_organization_id)
+  )
+  select m.id, m.vehicle_id, m.tip, m.produs_la, m.locul, m.descriere, m.stadiu, m.inchis_la,
+         (select count(*) from ale_mele)
+    from ale_mele m
+   where p_dupa_produs_la is null
+      or p_dupa_id is null
+      or (m.produs_la, m.id) < (p_dupa_produs_la, p_dupa_id)
+   order by m.produs_la desc, m.id desc
+   limit least(greatest(coalesce(p_limita, 20), 1), 100);
+$$;
+
+comment on function public.incidente_declarate_de_mine(uuid, integer, timestamptz, uuid) is
+  'Declarațiile de incident ale apelantului (0206 §F, X1): doar câmpurile declarației și stadiul, fără costuri, asigurător, dosar, observații sau cercetarea SSM. Cine are vehicle_incidents:create <> none.';
 
 -- §F: ramura `own` a scrierii. `declarat_de_employee_id` și `sofer_id` le pune
 -- triggerul (WITH CHECK vede rândul de DUPĂ el); garda de vehicul (alocat în
@@ -1301,6 +1351,8 @@ revoke all on function app.poate_vedea_expirabil(uuid, text) from public, anon;
 grant execute on function app.poate_vedea_expirabil(uuid, text) to authenticated;
 revoke all on function app.sofer_la(uuid, uuid, timestamptz) from public, anon;
 grant execute on function app.sofer_la(uuid, uuid, timestamptz) to authenticated, service_role;
+revoke all on function public.incidente_declarate_de_mine(uuid, integer, timestamptz, uuid) from public, anon;
+grant execute on function public.incidente_declarate_de_mine(uuid, integer, timestamptz, uuid) to authenticated, service_role;
 revoke all on function public.sofer_sugerat(uuid, uuid, timestamptz) from public, anon;
 grant execute on function public.sofer_sugerat(uuid, uuid, timestamptz) to authenticated, service_role;
 

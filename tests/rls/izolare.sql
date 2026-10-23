@@ -742,6 +742,17 @@ begin
          (v_beta, (select val from t_ids where cheie='veh_beta'), 'parcare', app.azi_local() - 1, 12, v_admin_beta, v_admin_beta);
   -- ═══ SFÂRȘIT BLOC: fixture service, costuri, anvelope (0203) ══════════════
 
+  -- ═══ ÎNCEPUT BLOC: fixture costurile ascunse (0225, X1) ═══════════════════
+  -- Valoarea de achiziție și costul documentului, în tabelele lor 1:1, pe
+  -- vehiculul și documentul fiecărei firme.
+  insert into public.vehicle_costuri (organization_id, vehicle_id, valoare_achizitie, created_by, updated_by)
+  values (v_alfa, (select val from t_ids where cheie='veh_alfa'), 50000, v_admin_alfa, v_admin_alfa),
+         (v_beta, (select val from t_ids where cheie='veh_beta'), 50000, v_admin_beta, v_admin_beta);
+  insert into public.vehicle_document_costuri (organization_id, document_id, cost, created_by, updated_by)
+  values (v_alfa, (select val from t_ids where cheie='vdoc_alfa'), 1200, v_admin_alfa, v_admin_alfa),
+         (v_beta, (select val from t_ids where cheie='vdoc_beta'), 1200, v_admin_beta, v_admin_beta);
+  -- ═══ SFÂRȘIT BLOC: fixture costurile ascunse (0225, X1) ═══════════════════
+
   -- ═══ ÎNCEPUT BLOC: fixture codul UIT (0217, F12f) ═════════════════════════
   -- Câte un UIT pe cursa foii fiecărei firme (exemplul oficial ANAF), pe ciornă.
   insert into public.trip_sheet_uit (organization_id, trip_sheet_id, cursa_id, uit, data_inceput,

@@ -135,6 +135,7 @@ declare
   fp      uuid := gen_random_uuid();
   v_rca   uuid;
   v_casco uuid;
+  d2      uuid;
   v_nr    text := (100 + (random() * 800)::int)::text;
 begin
   select id into v_rca from public.vehicle_document_types where organization_id is null and cod = 'rca';
@@ -215,6 +216,7 @@ begin
                                         valabil_de_la, expira_la, cost, created_by, updated_by)
   select v_org, x.v, v_rca, 'RCA-' || s || '-' || x.n, v_zi - 355, v_zi + 10, 1200, u_adm, u_adm
     from (values (v1, 1), (v2, 2), (vp, 3), (vl, 4)) as x(v, n);
+  select id into d2 from public.vehicle_documents where organization_id = v_org and vehicle_id = v2;
 
   insert into public.vehicle_document_type_setari (organization_id, document_type_id, activ, obligatoriu,
                                                    created_by, updated_by)
@@ -269,7 +271,7 @@ begin
     'org', v_org, 'u_adm', u_adm, 'u_hr', u_hr, 'u_mgr', u_mgr, 'u_e1', u_e1, 'u_e2', u_e2,
     'e_hr', e_hr, 'e_mgr', e_mgr, 'e_e1', e_e1, 'e_e2', e_e2,
     'v1', v1, 'v2', v2, 'vp', vp, 'vl', vl, 'f1', f1, 'f2', f2, 'f2v', f2v, 'fp', fp,
-    'luna', date_trunc('month', v_zi)::date);
+    'd2', d2, 'luna', date_trunc('month', v_zi)::date);
 end
 $f$;
 
@@ -316,6 +318,12 @@ begin
       ('vehicle_service_plans',        'select 1 from public.vehicle_service_plans where organization_id = {org}',         3, 0, 1, 0, 0),
       ('vehicle_service_entries',      'select 1 from public.vehicle_service_entries where organization_id = {org}',       3, 0, 1, 0, 0),
       ('vehicle_expenses',             'select 1 from public.vehicle_expenses where organization_id = {org}',              3, 0, 1, 0, 0),
+      -- 0225 (X1): costurile din coloane s-au mutat în tabele 1:1 cu citirea lui
+      -- `vehicle_expenses` (plus `vehicles:update = all`). Coloanele vechi sunt goale.
+      ('vehicle_costuri',              'select 1 from public.vehicle_costuri where organization_id = {org}',               4, 0, 1, 0, 0),
+      ('vehicle_document_costuri',     'select 1 from public.vehicle_document_costuri where organization_id = {org}',      4, 0, 1, 0, 0),
+      ('  vehicles.valoare_achizitie',  'select 1 from public.vehicles where organization_id = {org} and valoare_achizitie is not null', 0, 0, 0, 0, 0),
+      ('  vehicle_documents.cost',      'select 1 from public.vehicle_documents where organization_id = {org} and cost is not null', 0, 0, 0, 0, 0),
       ('driver_licenses',              'select 1 from public.driver_licenses where organization_id = {org}',               3, 3, 2, 1, 1),
       ('vehicle_fiscal_regimes',       'select 1 from public.vehicle_fiscal_regimes where organization_id = {org}',        2, 0, 0, 0, 0),
       ('vehicle_consumption_norms',    'select 1 from public.vehicle_consumption_norms where organization_id = {org}',     1, 0, 0, 0, 0),
@@ -331,6 +339,7 @@ begin
       ('flota_fiscal_luna (rânduri)',  'select 1 from public.flota_fiscal_luna({org}, {luna}::date)',                      4, 0, 2, 2, 2),
       ('flota_fiscal_luna (cu regim)', 'select 1 from public.flota_fiscal_luna({org}, {luna}::date) where regim is not null', 2, 0, 0, 0, 0),
       ('avantaj_natura_flota(E1)',     'select 1 from public.avantaj_natura_flota({org}, {e_e1}, {luna}::date)',          1, 1, 0, 0, 0),
+      ('avantaj_natura_flota(E1) cu valoare', 'select 1 from public.avantaj_natura_flota({org}, {e_e1}, {luna}::date) where valoare_intrare = 60000', 1, 1, 0, 0, 0),
       ('sofer_sugerat(V2)',            'select 1 from public.sofer_sugerat({org}, {v2}, now())',                          1, 0, 0, 0, 0)
     ) as t(eticheta, sql, adm, hr, mgr, e1, e2)
   loop
@@ -433,6 +442,13 @@ begin
       ('INSERT vehicle_incidents',
        'insert into public.vehicle_incidents (organization_id, vehicle_id, tip, produs_la, descriere, created_by, updated_by) values ({org}, {v1}, ''avarie'', now() - interval ''1 day'', ''Probă.'', auth.uid(), auth.uid())',
        'ok:1', '42501', '42501', 'ok:1', 'P0001'),
+      -- 0225: upsert-ul aplicației (`on_conflict`) pe rândul de cost existent.
+      ('UPSERT vehicle_costuri',
+       'insert into public.vehicle_costuri (organization_id, vehicle_id, valoare_achizitie, created_by, updated_by) values ({org}, {v1}, 61000, auth.uid(), auth.uid()) on conflict (vehicle_id) do update set valoare_achizitie = excluded.valoare_achizitie, updated_by = excluded.updated_by',
+       'ok:1', '42501', '42501', '42501', '42501'),
+      ('UPSERT vehicle_document_costuri',
+       'insert into public.vehicle_document_costuri (organization_id, document_id, cost, created_by, updated_by) values ({org}, {d2}, 1300, auth.uid(), auth.uid()) on conflict (document_id) do update set cost = excluded.cost, updated_by = excluded.updated_by',
+       'ok:1', '42501', '42501', '42501', '42501'),
       ('INSERT odometer_anomalies',
        'insert into public.odometer_anomalies (organization_id, vehicle_id, km_asteptat, km_declarat, tip) values ({org}, {v1}, 1, 2, ''salt'')',
        '42501', '42501', '42501', '42501', '42501'),
@@ -445,6 +461,8 @@ begin
       ('UPDATE vehicle_service_plans',        'update public.vehicle_service_plans set updated_by = auth.uid() where organization_id = {org}',        'ok:3', 'ok:0', 'ok:0', 'ok:0', 'ok:0'),
       ('UPDATE vehicle_service_entries',      'update public.vehicle_service_entries set updated_by = auth.uid() where organization_id = {org}',      'ok:3', 'ok:0', 'ok:0', 'ok:0', 'ok:0'),
       ('UPDATE vehicle_expenses',             'update public.vehicle_expenses set updated_by = auth.uid() where organization_id = {org}',             'ok:3', 'ok:0', 'ok:0', 'ok:0', 'ok:0'),
+      ('UPDATE vehicle_costuri',              'update public.vehicle_costuri set updated_by = auth.uid() where organization_id = {org}',              'ok:4', 'ok:0', 'ok:0', 'ok:0', 'ok:0'),
+      ('UPDATE vehicle_document_costuri',     'update public.vehicle_document_costuri set updated_by = auth.uid() where organization_id = {org}',     'ok:4', 'ok:0', 'ok:0', 'ok:0', 'ok:0'),
       ('UPDATE driver_licenses',              'update public.driver_licenses set updated_by = auth.uid() where organization_id = {org}',              'ok:3', 'ok:3', 'ok:0', 'ok:0', 'ok:0'),
       ('UPDATE vehicle_fiscal_regimes',       'update public.vehicle_fiscal_regimes set updated_by = auth.uid() where organization_id = {org}',       'ok:2', 'ok:0', 'ok:0', 'ok:0', 'ok:0'),
       ('UPDATE vehicle_consumption_norms',    'update public.vehicle_consumption_norms set updated_by = auth.uid() where organization_id = {org}',    'ok:1', 'ok:0', 'ok:0', 'ok:0', 'ok:0'),
@@ -473,55 +491,69 @@ begin
     raise notice '  %  %', rpad(r.eticheta, 40), v_linie;
   end loop;
 
-  -- ── DEFECTE CUNOSCUTE, NEREPARATE (ca `it.fails("DEFECT: …")`) ────────────
-  -- Costurile care stau în COLOANE ale unor rânduri pe care rolul are voie să le
-  -- vadă: prima RCA (`vehicle_documents.cost`) și valoarea de achiziție
-  -- (`vehicles.valoare_achizitie`). RLS-ul e pe rând, iar privilegiul pe coloană
-  -- e al rolului Postgres `authenticated`, comun tuturor rolurilor aplicației,
-  -- deci nicio politică nu le poate ascunde doar șoferului. Repararea cere o
-  -- decizie de model (costurile într-o tabelă proprie sau în spatele unei
-  -- funcții), nu o politică.
-  -- Fiecare rând ține valoarea de AZI (`azi_*`) și pe cea intenționată
-  -- (`int_*`). Dacă numărătoarea se schimbă: ori a fost reparat (mută rândul în
-  -- matricea de sus), ori s-a lărgit — amândouă pică proba.
+  -- ── Coloanele vechi ca intrare de compatibilitate (0225 §6) ──────────────
+  -- Până la 0225 aici stăteau DOUĂ DEFECTE: `vehicle_documents.cost` (azi
+  -- 4/0/2/2/2) și `vehicles.valoare_achizitie` (azi 4/0/2/2/2), coloane pe
+  -- rânduri pe care angajatul și managerul (pool) le văd. Mutate în tabelele de
+  -- costuri, le judecă matricea de sus. Aici: aplicația veche (fereastra dintre
+  -- migrare și deploy) scrie încă în coloana veche. Valoarea nenulă ajunge în
+  -- tabela de costuri și coloana rămâne goală; `null` nu golește costul.
   raise notice '  ─────────────────────────────────────────────────────────────────────────────────';
-  raise notice '  %  %  %  %  %  %', rpad('DEFECT cunoscut (azi / intenționat)', 40), lpad('adm', 6), lpad('hr', 6),
-    lpad('mgr', 6), lpad('E1', 6), lpad('E2', 6);
-  for r in
-    select * from (values
-      ('vehicle_documents.cost',
-       'select 1 from public.vehicle_documents where organization_id = {org} and cost is not null',
-       array[4, 0, 2, 2, 2], array[4, 0, 1, 0, 0]),
-      ('vehicles.valoare_achizitie',
-       'select 1 from public.vehicles where organization_id = {org} and valoare_achizitie is not null',
-       array[4, 0, 2, 2, 2], array[4, 0, 1, 0, 0])
-    ) as t(eticheta, sql, azi, intentionat)
-  loop
-    v_linie := '';
-    for i in 1 .. 5 loop
-      v_n := pg_temp.numara(v_useri[i], pg_temp.sub(r.sql, a));
-      v_celule := v_celule + 1;
-      if v_n = r.azi[i] then
-        v_linie := v_linie || lpad(v_n::text || '/' || r.intentionat[i]::text, 6) || '  ';
-      elsif v_n = r.intentionat[i] then
-        v_esecuri := v_esecuri + 1;
-        v_linie := v_linie || lpad('✓?', 6) || '  ';
-        raise warning '  ✗ % sub %: a ajuns la valoarea intenționată (%) — defect reparat, mută rândul în matrice', r.eticheta, v_roluri[i], v_n;
-      else
-        v_esecuri := v_esecuri + 1;
-        v_linie := v_linie || lpad('✗', 6) || '  ';
-        raise warning '  ✗ % sub %: % rânduri (azi %, intenționat %)', r.eticheta, v_roluri[i], v_n, r.azi[i], r.intentionat[i];
-      end if;
-    end loop;
-    raise notice '  %  %', rpad(r.eticheta, 40), v_linie;
-  end loop;
+  v_brut := v_esecuri;
+  v_obtinut := pg_temp.incearca(v_useri[1], pg_temp.sub(
+    'update public.vehicles set valoare_achizitie = 65000, updated_by = auth.uid() where id = {v1}', a));
+  v_rezultat := 'ok:1';
+  v_celule := v_celule + 1;
+  if v_obtinut <> v_rezultat then
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ coloana veche, scrisă de administrator: „%”', v_obtinut;
+  end if;
+  -- `incearca` derulează înapoi; aici scrierea trebuie să rămână, ca să se citească.
+  perform set_config('request.jwt.claim.sub', a->>'u_adm', true);
+  set local role authenticated;
+  update public.vehicles set valoare_achizitie = 65000, updated_by = auth.uid() where id = (a->>'v1')::uuid;
+  update public.vehicles set valoare_achizitie = null, updated_by = auth.uid() where id = (a->>'v2')::uuid;
+  update public.vehicle_documents set cost = 1500, updated_by = auth.uid()
+   where organization_id = (a->>'org')::uuid and vehicle_id = (a->>'vp')::uuid;
+  reset role;
+  v_celule := v_celule + 1;
+  if (select valoare_achizitie from public.vehicle_costuri where vehicle_id = (a->>'v1')::uuid) is distinct from 65000
+     or (select valoare_achizitie from public.vehicle_costuri where vehicle_id = (a->>'v2')::uuid) is distinct from 90000
+     or (select c.cost from public.vehicle_document_costuri c join public.vehicle_documents d on d.id = c.document_id
+          where d.vehicle_id = (a->>'vp')::uuid) is distinct from 1500
+     or exists (select 1 from public.vehicles where organization_id = (a->>'org')::uuid and valoare_achizitie is not null)
+     or exists (select 1 from public.vehicle_documents where organization_id = (a->>'org')::uuid and cost is not null) then
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ coloana veche: valoarea nenulă nu a ajuns în tabela de costuri, null a golit costul sau coloana nu e goală';
+  end if;
+  -- Angajatul nu scrie costuri nici prin coloana veche: `vehicule_update` îl
+  -- filtrează (zero rânduri), deci triggerul nu rulează.
+  v_obtinut := pg_temp.incearca(v_useri[4], pg_temp.sub(
+    'update public.vehicles set valoare_achizitie = 1, updated_by = auth.uid() where id = {v1}', a));
+  v_celule := v_celule + 1;
+  if v_obtinut <> 'ok:0' then
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ coloana veche, scrisă de E1: „%”, intenționat „ok:0”', v_obtinut;
+  end if;
+  -- Plasa de siguranță: fără trigger, coloana veche refuză orice valoare (23514).
+  begin
+    alter table public.vehicles disable trigger vehicles_valoare_in_costuri;
+    update public.vehicles set valoare_achizitie = 1 where id = (a->>'v1')::uuid;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ coloana veche a primit o valoare cu triggerul oprit (CHECK lipsă)';
+  exception when check_violation then
+    null;
+  end;
+  alter table public.vehicles enable trigger vehicles_valoare_in_costuri;
+  v_celule := v_celule + 1;
+  raise notice '  %  %', rpad('coloanele vechi: intrare, null, E1, CHECK', 40), case when v_esecuri = v_brut then 'OK' else '✗' end;
 
   raise notice '  ─────────────────────────────────────────────────────────────────────────────────';
   if v_esecuri > 0 then
     raise exception 'PROBA FLOTA MATRICE: % celule abat de la matricea intenționată (din %)', v_esecuri, v_celule;
   end if;
   raise notice '  TOATE cele % de celule (firma A pe roluri, firma B la zero) se potrivesc;', v_celule;
-  raise notice '  cele două DEFECTE cunoscute (costurile din coloane) rămân deschise.';
+  raise notice '  costurile stau în tabele proprii (0225): niciun defect cunoscut rămas aici.';
   raise notice '';
 end;
 $$;

@@ -14180,6 +14180,102 @@ export type Database = {
           },
         ]
       }
+      vehicle_costuri: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+          valoare_achizitie: number | null
+          vehicle_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+          valoare_achizitie?: number | null
+          vehicle_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          valoare_achizitie?: number | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vc_vehicul_fk"
+            columns: ["vehicle_id"]
+            isOneToOne: true
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_costuri_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_document_costuri: {
+        Row: {
+          cost: number | null
+          created_at: string
+          created_by: string | null
+          document_id: string
+          id: string
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          cost?: number | null
+          created_at?: string
+          created_by?: string | null
+          document_id: string
+          id?: string
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          cost?: number | null
+          created_at?: string
+          created_by?: string | null
+          document_id?: string
+          id?: string
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vdc_document_fk"
+            columns: ["document_id"]
+            isOneToOne: true
+            referencedRelation: "vehicle_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_document_costuri_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicle_document_type_setari: {
         Row: {
           activ: boolean
@@ -15871,6 +15967,25 @@ export type Database = {
       inchide_exercitiu_registru: {
         Args: { p_an: number; p_organization_id: string }
         Returns: string
+      }
+      incidente_declarate_de_mine: {
+        Args: {
+          p_dupa_id?: string | null
+          p_dupa_produs_la?: string
+          p_limita: number
+          p_organization_id: string
+        }
+        Returns: {
+          descriere: string
+          id: string
+          inchis_la: string | null
+          locul: string | null
+          produs_la: string
+          stadiu: Database["public"]["Enums"]["incident_stadiu"]
+          tip: Database["public"]["Enums"]["incident_tip"]
+          total: number
+          vehicle_id: string
+        }[]
       }
       inregistreaza_document_generat: {
         Args: {
