@@ -31,8 +31,8 @@ tabele:
 permisiuni: [vehicle_incidents:create, vehicle_incidents:read, vehicle_fines:read]
 feature: fleet
 capcane: [6, 17, 19, 26]
-scris_pe: 86b1617b51bcb8b9928579708fa301013653945f
-scris_la: 2026-10-22
+scris_pe: 2eb73b5ae86623be53c160e06c06fe67b20fc67d
+scris_la: 2026-10-23
 tags: [modul, operations]
 ---
 
@@ -49,7 +49,7 @@ pe `main` și nu e aplicată nicăieri.
 | Cheia `vehicle_incidents:create = own`, seed pentru `employee` | 0206 §1 (singura cheie de amenzi/incidente în afara admin.)                 |
 | Caseta „Declar un incident” + „Incidentele declarate de mine”  | `/portal/masina-mea` (`?incident=nou` o deschide, `?incidente=` = cursorul) |
 | Acțiunea `declaraIncident` (`create` / own)                    | `src/app/(app)/flota/actions-amenzi.ts`                                     |
-| Citirea `declaratiileMele` (filtru EXPLICIT pe declarant)      | `src/lib/queries/flota-amenzi.ts`                                           |
+| Citirea `declaratiileMele` (`incidente_declarate_de_mine`)     | `src/lib/queries/flota-amenzi.ts`                                           |
 
 **Ce face baza, nu aplicația:** triggerul `internal.incidente_inainte` pune
 `declarat_de_employee_id` și `sofer_id` = `app.fisa_mea` pentru cine are `create` ≠ all și
@@ -61,10 +61,17 @@ cercetarea: le scrie responsabilul. WITH CHECK vede rândul de DUPĂ trigger —
 Declarantul nu se mai schimbă la UPDATE (triggerul îl fixează la valoarea veche). Un
 administrator nu declară în numele altuia (P0001 „Declarantul unui incident…”).
 
-**Ce vede șoferul:** ramura `own` a lui `vehicle_incidents_select` — DOAR rândurile
-declarate de el, cât are încă cheia `create`; nu incidentele colegilor, nu pe cel
-înregistrat de administrator pe mașina lui, nicio amendă. Nu modifică nimic (update = none,
-zero rânduri). O suprascriere pe membru `create = none` îi ia și declararea, și vederea.
+**Ce vede șoferul:** RÂNDUL incidentului deloc — `vehicle_incidents_select` e doar
+`read = all` (pachetul X1: RLS-ul taie rânduri, nu coloane, iar fosta ramură `own` îi
+dădea prin PostgREST costurile, despăgubirea, asigurătorul, dosarul, observațiile și
+cercetarea SSM). Declarațiile lui vin din `public.incidente_declarate_de_mine` (DEFINER):
+doar câmpurile declarației, stadiul și închiderea, cât are încă cheia `create`, după fișa
+PRINCIPALĂ (`app.fisa_mea`); keyset pe (`produs_la`, `id`), iar `total` numără tot. Nu
+incidentele colegilor, nu pe cel înregistrat de administrator pe mașina lui, nicio amendă.
+Nu modifică nimic (update = none, zero rânduri). O suprascriere pe membru `create = none`
+îi ia și declararea, și lista. **De aici: INSERT-ul șoferului nu cere `RETURNING`** —
+`declaraIncident` pune singură id-ul; un `.select()` ar cădea cu 42501 pe fiecare
+declarație.
 
 **Notificarea:** `internal.incidente_notifica` (AFTER INSERT, doar rânduri cu declarant)
 scrie o notificare `warning` cu legătura `/flota/incidente/<id>` către

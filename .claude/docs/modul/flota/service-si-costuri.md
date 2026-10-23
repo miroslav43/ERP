@@ -12,6 +12,7 @@ aliases:
   ]
 cai:
   - "supabase/migrations/0203_flota_service_costuri.sql"
+  - "supabase/migrations/0225_flota_costuri_ascunse.sql"
   - "src/app/(app)/flota/actions-service.ts"
   - "src/app/(app)/flota/etichete-service.ts"
   - "src/app/(app)/flota/[id]/fila-service.tsx"
@@ -24,12 +25,21 @@ cai:
   - "src/lib/queries/fleet-service.ts"
   - "src/schemas/fleet-service.ts"
   - "tests/rls/proba-flota-service.sql"
-tabele: [vehicle_service_plans, vehicle_service_entries, vehicle_expenses, expirables, vehicles]
+tabele:
+  [
+    vehicle_service_plans,
+    vehicle_service_entries,
+    vehicle_expenses,
+    vehicle_costuri,
+    vehicle_document_costuri,
+    expirables,
+    vehicles,
+  ]
 permisiuni: [vehicles:read, vehicles:update]
 feature: fleet
 capcane: [19, 22, 26]
-scris_pe: 0565c75422382af1d1b7b90add18de9556d5e4c1
-scris_la: 2026-10-12
+scris_pe: 2eb73b5ae86623be53c160e06c06fe67b20fc67d
+scris_la: 2026-10-23
 tags: [modul, operations]
 ---
 
@@ -117,6 +127,20 @@ din `pragSaltVehicul` (`[[modul/flota/alerte-si-setari]]`).
   precizează; ștearsă ultima, câștigă cea dinainte, iar fără niciuna vehiculul își
   păstrează valoarea. `anvelope_montate` pe altă intervenție decât „anvelope” dă 23514
   (`vse_anvelope_ck`), spus pe câmp.
+- **Valoarea de achiziție și costul documentelor NU stau pe rândul vizibil** (0225, X1).
+  Erau coloane pe `vehicles` / `vehicle_documents`, rânduri pe care le văd șoferul (mașina
+  lui, pool), managerul (pool) și hr-ul cu mașină (0215): RLS-ul nu taie coloane. Acum
+  stau în `vehicle_costuri` și `vehicle_document_costuri` (1:1, fără `deleted_at`, unic
+  TOTAL pe părinte — `on_conflict` nu poate numi un index parțial, 42P10), citite prin
+  `app.poate_vedea_costurile_vehiculului`: `vehicles:update = all`, sau citirea lui
+  `vex_select` (echipa, fără pool). Restul primește embed-ul `null`, fără eroare; fișa
+  ascunde rândul „Valoare” și coloana „Cost”. Aplicația scrie explicit (insert la creare
+  doar cu valoare, upsert la corectură, și cu `null`, ca golirea să golească).
+- **Coloanele vechi sunt goale, nu aruncate** (aplicația veche le citește până la deploy).
+  O valoare NENULĂ scrisă în ele (aplicația veche, scripturi, fixture-uri) se mută în
+  tabela de costuri în aceeași instrucțiune (BEFORE, cheie străină DEFERRABLE); `null` se
+  ignoră, ca o corectură din aplicația veche să nu șteargă costul mutat. CHECK `is null`
+  e plasa dacă triggerul e oprit (23514). Citirea lor e oprită de `coloane.test.ts`.
 - **Tipul de document `revizie` e retras pe platformă** (0203); documentele deja scrise
   pe el rămân și se corectează; o firmă îl reactivează din setările de tipuri (0202).
 
@@ -125,7 +149,7 @@ din `pragSaltVehicul` (`[[modul/flota/alerte-si-setari]]`).
 Totalul adună patru surse, fiecare cu originea ei, ca nimic să nu fie numărat de două
 ori: service (`cost_total`), combustibilul de pe foile APROBATE, cheltuielile fără foaie
 (inclusiv „combustibil fără foaie”) și costul documentelor cu valabilitatea începută în
-perioadă. Costul pe km și consumul real se împart la kilometrii foilor aprobate din
+perioadă (din `vehicle_document_costuri`, embed `!inner`). Costul pe km și consumul real se împart la kilometrii foilor aprobate din
 aceeași perioadă; fără foi, cifra lipsește (și ecranul spune de ce), nu devine „0 lei/km”.
 Combustibilul fără foaie nu intră în consum: n-are kilometri cu care să fie pereche.
 Adunările trec prin bani întregi (`sumaLei`).
