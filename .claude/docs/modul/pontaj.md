@@ -42,8 +42,8 @@ citeste_daca:
   - "buton de aprobare care nu apare → [[rol/manager]]"
   - "tranziție de perioadă respinsă → [[date/pontaj]]"
   - "zi respinsă pentru contract suspendat → [[modul/reges]]"
-scris_pe: bd516e390b0ca4dbe758079da30184b7288ceeb5
-scris_la: 2026-10-12
+scris_pe: 74c3a9be582e15b5f86f4b3749ebb42143546a56
+scris_la: 2026-10-22
 tags: [modul, hr]
 ---
 
@@ -109,6 +109,32 @@ rol ar fi căpătat un buton care duce la un refuz.
 `attendance_periods` îl creează `internal.pontaj_perioada_lunii` la prima scriere, deci nu
 mai există „lună nedeschisă" care să refuze pontajul. Rândul lipsă se citește într-un singur
 loc, `stareaLunii` (`src/domain/attendance/luna.ts`); singura stare care refuză e `blocata`.
+
+**Blocarea trece printr-o casetă, cu cifre.** `ActiuniPerioada` dă blocarea și
+redeschiderea prin `ButonConfirmare`: caseta spune câte linii rămân neaprobate
+(`numaraLiniiNeaprobate`) și câte zile respinse au rămas necorectate
+(`numaraZileRespinse`) — contoare EXACTE (`count` + `head: true`), fiindcă un
+`.select()` numărat în aplicație s-ar trunchia tăcut la `max_rows`, iar un avertisment
+care spune „1000" când sunt 1400 e un avertisment fals. Excluderile primului contor
+trebuie să rămână identice cu cele ale lui `liniiDeAprobat`, altfel omul vede două cifre
+diferite pentru același lucru. Avertisment, nu poartă:
+acțiunea nu primește niciun steag de confirmare, iar blocarea rămâne permisă. Pe
+`/pontaj/perioade` contoarele se cer doar pentru lunile care SE POT bloca; pe
+`/pontaj/aprobare` liniile sunt deja citite, iar respinsele pleacă doar pentru cine vede
+caseta. „Deschide luna" rămâne directă — nu ia nimic nimănui. Coloana de acțiuni e
+`peTelefon: "actiuni"`, nu `insigna`: un `<dialog>` randat într-un `<p>` cade la hidratare.
+
+**Ziua care nu se pontează.** `refuzulZilei` (`src/domain/attendance/zi-de-pontat.ts`)
+refuză ziua din VIITOR și ziua dinaintea angajării (`employees.hired_on`), pentru TOATE
+scope-urile: pontajul înregistrează ce s-a întâmplat, iar planificarea are drumul ei,
+fișa săptămânii — `scrieSaptamanaInPontaj` scrie legitim zile viitoare din planul
+aprobat, de aceea regula stă în acțiune și nu în vreun CHECK pe tabelă. `hired_on` nul
+sare verificarea angajării: un refuz pe o informație absentă n-ar avea ce să-i spună
+omului. De aici și `fisaDePontat`: fișa pe care se scrie ziua se citește cu clientul
+ADMIN pentru AMBELE scope-uri — pe `own` ca să afle a cui e ziua, pe `all` ca să afle
+`hired_on` — filtrată explicit pe organizație, iar fișa cerută și negăsită e NEGASIT, nu
+o scriere care cade abia pe FK. Refuzul vine ÎNAINTEA citirii setărilor și a zilei
+existente, iar `mesajRefuzZi` scrie textul și pentru ecranele portalului.
 
 ## Varianta de pontaj: pe zi sau pe săptămână
 
@@ -191,7 +217,21 @@ produce un interval pe care `oreleZilei` îl acceptă.
 
 Săptămâna se ancorează în luna din adresă (`an`+`luna`), iar comutatorul completează
 cheia care lipsește în cealaltă direcție — altfel comutarea ar sări în altă perioadă
-decât cea de pe ecran.
+decât cea de pe ecran. Containerele derulabile ale celor trei ecrane sunt `relative`
+(UX-005): spanurile `sr-only` din celule sunt `position: absolute`, iar fără strămoș
+poziționat poziția lor statică, adânc în tabelul lat, întindea PAGINA, nu cutia.
+`overflow` singur nu ajută — decupează doar descendenții al căror bloc conținător e el.
+
+**Ziua respinsă nu intră în totaluri** (`src/domain/attendance/totaluri.ts`:
+`conteazaInTotaluri`, `totalurileZilelor`, `ziDeTotalizat`): respingerea nu șterge ziua,
+fiindcă e declarația omului și el trebuie s-o corecteze, dar până atunci orele ei nu sunt
+ore ale firmei. Adunarea era scrisă separat în foaia colectivă — pe coloană, pe rând și
+în totalul general — și încă o dată în ecranele portalului, iar nicăieri nu se uita la
+respingere; un total din care ziua respinsă iese într-un loc și rămâne în altul e mai rău
+decât unul greșit peste tot, fiindcă cifrele nu se mai pot compara. Ziua NEDECISĂ rămâne
+numărată. Același filtru a ajuns și în agregarea pentru salarizare
+(`0198_agregat_fara_zile_respinse.sql`), ca fluturașul să se potrivească cu foaia, și în
+`numarZilePontatePerioada`, avertismentul de pe ciorna de stat.
 
 ## Unde duce fiecare nume
 
@@ -237,6 +277,16 @@ ziua doar în CORPUL notificării — `ziuaRomaneascaDinText` (`domain/attendanc
 o scoate, ca linkul să deschidă săptămâna numită, nu implicita ecranului. Respingerea unei
 zile duce la ZIUA de corectat, `/portal/pontajul-meu/zi/<data>` (`anuntaRespingereaZilei`),
 nu la luna ei.
+
+**Aprobarea are și ea veste** (`anunta-aprobarea.ts`): până atunci angajatul afla doar de
+zilele respinse, iar cele aprobate se schimbau tăcut în portal. `anuntaAprobareaZilei`
+duce în aceeași zi ca respingerea; `anuntaAprobareaZilelor` scrie UN rând per angajat, cu
+numărul lui de zile și luna, `/portal/pontajul-meu?an=&luna=` — un manager care aprobă
+luna echipei dintr-o apăsare n-are voie să trimită o notificare per zi. Amândouă sunt
+best-effort și nu aruncă niciodată: decizia e scrisă în bază înainte să se ajungă la ele,
+deci o notificare picată n-o dă înapoi. Cât din veste a plecat iese în rezultatul
+acțiunii (`anuntat` pe zi, `anuntati` pe lot) și se spune pe ecran: fișele fără cont nu
+primesc nimic, iar un „aprobat" care tace despre asta e jumătate de adevăr.
 
 ## Ce refuză baza tăcut
 
