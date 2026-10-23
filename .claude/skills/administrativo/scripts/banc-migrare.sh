@@ -35,7 +35,20 @@ case "$URL" in
     exit 3 ;;
 esac
 
-curat() { [ -n "$CONTAINER" ] && [ "$PASTREAZA" -eq 0 ] && docker rm -f "$CONTAINER" >/dev/null 2>&1; }
+# Ieșirile psql (eroarea migrării, izolarea, proba) stau într-un director AL
+# ACESTEI RULĂRI, nu în `/tmp/banc.err` & co. Căile fixe erau comune tuturor
+# bancurilor de pe mașină: cu mai mulți agenți în paralel, fiecare `psql … 2>`
+# trunchia fișierul celuilalt, iar la un eșec simultan coada afișată sub „✗"
+# putea fi eroarea altui banc — sau a unei probe care trecuse. Containerul avea
+# deja PID-ul în nume; fișierele, nu.
+LUCRU="$(mktemp -d "${TMPDIR:-/tmp}/banc-$$.XXXXXX")" || {
+  echo "banc: nu pot crea directorul temporar"; exit 3; }
+ERR="$LUCRU/err"; IZO="$LUCRU/izo"; PROBA="$LUCRU/proba"
+
+curat() {
+  [ -n "$CONTAINER" ] && [ "$PASTREAZA" -eq 0 ] && docker rm -f "$CONTAINER" >/dev/null 2>&1
+  rm -rf -- "$LUCRU"
+}
 trap curat EXIT
 
 if [ -z "$URL" ]; then
@@ -81,8 +94,8 @@ N=0
 for f in supabase/migrations/*.sql; do
   N=$((N+1))
   printf "  %-52s" "$(basename "$f")"
-  if psql "$URL" -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null 2>/tmp/banc.err; then echo "✓"
-  else echo "✗"; echo "── eroare ──"; tail -20 /tmp/banc.err; exit 1; fi
+  if psql "$URL" -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null 2>"$ERR"; then echo "✓"
+  else echo "✗"; echo "── eroare ──"; tail -20 "$ERR"; exit 1; fi
 done
 echo "  $N migrări aplicate"
 
@@ -91,15 +104,15 @@ B=0
 for b in scripts/checks/security-definer.sql scripts/checks/policies-explain.sql scripts/checks/rls-enabled.sql; do
   B=$((B+1))
   printf "  Bariera %s %-38s" "$B" "$(basename "$b")"
-  if psql "$URL" -v ON_ERROR_STOP=1 -q -f "$b" >/dev/null 2>/tmp/banc.err; then echo "✓"
-  else echo "✗"; tail -20 /tmp/banc.err; exit 2; fi
+  if psql "$URL" -v ON_ERROR_STOP=1 -q -f "$b" >/dev/null 2>"$ERR"; then echo "✓"
+  else echo "✗"; tail -20 "$ERR"; exit 2; fi
 done
 
 echo "▶ izolarea între tenanți"
-if psql "$URL" -v ON_ERROR_STOP=1 -f tests/rls/izolare.sql >/tmp/banc.izo 2>&1; then
-  grep -c '✓' /tmp/banc.izo | xargs printf "  %s verificări trecute ✓\n"
+if psql "$URL" -v ON_ERROR_STOP=1 -f tests/rls/izolare.sql >"$IZO" 2>&1; then
+  grep -c '✓' "$IZO" | xargs printf "  %s verificări trecute ✓\n"
 else
-  echo "  ✗"; tail -30 /tmp/banc.izo; exit 2
+  echo "  ✗"; tail -30 "$IZO"; exit 2
 fi
 
 # Probele pe module. Fiecare își numără singură eșecurile și încheie cu
@@ -113,9 +126,16 @@ echo "▶ probele pe module"
 shopt -s nullglob
 for p in tests/rls/proba-*.sql; do
   printf "  %-46s" "$(basename "$p")"
-  if psql "$URL" -v ON_ERROR_STOP=1 -f "$p" >/tmp/banc.proba 2>&1; then echo "✓"
-  else echo "✗"; tail -30 /tmp/banc.proba; exit 2; fi
+  if psql "$URL" -v ON_ERROR_STOP=1 -f "$p" >"$PROBA" 2>&1; then echo "✓"
+  else echo "✗"; tail -30 "$PROBA"; exit 2; fi
 done
 
 echo "▶ TOT VERDE: $N migrări · 3/3 bariere · izolare · probe"
+# Cu `--pastreaza`, URL-ul EXACT al acestui banc. `docker ps --filter
+# name=administrativo-banc | head -1` alege orice banc de pe mașină — cu agenți
+# în paralel, tipurile s-ar genera din baza altcuiva.
+if [ "$PASTREAZA" -eq 1 ]; then
+  echo "  păstrat: ${CONTAINER:-(--url dat)} · $URL"
+  [ -n "$CONTAINER" ] && echo "  oprire: docker rm -f $CONTAINER"
+fi
 exit 0
