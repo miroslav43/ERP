@@ -81,27 +81,34 @@ describe("construiesteArticole — separarea TVA-ului, pe bani întregi", () => 
     ]);
   });
 
-  it("invariantul pe 10.000 de totaluri (0,01 … 100,00 lei), ambele regimuri și ambele tratamente", () => {
-    const linii = Array.from({ length: 10_000 }, (_, i) => i + 1);
-    for (const regim of ["integral", "limitat_50"] as const) {
-      for (const tvaNedeductibila of ["pe_cheltuiala", "cont_separat"] as const) {
-        const r = construiesteArticole(
-          linii.map((total, i) =>
-            linie({ id: idTest(i + 1), totalBani: total, regimDeclarat: regim }),
-          ),
-          configurare({ tvaNedeductibila }),
-          FIRMA,
-        );
-        expect(r.incluse).toHaveLength(10_000);
-        for (const { linie: l, articole } of r.incluse) {
-          expect(articole.reduce((s, a) => s + a.sumaBani, 0)).toBe(l.totalBani);
-          for (const a of articole) expect(a.sumaBani).toBeGreaterThan(0);
+  // Limita proprie, nu cea de 5 s: 40.000 de linii și ~160.000 de `expect`,
+  // ~1 s pe mașina liberă, dar 5,2 s pe runner-ul încărcat (staging 39970781251).
+  // Invariantul nu se micșorează: tocmai acoperirea plajei întregi e rostul lui.
+  it(
+    "invariantul pe 10.000 de totaluri (0,01 … 100,00 lei), ambele regimuri și ambele tratamente",
+    { timeout: 30_000 },
+    () => {
+      const linii = Array.from({ length: 10_000 }, (_, i) => i + 1);
+      for (const regim of ["integral", "limitat_50"] as const) {
+        for (const tvaNedeductibila of ["pe_cheltuiala", "cont_separat"] as const) {
+          const r = construiesteArticole(
+            linii.map((total, i) =>
+              linie({ id: idTest(i + 1), totalBani: total, regimDeclarat: regim }),
+            ),
+            configurare({ tvaNedeductibila }),
+            FIRMA,
+          );
+          expect(r.incluse).toHaveLength(10_000);
+          for (const { linie: l, articole } of r.incluse) {
+            expect(articole.reduce((s, a) => s + a.sumaBani, 0)).toBe(l.totalBani);
+            for (const a of articole) expect(a.sumaBani).toBeGreaterThan(0);
+          }
+          expect(r.totalDebitBani).toBe(r.totalCreditBani);
+          expect(r.totalDebitBani).toBe((10_000 * 10_001) / 2);
         }
-        expect(r.totalDebitBani).toBe(r.totalCreditBani);
-        expect(r.totalDebitBani).toBe((10_000 * 10_001) / 2);
       }
-    }
-  });
+    },
+  );
 
   it("baza din total, pe întregi: rotunjirea aritmetică a lui total / 1,21", () => {
     expect(bazaDinTotal(10_000, 21)).toBe(8264);
