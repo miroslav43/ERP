@@ -155,6 +155,15 @@ as $$
 declare
   v_straini integer;
 begin
+  -- Y2: garda de firmă, prima. Triggerul rulează înaintea WITH CHECK, iar
+  -- căutarea responsabililor se face în firma RÂNDULUI: pe un rând pus pe firma
+  -- B, angajatul de acolo trecea (apoi 42501), cel inexistent primea P0001.
+  if not app.is_service_context()
+     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a modifica setările flotei în această organizație.';
+  end if;
+
   if tg_op = 'UPDATE' and new.organization_id is distinct from old.organization_id then
     raise exception using errcode = 'P0001',
       message = 'Setările flotei nu se mută pe altă organizație.';

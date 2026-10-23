@@ -299,6 +299,15 @@ security definer
 set search_path = ''
 as $$
 begin
+  -- Y2: garda de firmă, prima: vehiculul și șoferul se caută în firma RÂNDULUI,
+  -- înaintea WITH CHECK, deci pe un rând pus pe firma B cel care există acolo
+  -- trecea (apoi 42501), iar cel inexistent primea P0001.
+  if not app.is_service_context()
+     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a scrie carduri de combustibil în această organizație.';
+  end if;
+
   if tg_op = 'UPDATE' then
     if new.organization_id is distinct from old.organization_id
        or new.emitent is distinct from old.emitent then
@@ -535,6 +544,16 @@ declare
   v_vehicul uuid;
   v_strain  constant text := 'Tranzacția face trimitere la o înregistrare din altă organizație.';
 begin
+  -- Y2: garda de firmă, prima. Gărzile de la (1) caută importul, cardul,
+  -- alimentarea, foaia și vehiculul în firma RÂNDULUI, înaintea WITH CHECK: pe
+  -- un rând pus pe firma B, id-ul care există acolo trecea (apoi 42501), cel
+  -- inexistent primea P0001.
+  if not app.is_service_context()
+     and not (v_org = any ((select app.current_org_ids())::uuid[])) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a scrie tranzacțiile cardurilor în această organizație.';
+  end if;
+
   -- 3. Imutabilitatea extrasului: se schimbă doar potrivirea, nota, categoria
   --    și ștergerea logică. Un extras greșit se anulează și se reimportă.
   if tg_op = 'UPDATE' then

@@ -166,6 +166,14 @@ create or replace function internal.vdoc_inainte()
 returns trigger language plpgsql security definer set search_path = '' as $$
 declare v_org uuid;
 begin
+  -- Y2: garda de firmă, prima: pe un rând pus pe firma B, vehiculul de acolo
+  -- trecea (apoi 42501 de la politică), cel inexistent primea P0001.
+  if not app.is_service_context()
+     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a scrie documentele vehiculelor în această organizație.';
+  end if;
+
   select v.organization_id into v_org from public.vehicles v
    where v.id = new.vehicle_id and v.deleted_at is null;
   if v_org is null or v_org <> new.organization_id then

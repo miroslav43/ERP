@@ -290,6 +290,15 @@ declare
   v_d   date;
   v_k   integer;
 begin
+  -- Y2: garda de firmă, prima. `flota_vehicul_al_firmei` caută în firma
+  -- RÂNDULUI, înaintea WITH CHECK: pe un rând pus pe firma B, vehiculul de acolo
+  -- trecea (apoi 42501), cel inexistent primea P0001.
+  if not app.is_service_context()
+     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a scrie planuri de service în această organizație.';
+  end if;
+
   if tg_op = 'UPDATE' then
     if new.organization_id is distinct from old.organization_id
        or new.vehicle_id is distinct from old.vehicle_id then
@@ -432,6 +441,13 @@ as $$
 declare
   v_plan public.vehicle_service_plans%rowtype;
 begin
+  -- Y2: garda de firmă, prima (vehiculul și planul se caută în firma rândului).
+  if not app.is_service_context()
+     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a scrie intervenții de service în această organizație.';
+  end if;
+
   if tg_op = 'UPDATE' then
     -- Doar ștergerea logică și textele libere se schimbă după inserare.
     if (new.organization_id, new.vehicle_id, new.plan_id, new.data_interventiei, new.km, new.tip,
@@ -529,6 +545,13 @@ security definer
 set search_path = ''
 as $$
 begin
+  -- Y2: garda de firmă, prima (vehiculul se caută în firma rândului).
+  if not app.is_service_context()
+     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a scrie cheltuielile vehiculelor în această organizație.';
+  end if;
+
   if tg_op = 'UPDATE' then
     if (new.organization_id, new.vehicle_id) is distinct from (old.organization_id, old.vehicle_id) then
       raise exception using errcode = 'P0001',

@@ -363,6 +363,17 @@ declare
   v_inceput timestamptz;
   v_sfarsit timestamptz;
 begin
+  -- Y2: garda de firmă, prima, înaintea lacătului și a căutărilor. Pe un rând
+  -- pus pe firma B, vehiculul de acolo trecea de gărzi (apoi 42501), iar
+  -- refuzurile spuneau dacă e în pool, ieșit din parc, alocat sau cu foaie.
+  -- Ocolirea e doar contextul de serviciu: steagul `app.flota_rezervari_sistem`
+  -- îl pun funcțiile bazei pe rânduri ale firmei apelantului.
+  if not app.is_service_context()
+     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a scrie rezervări de vehicule în această organizație.';
+  end if;
+
   perform pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended('flota:vehicul:' || new.vehicle_id::text, 0));
   v_eu := app.current_employee_id(new.organization_id);
@@ -780,6 +791,16 @@ as $$
 declare
   v_prima date;
 begin
+  -- Y2: garda de firmă, prima. Rezervările se caută pe vehicul, fără firmă:
+  -- pe un rând pus pe firma B, mesajul dădea ziua primei rezervări de acolo.
+  -- Primul BEFORE pe `vehicle_assignments` e `alocari_inainte`, cu aceeași
+  -- gardă din 0233; aici rămâne pentru cazul în care ordinea se schimbă.
+  if not app.is_service_context()
+     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a aloca vehicule în această organizație.';
+  end if;
+
   if new.deleted_at is not null then
     return new;
   end if;
