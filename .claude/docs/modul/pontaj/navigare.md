@@ -9,6 +9,7 @@ cai:
   - "src/app/(app)/pontaj/sectiune-saptamana.tsx"
   - "src/app/(app)/pontaj/alerta-absente.tsx"
   - "src/app/(app)/pontaj/anunta-respingerea.ts"
+  - "src/app/(app)/pontaj/anunta-aprobarea.ts"
   - "src/app/(app)/pontaj/aprobare/**"
   - "src/app/(app)/pontaj/perioade/**"
   - "src/app/(app)/pontaj/arhiva/**"
@@ -81,3 +82,29 @@ ziua doar în CORPUL notificării — `ziuaRomaneascaDinText` (`domain/attendanc
 o scoate, ca linkul să deschidă săptămâna numită, nu implicita ecranului. Respingerea unei
 zile duce la ZIUA de corectat, `/portal/pontajul-meu/zi/<data>` (`anuntaRespingereaZilei`),
 nu la luna ei.
+
+**Aprobarea are și ea veste** (`anunta-aprobarea.ts`): până atunci angajatul afla doar de
+zilele respinse, iar cele aprobate se schimbau tăcut în portal. `anuntaAprobareaZilei`
+duce în aceeași zi ca respingerea; `anuntaAprobareaZilelor` scrie UN rând per angajat, cu
+numărul lui de zile și luna, `/portal/pontajul-meu?an=&luna=` — un manager care aprobă
+luna echipei dintr-o apăsare n-are voie să trimită o notificare per zi. Amândouă sunt
+best-effort și nu aruncă niciodată: decizia e scrisă în bază înainte să se ajungă la ele,
+deci o notificare picată n-o dă înapoi. Cât din veste a plecat iese în rezultatul
+acțiunii (`anuntat` pe zi, `anuntati` pe lot) și se spune pe ecran: fișele fără cont nu
+primesc nimic, iar un „aprobat" care tace despre asta e jumătate de adevăr.
+
+## Blocarea lunii: caseta cu cifre
+
+**Blocarea trece printr-o casetă, cu cifre.** `ActiuniPerioada` dă blocarea și
+redeschiderea prin `ButonConfirmare`: caseta spune câte linii rămân neaprobate
+(`numaraLiniiNeaprobate`) și câte zile respinse au rămas necorectate
+(`numaraZileRespinse`) — contoare EXACTE (`count` + `head: true`), fiindcă un
+`.select()` numărat în aplicație s-ar trunchia tăcut la `max_rows`, iar un avertisment
+care spune „1000" când sunt 1400 e un avertisment fals. Excluderile primului contor
+trebuie să rămână identice cu cele ale lui `liniiDeAprobat`, altfel omul vede două cifre
+diferite pentru același lucru. Avertisment, nu poartă:
+acțiunea nu primește niciun steag de confirmare, iar blocarea rămâne permisă. Pe
+`/pontaj/perioade` contoarele se cer doar pentru lunile care SE POT bloca; pe
+`/pontaj/aprobare` liniile sunt deja citite, iar respinsele pleacă doar pentru cine vede
+caseta. „Deschide luna" rămâne directă — nu ia nimic nimănui. Coloana de acțiuni e
+`peTelefon: "actiuni"`, nu `insigna`: un `<dialog>` randat într-un `<p>` cade la hidratare.

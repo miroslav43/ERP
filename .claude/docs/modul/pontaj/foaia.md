@@ -16,6 +16,8 @@ cai:
   - "src/app/(app)/pontaj/file-pontaj.ts"
   - "src/domain/attendance/sediu.ts"
   - "src/domain/attendance/grila-orara.ts"
+  - "src/domain/attendance/totaluri.ts"
+  - "src/domain/attendance/zi-de-pontat.ts"
   - "src/lib/queries/attendance.ts"
 tabele: [attendance_entries, puncte_lucru]
 permisiuni: [attendance:read, attendance:create, departments:read, departments:update, leave:read]
@@ -86,7 +88,33 @@ produce un interval pe care `oreleZilei` îl acceptă.
 
 Săptămâna se ancorează în luna din adresă (`an`+`luna`), iar comutatorul completează
 cheia care lipsește în cealaltă direcție — altfel comutarea ar sări în altă perioadă
-decât cea de pe ecran.
+decât cea de pe ecran. Containerele derulabile ale celor trei ecrane sunt `relative`
+(UX-005): spanurile `sr-only` din celule sunt `position: absolute`, iar fără strămoș
+poziționat poziția lor statică, adânc în tabelul lat, întindea PAGINA, nu cutia.
+`overflow` singur nu ajută — decupează doar descendenții al căror bloc conținător e el.
+
+**Ziua respinsă nu intră în totaluri** (`src/domain/attendance/totaluri.ts`:
+`conteazaInTotaluri`, `totalurileZilelor`, `ziDeTotalizat`): respingerea nu șterge ziua,
+fiindcă e declarația omului și el trebuie s-o corecteze, dar până atunci orele ei nu sunt
+ore ale firmei. Adunarea era scrisă separat în foaia colectivă — pe coloană, pe rând și
+în totalul general — și încă o dată în ecranele portalului, iar nicăieri nu se uita la
+respingere; un total din care ziua respinsă iese într-un loc și rămâne în altul e mai rău
+decât unul greșit peste tot, fiindcă cifrele nu se mai pot compara. Ziua NEDECISĂ rămâne
+numărată. Același filtru a ajuns și în agregarea pentru salarizare
+(`0198_agregat_fara_zile_respinse.sql`), ca fluturașul să se potrivească cu foaia, și în
+`numarZilePontatePerioada`, avertismentul de pe ciorna de stat.
+
+**Ziua care nu se pontează.** `refuzulZilei` (`src/domain/attendance/zi-de-pontat.ts`)
+refuză ziua din VIITOR și ziua dinaintea angajării (`employees.hired_on`), pentru TOATE
+scope-urile: pontajul înregistrează ce s-a întâmplat, iar planificarea are drumul ei,
+fișa săptămânii — `scrieSaptamanaInPontaj` scrie legitim zile viitoare din planul
+aprobat, de aceea regula stă în acțiune și nu în vreun CHECK pe tabelă. `hired_on` nul
+sare verificarea angajării: un refuz pe o informație absentă n-ar avea ce să-i spună
+omului. De aici și `fisaDePontat`: fișa pe care se scrie ziua se citește cu clientul
+ADMIN pentru AMBELE scope-uri — pe `own` ca să afle a cui e ziua, pe `all` ca să afle
+`hired_on` — filtrată explicit pe organizație, iar fișa cerută și negăsită e NEGASIT, nu
+o scriere care cade abia pe FK. Refuzul vine ÎNAINTEA citirii setărilor și a zilei
+existente, iar `mesajRefuzZi` scrie textul și pentru ecranele portalului.
 
 ## Sediul zilei: scanat ≠ declarat
 
