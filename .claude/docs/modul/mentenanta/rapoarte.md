@@ -35,7 +35,7 @@ citeste_daca:
   - "o cifră din raport pare prea mică sau „—” → „Ce refuză baza tăcut”"
   - "„la timp”, disponibilitatea sau MTBF nu se potrivesc cu socoteala de mână → „Cum se calculează”"
   - "CSV-ul diferă de ecran → „Exportul”"
-scris_pe: 9db525aeb5cc48094f85f4fe37b4a424e68ed3f8
+scris_pe: b7a0575f273fdf672d77aa3420bcc140317ea9b9
 scris_la: 2026-10-23
 tags: [modul, operations]
 ---

@@ -39,7 +39,7 @@ tabele:
 permisiuni: [vehicles:read, vehicles:update]
 feature: fleet
 capcane: [19, 22, 26]
-scris_pe: 9db525aeb5cc48094f85f4fe37b4a424e68ed3f8
+scris_pe: b7a0575f273fdf672d77aa3420bcc140317ea9b9
 scris_la: 2026-10-23
 tags: [modul, operations]
 ---
@@ -150,8 +150,14 @@ din `pragSaltVehicul` (`[[modul/flota/alerte-si-setari]]`).
   unui rând al altei firme, WITH CHECK trecea pe rândul propus, iar costul străin era
   rescris. Acum un id care EXISTĂ golește coloana fără mutare, `do update` atinge doar
   rândul aceleiași firme (altfel P0001), iar `vc_inainte` / `vdc_inainte` verifică firma
-  părintelui și cu steagul `app.flota_cost_mutat` pus. Proba:
+  părintelui și cu steagul `app.flota_cost_mutat` pus. Garda de firmă e PRIMA în ele: un
+  rând pe firma altcuiva ia 42501 orice id ar purta (fără sondă de existență). Proba:
   `proba-costuri-compatibilitate.sql` (1).
+- **Inserarea costului cere `vehicles:update = all`**; `create = all` singur o face DOAR
+  pe vehiculul / documentul creat de el (`app.vehicul_creat_de_apelant`,
+  `app.document_creat_de_apelant`), adică valoarea inițială. Corectura (`do update`) îi
+  rămâne refuzată. Altfel un membru cu `create` fără `update` scria valoarea oricărui
+  vehicul existent fără rând de cost (revizia, constatarea k). Proba: (1l).
 - **Tipul de document `revizie` e retras pe platformă** (0203); documentele deja scrise
   pe el rămân și se corectează; o firmă îl reactivează din setările de tipuri (0202).
 

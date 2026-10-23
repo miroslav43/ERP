@@ -44,7 +44,7 @@ citeste_daca:
   - "casarea sau ștergerea unui utilaj e refuzată → „Ce refuză baza tăcut”"
   - "un responsabil-angajat nu-și vede utilajul sau nu poate citi contorul → „Responsabilul”"
   - "o parte din citirile în lot intră și restul nu → „Server Actions”"
-scris_pe: 9db525aeb5cc48094f85f4fe37b4a424e68ed3f8
+scris_pe: b7a0575f273fdf672d77aa3420bcc140317ea9b9
 scris_la: 2026-10-23
 tags: [modul, operations]
 ---
@@ -188,8 +188,10 @@ acțiune): la lot decide politica de INSERT, nu harta de permisiuni.
   fără eroare. O scrie doar `update = all`: gestionarul pe `team` nu primește câmpul, iar o
   valoare trimisă totuși de el e INTERZIS în acțiune, 42501 în bază. Coloana veche e
   goală, cu CHECK `is null`; o valoare nenulă scrisă în ea se mută (trigger BEFORE), fără
-  defectul de upsert al lui 0225 (`[[modul/flota/service-si-costuri]]`). Probele:
-  `proba-costuri-compatibilitate.sql` (2), `proba-migrari-pe-date.sql` (12).
+  defectul de upsert al lui 0225 (`[[modul/flota/service-si-costuri]]`). `ec_inainte`
+  pune garda de firmă PRIMA: un rând pe firma altcuiva ia 42501 orice id ar purta, fără
+  sondă „există echipamentul X acolo?”. Probele: `proba-costuri-compatibilitate.sql` (2),
+  `proba-migrari-pe-date.sql` (12).
 - **Exportul CSV** e un eveniment de audit (`log_audit_event`, `equipment`), plafonat la
   `MAX_RANDURI` din lista filtrată — iar faptul că a tăiat intră în audit ca `trunchiat`,
   fiindcă în fișier nu se vede.
