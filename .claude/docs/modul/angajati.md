@@ -29,6 +29,7 @@ capcane: [10, 11, 22, 30]
 citeste_daca:
   - "CNP/IBAN care nu se văd → [[rol/hr]]"
   - "coloană inexistentă la SELECT → [[date/pontaj]]"
+  - "importul din Excel, `import_uploads`, refuzul identic pentru fișa din altă firmă → [[modul/angajati/import-si-sonde]]"
 scris_pe: 6b8c5b371c99ccd786400dc3dbe8b901117c36c8
 scris_la: 2026-10-09
 tags: [modul, hr, nucleu]

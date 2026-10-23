@@ -21,12 +21,14 @@ cai:
   - "src/schemas/fleet-carduri.ts"
   - "src/lib/import/csv.ts"
   - "tests/rls/proba-flota-carduri.sql"
+  - "src/lib/import/incarcare.ts"
 tabele:
   [
     fuel_cards,
     fuel_card_import_profiles,
     fuel_card_imports,
     fuel_card_transactions,
+    import_uploads,
     expirables,
     fuel_entries,
     trip_sheets,
@@ -68,9 +70,16 @@ managerul (cardurile echipei, ale pool-ului), dar NU tranzacțiile.
 
 Importul urmează tiparul celui de angajați: URL semnat → analiza (citește, potrivește,
 urcă lotul JSON, NU scrie în bază) → aplicarea în felii, cu potrivirea RECALCULATĂ pe datele
-de atunci. Sursa (cu numere întregi de card) se șterge la PRIMA analiză, cu clientul admin
-pe calea verificată sub prefix; o re-analiză după pasul de mapare re-urcă fișierul cu alt
-`batchId`. Calea: `{org}/vehicles/{batchId}/…` (`prefixExtrasCard`, `src/lib/documents/cale.ts`).
+de atunci. Sursa (cu numere întregi de card) se șterge la PRIMA analiză, cu clientul admin;
+o re-analiză după pasul de mapare re-urcă fișierul cu alt `batchId`. Calea:
+`{org}/vehicles/{batchId}/…` (`prefixExtrasCard`, `src/lib/documents/cale.ts`).
+
+**Lotul e emis de server** (X2, `import_uploads` din 0226, `src/lib/import/incarcare.ts`):
+pregătirea înregistrează `batchId` și calea ÎNAINTEA URL-ului semnat; analiza consumă rândul
+(o dată, doar creatorul, doar pe calea înregistrată, UPDATE cu `.select()`) și abia apoi
+șterge; aplicarea cere un lot al apelantului deja analizat. Prefixul singur nu ajungea: un
+`batchId` egal cu id-ul unui vehicul ștergea orice .csv/.xlsx din folderul lui. Importul de
+angajați are aceeași poartă, pe `employees`.
 
 ## Citiri
 
@@ -103,6 +112,10 @@ din parc), după `vehicles.data_iesire` din context.
   rând. `repotrivesteTranzactii` o ELIBEREAZĂ întâi (altfel 23505 la fiecare reîncercare);
   importul care o găsește legată între timp scrie tranzacția „fără alimentare”, nu o
   numără tăcut ca duplicat (doar `fctx_dedup_uq` e duplicat).
+- **Repotrivirea e ATOMICĂ** (X2): toată lista de scrieri pleacă într-un singur
+  `rpc("repotriveste_tranzactii_card")` (0214 §11b, INVOKER, în ordinea dată, doar coloanele
+  potrivirii). Un rând refuzat (anulat între timp, 23505) derulează tot: luna rămâne cum era,
+  nu pe jumătate „fără alimentare”.
 - **O celulă peste tipul coloanei** (km în `integer`, preț în `numeric(12,4)`, valoare în
   `numeric(14,2)`) ar trece de previzualizare și ar pica felia întreagă pe 22003: analiza
   golește km-ul și prețul și respinge rândul cu valoare absurdă.
