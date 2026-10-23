@@ -12,6 +12,8 @@ cai:
   - "src/app/(app)/flota/incarcare-fisier-flota.tsx"
   - "src/domain/fleet/tipuri-document.ts"
   - "src/domain/fleet/fisiere.ts"
+  - "supabase/migrations/0202_flota_tipuri_si_fisiere.sql"
+  - "tests/rls/proba-flota-tipuri-fisiere.sql"
 tabele:
   [
     vehicle_document_types,
@@ -84,6 +86,13 @@ triggerele cer calea în folderul entității (P0001). Trei pași în `actions-f
 (semnare pe clientul omului → urcare → `masoaraObiectul` + UPDATE cu `.select()`);
 `IncarcareFisierFlota` e caseta comună fișei și foii (și în portal). Linkurile se
 semnează pe server (`urlSemnateFlota`): cine n-are voie vede „indisponibil”, nu un link.
+
+## Ce refuză baza tăcut
+
+- **Tipul de document se judecă pe setarea FIRMEI** (0202): un tip de platformă retras
+  pentru ea dă P0001 la un document nou, iar unul retras din platformă (transportul, 0116) trece dacă firma l-a activat. Calea scanării și a bonului trebuie să stea în
+  folderul entității (P0001); bonul se urcă doar pe ciornă. Proba:
+  `tests/rls/proba-flota-tipuri-fisiere.sql`.
 
 ## Erori traduse
 
