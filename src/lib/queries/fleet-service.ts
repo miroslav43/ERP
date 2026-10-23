@@ -250,9 +250,13 @@ interface RandFoaie {
   readonly km_parcursi: number | null;
   readonly alimentari: readonly { readonly litri: number; readonly cost: number | null }[];
 }
+/**
+ * Costul documentului, din `vehicle_document_costuri` (0225, X1), încorporat
+ * `!inner` sub RLS-ul costurilor: documentul fără rând de cost vizibil nu intră.
+ */
 interface RandDocument {
   readonly id: string;
-  readonly cost: number | null;
+  readonly costuri: Readonly<{ cost: number | null }>;
 }
 
 /**
@@ -264,7 +268,8 @@ interface RandDocument {
  * ca lista de id-uri a foilor să nu ajungă într-un `.in()` cât o carte.
  *
  * `cuFoi` = cititorul are `trip_sheets:read = all`. Service-ul, cheltuielile și
- * documentele se citesc sub `vehicles:read >= team` + vehicul vizibil, adică
+ * costul documentelor (`vehicle_document_costuri`, 0225) se citesc sub
+ * `vehicles:read >= team` + vehiculul echipei, fără pool, adică
  * COMPLETE pentru orice vehicul pe care îl deschizi; foile și alimentările se
  * citesc sub `trip_sheets:read`, iar la `team` RLS le taie TĂCUT la șoferii
  * echipei. Un cost pe km împărțit la kilometri parțiali iese umflat, fără
@@ -336,11 +341,11 @@ export async function costuriVehicul(
       (dupa, pas) => {
         let q = db
           .from("vehicle_documents")
-          .select("id, cost")
+          .select("id, costuri:vehicle_document_costuri!inner(cost)")
           .eq("organization_id", organizationId)
           .eq("vehicle_id", vehiculId)
           .is("deleted_at", null)
-          .not("cost", "is", null)
+          .not("costuri.cost", "is", null)
           .not("valabil_de_la", "is", null)
           .lte("valabil_de_la", panaLa);
         if (deLa !== null) q = q.gte("valabil_de_la", deLa);
@@ -358,7 +363,7 @@ export async function costuriVehicul(
   const alimentari = foi.flatMap((f) => f.alimentari);
   const litriFoi = sumaLei(alimentari.map((a) => a.litri));
   const costCombustibil = sumaLei(alimentari.map((a) => a.cost));
-  const documenteTotal = sumaLei(documente.map((d) => d.cost));
+  const documenteTotal = sumaLei(documente.map((d) => d.costuri.cost));
 
   const total = costTotal({
     service: serviceTotal,

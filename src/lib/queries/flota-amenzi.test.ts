@@ -84,42 +84,63 @@ describe("rezumatAmenzi", () => {
   });
 });
 
-// 0206 §F: „Incidentele declarate de mine” din portal. Filtrul pe declarant e
-// EXPLICIT: un administrator-șofer (`read = all`) ar vedea altfel tot parcul.
+// 0206 §F: „Incidentele declarate de mine” din portal. (X1) Șoferul nu mai
+// citește RÂNDUL incidentului: acolo stau costul estimat și final, despăgubirea,
+// asigurătorul, dosarul, observațiile interne și cercetarea SSM. Citirea trece
+// prin `incidente_declarate_de_mine`, care întoarce doar declarația.
 describe("declaratiileMele", () => {
-  const FISA = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
-
-  it("filtrează pe firmă, pe declarant și pe nesterse, pe listă și pe numărătoare", async () => {
-    db.raspunde("vehicle_incidents", "select", { data: [] });
-    db.raspunde("vehicle_incidents", "select", { data: null, count: 0 });
-
-    const r = await declaratiileMele(ORG_ID, FISA, { cursor: null, limita: 10 });
-
-    expect(r).toEqual({ randuri: [], urmatorulCursor: null, total: 0 });
-    const apeluri = db.apeluriPe("vehicle_incidents", "select");
-    expect(apeluri).toHaveLength(2);
-    for (const apel of apeluri) {
-      expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
-      expect(areFiltru(apel, "eq", "declarat_de_employee_id", FISA)).toBe(true);
-      expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
-    }
-    expect(apeluri[0]?.filtre).toContainEqual({ metoda: "limit", argumente: [11] });
+  const rand = (id: string, produs_la: string) => ({
+    id,
+    vehicle_id: "vvvvvvvv-vvvv-4vvv-8vvv-vvvvvvvvvvvv",
+    tip: "avarie",
+    produs_la,
+    locul: null,
+    descriere: "Oglindă spartă.",
+    stadiu: "raportat",
+    inchis_la: null,
+    total: 2,
   });
 
-  it("cu un rând în plus, întoarce cursorul următoarei pagini", async () => {
-    const rand = (id: string, produs_la: string) => ({ id, produs_la });
-    db.raspunde("vehicle_incidents", "select", {
+  it("citește prin funcție, nu din tabelă, cu un rând în plus pentru pagina următoare", async () => {
+    db.raspundeRpc("incidente_declarate_de_mine", { data: [] });
+
+    const r = await declaratiileMele(ORG_ID, { cursor: null, limita: 10 });
+
+    expect(r).toEqual({ randuri: [], urmatorulCursor: null, total: 0 });
+    expect(db.apeluriPe("vehicle_incidents")).toHaveLength(0);
+    expect(db.apeluriRpc).toEqual([
+      {
+        nume: "incidente_declarate_de_mine",
+        argumente: { p_organization_id: ORG_ID, p_limita: 11 },
+      },
+    ]);
+  });
+
+  it("cu un rând în plus, întoarce cursorul, iar cursorul pleacă înapoi ca pereche (produs_la, id)", async () => {
+    db.raspundeRpc("incidente_declarate_de_mine", {
       data: [
         rand("11111111-1111-4111-8111-111111111111", "2026-10-02T10:00:00Z"),
         rand("22222222-2222-4222-8222-222222222222", "2026-10-01T10:00:00Z"),
       ],
     });
-    db.raspunde("vehicle_incidents", "select", { data: null, count: 2 });
 
-    const r = await declaratiileMele(ORG_ID, FISA, { cursor: null, limita: 1 });
+    const r = await declaratiileMele(ORG_ID, { cursor: null, limita: 1 });
 
     expect(r.randuri).toHaveLength(1);
-    expect(r.urmatorulCursor).not.toBeNull();
     expect(r.total).toBe(2);
+    expect(r.urmatorulCursor).not.toBeNull();
+    expect(Object.keys(r.randuri[0] ?? {})).not.toContain("total");
+
+    db.raspundeRpc("incidente_declarate_de_mine", { data: [] });
+    await declaratiileMele(ORG_ID, { cursor: r.urmatorulCursor, limita: 1 });
+    expect(db.apeluriRpc.at(-1)).toEqual({
+      nume: "incidente_declarate_de_mine",
+      argumente: {
+        p_organization_id: ORG_ID,
+        p_limita: 2,
+        p_dupa_produs_la: "2026-10-02T10:00:00Z",
+        p_dupa_id: "11111111-1111-4111-8111-111111111111",
+      },
+    });
   });
 });

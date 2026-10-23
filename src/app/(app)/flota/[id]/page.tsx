@@ -142,6 +142,12 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
   const poateVedeaService =
     can(permisiuni, "vehicles:read", "all") ||
     (can(permisiuni, "vehicles:read", "team") && !vehicul.pool);
+  // X1 (0225): costurile (valoarea de achiziție, costul documentelor) stau în
+  // `vehicle_costuri` / `vehicle_document_costuri`, citite de
+  // `app.poate_vedea_costurile_vehiculului`: `vehicles:update = all`, sau
+  // citirea service-ului de mai sus. Pentru restul, RLS-ul întoarce `null`, iar
+  // coloana ar spune „—” acolo unde costul există: rândul și coloana lipsesc.
+  const poateVedeaCosturi = poateAdministra || poateVedeaService;
   const parametri = await searchParams;
   const filtreFila = filtreDinUrl(filtreServiceSchema, parametri);
   const fila = poateVedeaService ? filtreFila.fila : null;
@@ -411,17 +417,21 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
         return expira === undefined || expira === null ? "—" : formatDate(expira);
       },
     },
-    {
-      cheie: "cost",
-      antet: "Cost",
-      numeric: true,
-      latime: "ingusta",
-      peTelefon: "meta",
-      celula: (rand) => {
-        const cost = rand.documentul?.cost;
-        return cost === undefined || cost === null ? "—" : formatLei(cost);
-      },
-    },
+    ...(poateVedeaCosturi
+      ? [
+          {
+            cheie: "cost",
+            antet: "Cost",
+            numeric: true,
+            latime: "ingusta",
+            peTelefon: "meta",
+            celula: (rand) => {
+              const cost = rand.documentul?.cost;
+              return cost === undefined || cost === null ? "—" : formatLei(cost);
+            },
+          } satisfies Coloana<RandDocument>,
+        ]
+      : []),
     {
       // Scanarea (0202). Link semnat doar pentru cine vede vehiculul; un fișier
       // pe care Storage nu-l mai are apare „indisponibil”, nu ca link mort.
@@ -539,14 +549,18 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
       peTelefon: "meta",
       celula: (d) => d.emitent ?? "—",
     },
-    {
-      cheie: "cost",
-      antet: "Cost",
-      numeric: true,
-      latime: "ingusta",
-      peTelefon: "meta",
-      celula: (d) => (d.cost === null ? "—" : formatLei(d.cost)),
-    },
+    ...(poateVedeaCosturi
+      ? [
+          {
+            cheie: "cost",
+            antet: "Cost",
+            numeric: true,
+            latime: "ingusta",
+            peTelefon: "meta",
+            celula: (d) => (d.cost === null ? "—" : formatLei(d.cost)),
+          } satisfies Coloana<DocumentVehicul>,
+        ]
+      : []),
     {
       cheie: "fisier",
       antet: "Fișier",
@@ -689,11 +703,17 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
               eticheta: "Data achiziției",
               valoare: vehicul.data_achizitie === null ? null : formatDate(vehicul.data_achizitie),
             },
-            {
-              eticheta: "Valoare",
-              valoare:
-                vehicul.valoare_achizitie === null ? null : formatLei(vehicul.valoare_achizitie),
-            },
+            ...(poateVedeaCosturi
+              ? [
+                  {
+                    eticheta: "Valoare",
+                    valoare:
+                      vehicul.valoare_achizitie === null
+                        ? null
+                        : formatLei(vehicul.valoare_achizitie),
+                  },
+                ]
+              : []),
             { eticheta: "Culoare", valoare: vehicul.culoare },
             {
               eticheta: "Anvelope montate",

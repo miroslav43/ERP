@@ -62,13 +62,17 @@ export const creeazaVehicul = createAction({
   revalidate: ["/flota"],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const db = await createServerSupabase();
+    // X1 (0225): valoarea de achiziție NU se scrie pe rândul vehiculului (îl
+    // văd și șoferul, managerul pe pool și hr-ul cu mașină), ci în
+    // `vehicle_costuri`, sub RLS-ul costurilor.
+    const { valoare_achizitie, ...vehicul } = input;
     // `status: "activ"` explicit — politica de INSERT îl cere. Un vehicul nou nu
     // poate intra direct „vândut" fără să fi existat vreodată în parc.
     // `created_by` ȘI `updated_by` sunt cerute nominal de WITH CHECK.
     const { data, error } = await db
       .from("vehicles")
       .insert({
-        ...input,
+        ...vehicul,
         organization_id: ctx.tenant.organizationId,
         status: "activ",
         created_by: ctx.user.id,
@@ -77,6 +81,23 @@ export const creeazaVehicul = createAction({
       .select("id")
       .single();
     if (error !== null) traduEroare(error);
+
+    if (valoare_achizitie !== null) {
+      const cost = await db.from("vehicle_costuri").insert({
+        organization_id: ctx.tenant.organizationId,
+        vehicle_id: data.id,
+        valoare_achizitie,
+        created_by: ctx.user.id,
+        updated_by: ctx.user.id,
+      });
+      // Vehiculul a intrat deja: o eroare generică l-ar trimite pe om să-l
+      // adauge din nou, iar a doua încercare ar cădea pe numărul dublat.
+      if (cost.error !== null) {
+        throw businessRule(
+          "Vehiculul a fost adăugat, dar valoarea de achiziție nu s-a salvat. Deschideți fișa vehiculului, apăsați „Modifică” și introduceți-o din nou.",
+        );
+      }
+    }
 
     return { id: data.id };
   },
@@ -135,7 +156,7 @@ export const actualizeazaVehicul = createAction({
   revalidate: (input) => ["/flota", `/flota/${input.id}`],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const db = await createServerSupabase();
-    const { id, ...campuri } = input;
+    const { id, valoare_achizitie, ...campuri } = input;
 
     const { data, error } = await db
       .from("vehicles")
@@ -151,6 +172,21 @@ export const actualizeazaVehicul = createAction({
         "Vehiculul nu a fost găsit sau nu aveți dreptul de a-l modifica. Reîncărcați parcul auto.",
       );
     }
+
+    // X1 (0225): valoarea de achiziție stă în `vehicle_costuri`, câte un rând pe
+    // vehicul. Upsert și cu `null`: un câmp golit trebuie să golească valoarea.
+    // `created_by` îl păstrează `internal.set_actor` pe rândul existent.
+    const cost = await db.from("vehicle_costuri").upsert(
+      {
+        organization_id: ctx.tenant.organizationId,
+        vehicle_id: data.id,
+        valoare_achizitie,
+        created_by: ctx.user.id,
+        updated_by: ctx.user.id,
+      },
+      { onConflict: "vehicle_id" },
+    );
+    if (cost.error !== null) traduEroare(cost.error);
 
     return { id: data.id };
   },
@@ -423,10 +459,13 @@ export const adaugaDocument = createAction({
   revalidate: (input) => ["/flota", `/flota/${input.vehicle_id}`],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const db = await createServerSupabase();
+    // X1 (0225): costul NU se scrie pe rândul documentului (îl văd și șoferul,
+    // și managerul pe pool), ci în `vehicle_document_costuri`.
+    const { cost, ...document } = input;
     const { data, error } = await db
       .from("vehicle_documents")
       .insert({
-        ...input,
+        ...document,
         organization_id: ctx.tenant.organizationId,
         created_by: ctx.user.id,
         updated_by: ctx.user.id,
@@ -434,6 +473,22 @@ export const adaugaDocument = createAction({
       .select("id")
       .single();
     if (error !== null) traduEroare(error);
+
+    if (cost !== null) {
+      const scris = await db.from("vehicle_document_costuri").insert({
+        organization_id: ctx.tenant.organizationId,
+        document_id: data.id,
+        cost,
+        created_by: ctx.user.id,
+        updated_by: ctx.user.id,
+      });
+      // Documentul a intrat deja: o eroare generică l-ar face dublat la reîncercare.
+      if (scris.error !== null) {
+        throw businessRule(
+          "Documentul a fost adăugat, dar costul nu s-a salvat. Deschideți documentul cu „Corectează” și introduceți costul din nou.",
+        );
+      }
+    }
 
     return { id: data.id };
   },
@@ -474,7 +529,7 @@ export const actualizeazaDocument = createAction({
     // `vehicle_id` NU se scrie: e în schemă doar ca `revalidate` să poată
     // compune calea fișei. Mutarea unui document de pe o mașină pe alta nu e o
     // corectură, e o altă operațiune.
-    const { id, vehicle_id: _vehicul, ...campuri } = input;
+    const { id, vehicle_id: _vehicul, cost, ...campuri } = input;
 
     const { data, error } = await db
       .from("vehicle_documents")
@@ -490,6 +545,20 @@ export const actualizeazaDocument = createAction({
         "Documentul nu a fost găsit sau nu aveți dreptul de a-l modifica. Reîncărcați fișa vehiculului.",
       );
     }
+
+    // X1 (0225): costul stă în `vehicle_document_costuri`, câte un rând pe
+    // document. Upsert și cu `null`: costul golit trebuie să se golească.
+    const scris = await db.from("vehicle_document_costuri").upsert(
+      {
+        organization_id: ctx.tenant.organizationId,
+        document_id: data.id,
+        cost,
+        created_by: ctx.user.id,
+        updated_by: ctx.user.id,
+      },
+      { onConflict: "document_id" },
+    );
+    if (scris.error !== null) traduEroare(scris.error);
 
     return { id: data.id };
   },

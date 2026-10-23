@@ -217,6 +217,12 @@ export async function foiNeaprobateLuna(
 
 // ── Celelalte surse de cost ─────────────────────────────────────────────────
 
+interface DocumentCuCost {
+  readonly id: string;
+  readonly vehicle_id: string;
+  readonly costuri: Readonly<{ cost: number | null }>;
+}
+
 export interface SurseCostLuna {
   readonly servicii: readonly Readonly<{ id: string; vehicle_id: string; cost_total: number }>[];
   readonly cheltuieli: readonly Readonly<{ id: string; vehicle_id: string; suma: number }>[];
@@ -273,29 +279,32 @@ export async function surseDeCostLuna(
       (r) => r.id,
       { nume: "cheltuieli de vehicul" },
     ),
-    citesteTot<SurseCostLuna["documente"][number]>(
+    // Costul documentului stă în `vehicle_document_costuri` (0225, X1), cu
+    // RLS-ul costurilor: `!inner` lasă afară documentul fără cost vizibil.
+    citesteTot<DocumentCuCost>(
       (dupa, pas) => {
         let q = db
           .from("vehicle_documents")
-          .select("id, vehicle_id, cost")
+          .select("id, vehicle_id, costuri:vehicle_document_costuri!inner(cost)")
           .eq("organization_id", organizationId)
           .is("deleted_at", null)
-          .not("cost", "is", null)
+          .not("costuri.cost", "is", null)
           .not("valabil_de_la", "is", null)
           .gte("valabil_de_la", interval.deLa)
           .lte("valabil_de_la", interval.panaLa);
         if (vehicul !== null) q = q.eq("vehicle_id", vehicul);
         if (dupa !== null) q = q.gt("id", dupa);
-        return q
-          .order("id", { ascending: true })
-          .limit(pas)
-          .returns<{ id: string; vehicle_id: string; cost: number | null }[]>();
+        return q.order("id", { ascending: true }).limit(pas).returns<DocumentCuCost[]>();
       },
       (r) => r.id,
       { nume: "documente de vehicul" },
     ),
   ]);
-  return { servicii, cheltuieli, documente };
+  return {
+    servicii,
+    cheltuieli,
+    documente: documente.map((d) => ({ id: d.id, vehicle_id: d.vehicle_id, cost: d.costuri.cost })),
+  };
 }
 
 // ── Etichetele ──────────────────────────────────────────────────────────────

@@ -314,8 +314,12 @@ begin
     $q$select sum(suma) from public.vehicle_expenses where organization_id = %L
          and deleted_at is null and data_cheltuielii between %L and %L$q$, v_org, v_luna, v_la));
   v_n  := pg_temp.suma(format(
-    $q$select sum(cost) from public.vehicle_documents where organization_id = %L and deleted_at is null
-         and cost is not null and valabil_de_la between %L and %L$q$, v_org, v_luna, v_la));
+    -- 0225 (X1): costul documentului stă în `vehicle_document_costuri`, sub
+    -- RLS-ul costurilor (`vehicle_documents.cost` e goală), ca în raport.
+    $q$select sum(c.cost) from public.vehicle_documents d
+         join public.vehicle_document_costuri c on c.document_id = d.id
+        where d.organization_id = %L and d.deleted_at is null
+          and c.cost is not null and d.valabil_de_la between %L and %L$q$, v_org, v_luna, v_la));
   reset role;
   if v_s = 750 and v_s2 = 15 and v_n = 100 then
     raise notice '  ✓ (3b) administratorul vede service-ul (750), cheltuielile (15) și documentele cu cost (100)';

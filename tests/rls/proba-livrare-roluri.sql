@@ -555,14 +555,17 @@ begin
       ('vehicles', 'SELECT',
        $q$select 1 from public.vehicles where organization_id = {org}$q$,
        array['6', '6', '1', '2', '2', '2', '0']),
-      -- DEFECT cunoscut, aceeași clasă ca în `proba-flota-matrice-roluri.sql`:
-      -- costul stă într-o COLOANĂ a rândului vizibil, iar RLS-ul nu taie coloane.
-      -- Decizia 3 l-a extins la hr (vede 50.000 pe VH). Intenționat: costurile
-      -- doar la `vehicles:read = all` și pe mașinile echipei la manager.
-      -- Repararea cere o decizie de model, nu o politică.
-      ('vehicles.valoare_achizitie', 'SELECT',
+      -- 0225 (X1): valoarea de achiziție stă în `vehicle_costuri`, cu citirea
+      -- costurilor (`vehicles:update = all`, sau `read >= team` pe echipă, fără
+      -- pool). Până la 0225 era o COLOANĂ a rândului vizibil — rândul „DEFECT”
+      -- `vehicles.valoare_achizitie` (azi 6/6/1/2/2/2/0): hr-ul o vedea pe VH prin
+      -- „decizia 3”, managerul pe pool, angajații pe mașina lor și pe pool.
+      ('vehicle_costuri', 'SELECT',
+       $q$select 1 from public.vehicle_costuri where organization_id = {org}$q$,
+       array['6', '6', '0', '1', '0', '0', '0']),
+      ('vehicles.valoare_achizitie (coloana veche)', 'SELECT',
        $q$select 1 from public.vehicles where organization_id = {org} and valoare_achizitie is not null$q$,
-       array['6', '6', 'D:1/0', 'D:2/1', 'D:2/0', 'D:2/0', '0']),
+       array['0', '0', '0', '0', '0', '0', '0']),
       ('maintenance_rezumat_trimis', 'SELECT',
        $q$select 1 from public.maintenance_rezumat_trimis where organization_id = {org}$q$,
        array['2', '1', '0', '1', '0', '0', '0']),
@@ -599,9 +602,15 @@ begin
       ('vehicle_fines', 'SELECT',
        $q$select 1 from public.vehicle_fines where organization_id = {org}$q$,
        array['1', '1', '0', '0', '0', '0', '0']),
+      -- 0206 §F (X1): șoferul nu mai citește RÂNDUL incidentului (costuri,
+      -- asigurător, observații, cercetarea SSM), ci doar câmpurile declarației,
+      -- prin `incidente_declarate_de_mine`.
       ('vehicle_incidents', 'SELECT',
        $q$select 1 from public.vehicle_incidents where organization_id = {org}$q$,
-       array['2', '2', '0', '0', '1', '0', '0']),
+       array['2', '2', '0', '0', '0', '0', '0']),
+      ('incidente_declarate_de_mine', 'SELECT',
+       $q$select 1 from public.incidente_declarate_de_mine({org}, 50, null, null)$q$,
+       array['0', '0', '0', '0', '1', '0', '0']),
       ('maintenance_intervention_parts', 'SELECT',
        $q$select 1 from public.maintenance_intervention_parts where organization_id = {org}$q$,
        array['1', '1', '0', '1', '1', '0', '0']),
@@ -699,6 +708,10 @@ begin
       ('INSERT vehicle_expenses', 'INSERT',
        $q$insert into public.vehicle_expenses (organization_id, vehicle_id, categorie, data_cheltuielii, suma, created_by, updated_by) values ({org}, {v2}, 'parcare', app.azi_local() - 1, 10, auth.uid(), auth.uid())$q$,
        array['refuz', 'ok:1', 'refuz', 'refuz', 'refuz', 'refuz', 'refuz']),
+      -- 0225: upsert-ul aplicației pe rândul de cost existent.
+      ('UPSERT vehicle_costuri', 'INSERT',
+       $q$insert into public.vehicle_costuri (organization_id, vehicle_id, valoare_achizitie, created_by, updated_by) values ({org}, {v1}, 61000, auth.uid(), auth.uid()) on conflict (vehicle_id) do update set valoare_achizitie = excluded.valoare_achizitie, updated_by = excluded.updated_by$q$,
+       array['refuz', 'ok:1', 'refuz', 'refuz', 'refuz', 'refuz', 'refuz']),
       ('INSERT driver_licenses (permisul lui hr)', 'INSERT',
        $q$insert into public.driver_licenses (organization_id, employee_id, numar, categorii, expira_la) values ({org}, {e_hr}, 'P-HR-PROBA', array['B'], app.azi_local() + 300)$q$,
        array['refuz', 'ok:1', 'ok:1', 'refuz', 'refuz', 'refuz', 'refuz']),
@@ -785,6 +798,9 @@ begin
       ('UPDATE vehicle_expenses', 'UPDATE',
        $q$update public.vehicle_expenses set suma = 30, updated_by = auth.uid() where organization_id = {org}$q$,
        array['refuz', 'ok:4', 'refuz', 'refuz', 'refuz', 'refuz', 'refuz']),
+      ('UPDATE vehicle_costuri', 'UPDATE',
+       $q$update public.vehicle_costuri set valoare_achizitie = 1000, updated_by = auth.uid() where organization_id = {org}$q$,
+       array['refuz', 'ok:6', 'refuz', 'refuz', 'refuz', 'refuz', 'refuz']),
       ('UPDATE driver_licenses', 'UPDATE',
        $q$update public.driver_licenses set updated_by = auth.uid() where organization_id = {org}$q$,
        array['refuz', 'ok:3', 'ok:3', 'refuz', 'refuz', 'refuz', 'refuz']),

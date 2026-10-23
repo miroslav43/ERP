@@ -267,3 +267,34 @@ describe("coloanele cerute de citiri există în bază", () => {
     expect(cerute).not.toContainEqual({ tabela: "payroll_lines", coloana: "full_name" });
   });
 });
+
+// ── Coloanele RETRASE ───────────────────────────────────────────────────────
+// Există încă în bază (și în tipuri), dar nu se mai citesc. Din 0225 (X1),
+// `vehicles.valoare_achizitie` și `vehicle_documents.cost` sunt GOALE: costul
+// stă în `vehicle_costuri` / `vehicle_document_costuri`, cu RLS-ul costurilor.
+// Pe coloana veche, costul ajungea la oricine vedea rândul (angajatul pe mașina
+// lui și pe pool, managerul pe pool, hr pe mașina lui). O citire nouă din ea n-ar
+// da nicio eroare: ar arăta tăcut „—” acolo unde costul există.
+const RETRASE: ReadonlyMap<string, ReadonlySet<string>> = new Map([
+  ["vehicles", new Set(["valoare_achizitie"])],
+  ["vehicle_documents", new Set(["cost"])],
+]);
+
+describe("coloanele retrase nu se mai citesc", () => {
+  it.each(FISIERE.map((f) => [f.nume] as const))("%s", (nume) => {
+    const fisier = FISIERE.find((f) => f.nume === nume);
+    if (fisier === undefined) throw new Error("fișier negăsit");
+    const retrase = fisier.analiza.cerute
+      .filter(({ tabela, coloana }) => RETRASE.get(tabela)?.has(coloana) ?? false)
+      .map(({ tabela, coloana }) => `${tabela}.${coloana}`);
+    expect([...new Set(retrase)], `coloane retrase citite în ${nume}`).toEqual([]);
+  });
+
+  it("prinde citirea costului din coloana veche", () => {
+    const { cerute } = analizeaza(`
+      db.from("vehicle_documents").select("id, cost, costuri:vehicle_document_costuri(cost)");
+    `);
+    const retrase = cerute.filter((c) => RETRASE.get(c.tabela)?.has(c.coloana) ?? false);
+    expect(retrase).toEqual([{ tabela: "vehicle_documents", coloana: "cost" }]);
+  });
+});

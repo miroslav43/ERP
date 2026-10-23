@@ -8,13 +8,15 @@ cai:
   - "src/app/(app)/flota/foi/dialog-foaie-noua.tsx"
   - "src/app/(app)/flota/foi/date-foaie-noua.ts"
   - "tests/rls/proba-flota-roluri.sql"
-tabele: [vehicles, vehicle_assignments, trip_sheets, fuel_entries]
+  - "tests/rls/proba-flota-matrice-roluri.sql"
+  - "tests/rls/proba-livrare-roluri.sql"
+tabele: [vehicles, vehicle_assignments, trip_sheets, fuel_entries, vehicle_costuri]
 permisiuni:
   [vehicles:read, trip_sheets:read, trip_sheets:create, trip_sheets:update, trip_sheets:approve]
 feature: fleet
 capcane: [17, 18]
-scris_pe: 376052e0c8cbbb56c35b210dfda28d12158be879
-scris_la: 2026-10-12
+scris_pe: b06fb2e640bedcc3c3bfa2e19aa9a08a2914e678
+scris_la: 2026-10-23
 tags: [modul, operations]
 ---
 
@@ -149,11 +151,13 @@ străină de obiectele firmei A. `flota_fiscal_luna` (SECURITY INVOKER peste `ve
 filtrează pe `app.poate_vedea_vehicul`, deci hr-ul cu mașină nu moștenește ramura
 „decizia 3” în raportul fiscal (reparat în 0205).
 
-**Defecte cunoscute** (rândurile „DEFECT” ale probelor): `vehicle_documents.cost` și
-`vehicles.valoare_achizitie` sunt COLOANE pe rânduri pe care angajatul și managerul
-(pool) le văd; din 0215, și hr-ul își vede valoarea de achiziție a mașinii lui (ramura
-„decizia 3”). RLS-ul nu taie coloane, iar privilegiul pe coloană e al rolului
-`authenticated`, comun tuturor: repararea cere o decizie de model.
+**Costurile nu urmează rândul vizibil** (0225, pachetul X1): valoarea de achiziție și
+costul documentelor stau în `vehicle_costuri` / `vehicle_document_costuri`, cu citirea
+costurilor (`vehicles:update = all`, sau `read >= team` pe mașina echipei, fără pool):
+angajatul și hr-ul (și cu mașină) — nimic, managerul — echipa. Coloanele vechi sunt
+goale; detaliile: `[[modul/flota/service-si-costuri]]`. La incidente, șoferul nu mai
+citește rândul: `[[modul/flota/declaratia-soferului]]`. Probele numără celulele, fără
+rânduri „DEFECT”.
 
 ## Ce NU e aici
 

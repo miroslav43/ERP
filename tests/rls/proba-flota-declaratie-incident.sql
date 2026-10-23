@@ -15,8 +15,11 @@
 -- (4)  mașina lui, dar într-o zi în care nu-i era alocată: P0001;
 -- (5)  vehiculul altei firme: P0001 în firma lui, 42501 în firma străină;
 -- (6)  declarantul nu scrie costuri, asigurător, dosar sau cercetare: 42501;
--- (7)  șoferul își vede DOAR declarațiile lui: nu pe ale colegului, nu pe cel
---      înregistrat de administrator pe mașina lui;
+-- (7)  șoferul își vede DOAR declarațiile lui, prin `incidente_declarate_de_mine`:
+--      nu pe ale colegului, nu pe cel înregistrat de administrator pe mașina lui;
+-- (7b) (X1) RÂNDUL incidentului nu i se arată deloc (costuri, asigurător, dosar,
+--      observații, cercetarea SSM): zero rânduri din tabelă, iar funcția nu
+--      întoarce niciuna dintre aceste coloane;
 -- (8)  amenzile îi rămân închise: zero rânduri, INSERT 42501;
 -- (9)  declarația nu se modifică de șofer (update = none): zero rânduri;
 -- (10) notificarea: responsabilul care citește incidentele o primește, cu
@@ -76,16 +79,20 @@ exception when others then
 end
 $f$;
 
--- INSERT ... RETURNING id sub identitatea lui `p_user`; null la eroare (mesajul în NOTICE).
+-- INSERT sub identitatea lui `p_user`, cu id-ul dat de probă (ca aplicația:
+-- fără ramura `own` a citirii, șoferul nu poate cere `RETURNING`); null la
+-- eroare (mesajul în NOTICE).
 create function pg_temp.declara(p_user uuid, p_sql text) returns uuid
 language plpgsql as $f$
 declare
-  v_id uuid;
+  v_id uuid := gen_random_uuid();
 begin
+  perform set_config('proba.id_declaratie', v_id::text, true);
   perform set_config('request.jwt.claim.sub', p_user::text, true);
   set local role authenticated;
-  execute p_sql into v_id;
+  execute p_sql;
   reset role;
+  perform set_config('proba.id_declaratie', '', true);
   return v_id;
 exception when others then
   reset role;
@@ -145,8 +152,9 @@ declare
   v_esecuri  int := 0;
   -- Un INSERT de declarație, pe vehiculul și momentul date.
   c_insert   constant text :=
-    $q$insert into public.vehicle_incidents (organization_id, vehicle_id, tip, produs_la, locul, descriere%s)
-       values (%L, %L, 'coliziune', %L, 'Parcarea firmei', %L%s) returning id$q$;
+    $q$insert into public.vehicle_incidents (id, organization_id, vehicle_id, tip, produs_la, locul, descriere%s)
+       values (coalesce(nullif(current_setting('proba.id_declaratie', true), ''), gen_random_uuid()::text)::uuid,
+               %L, %L, 'coliziune', %L, 'Parcarea firmei', %L%s)$q$;
 begin
   raise notice '';
   raise notice '  PROBA „FLOTA — DECLARAȚIA ȘOFERULUI” (0206 §F)';
@@ -257,11 +265,25 @@ begin
     pg_temp.la(v_zi - 3, '12:00'), 'Lovitură constatată la predare.', format(', %L', v_e_ana)));
 
   -- (7) ce vede șoferul
+  v_n := pg_temp.numara(v_u_ana, format('select count(*) from public.incidente_declarate_de_mine(%L, 100, null, null)', v_org));
+  v_m := pg_temp.numara(v_u_ana, format(
+    'select count(*) from public.incidente_declarate_de_mine(%L, 100, null, null) where id in (%L, %L)', v_org, v_i_col, v_i_adm));
+  v_k := pg_temp.numara(v_u_ana, format(
+    'select max(total) from public.incidente_declarate_de_mine(%L, 1, null, null)', v_org));
+  v_esecuri := v_esecuri + pg_temp.verifica('7', v_i_col is not null and v_i_adm is not null and v_n = 2 and v_m = 0 and v_k = 2,
+    'șoferul își vede doar cele 2 declarații; nu pe a colegului, nu pe cea a administratorului pe mașina lui; totalul nu ține cont de limită',
+    format('vede %s, străine %s, total %s', v_n, v_m, v_k));
+
+  -- (7b) rândul complet
   v_n := pg_temp.numara(v_u_ana, format('select count(*) from public.vehicle_incidents where organization_id = %L', v_org));
-  v_m := pg_temp.numara(v_u_ana, format('select count(*) from public.vehicle_incidents where id in (%L, %L)', v_i_col, v_i_adm));
-  v_esecuri := v_esecuri + pg_temp.verifica('7', v_i_col is not null and v_i_adm is not null and v_n = 2 and v_m = 0,
-    'șoferul își vede doar cele 2 declarații; nu pe a colegului, nu pe cea a administratorului pe mașina lui',
-    format('vede %s, străine %s', v_n, v_m));
+  select count(*) into v_m
+    from unnest(array['cost_estimat', 'cost_final', 'despagubire', 'asigurator', 'dosar_numar',
+                      'observatii', 'work_accident_id', 'sofer_id', 'declarat_de_employee_id']) c
+   where position(c in pg_get_function_result(
+           'public.incidente_declarate_de_mine(uuid, integer, timestamptz, uuid)'::regprocedure)) > 0;
+  v_esecuri := v_esecuri + pg_temp.verifica('7b', v_n = 0 and v_m = 0,
+    'rândul incidentului nu i se arată șoferului (zero rânduri); funcția nu întoarce costuri, asigurător, dosar, observații sau cercetarea',
+    format('rânduri %s, coloane interne %s', v_n, v_m));
 
   -- (8) amenzile
   v_n := pg_temp.numara(v_u_ana, format('select count(*) from public.vehicle_fines where organization_id = %L', v_org));
@@ -326,7 +348,7 @@ begin
   select v_org, m.id, 'employee', 'vehicle_incidents', 'create', 'none'
     from public.organization_members m where m.organization_id = v_org and m.user_id = v_u_ana;
   v_text := pg_temp.ruleaza(v_u_ana, format(c_insert, '', v_org, v_v_ana, pg_temp.la(v_zi, '08:00'), 'După retragerea cheii.', ''));
-  v_n := pg_temp.numara(v_u_ana, format('select count(*) from public.vehicle_incidents where organization_id = %L', v_org));
+  v_n := pg_temp.numara(v_u_ana, format('select count(*) from public.incidente_declarate_de_mine(%L, 100, null, null)', v_org));
   v_esecuri := v_esecuri + pg_temp.verifica('13', v_text like '42501:%' and v_n = 0,
     'suprascrierea pe membru `create = none`: șoferul nu mai declară și nu-și mai vede declarațiile',
     format('%s / vizibile %s', v_text, v_n));
