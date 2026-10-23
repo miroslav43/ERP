@@ -7,6 +7,7 @@ cai:
   - "supabase/migrations/0056_concedii_hr_nu_aproba.sql"
   - "supabase/migrations/0067_pontaj_aprobare_pe_zi.sql"
   - "supabase/migrations/0099_invitatia_leaga_fisa.sql"
+  - "supabase/migrations/0204_flota_soferi.sql"
 tabele: [role_permissions, organization_members, employees]
 permisiuni: [employees:invite, attendance:approve, leave:approve, compliance:read]
 capcane: [26, 32]
@@ -33,6 +34,7 @@ aprobări care par firești pentru el. Distincția e proiectată, nu o scăpare:
 | `evaluations`                                                                            | `read`, `create`, `update` — all (0070)           |
 | `reges`                                                                                  | tot, inclusiv `configure` — all (0087)            |
 | `tickets`                                                                                | `read`, `create`, `update` — **own** (0046)       |
+| `driver_licenses`                                                                        | `read`, `create`, `update` — all (0204)           |
 | `audit`                                                                                  | _none_ — refuz EXPLICIT                           |
 
 `reges:configure` merge la HR fiindcă specialistul de personal e cel care obține cheile
@@ -75,6 +77,12 @@ iar refuzul trece prin RLS fără nicio eroare.
   creează administratori.
 - **`per_diem` lipsă cu totul.** Diurna nu e a HR-ului: cererea e a angajatului, aprobarea
   a managerului, plata trece prin salarizare.
+- **Flota fără parc** (decizia 3): nici `vehicles`, nici `trip_sheets`, nici cheile
+  amenzilor și ale rezervărilor; doar permisele și avizele șoferilor (`driver_licenses`,
+  0204). „Mașina mea” îi arată mașina alocată LUI și PV-urile la care e parte (0215), fără
+  costuri (0225): [[modul/flota/roluri-si-portal]]. Singura excepție, deliberată: valoarea
+  de intrare a mașinii cu folosință personală, prin `avantaj_natura_flota`
+  (`payroll:read = all`), pentru avantajul în natură — [[modul/flota/fiscal]].
 
 ## Precedența, când o firmă vrea altfel
 

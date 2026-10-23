@@ -48,7 +48,8 @@ permisul expirat, avizul lipsă, concediul sau contractul încetat nu refuză ni
 | super_admin | citește (consola); nu scrie, nu e membru |
 
 Cheie proprie, nu `vehicles:*`: decizia 3 a planului dă HR-ului permisele și avizele,
-nu mașinile și nici foile (proba (10): `hr` vede zero vehicule). Nicio cheie `delete`:
+nu mașinile și nici foile (proba (10): `hr` fără mașină vede zero vehicule; din 0215 vede
+doar mașina alocată LUI, în „Mașina mea”, `[[modul/flota/roluri-si-portal]]`). Nicio cheie `delete`:
 ștergerea e logică, prin `update`. Politicile trec prin `app.ssm_acces` (0011). `minScope`
 e `own` în acțiuni: judecă baza, pe angajat.
 
@@ -67,14 +68,16 @@ e `own` în acțiuni: judecă baza, pe angajat.
 - `fisier_path` există, nullable, dar n-are încă încărcare (vine cu fișierele din F6).
 
 Scadența intră în `expirables` (`entity_type = 'driver_license'`, responsabil = șoferul),
-cu ramură proprie în `app.poate_vedea_expirabil`. Rezumatul zilnic al flotei rămâne pe
-`vehicle_document` (lista albă din 0201 nu s-a lărgit).
+cu ramură proprie în `app.poate_vedea_expirabil`. Rezumatul zilnic al flotei NU poartă
+permisele: lista lui albă s-a lărgit după 0201 (service, amenzi, carduri, ieșiri), dar fără
+`driver_license`.
 
 **`app.poate_vedea_expirabil` are DOUĂ rescrieri paralele.** 0204 o rescrie de la 0011 și
 adaugă `driver_license`; traseul F7 (service, 0203) o rescrie tot de la 0011 și adaugă
 `vehicle_service`. 0204 rulează după 0203, deci forma de aici poartă AMBELE ramuri, iar blocul
 de verificare și proba (27) o păzesc: fără ea, scadențele de service ar fi dispărut tăcut din
-lista de conformitate. Orice `entity_type` nou pornește de la forma din 0204.
+lista de conformitate. După 0204 au rescris-o și 0206, 0214 și 0218: un `entity_type` nou
+pornește de la forma ULTIMĂ (azi 0218), nu de la cea din 0204.
 
 ## Avizul medical — `app.stare_aviz_sofer` (SECURITY DEFINER, art. 9 GDPR)
 

@@ -9,6 +9,7 @@ cai:
   - "supabase/migrations/0004_hr.sql"
   - "supabase/migrations/0005_hr_rls.sql"
   - "supabase/migrations/0196_lantul_de_sefi_al_angajatului.sql"
+  - "supabase/migrations/0226_securitate_reziduala.sql"
 tabele: [employees, organization_members, departments]
 permisiuni:
   - "employees:read"
@@ -54,10 +55,12 @@ sprijină scrierea KPI din [[modul/evaluari]].
 ## Ce refuză baza când lanțul e greșit
 
 `public.tg_employees_manager_path` rulează BEFORE INSERT sau UPDATE pe
-`manager_employee_id` și ridică P0001 în patru cazuri:
+`manager_employee_id` și `organization_id`. Din 0226 (`0226_securitate_reziduala.sql`)
+începe cu garda de firmă: în afara contextului de serviciu, un rând pus pe o firmă care nu
+e a apelantului primește 42501, înaintea oricărei căutări. Apoi ridică P0001 în trei cazuri:
 
-- managerul indicat nu există sau are fișa ștearsă;
-- managerul aparține altei organizații;
+- managerul indicat nu există în firma rândului, are fișa ștearsă sau e al altei firme —
+  UN SINGUR mesaj pentru toate trei, ca răspunsul să nu spună ce fișe există în altă firmă;
 - relația ar deveni **circulară** (`new.id` e deja în lanțul managerului);
 - lanțul ar depăși **12 niveluri**.
 

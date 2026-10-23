@@ -12,6 +12,7 @@ cai:
   - "src/app/(portal)/portal/masina-mea/**"
   - "src/app/api/export/flota/**"
   - "src/app/(app)/flota/fiscal/**"
+  - "supabase/migrations/0225_flota_costuri_ascunse.sql"
 tabele:
   [
     vehicles,
@@ -32,6 +33,8 @@ tabele:
     vehicle_service_plans,
     vehicle_service_entries,
     vehicle_expenses,
+    vehicle_costuri,
+    vehicle_document_costuri,
   ]
 permisiuni:
   [
@@ -47,8 +50,8 @@ permisiuni:
 feature: fleet
 capcane: [18, 19, 21, 22, 23, 26]
 citeste_daca:
-  - "foaie refuzată cu „Vehiculul ales nu vă este alocat” → [[modul/flota/roluri-si-portal]]; permis, aviz medical, șofer → [[modul/flota/soferi]]; amendă, art. 39, incident, daună → [[modul/flota/amenzi-si-daune]]; declarația șoferului din portal, amenzile în rezumatul zilnic și pe fișa vehiculului → [[modul/flota/declaratia-soferului]]"
-  - "curse, foaie trimisă, numărul FP, PDF, orele foilor → [[modul/flota/foaia-zilnica]]; service, costuri, anvelope → [[modul/flota/service-si-costuri]]; rapoarte lunare, Excel, pachet pentru contabil → [[modul/flota/rapoarte]]; Saga, WinMentor, notă contabilă → [[modul/flota/export-contabil]]"
+  - "foaie refuzată cu „Vehiculul ales nu vă este alocat” → [[modul/flota/roluri-si-portal]]; permis, aviz medical, șofer → [[modul/flota/soferi]]; amendă, art. 39, incident, daună → [[modul/flota/amenzi-si-daune]] (acțiunile, citirile, erorile → [[modul/flota/amenzi-actiuni]]; cine conducea, scrisoarea cu CNP, recuperarea → [[modul/flota/amenzi-scrisoarea]]); declarația șoferului din portal, amenzile în rezumatul zilnic și pe fișa vehiculului → [[modul/flota/declaratia-soferului]]"
+  - "curse, foaie trimisă, numărul FP, PDF, orele foilor → [[modul/flota/foaia-zilnica]]; plafoanele foii, foaia numerotată, gărzile, ce se mai mișcă pe o foaie trimisă sau aprobată → [[modul/flota/foaia-zilnica-garzi]]; service, costuri, anvelope → [[modul/flota/service-si-costuri]]; rapoarte lunare, Excel, pachet pentru contabil → [[modul/flota/rapoarte]]; Saga, WinMentor, notă contabilă → [[modul/flota/export-contabil]]"
   - "alerte de scadență, /flota/setari → [[modul/flota/alerte-si-setari]]; regim fiscal, avantaj în natură, /flota/fiscal → [[modul/flota/fiscal]]; proces-verbal de predare, PVA, confirmarea șoferului → [[modul/flota/proces-verbal]]"
 scris_pe: b6ed2c66abe3b535c04d7993c3465e8fff1629de
 scris_la: 2026-10-13
@@ -67,7 +70,7 @@ majoritatea celor de mai jos nu dau nicio eroare.
 | --------------------------------------- | ------------------------------------------------------------------- |
 | `/flota`, `/flota/[id]`                 | `vehicles:read` own; creare cere `vehicles:create` all              |
 | `/flota/foi`, `/flota/foi/[id]`         | `trip_sheets:read`/`update` own                                     |
-| `/flota/aprobari`, `/flota/anomalii`    | `trip_sheets:approve` team; confirmarea cere `vehicles:update` team |
+| `/flota/aprobari`, `/flota/anomalii`    | `trip_sheets:approve` team; anomaliile: `vehicles:update` team      |
 | `/flota/foi/sabloane`                   | `trip_sheets:update` all — șabloanele de traseu (0200)              |
 | `/flota/setari`                         | `vehicles:update` all — responsabili, praguri (0201)                |
 | `/flota/setari/documente`               | `vehicles:update` all — tipurile de document ale firmei (0202)      |
@@ -75,36 +78,25 @@ majoritatea celor de mai jos nu dau nicio eroare.
 | `/flota/amenzi`, `/flota/incidente`     | `vehicle_fines`/`vehicle_incidents` read all (0206)                 |
 | `/api/export/flota/foaie/[id]`          | `trip_sheets:read` own + RLS — PDF-ul foii (0200)                   |
 | `/flota/rapoarte`, `/api/export/flota*` | `vehicles:read` + `trip_sheets:read` all; export: `vehicles:export` |
-| `/portal/masina-mea*`                   | `trip_sheets:read` own — portalul șoferului, din 0199               |
+| `/portal/masina-mea*`                   | modulul (0215: și fără drept pe foi); foile: `trip_sheets:read` own |
 
-Drepturile pe roluri (0199), garda de vehicul alocat sau pool, regula „aprobatorul doar
-decide” și portalul „Mașina mea”: `[[modul/flota/roluri-si-portal]]`.
-
-**Șoferii** (0204: permise, `driver_licenses`, HR fără parc; aviz medical; verificările pe
-foaie și la predare): `[[modul/flota/soferi]]`. **Amenzile și dauna** (0206: scrisoarea de la
-art. 39 cere și `employees:read` all, pentru CNP; recuperarea de la șofer NU e automată):
-`[[modul/flota/amenzi-si-daune]]`. **Fiscalul** (0205: regimul de deducere, norma de consum,
-SUGESTIA de avantaj în natură): `[[modul/flota/fiscal]]`. Rapoartele lunare, Excelul și
-pachetul pentru contabil (F8): `[[modul/flota/rapoarte]]`.
-
-**Fișa vehiculului, nomenclatorul firmei și fișierele** (cine o modifică, coloana „Acțiuni”
-a documentelor, obligatoriile și opționalele pe vehicul, setarea pe tip, scanarea, poza
-bonului, `org-flota`): `[[modul/flota/documente-si-erori]]`.
-
-**Vehiculul nou și foaia nouă NU au rută**: casete pe listă, deschise prin parametru
-(`/flota?vehicul=nou`, `/flota/foi?foaie=noua`), cu `deschisInitial` + `key` (o navigare pe
-ACEEAȘI rută nu remontează). Datele casetei de foaie: `foi/date-foaie-noua.ts`, doar
-vehicule `activ` (baza refuză foaia pe unul vândut sau casat).
+Drepturile pe roluri (0199), garda de vehicul alocat sau pool, „aprobatorul doar decide” și
+„Mașina mea”: `[[modul/flota/roluri-si-portal]]`. **Șoferii** și permisele (0204):
+`[[modul/flota/soferi]]`. **Amenzile și dauna** (0206; scrisoarea de la art. 39 cere și
+`employees:read` all, pentru CNP; recuperarea de la șofer NU e automată):
+`[[modul/flota/amenzi-si-daune]]`. **Fiscalul** (0205, avantajul în natură e SUGESTIE):
+`[[modul/flota/fiscal]]`. Rapoartele lunare, Excelul și pachetul pentru contabil (F8):
+`[[modul/flota/rapoarte]]`. **Fișa vehiculului, nomenclatorul firmei și fișierele**
+`org-flota`: `[[modul/flota/documente-si-erori]]`.
 
 ## Server Actions și citiri
 
 Tabelul acțiunilor din `flota/actions.ts` cu permisiunea și `minScope` fiecăreia,
-kilometrajul obligatoriu la creare, `vehicles:delete` inert și citirile din `fleet.ts`:
+kilometrajul obligatoriu la creare, `vehicles:delete` inert, citirile din `fleet.ts`,
+casetele fără rută (vehicul nou, foaie nouă) și traducerea din `FormData`:
 `[[modul/flota/actiuni]]`. Scrierile pe vehicule și documente sunt toate `minScope: "all"`.
 
 ## Ce refuză baza tăcut
-
-Citește-o înainte de orice scriere în modul.
 
 - **Un vehicul fără șofer și fără `pool` e invizibil sub `vehicles:read` own/team.**
   Managerul vede, din 0199, mașinile echipei și pool-ul; angajatul, mașina lui și
@@ -112,6 +104,9 @@ Citește-o înainte de orice scriere în modul.
   `vehicles!vehicle_id` vine **NULL, fără eroare**: tipează câmpul `| null` și afișează
   „—". Nu compensa cu `createAdminSupabase`. Caseta „Foaie nouă" devine explicație sau
   link spre parc când lista vine goală. — capcana #18
+- **Costurile nu vin cu rândul vehiculului** (0225): valoarea de achiziție și costul
+  documentelor stau în tabele 1:1; angajatul, hr-ul și managerul pe pool primesc `null`,
+  fără eroare — `[[modul/flota/service-si-costuri]]`.
 - **Semaforul de scadențe NU se citește din `expirables`.** Politica de acolo cere ȘI
   dreptul pe vehicul ȘI `compliance:read`, pe care în seed îl au doar `super_admin` și
   `org_admin`. Pentru `hr`, `manager` și `employee` tabela întoarce **zero rânduri,
@@ -137,19 +132,14 @@ Citește-o înainte de orice scriere în modul.
   `alimentari_insert`/`_update` prin `app.poate_scrie_foaie` (pe `update`). Înainte,
   ambele foloseau dreptul de citire. Proba: `tests/rls/proba-flota-integritate.sql`, care
   verifică și `department_id` din altă firmă (P0001).
-- **Șoferul vehiculului NU se scrie pe `vehicles`** (0173). `vehicles.employee_id` e
-  derivatul alocării deschise din `vehicle_assignments` (`pana_la is null`); scris direct
-  dă P0001. `alocaVehicul` e un singur INSERT: triggerul închide singur alocarea precedentă
-  și mută responsabilul din `expirables`; vânzarea, casarea sau ștergerea vehiculului închid
-  alocarea. Proba: `tests/rls/proba-flota-alocari.sql`.
+- **Șoferul vehiculului NU se scrie pe `vehicles`** (0173): e derivatul alocării deschise,
+  scris direct dă P0001 — `alocaVehicul` și ce închide alocarea: `[[modul/flota/actiuni]]`.
 - **Coloane GENERATED ALWAYS pe care clientul nu are voie să le trimită:**
   `trip_sheets.km_parcursi` și `data` (0200), `trip_sheet_curse.km_parcursi`,
   `fuel_entries.pret_litru`, `odometer_anomalies.diferenta`. La fel, `aprobat_de`/
   `aprobat_la`, `confirmat_de`, `numar` și instantaneul vehiculului le scrie baza. — capcana #22
-- **Tipul de document se judecă pe setarea FIRMEI** (0202): un tip de platformă retras
-  pentru ea dă P0001 la un document nou, iar unul retras din platformă (transportul, 0116) trece dacă firma l-a activat. Calea scanării și a bonului trebuie să stea în
-  folderul entității (P0001); bonul se urcă doar pe ciornă. Proba:
-  `tests/rls/proba-flota-tipuri-fisiere.sql`.
+- **Tipul de document se judecă pe setarea FIRMEI, iar fișierul pe folderul entității**
+  (0202, P0001): `[[modul/flota/documente-si-erori]]`.
 - **O foaie activă pe vehicul și zi** (0200): a doua dă 23505 pe `ts_vehicul_zi_uq`, tradus
   pe `plecare_la`.
 
@@ -162,14 +152,8 @@ setări, tipuri), SEDILA din mesajele 0012/0018.
 
 Migrarea → `src/types/database.ts` → `src/schemas/fleet.ts` →
 `src/lib/queries/fleet.ts` → acțiuni → pagini. Anomaliile de kilometraj și calculul de
-consum stau în `src/domain/fleet/`.
-
-`flota/valori-vehicul.ts` și `flota/[id]/valori-document.ts` sunt singura traducere din
-`FormData` spre încărcătura acțiunilor, la creare și la modificare, ca și
-`CampuriVehicul`/`CampuriDocument`. Două
-capcane tăcute stau acolo, prinse de `valori-vehicul.test.ts` și `valori-document.test.ts`:
-`Number("")` e `0`, nu `NaN` (un cost necompletat s-ar salva ca „0 lei"), iar bifa
-`pool` nebifată LIPSEȘTE din `FormData`, deci absența ei înseamnă `false`.
+consum stau în `src/domain/fleet/`. Traducerea din `FormData` (`valori-vehicul.ts`,
+`valori-document.ts`) și cele două capcane tăcute ale ei: `[[modul/flota/actiuni]]`.
 
 ## Extensii
 
@@ -184,8 +168,9 @@ capcane tăcute stau acolo, prinse de `valori-vehicul.test.ts` și `valori-docum
 
 ## Ce NU e aici
 
-Mentenanța vehiculelor (plan, intervenții, ITP) e modul separat. Diurna pentru deplasări
-e alt modul (vehiculul deplasării: `[[modul/flota/soferi]]`). Fișa șoferului: `[[modul/angajati]]`.
+Utilajele și ISCIR: `[[modul/mentenanta]]`; service-ul vehiculelor e al flotei (0203).
+Diurna pentru deplasări e alt modul (vehiculul deplasării: `[[modul/flota/soferi]]`). Fișa
+șoferului: `[[modul/angajati]]`.
 
 ## Când NU e suficientă pagina asta
 

@@ -12,6 +12,7 @@ cai:
   - "src/app/api/export/flota/pachet/route.ts"
   - "src/app/(app)/flota/rapoarte/export-contabil.tsx"
   - "tests/rls/proba-flota-export-contabil.sql"
+  - "supabase/migrations/0225_flota_costuri_ascunse.sql"
 tabele:
   [
     fuel_entries,
@@ -102,9 +103,9 @@ arată și ce n-a intrat, cu motivul:
   de 4). Cheltuielile și service-ul au `date`, deci se taie pe zile.
 - **Tranzacția de card se leagă după `fuel_entry_id`, nu după luna ei**: una din 31,
   23:50 poate fi a unei alimentări din ziua 1 (proba (3)).
-- Vehiculul șters logic: din 0199, `vehicule_select` și `app.poate_vedea_vehicul_dupa_id`
-  (deci și `vex_select`/`vse_select`) nu filtrează `deleted_at`, așa că costurile lui
-  intră (au existat). Numărul vine din instantaneul foii (`vehicul_nr`), apoi din vehicul;
+- Vehiculul șters logic: din 0199, `vehicule_select` nu filtrează `deleted_at`, nici
+  `vex_select`/`vse_select` (din 0203 §7, pe `app.poate_vedea_costurile_vehiculului`), așa
+  că costurile lui intră (au existat). Numărul vine din instantaneul foii (`vehicul_nr`), apoi din vehicul;
   un embed NULL dă „vehicul necunoscut”, nu o excepție (testul pe clientul fals).
 - Din `employees` se ia DOAR `full_name` (D11), și doar în jurnal: explicațiile care
   intră în programul de contabilitate nu poartă numele șoferului.

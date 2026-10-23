@@ -58,16 +58,16 @@ active.
 | Funcție                                                                              | Permisiune / minScope      | Fișier             |
 | ------------------------------------------------------------------------------------ | -------------------------- | ------------------ |
 | `inroleazaAngajat`                                                                   | `employees:create` / all   | `nou/actions.ts`   |
-| `actualizeazaAngajat`                                                                | `employees:update` / team  | `[id]/actions.ts`  |
-| `creeazaContract`                                                                    | `employees:create` / all   | `[id]/actions.ts`  |
-| `inceteazaContract`, `modificaSalariulContractului`                                  | `employees:update` / all   | `[id]/actions.ts`  |
-| `dezvaluieDateSensibile`                                                             | `employees:read` / **all** | `[id]/actions.ts`  |
+| `actualizeazaAngajat`                                                                | `employees:update` / team  | `actions.ts`       |
+| `creeazaContract`, `modificaSalariulContractului` (activarea cere și `update`)       | `employees:create` / all   | `actions.ts`       |
+| `inceteazaContract`                                                                  | `employees:update` / all   | `actions.ts`       |
+| `dezvaluieDateSensibile`                                                             | `employees:read` / **all** | `actions.ts`       |
 | `pregatesteIncarcareDocument`, `salveazaDocument`                                    | `employees:update` / team  | documente          |
 | `linkDescarcareDocument`                                                             | `employees:read` / team    | documente          |
 | `stergeDocument`                                                                     | `employees:delete` / all   | documente          |
 | `suprascriePermisiunea`                                                              | `roles:update` / team      | permisiuni         |
 | `pregatesteIncarcareaImportului`, `analizeazaImportAngajati`, `aplicaImportAngajati` | all                        | import             |
-| `emiteDocumenteLipsa`, `regenereazaDocumente`                                        | `employees:create` / all   | documente          |
+| `emiteDocumente`, `regenereazaDocumente`                                             | `employees:create` / all   | documente          |
 | `salveazaSablonDocument`, `restabilesteSablonPlatforma`                              | `employees:update` / all   | sabloane-documente |
 | `actualizeazaIncadrarea`                                                             | `employees:update` / all   | `actions.ts`       |
 | `desemneazaSefDepartament`                                                           | `departments:update` / all | `actions.ts`       |
@@ -109,8 +109,8 @@ stătea pe nomenclator, deci corectarea lui rescria retroactiv ce se declara la 
   `supabase/migrations/0023_portal_angajat.sql` de la `none`. **Capcana #10 e învechită
   pe acest punct** — restul ei rămâne valabil: nicio pagină și niciun fișier din
   `src/lib/queries` nu poate importa `createAdminSupabase` (ESLint
-  `no-restricted-imports`; excepția acoperă doar `actions.ts`, route handlers, scripts,
-  tests).
+  `no-restricted-imports`; excepția acoperă doar `actions.ts`, `reges/actiuni-api.ts`,
+  route handlers, `rate-limit.ts`, scripts, tests).
 - **CNP și IBAN rămân închise chiar și pentru `own`.** `dezvaluieDateSensibile` cere
   scope **all** exact, nu „cel puțin all" — un rol cu `team` nu trece.
 - **Cursorul keyset pe `full_name` cere `ghilimeleaza()`**, altfel o virgulă sau o

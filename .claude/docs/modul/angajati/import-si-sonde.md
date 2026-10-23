@@ -39,7 +39,9 @@ Id-ul NU poate veni de la client nici în registru: tabela se scrie și direct p
 PostgREST, iar cu id-ul păstrat un hr înregistra `id` = fișa, `cale` = contractul, și
 consumul trecea (proba (3g)).
 Helperii sunt în `src/lib/import/incarcare.ts`; importul extraselor de card folosește
-aceeași poartă, pe `vehicles` ([[modul/flota/carduri]]).
+aceeași poartă, pe `vehicles` ([[modul/flota/carduri]]), și o cere încă o dată la aplicare
+(`incarcareAnalizata`). `aplicaImportAngajati` citește lotul JSON din Storage
+(`caleLotImport`), sub RLS-ul apelantului, nu registrul.
 
 Ce refuză baza: lotul altui utilizator (și al unui coleg org_admin) e invizibil (politica
 cere `created_by = auth.uid()`); o cale în afara lotului dă 23514 (`iup_cale_ck`); rolul

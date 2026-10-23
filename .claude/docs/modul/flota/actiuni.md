@@ -7,6 +7,11 @@ cai:
   - "src/app/(app)/flota/actions-*.ts"
   - "src/lib/queries/fleet.ts"
   - "src/lib/queries/fleet-service.ts"
+  - "src/app/(app)/flota/valori-vehicul.ts"
+  - "src/app/(app)/flota/[id]/valori-document.ts"
+  - "src/app/(app)/flota/foi/date-foaie-noua.ts"
+  - "supabase/migrations/0173_flota_alocari.sql"
+  - "tests/rls/proba-flota-alocari.sql"
 tabele:
   [vehicles, vehicle_documents, vehicle_assignments, trip_sheets, fuel_entries, odometer_anomalies]
 permisiuni:
@@ -61,7 +66,7 @@ modificare. Pe `default 0`, prima foaie trecea de orice verificare (`Number("")`
 Corectura e `corecteazaKilometraj`, cu motivul în audit.
 
 **Starea foii decide tot ce se mai scrie** (0200 §D1, pe orice scope; cursele și
-alimentările DOAR pe ciornă): tabelul stărilor e în `[[modul/flota/foaia-zilnica]]`.
+alimentările DOAR pe ciornă): tabelul stărilor e în `[[modul/flota/foaia-zilnica-garzi]]`.
 
 Scrierile pe vehicule și documente sunt toate `minScope: "all"`, fiindcă politicile cer
 literal `has_permission(...) = 'all'`. **`vehicles:delete` NU se folosește**, deși
@@ -70,6 +75,30 @@ la `vehicles:update`, deci cheia rămâne inertă. Ștergerea e logică, prin `d
 tabelele flotei primesc grant doar pe `select`, `insert` și `update`
 (`0012_fleet.sql:1080`). Contractele scrierilor și ale traducerii de erori sunt fixate pe
 clientul fals: `actions-*.test.ts`, `erori-etichete.test.ts`.
+
+## Alocarea șoferului
+
+- **Șoferul vehiculului NU se scrie pe `vehicles`** (0173). `vehicles.employee_id` e
+  derivatul alocării deschise din `vehicle_assignments` (`pana_la is null`); scris direct
+  dă P0001. `alocaVehicul` e un singur INSERT: triggerul închide singur alocarea precedentă
+  și mută responsabilul din `expirables`; vânzarea, casarea sau ștergerea vehiculului închid
+  alocarea. Proba: `tests/rls/proba-flota-alocari.sql`.
+
+## Casetele fără rută
+
+**Vehiculul nou și foaia nouă NU au rută**: casete pe listă, deschise prin parametru
+(`/flota?vehicul=nou`, `/flota/foi?foaie=noua`), cu `deschisInitial` + `key` (o navigare pe
+ACEEAȘI rută nu remontează). Datele casetei de foaie: `foi/date-foaie-noua.ts`, doar
+vehicule `activ` (baza refuză foaia pe unul vândut sau casat).
+
+## Din `FormData` spre acțiuni
+
+`flota/valori-vehicul.ts` și `flota/[id]/valori-document.ts` sunt singura traducere din
+`FormData` spre încărcătura acțiunilor, la creare și la modificare, ca și
+`CampuriVehicul`/`CampuriDocument`. Două
+capcane tăcute stau acolo, prinse de `valori-vehicul.test.ts` și `valori-document.test.ts`:
+`Number("")` e `0`, nu `NaN` (un cost necompletat s-ar salva ca „0 lei"), iar bifa
+`pool` nebifată LIPSEȘTE din `FormData`, deci absența ei înseamnă `false`.
 
 ## Citiri
 

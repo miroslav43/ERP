@@ -575,7 +575,7 @@ alter table public.vehicle_documents
 -- 0206–0218 n-o mai rescrie). Singura schimbare: valoarea de intrare vine din
 -- `vehicle_costuri`. Rămâne a salarizării (`payroll:read = all`), pe UN angajat
 -- și o lună, doar pe alocările cu folosință personală: valoarea de intrare e
--- baza legală a avantajului (Codul fiscal art. 76 alin. (3) lit. j), nu o
+-- baza legală a avantajului (Codul fiscal art. 76 alin. (3) lit. a), nu o
 -- scurgere a parcului.
 create or replace function public.avantaj_natura_flota(
   p_organization_id uuid,

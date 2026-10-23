@@ -76,10 +76,13 @@ jobul cheamă și `internal.flota_memento_service` (alerta pe kilometri, anvelop
 noiembrie): `[[modul/flota/service-si-costuri]]`. Destinatarii vin dintr-un singur loc,
 `internal.flota_destinatari`.
 
-Din 0206 §G (forma ULTIMĂ a lui `internal.flota_rezumat` stă acum în 0206) lista albă are și
+Din 0206 §G lista albă are și
 `vehicle_fine`, termenul de răspuns al amenzii: merge DOAR la cine citește amenzile la `all`
 (`internal.flota_destinatari_cheie`), niciodată la șofer —
-`[[modul/flota/declaratia-soferului]]`.
+`[[modul/flota/declaratia-soferului]]`. 0214 adaugă `fuel_card`
+(`[[modul/flota/carduri]]`), iar 0218 `vehicle_exit`, doar pentru `vehicles:read = all`
+(`[[modul/flota/iesire]]`). Forma ULTIMĂ a lui `internal.flota_rezumat` stă azi în 0218: de
+acolo pornește orice rescriere (grep pe toate migrările), nu din 0206.
 
 Destinatari: responsabilii (sau `org_admin`) + șoferul alocat, filtrați pe membru ACTIV și
 pe `internal.scope_membru(...,'vehicles','read') <> 'none'`. **Fiecare primește doar

@@ -80,9 +80,10 @@ rânduri și când conduce o mașină a firmei.
   `vehicle_costuri` (0225), pe care hr nu o vede. Funcția avantajului o întoarce totuși
   (`valoare_intrare`) cui are `payroll:read = all` — org_admin și hr —, dar DOAR pe
   vehiculele alocate angajatului cerut CU folosință personală în luna cerută: e baza
-  legală a avantajului (Codul fiscal art. 76 alin. (3) lit. j), nu o fereastră spre
-  costurile parcului. Mașina alocată fără folosință personală nu apare. Confirmat
-  empiric, fără schimbare: `proba-costuri-compatibilitate.sql` (3) și celula
+  legală a avantajului (Codul fiscal art. 76 alin. (3) lit. a); procentul, HG 1/2016
+  titlul IV pct. 12 alin. (5) lit. a), `NOTES.md`), nu o fereastră spre costurile
+  parcului. Mașina alocată fără folosință personală nu apare. Confirmat empiric, fără
+  schimbare: `proba-costuri-compatibilitate.sql` (3) și celula
   „avantaj_natura_flota(E1) cu valoare” din `proba-flota-matrice-roluri.sql`.
 
 ## Ce refuză baza tăcut

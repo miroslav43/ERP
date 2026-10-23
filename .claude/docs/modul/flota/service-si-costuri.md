@@ -113,7 +113,8 @@ din `pragSaltVehicul` (`[[modul/flota/alerte-si-setari]]`).
   Textele din ecrane și din marketing spun exact asta. — capcanele #19, #26
 - **`app.poate_vedea_expirabil` a fost rescrisă COMPLET** (nu doar completată) și acum
   conține și `vehicle_service`. O migrare viitoare care adaugă un `entity_type` pornește
-  de la forma din 0203, NU de la `0011`: funcția e un `case`, iar o copie veche pierde
+  de la forma ULTIMĂ (după 0203 au rescris-o 0204, 0206, 0214 și 0218; azi 0218), NU de la
+  `0011` și nici de la 0203: funcția e un `case`, iar o copie veche pierde
   tăcut ramurile celorlalte module (cele noi ajung pe `else false`, deci invizibile).
   Proba (13) numără ramurile și o prinde. Garda din 0023 (nicio ramură nu acceptă
   `employees:read` cu scope `own`) trece.

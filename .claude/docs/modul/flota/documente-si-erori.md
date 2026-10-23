@@ -12,6 +12,10 @@ cai:
   - "src/app/(app)/flota/incarcare-fisier-flota.tsx"
   - "src/domain/fleet/tipuri-document.ts"
   - "src/domain/fleet/fisiere.ts"
+  - "supabase/migrations/0202_flota_tipuri_si_fisiere.sql"
+  - "tests/rls/proba-flota-tipuri-fisiere.sql"
+  - "supabase/migrations/0218_flota_iesire_din_parc.sql"
+  - "supabase/migrations/0225_flota_costuri_ascunse.sql"
 tabele:
   [
     vehicle_document_types,
@@ -57,10 +61,18 @@ un document pe un tip neaplicabil trece. Un document pe un tip RETRAS de firmă 
 corectează fără să-și schimbe tipul: selectorul casetei primește și tipul lui
 (`tipuriPentruDocument`), altfel ar cădea pe „Alegeți tipul”.
 
-**Ieșirea din parc trece prin `actualizeazaVehicul`** (`vehicule_insert` cere `status =
-'activ'`): `status` și `motiv_iesire` sunt doar în `actualizeazaVehiculSchema`, cu motiv
-obligatoriu la `vandut`/`casat`; `data_iesire` o pune baza. Ștergerea e pentru rândul care
-n-ar fi trebuit să existe; `vehicles_dupa` scoate scadențele din semafor.
+**Ieșirea din parc NU mai trece prin `actualizeazaVehicul`** (din 0218): o face asistentul
+„Scoate din parc” (`[[modul/flota/iesire]]`), iar `vehicles_iesire_garda` refuză cu P0001
+trecerea directă în sau din `vandut`/`casat`. `vehicule_insert` cere `status = 'activ'`;
+`status` și `motiv_iesire` rămân în `actualizeazaVehiculSchema` doar ca să fie retrimise
+NESCHIMBATE de caseta „Modifică” a unui vehicul ieșit (motiv obligatoriu la
+`vandut`/`casat`); `data_iesire` o scrie asistentul. Ștergerea e pentru rândul care n-ar fi
+trebuit să existe; `vehicles_dupa` scoate scadențele din semafor.
+
+**Rândul „Valoare” și coloana „Cost” a documentelor** apar doar cui citește costurile
+(`poateVedeaCosturi`: `vehicles:update = all` sau citirea service-ului): din 0225 costul
+stă în tabelele 1:1, iar pentru restul RLS-ul ar da „—” acolo unde costul există
+(`[[modul/flota/service-si-costuri]]`).
 
 ## Nomenclatorul firmei — `/flota/setari/documente`
 
@@ -84,6 +96,13 @@ triggerele cer calea în folderul entității (P0001). Trei pași în `actions-f
 (semnare pe clientul omului → urcare → `masoaraObiectul` + UPDATE cu `.select()`);
 `IncarcareFisierFlota` e caseta comună fișei și foii (și în portal). Linkurile se
 semnează pe server (`urlSemnateFlota`): cine n-are voie vede „indisponibil”, nu un link.
+
+## Ce refuză baza tăcut
+
+- **Tipul de document se judecă pe setarea FIRMEI** (0202): un tip de platformă retras
+  pentru ea dă P0001 la un document nou, iar unul retras din platformă (transportul, 0116) trece dacă firma l-a activat. Calea scanării și a bonului trebuie să stea în
+  folderul entității (P0001); bonul se urcă doar pe ciornă. Proba:
+  `tests/rls/proba-flota-tipuri-fisiere.sql`.
 
 ## Erori traduse
 

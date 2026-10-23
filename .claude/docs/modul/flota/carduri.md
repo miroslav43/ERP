@@ -79,7 +79,7 @@ repotrivește DOAR pe el, pe luna lui (`repotrivesteLuna(..., doarId)`): legătu
 celorlalte rânduri rămân ocupate. Pașii nu sunt atomici; „Repotrivește luna” reia restul.
 
 Importul urmează tiparul celui de angajați: URL semnat → analiza (citește, potrivește,
-urcă lotul JSON, NU scrie în bază) → aplicarea în felii, cu potrivirea RECALCULATĂ pe datele
+urcă lotul JSON, NU scrie tranzacții; consumă doar lotul din registru) → aplicarea în felii, cu potrivirea RECALCULATĂ pe datele
 de atunci. Sursa (cu numere întregi de card) se șterge la PRIMA analiză, cu clientul admin;
 o re-analiză după pasul de mapare re-urcă fișierul cu alt `batchId`. Calea:
 `{org}/vehicles/{batchId}/…` (`prefixExtrasCard`, `src/lib/documents/cale.ts`).
@@ -90,7 +90,8 @@ pregătirea înregistrează lotul ÎNAINTEA URL-ului semnat, iar baza îi dă id
 (o dată, doar creatorul, doar pe calea înregistrată, UPDATE cu `.select()`) și abia apoi
 șterge; aplicarea cere un lot al apelantului deja analizat. Prefixul singur nu ajungea: un
 `batchId` egal cu id-ul unui vehicul ștergea orice .csv/.xlsx din folderul lui. Importul de
-angajați are aceeași poartă, pe `employees`.
+angajați are aceeași poartă la pregătire și la analiză, pe `employees`; aplicarea lui citește
+lotul JSON din Storage (`caleLotImport`), sub RLS-ul apelantului, nu registrul.
 
 ## Citiri
 
@@ -149,7 +150,7 @@ din parc), după `vehicles.data_iesire` din context.
 
 Migrarea → `database.ts` → `schemas/fleet-carduri.ts` → `queries/fleet-carduri.ts` →
 acțiuni → pagini. `app.poate_vedea_expirabil` (ramura `fuel_card`) și lista albă din
-`internal.flota_rezumat` (forma 0203, notificarea duce la `/flota/carduri?card=<id>`) se
+`internal.flota_rezumat` (rescrise în 0214 de la forma din 0206; notificarea duce la `/flota/carduri?card=<id>`) se
 rescriu INTEGRAL de la forma ultimă: F12h le rescrie din nou după 0214 și caută ramura.
 Pragurile din `/flota/setari` se oglindesc și pentru carduri (`flota_setari_praguri`).
 `valori-card.ts` e singura traducere `FormData` → acțiune (ținta e un singur câmp).
