@@ -42,6 +42,8 @@ interface Proprietati {
   readonly categorii: readonly string[];
   readonly ssmActiv: boolean;
   readonly poateDerogare: boolean;
+  /** `maintenance:update = all`: câmpul valorii de achiziție (0232). */
+  readonly poateScrieValoarea: boolean;
   /** Fișa după care se copiază câmpurile („Adaugă unul la fel”). */
   readonly model?: ValoriInitialeEchipament | undefined;
 }
@@ -55,6 +57,7 @@ export function DialogEchipamentNou({
   categorii,
   ssmActiv,
   poateDerogare,
+  poateScrieValoarea,
   model,
 }: Proprietati): ReactElement {
   const router = useRouter();
@@ -98,6 +101,7 @@ export function DialogEchipamentNou({
           categorii={categorii}
           ssmActiv={ssmActiv}
           poateDerogare={poateDerogare}
+          poateScrieValoarea={poateScrieValoarea}
           echipament={valoriInitiale}
         />
       )}

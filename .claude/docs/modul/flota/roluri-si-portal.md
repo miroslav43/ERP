@@ -15,7 +15,7 @@ permisiuni:
   [vehicles:read, trip_sheets:read, trip_sheets:create, trip_sheets:update, trip_sheets:approve]
 feature: fleet
 capcane: [17, 18]
-scris_pe: b06fb2e640bedcc3c3bfa2e19aa9a08a2914e678
+scris_pe: cf35535c22a8126c8901d50e9ad66f96d31fc430
 scris_la: 2026-10-23
 tags: [modul, operations]
 ---
@@ -47,8 +47,9 @@ permisiuni rămâne așa. Matricea publică (`matrice-roluri.ts`) și fișa de m
   pe o foaie se vede după FOAIE (`poate_vedea_foaie`), cea fără foaie după vehicul, fără
   pool, iar `vehicles:read = all` le vede pe toate. Mașina primită de la un coleg nu
   aduce anomaliile de pe foile lui. Nici service-ul și costurile (0203) nu urmează
-  pool-ul: managerul le citește doar pe mașinile echipei. Forma cu două argumente rămâne
-  pentru `alocari_select`.
+  pool-ul: managerul le citește doar pe mașinile echipei, iar pool-ul alocat unui om din
+  echipă rămâne al firmei (`app.poate_vedea_costurile_vehiculului`). Forma cu două
+  argumente rămâne pentru `alocari_select`.
 - **Foaia sub `all` cere mașina potrivită.** `internal.foi_parcurs_inainte` refuză cu
   P0001 („Vehiculul ales nu vă este alocat…”) o foaie pe un vehicul care nu e pool și nu
   are o alocare a șoferului în ziua plecării (ora României). Aceeași regulă la UPDATE,
@@ -155,9 +156,11 @@ filtrează pe `app.poate_vedea_vehicul`, deci hr-ul cu mașină nu moștenește 
 
 **Costurile nu urmează rândul vizibil** (0225, pachetul X1): valoarea de achiziție și
 costul documentelor stau în `vehicle_costuri` / `vehicle_document_costuri`, cu citirea
-costurilor (`vehicles:update = all`, sau `read >= team` pe mașina echipei, fără pool):
-angajatul și hr-ul (și cu mașină) — nimic, managerul — echipa. Coloanele vechi sunt
-goale; detaliile: `[[modul/flota/service-si-costuri]]`. La incidente, șoferul nu mai
+costurilor (`vehicles:update = all`, sau `read >= team` pe mașina echipei care nu e în
+pool, nici alocată cuiva din echipă) — aceeași regulă ca planurile, intervențiile și
+cheltuielile: angajatul și hr-ul (și cu mașină) — nimic, managerul — echipa. Coloanele
+vechi sunt goale; detaliile: `[[modul/flota/service-si-costuri]]`. Singura excepție
+intenționată, a salarizării: `[[modul/flota/fiscal]]`. La incidente, șoferul nu mai
 citește rândul: `[[modul/flota/declaratia-soferului]]`. Probele numără celulele, fără
 rânduri „DEFECT”.
 

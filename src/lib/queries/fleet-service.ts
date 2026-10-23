@@ -1,9 +1,11 @@
 // src/lib/queries/fleet-service.ts
 // Citirile service-ului, cheltuielilor și costurilor unui vehicul (0203). Ca în
 // `fleet.ts`, NU se adaugă filtre de scope: vizibilitatea o dau politicile
-// (`vsp_select`, `vse_select`, `vex_select`: `vehicles:read >= team` ȘI vehiculul
-// echipei, FĂRĂ pool: managerul nu vede facturile mașinii comune). Cine nu le
-// vede primește zero rânduri, nu o eroare.
+// (`vsp_select`, `vse_select`, `vex_select`, toate prin
+// `app.poate_vedea_costurile_vehiculului`: `vehicles:update = all`, `read = all`,
+// sau `team` pe mașina echipei care NU e în pool, nici alocată cuiva din echipă:
+// managerul nu vede facturile mașinii comune). Cine nu le vede primește zero
+// rânduri, nu o eroare.
 
 import "server-only";
 

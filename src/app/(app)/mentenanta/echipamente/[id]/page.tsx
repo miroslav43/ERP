@@ -566,6 +566,7 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
                 categorii={categorii}
                 ssmActiv={features.has("ssm")}
                 poateDerogare={can(permisiuni, "maintenance:update", "all")}
+                poateScrieValoarea={can(permisiuni, "maintenance:update", "all")}
               />
               <ButonSchimbaStarea
                 echipamentId={echipament.id}

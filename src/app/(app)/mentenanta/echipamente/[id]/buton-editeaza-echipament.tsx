@@ -42,6 +42,7 @@ export function ButonEditeazaEchipament({
   categorii,
   ssmActiv,
   poateDerogare,
+  poateScrieValoarea,
 }: {
   readonly echipament: EchipamentEditabil;
   readonly angajati: readonly OptiuneEchipament[];
@@ -51,6 +52,8 @@ export function ButonEditeazaEchipament({
   readonly categorii: readonly string[];
   readonly ssmActiv: boolean;
   readonly poateDerogare: boolean;
+  /** `maintenance:update = all`: câmpul valorii de achiziție (0232). */
+  readonly poateScrieValoarea: boolean;
 }): ReactElement {
   async function trimite(date: FormData) {
     return actualizeazaEchipament({ id: echipament.id, ...valoriEchipament(date) });
@@ -82,6 +85,7 @@ export function ButonEditeazaEchipament({
           categorii={categorii}
           ssmActiv={ssmActiv}
           poateDerogare={poateDerogare}
+          poateScrieValoarea={poateScrieValoarea}
           echipament={echipament}
         />
       )}

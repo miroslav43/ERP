@@ -154,6 +154,26 @@ describe("citiri punctuale și hărți după id", () => {
     expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
   });
 
+  // Y1 (0232): valoarea de achiziție vine din `equipment_costuri`, încorporată sub
+  // RLS-ul ei; coloana `equipment.valoare_achizitie` e goală și nu se mai citește.
+  it("citesteEchipament: valoarea din `equipment_costuri`, `null` cui nu o vede", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("equipment", "select", {
+      data: { id: ID_1, cod: "PRS-01", costuri: { valoare_achizitie: 45000 } },
+    });
+    server.raspunde("equipment", "select", { data: { id: ID_1, cod: "PRS-01", costuri: null } });
+
+    const vazut = await citesteEchipament(ORG_ID, ID_1);
+    const ascuns = await citesteEchipament(ORG_ID, ID_1);
+
+    expect(vazut).toMatchObject({ id: ID_1, valoare_achizitie: 45000 });
+    expect(vazut).not.toHaveProperty("costuri");
+    expect(ascuns).toMatchObject({ id: ID_1, valoare_achizitie: null });
+    const [apel] = server.apeluriPe("equipment");
+    expect(apel?.coloane).toContain("costuri:equipment_costuri(valoare_achizitie)");
+    expect(apel?.coloane).not.toMatch(/(^|,\s*)valoare_achizitie\s*(,|$)/u);
+  });
+
   it("echipamenteDupaId și angajatiDupaId: gol fără interogare, id-uri unice, hartă", async () => {
     const { server } = configureazaActiunea();
     expect((await echipamenteDupaId(ORG_ID, [])).size).toBe(0);

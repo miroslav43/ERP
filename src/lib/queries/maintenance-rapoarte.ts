@@ -171,23 +171,43 @@ export async function opririInPerioada(
   });
 }
 
-/** Parcul: echipamentele neșterse, și cele casate (filtrarea pe perioadă e a domeniului). */
+/**
+ * Parcul: echipamentele neșterse, și cele casate (filtrarea pe perioadă e a domeniului).
+ *
+ * Valoarea de achiziție vine din `equipment_costuri` (0232, Y1), încorporată sub
+ * RLS-ul ei (`maintenance:update = all` sau `maintenance:read >= team` — poarta
+ * paginii e `team`, deci cititorul raportului o vede). Cui nu o vede îi vine
+ * `null`, iar „Cost / valoare” rămâne „—”, fără semnal de înlocuire.
+ */
 export async function echipamentePentruRaport(
   organizationId: string,
 ): Promise<CitireRaport<EchipamentRaport>> {
   const db = await createServerSupabase();
-  return citestePlafonat<EchipamentRaport>((dupa, limita) => {
+  const brut = await citestePlafonat<EchipamentRaportBrut>((dupa, limita) => {
     let q = db
       .from("equipment")
-      .select("id, cod, denumire, valoare_achizitie, casat_la, data_punerii_in_functiune")
+      .select(
+        "id, cod, denumire, casat_la, data_punerii_in_functiune, costuri:equipment_costuri(valoare_achizitie)",
+      )
       .eq("organization_id", organizationId)
       .is("deleted_at", null)
       .order("id", { ascending: true })
       .limit(limita);
     if (dupa !== null) q = q.gt("id", dupa);
-    return q.returns<EchipamentRaport[]>();
+    return q.returns<EchipamentRaportBrut[]>();
   });
+  return {
+    trunchiat: brut.trunchiat,
+    randuri: brut.randuri.map(({ costuri, ...e }) => ({
+      ...e,
+      valoare_achizitie: costuri?.valoare_achizitie ?? null,
+    })),
+  };
 }
+
+type EchipamentRaportBrut = Omit<EchipamentRaport, "valoare_achizitie"> & {
+  readonly costuri: Readonly<{ valoare_achizitie: number | null }> | null;
+};
 
 /** Planurile neșterse, active și inactive: execuțiile unui plan dezactivat se judecă și ele. */
 export async function planuriPentruRaport(

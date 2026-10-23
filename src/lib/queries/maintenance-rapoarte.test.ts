@@ -187,4 +187,41 @@ describe("parcul și planurile", () => {
       expect(apelPlanuri?.coloane).toContain(coloana);
     }
   });
+
+  // Y1 (0232): valoarea de achiziție stă în `equipment_costuri`, încorporată sub
+  // RLS-ul ei. Cine n-o vede primește embed-ul `null`, deci „Cost / valoare” = „—”.
+  it("valoarea de achiziție vine din `equipment_costuri`, nu din coloana goală a echipamentului", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("equipment", "select", {
+      data: [
+        {
+          id: "e-1",
+          cod: "A",
+          denumire: "Presă",
+          casat_la: null,
+          data_punerii_in_functiune: null,
+          costuri: { valoare_achizitie: 5000 },
+        },
+        {
+          id: "e-2",
+          cod: "B",
+          denumire: "Strung",
+          casat_la: null,
+          data_punerii_in_functiune: null,
+          costuri: null,
+        },
+      ],
+    });
+
+    const r = await echipamentePentruRaport(ORG_ID);
+
+    expect(r.randuri.map((e) => [e.id, e.valoare_achizitie])).toEqual([
+      ["e-1", 5000],
+      ["e-2", null],
+    ]);
+    expect(r.randuri[0]).not.toHaveProperty("costuri");
+    const [apel] = server.apeluriPe("equipment");
+    expect(apel?.coloane).toContain("costuri:equipment_costuri(valoare_achizitie)");
+    expect(apel?.coloane).not.toMatch(/(^|,\s*)valoare_achizitie\s*(,|$)/u);
+  });
 });

@@ -882,6 +882,11 @@ begin
   values (v_alfa, (select val from t_ids where cheie='equip_alfa'), 'ore', 120.50, current_date - 5),
          (v_beta, (select val from t_ids where cheie='equip_beta'), 'ore', 120.50, current_date - 5);
 
+  -- 0232 (Y1): valoarea de achiziție a echipamentului, în tabela ei 1:1.
+  insert into public.equipment_costuri (organization_id, equipment_id, valoare_achizitie, created_by, updated_by)
+  values (v_alfa, (select val from t_ids where cheie='equip_alfa'), 45000, v_admin_alfa, v_admin_alfa),
+         (v_beta, (select val from t_ids where cheie='equip_beta'), 45000, v_admin_beta, v_admin_beta);
+
   insert into public.maintenance_plans (id, organization_id, equipment_id, denumire, periodicitate_zile, responsabil_employee_id)
   values ((select val from t_ids where cheie='mplan_alfa'), v_alfa, (select val from t_ids where cheie='equip_alfa'),
           'Revizie periodică', 180, (select val from t_ids where cheie='mgr_alfa')),

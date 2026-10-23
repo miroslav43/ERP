@@ -365,6 +365,17 @@ export const numeleEchipamentelorMele = createAction({
 // pentru `employee`/`manager`, care au `maintenance:create = all` din seed
 // (rândul e gândit pentru sesizări). Fără poarta suplimentară de aici, orice
 // angajat ar putea crea echipamente (capcane.md #35).
+//
+// ── VALOAREA DE ACHIZIȚIE (0232, Y1) ─────────────────────────────────────────
+// NU se scrie pe rândul echipamentului: îl văd și responsabilul utilajului și
+// tehnicianul atribuit unei sesizări, iar RLS-ul nu taie coloane. Stă în
+// `equipment_costuri`, pe care o scrie doar `maintenance:update = all` (politica
+// `ec_insert` / `ec_update`). Gestionarul pe `team` editează echipamentul, nu
+// valoarea: fișa nu-i arată câmpul, deci valoarea lui e `null` și înseamnă
+// „neatins”. O valoare trimisă totuși de el e refuzată înainte de orice scriere.
+
+const MESAJ_VALOARE_INTERZISA =
+  "Valoarea de achiziție o modifică doar cine administrează mentenanța la nivelul întregii organizații.";
 
 export const creeazaEchipament = createAction({
   name: "maintenance.equipment.create",
@@ -401,6 +412,10 @@ export const creeazaEchipament = createAction({
   },
   revalidate: ["/mentenanta/echipamente", "/mentenanta"],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const { valoare_achizitie, ...echipament } = input;
+    if (valoare_achizitie !== null && ctx.scope !== "all") {
+      throw forbidden(MESAJ_VALOARE_INTERZISA);
+    }
     const db = await createServerSupabase();
     // `created_by`/`updated_by` NU se trimit: `equipment_actor` (trigger
     // `set_actor`, atașat pe toate cele 26 de tabele din 0011) le completează
@@ -409,12 +424,30 @@ export const creeazaEchipament = createAction({
     const { data, error } = await db
       .from("equipment")
       .insert({
-        ...input,
+        ...echipament,
         organization_id: ctx.tenant.organizationId,
       })
       .select("id")
       .single();
     if (error !== null) traduEroare(error);
+
+    if (valoare_achizitie !== null) {
+      // `created_by` / `updated_by` sunt cerute nominal de `ec_insert`.
+      const cost = await db.from("equipment_costuri").insert({
+        organization_id: ctx.tenant.organizationId,
+        equipment_id: data.id,
+        valoare_achizitie,
+        created_by: ctx.user.id,
+        updated_by: ctx.user.id,
+      });
+      // Echipamentul a intrat deja: o eroare generică l-ar trimite pe om să-l
+      // adauge din nou, iar a doua încercare ar cădea pe codul dublat.
+      if (cost.error !== null) {
+        throw businessRule(
+          "Echipamentul a fost adăugat, dar valoarea de achiziție nu s-a salvat. Deschideți fișa echipamentului, apăsați „Modifică” și introduceți-o din nou.",
+        );
+      }
+    }
 
     return { id: data.id };
   },
@@ -456,8 +489,12 @@ export const actualizeazaEchipament = createAction({
   },
   revalidate: (input) => ["/mentenanta/echipamente", `/mentenanta/echipamente/${input.id}`],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const { id, valoare_achizitie, ...campuri } = input;
+    const scrieValoarea = ctx.scope === "all";
+    if (valoare_achizitie !== null && !scrieValoarea) {
+      throw forbidden(MESAJ_VALOARE_INTERZISA);
+    }
     const db = await createServerSupabase();
-    const { id, ...campuri } = input;
 
     const { data, error } = await db
       .from("equipment")
@@ -469,6 +506,22 @@ export const actualizeazaEchipament = createAction({
     if (error !== null) traduEroare(error);
     if (data === null) {
       throw notFound("Echipamentul nu a fost găsit sau nu vă este accesibil.");
+    }
+
+    // Upsert și cu `null`: un câmp golit de administrator trebuie să golească
+    // valoarea. `created_by` îl păstrează `internal.set_actor` pe rândul existent.
+    if (scrieValoarea) {
+      const cost = await db.from("equipment_costuri").upsert(
+        {
+          organization_id: ctx.tenant.organizationId,
+          equipment_id: data.id,
+          valoare_achizitie,
+          created_by: ctx.user.id,
+          updated_by: ctx.user.id,
+        },
+        { onConflict: "equipment_id" },
+      );
+      if (cost.error !== null) traduEroare(cost.error);
     }
 
     return { id: data.id };

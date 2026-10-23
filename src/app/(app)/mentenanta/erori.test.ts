@@ -128,6 +128,29 @@ describe("traduEroare (mentenanță)", () => {
     });
   });
 
+  // 0232 (Y1): garda valorii de achiziție mutate în `equipment_costuri`. Citit
+  // din migrare, ca la 0211: un mesaj nou al gărzii intră singur în probă.
+  const mesaje0232 = [
+    ...readFileSync(
+      join(process.cwd(), "supabase/migrations/0232_mentenanta_costuri_echipament.sql"),
+      "utf8",
+    ).matchAll(/errcode = 'P0001',\s*message = '((?:[^']|'')+)'/gu),
+  ].map((m) => (m[1] ?? "").replaceAll("''", "'"));
+
+  it("0232 are mesajele gărzii valorii de achiziție", () => {
+    expect(mesaje0232).toContain("Valoarea de achiziție nu se mută pe alt echipament.");
+    expect(mesaje0232).toContain("Echipamentul ales nu există în organizația dumneavoastră.");
+  });
+
+  it.each(mesaje0232.map((m) => [m]))("P0001 din 0232 ajunge întreg: %s", (mesaj) => {
+    expect(mesaj.length).toBeLessThanOrEqual(300);
+    expect(mesaj.endsWith(".")).toBe(true);
+    expect(prinde(() => traduEroare(eroarePostgrest("P0001", mesaj)))).toMatchObject({
+      code: "CONFLICT",
+      message: mesaj,
+    });
+  });
+
   it.each([["42501"], ["23503"], ["23514"], ["428C9"]])(
     "%s se aruncă mai departe, ca obiectul original",
     (cod) => {

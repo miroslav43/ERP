@@ -18,12 +18,14 @@ cai:
   - "src/lib/queries/flota-fiscal.ts"
   - "src/schemas/flota-fiscal.ts"
   - "tests/rls/proba-flota-fiscal.sql"
-tabele: [vehicle_fiscal_regimes, vehicle_consumption_norms, organizations, trip_sheets]
+  - "supabase/migrations/0225_flota_costuri_ascunse.sql"
+tabele:
+  [vehicle_fiscal_regimes, vehicle_consumption_norms, organizations, trip_sheets, vehicle_costuri]
 permisiuni: [vehicles:read, vehicles:update, organizations:update, payroll:read]
 feature: fleet
 capcane: [17, 23]
-scris_pe: c1ed19723565547c8571b6735b5e3973189cd888
-scris_la: 2026-10-22
+scris_pe: b7a0575f273fdf672d77aa3420bcc140317ea9b9
+scris_la: 2026-10-23
 tags: [modul, operations, fiscal]
 ---
 
@@ -74,6 +76,14 @@ rânduri și când conduce o mașină a firmei.
   `payroll:read = all`): alocările cu folosință personală ale unui om într-o lună și faptele
   vehiculului. Ce se sugerează decide `sugereazaAvantaj`: 1,7% din valoarea de intrare sau
   chiria; nimic la 50%, la firmă micro/specific sau la mașina personală.
+- **Excepția intenționată de la costurile ascunse.** Valoarea de achiziție stă în
+  `vehicle_costuri` (0225), pe care hr nu o vede. Funcția avantajului o întoarce totuși
+  (`valoare_intrare`) cui are `payroll:read = all` — org_admin și hr —, dar DOAR pe
+  vehiculele alocate angajatului cerut CU folosință personală în luna cerută: e baza
+  legală a avantajului (Codul fiscal art. 76 alin. (3) lit. j), nu o fereastră spre
+  costurile parcului. Mașina alocată fără folosință personală nu apare. Confirmat
+  empiric, fără schimbare: `proba-costuri-compatibilitate.sql` (3) și celula
+  „avantaj_natura_flota(E1) cu valoare” din `proba-flota-matrice-roluri.sql`.
 
 ## Ce refuză baza tăcut
 

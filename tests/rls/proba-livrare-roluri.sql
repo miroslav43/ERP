@@ -399,6 +399,9 @@ begin
   insert into public.equipment (id, organization_id, cod, denumire, este_iscir) values
     (eq1,    v_org, 'CMP-' || s, 'Compresor', false),
     (eq_isc, v_org, 'MAC-' || s, 'Macara capră', true);
+  -- 0232 (Y1): valoarea de achiziție a compresorului, în tabela ei 1:1.
+  insert into public.equipment_costuri (organization_id, equipment_id, valoare_achizitie, created_by, updated_by)
+  values (v_org, eq1, 9000, u_adm, u_adm);
 
   -- Ce întocmește administratorul, sub identitatea lui (triggerele de
   -- numerotare și de derivare rulează ca în aplicație).
@@ -646,6 +649,15 @@ begin
       ('import_uploads', 'SELECT',
        $q$select 1 from public.import_uploads where organization_id = {org}$q$,
        array['0', '1', '1', '0', '0', '0', '0']),
+      -- 0232 (Y1): valoarea de achiziție a echipamentului stă în `equipment_costuri`
+      -- (`maintenance:update = all` sau `read >= team`). E1, executantul
+      -- intervenției pe compresor, vede intervenția, nu și valoarea utilajului.
+      ('equipment_costuri', 'SELECT',
+       $q$select 1 from public.equipment_costuri where organization_id = {org}$q$,
+       array['1', '1', '0', '1', '0', '0', '0']),
+      ('equipment.valoare_achizitie (coloana veche)', 'SELECT',
+       $q$select 1 from public.equipment where organization_id = {org} and valoare_achizitie is not null$q$,
+       array['0', '0', '0', '0', '0', '0', '0']),
       ('maintenance_rezumat_trimis', 'SELECT',
        $q$select 1 from public.maintenance_rezumat_trimis where organization_id = {org}$q$,
        array['2', '1', '0', '1', '0', '0', '0']),
@@ -810,6 +822,10 @@ begin
       ('INSERT import_uploads (extras de card)', 'INSERT',
        $q$insert into public.import_uploads (organization_id, resursa, cale, created_by, updated_by) values ({org}, 'vehicles', 'x/vehicles/x/extras.csv', auth.uid(), auth.uid())$q$,
        array['refuz', 'ok:1', 'refuz', 'refuz', 'refuz', 'refuz', 'refuz']),
+      -- 0232: upsert-ul aplicației pe valoarea echipamentului (doar `maintenance:update = all`).
+      ('UPSERT equipment_costuri', 'INSERT',
+       $q$insert into public.equipment_costuri (organization_id, equipment_id, valoare_achizitie, created_by, updated_by) values ({org}, {eq1}, 9500, auth.uid(), auth.uid()) on conflict (equipment_id) do update set valoare_achizitie = excluded.valoare_achizitie, updated_by = excluded.updated_by$q$,
+       array['refuz', 'ok:1', 'refuz', 'refuz', 'refuz', 'refuz', 'refuz']),
       ('INSERT driver_licenses (permisul lui hr)', 'INSERT',
        $q$insert into public.driver_licenses (organization_id, employee_id, numar, categorii, expira_la) values ({org}, {e_hr}, 'P-HR-PROBA', array['B'], app.azi_local() + 300)$q$,
        array['refuz', 'ok:1', 'ok:1', 'refuz', 'refuz', 'refuz', 'refuz']),
@@ -910,6 +926,9 @@ begin
       ('UPDATE import_uploads: mut calea pe o fișă', 'UPDATE',
        $q$update public.import_uploads set cale = {org} || '/employees/' || {e_e1} || '/contract.pdf', updated_by = auth.uid() where organization_id = {org}$q$,
        array['refuz', 'refuz', 'refuz', 'refuz', 'refuz', 'refuz', 'refuz']),
+      ('UPDATE equipment_costuri', 'UPDATE',
+       $q$update public.equipment_costuri set valoare_achizitie = 9100, updated_by = auth.uid() where organization_id = {org}$q$,
+       array['refuz', 'ok:1', 'refuz', 'refuz', 'refuz', 'refuz', 'refuz']),
       ('UPDATE driver_licenses', 'UPDATE',
        $q$update public.driver_licenses set updated_by = auth.uid() where organization_id = {org}$q$,
        array['refuz', 'ok:3', 'ok:3', 'refuz', 'refuz', 'refuz', 'refuz']),
@@ -1037,11 +1056,12 @@ begin
   -- Baza lasă o mașină din pool să fie alocată (`vehicles.employee_id` se
   -- umple). Decizia din 21 oct dă managerului costurile echipei, „nu și ale
   -- pool-ului”, iar fișa (`poateVedeaService`) ascunde costurile oricărui pool.
-  -- 0225 a strâns `vehicle_costuri` / `vehicle_document_costuri`, iar §4 din
-  -- aceeași migrare rescrie și `vse_select` / `vex_select` (0203) pe
-  -- `poate_vedea_costurile_vehiculului`: înainte judecau doar după șofer și
-  -- arătau managerului service-ul și cheltuielile pool-ului alocat
+  -- 0225 a strâns `vehicle_costuri` / `vehicle_document_costuri`, iar 0203 §7
+  -- scrie `vsp_select`, `vse_select` și `vex_select` direct pe
+  -- `poate_vedea_costurile_vehiculului` (Y1): înainte judecau doar după șofer și
+  -- arătau managerului planurile, service-ul și cheltuielile pool-ului alocat
   -- subordonatului (fost `D:1/0`, închis după verificarea dublă din 23 oct).
+  -- E2 (`own`) nu vede costuri nici pe mașina primită.
   -- Alocarea cere pool-ul fără rezervări active (P0001): le anulează întâi
   -- administratorul, sub identitatea lui, ca în aplicație.
   perform set_config('request.jwt.claim.sub', a->>'u_adm', true);
@@ -1069,6 +1089,9 @@ begin
       ('pool cu șofer: vehicle_document_costuri (VP)', 'SELECT',
        $q$select 1 from public.vehicle_document_costuri where document_id = {d_vp}$q$,
        array['1', '1', '0', '0', '0', '0', '0']),
+      ('pool cu șofer: vehicle_service_plans (VP)', 'SELECT',
+       $q$select 1 from public.vehicle_service_plans where vehicle_id = {vp}$q$,
+       array['1', '1', '0', '0', '0', '0', '0']),
       ('pool cu șofer: vehicle_service_entries (VP)', 'SELECT',
        $q$select 1 from public.vehicle_service_entries where vehicle_id = {vp}$q$,
        array['1', '1', '0', '0', '0', '0', '0']),
@@ -1079,6 +1102,7 @@ begin
   loop
     v_celule := v_celule + pg_temp.judeca(r.eticheta, r.op, r.sql, r.ast, v_useri, v_ctx, baza, v_roluri);
   end loop;
+
   raise notice '  ──────────────────────────────────────────────────────────────────────────────────────────────';
   for r in select verdict, count(*) as n from pg_temp.rezultate group by verdict order by verdict loop
     raise notice '  %  %', rpad(r.verdict, 28), r.n;

@@ -108,44 +108,22 @@ create index vdc_org_idx on public.vehicle_document_costuri (organization_id);
 -- ============================================================
 -- 2. Cine vede costurile
 -- ============================================================
--- Pornește de la forma lui `vex_select` (0203): `vehicles:read` cel puțin
--- `team` și vehiculul judecat FĂRĂ ramura de pool, plus `vehicles:update = all`
--- (cine scrie costurile le vede, și upsert-ul cere rândul existent vizibil).
--- În plus față de `vex_select`: la `read = team`, o mașină din pool e exclusă și
--- când are șofer din echipă. Baza lasă pool-ul să fie alocat
--- (`vehicles.employee_id` se umple), iar „fără ramura de pool” ar fi lăsat
--- atunci managerului șoferului costurile mașinii comune. Aceeași regulă ca
--- `poateVedeaService` din fișă (`read = all`, sau `team` și nu pool).
--- Rezultă: org_admin / responsabilul cu `update = all` — tot; managerul —
--- mașinile echipei, nu pool-ul; angajatul (`own`) și hr (fără `vehicles:read`)
--- — nimic din tabele.
+-- `app.poate_vedea_costurile_vehiculului` e definită în 0203 §7 (Y1) și e
+-- aceeași pentru TOATE costurile flotei: planurile, intervențiile și
+-- cheltuielile din 0203, plus cele două tabele de aici. `vehicles:update = all`
+-- (cine scrie costurile le vede, și upsert-ul cere rândul existent vizibil),
+-- sau `vehicles:read = all`, sau `read = team` pe mașina echipei care NU e în
+-- pool, nici când pool-ul are șofer din echipă (baza lasă pool-ul să fie
+-- alocat, `vehicles.employee_id` se umple). Aceeași regulă ca
+-- `poateVedeaService` din fișă. Rezultă: org_admin / responsabilul cu
+-- `update = all` — tot; managerul — mașinile echipei, nu pool-ul; angajatul
+-- (`own`) și hr (fără `vehicles:read`) — nimic din tabele. Nu se rescrie aici:
+-- o a doua definiție ar putea rămâne în urma celei din 0203.
 -- O singură excepție, deliberată, în afara RLS-ului: `avantaj_natura_flota`
 -- (§8), păzită de `payroll:read = all`, îi dă salarizării (deci și lui hr)
 -- valoarea de intrare și chiria mașinii cu folosință personală a UNUI angajat,
 -- pe o lună. E baza legală a avantajului în natură (Codul fiscal art. 76), nu o
 -- citire a parcului; `proba-flota-matrice-roluri.sql` o cere explicit.
-create or replace function app.poate_vedea_costurile_vehiculului(p_organization_id uuid, p_vehicle_id uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = ''
-as $$
-  select p_vehicle_id is not null
-     and (app.has_permission(p_organization_id, 'vehicles', 'update') = 'all'
-          or (app.can(p_organization_id, 'vehicles', 'read', 'team')
-              and exists (
-                select 1
-                  from public.vehicles v
-                 where v.id = p_vehicle_id
-                   and v.organization_id = p_organization_id
-                   and (app.has_permission(p_organization_id, 'vehicles', 'read') = 'all'
-                        or not v.pool)
-                   and app.poate_vedea_vehicul(p_organization_id, v.employee_id, false))));
-$$;
-
-comment on function app.poate_vedea_costurile_vehiculului(uuid, uuid) is
-  'Cine vede costurile unui vehicul (0225): vehicles:update = all, sau vehicles:read = all, sau vehicles:read = team pe vehiculul echipei care NU e în pool (nici când pool-ul are șofer din echipă). Angajatul și hr nu; salarizarea primește valoarea de intrare a mașinii cu folosință personală doar prin avantaj_natura_flota (payroll:read = all, Codul fiscal art. 76).';
 
 -- Vehiculul unui document, citit fără RLS: politica de cost se judecă pe
 -- vehiculul de AZI al documentului.
@@ -159,18 +137,73 @@ as $$
   select d.vehicle_id from public.vehicle_documents d where d.id = p_document_id;
 $$;
 
-revoke all on function app.poate_vedea_costurile_vehiculului(uuid, uuid) from public, anon;
+-- Ramura `create` a inserării (revizia, constatarea k): cine are DOAR
+-- `vehicles:create = all` pune valoarea INIȚIALĂ a vehiculului sau a
+-- documentului pe care l-a creat EL, nu a unuia existent al altcuiva fără rând
+-- de cost. Aplicația face două cereri (părintele, apoi costul), deci „aceeași
+-- tranzacție” nu se poate cere; autorul rândului-părinte, da (`vehicule_insert`
+-- și `vdoc_insert` cer `created_by = auth.uid()`, iar `created_by` îl rescrie
+-- doar cine are `update = all`). O singură dată: corectura (`do update`) cere
+-- `vc_update` / `vdc_update`, adică `update = all`. Citit fără RLS: un membru
+-- cu `create` poate să nu aibă `vehicles:read` pe vehiculul lui.
+create or replace function app.vehicul_creat_de_apelant(p_organization_id uuid, p_vehicle_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+      from public.vehicles v
+     where v.id = p_vehicle_id
+       and v.organization_id = p_organization_id
+       and v.deleted_at is null
+       and v.created_by = (select auth.uid()));
+$$;
+
+create or replace function app.document_creat_de_apelant(p_organization_id uuid, p_document_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+      from public.vehicle_documents d
+     where d.id = p_document_id
+       and d.organization_id = p_organization_id
+       and d.deleted_at is null
+       and d.created_by = (select auth.uid()));
+$$;
+
 revoke all on function app.vehicul_documentului(uuid) from public, anon;
-grant execute on function app.poate_vedea_costurile_vehiculului(uuid, uuid) to authenticated, service_role;
+revoke all on function app.vehicul_creat_de_apelant(uuid, uuid) from public, anon;
+revoke all on function app.document_creat_de_apelant(uuid, uuid) from public, anon;
 grant execute on function app.vehicul_documentului(uuid) to authenticated, service_role;
+grant execute on function app.vehicul_creat_de_apelant(uuid, uuid) to authenticated, service_role;
+grant execute on function app.document_creat_de_apelant(uuid, uuid) to authenticated, service_role;
 
 -- ============================================================
 -- 3. Gărzile tabelelor de costuri
 -- ============================================================
 -- Rândul de cost aparține părintelui din ACEEAȘI firmă și nu se mută. Pe
 -- drumul de compatibilitate (§6) părintele încă nu există în BEFORE INSERT;
--- acolo steagul `app.flota_cost_mutat` sare verificarea (valorile le pune
--- triggerul din rândul-părinte, nu clientul).
+-- acolo steagul `app.flota_cost_mutat` sare DOAR verificarea de existență
+-- (valorile le pune triggerul din rândul-părinte, nu clientul). Verificarea de
+-- firmă rămâne și cu steagul pus, și la UPDATE: un părinte care EXISTĂ trebuie
+-- să fie al firmei rândului de cost. Pe drumul legitim al steagului părintele
+-- nu există încă nicăieri, deci verificarea trece; orice altă cale (steagul pus
+-- de altcineva, un rând de cost lipit de vehiculul altei firmei) cade aici.
+-- Mesajul e același ca pentru vehiculul inexistent: fără oracol între firme.
+--
+-- Garda de firmă e PRIMA (lecția X2, constatarea d): triggerul BEFORE rulează
+-- ÎNAINTEA lui WITH CHECK, deci un rând pus pe firma ALTCUIVA trecea de
+-- căutările de mai jos când vehiculul exista acolo (apoi 42501 de la politică)
+-- și primea P0001 când nu exista: o sondă „există vehiculul X în firma Y?”.
+-- Refuzul e același 42501 orice ar conține rândul. Pe drumul de compatibilitate
+-- (§6) firma e a rândului-părinte, pe care politica lui o judecă oricum.
 create or replace function internal.vc_inainte()
 returns trigger
 language plpgsql
@@ -178,12 +211,23 @@ security definer
 set search_path = ''
 as $$
 begin
-  if tg_op = 'UPDATE' then
-    if (new.organization_id, new.vehicle_id) is distinct from (old.organization_id, old.vehicle_id) then
-      raise exception using errcode = 'P0001',
-        message = 'Valoarea de achiziție nu se mută pe alt vehicul.';
-    end if;
-  elsif coalesce(pg_catalog.current_setting('app.flota_cost_mutat', true), '') <> 'on' then
+  if not app.is_service_context()
+     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a scrie costurile vehiculelor în această organizație.';
+  end if;
+  if tg_op = 'UPDATE'
+     and (new.organization_id, new.vehicle_id) is distinct from (old.organization_id, old.vehicle_id) then
+    raise exception using errcode = 'P0001',
+      message = 'Valoarea de achiziție nu se mută pe alt vehicul.';
+  end if;
+  if exists (select 1 from public.vehicles v
+              where v.id = new.vehicle_id and v.organization_id <> new.organization_id) then
+    raise exception using errcode = 'P0001',
+      message = 'Vehiculul ales nu există în organizația dumneavoastră.';
+  end if;
+  if tg_op = 'INSERT'
+     and coalesce(pg_catalog.current_setting('app.flota_cost_mutat', true), '') <> 'on' then
     perform internal.flota_vehicul_al_firmei(new.organization_id, new.vehicle_id);
   end if;
   return new;
@@ -201,15 +245,28 @@ security definer
 set search_path = ''
 as $$
 begin
-  if tg_op = 'UPDATE' then
-    if (new.organization_id, new.document_id) is distinct from (old.organization_id, old.document_id) then
-      raise exception using errcode = 'P0001',
-        message = 'Costul nu se mută pe alt document.';
-    end if;
-  elsif coalesce(pg_catalog.current_setting('app.flota_cost_mutat', true), '') <> 'on'
-        and not exists (select 1 from public.vehicle_documents d
-                         where d.id = new.document_id and d.organization_id = new.organization_id
-                           and d.deleted_at is null) then
+  -- Garda de firmă PRIMA, ca la `vc_inainte`.
+  if not app.is_service_context()
+     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a scrie costurile vehiculelor în această organizație.';
+  end if;
+  if tg_op = 'UPDATE'
+     and (new.organization_id, new.document_id) is distinct from (old.organization_id, old.document_id) then
+    raise exception using errcode = 'P0001',
+      message = 'Costul nu se mută pe alt document.';
+  end if;
+  -- Ca la `vc_inainte`: firma se verifică și cu steagul pus.
+  if exists (select 1 from public.vehicle_documents d
+              where d.id = new.document_id and d.organization_id <> new.organization_id) then
+    raise exception using errcode = 'P0001',
+      message = 'Documentul nu există în organizația dumneavoastră.';
+  end if;
+  if tg_op = 'INSERT'
+     and coalesce(pg_catalog.current_setting('app.flota_cost_mutat', true), '') <> 'on'
+     and not exists (select 1 from public.vehicle_documents d
+                      where d.id = new.document_id and d.organization_id = new.organization_id
+                        and d.deleted_at is null) then
     raise exception using errcode = 'P0001',
       message = 'Documentul nu există în organizația dumneavoastră.';
   end if;
@@ -251,17 +308,21 @@ create policy vdc_select on public.vehicle_document_costuri
     )
   );
 
--- Scrierea: cheile rândului-părinte. Inserarea o face și cine CREEAZĂ vehiculul
--- sau documentul (`vehicule_insert` / `vdoc_insert` cer `vehicles:create =
--- all`), corectura cere `vehicles:update = all` (`vehicule_update` /
--- `vdoc_update`).
+-- Scrierea: cheile rândului-părinte. Corectura cere `vehicles:update = all`
+-- (`vehicule_update` / `vdoc_update`), iar inserarea la fel, cu o singură
+-- excepție: cine CREEAZĂ vehiculul sau documentul (`vehicule_insert` /
+-- `vdoc_insert` cer `vehicles:create = all`) îi pune valoarea inițială, dar
+-- DOAR pe rândul-părinte creat de el (§2, constatarea k). Altfel un membru cu
+-- `create` fără `update` (suprascriere pe firmă sau pe membru) scria valoarea
+-- oricărui vehicul existent care n-avea încă rând de cost.
 create policy vc_insert on public.vehicle_costuri
   for insert to authenticated
   with check (
     organization_id = any ((select app.current_org_ids())::uuid[])
     and app.feature_on(organization_id, 'fleet')
-    and (app.has_permission(organization_id, 'vehicles', 'create') = 'all'
-         or app.has_permission(organization_id, 'vehicles', 'update') = 'all')
+    and (app.has_permission(organization_id, 'vehicles', 'update') = 'all'
+         or (app.has_permission(organization_id, 'vehicles', 'create') = 'all'
+             and app.vehicul_creat_de_apelant(organization_id, vehicle_id)))
     and created_by = (select auth.uid())
     and updated_by = (select auth.uid())
   );
@@ -271,8 +332,9 @@ create policy vdc_insert on public.vehicle_document_costuri
   with check (
     organization_id = any ((select app.current_org_ids())::uuid[])
     and app.feature_on(organization_id, 'fleet')
-    and (app.has_permission(organization_id, 'vehicles', 'create') = 'all'
-         or app.has_permission(organization_id, 'vehicles', 'update') = 'all')
+    and (app.has_permission(organization_id, 'vehicles', 'update') = 'all'
+         or (app.has_permission(organization_id, 'vehicles', 'create') = 'all'
+             and app.document_creat_de_apelant(organization_id, document_id)))
     and created_by = (select auth.uid())
     and updated_by = (select auth.uid())
   );
@@ -305,36 +367,11 @@ create policy vdc_update on public.vehicle_document_costuri
     and updated_by = (select auth.uid())
   );
 
--- Service-ul și cheltuielile (0203) sunt tot costuri, deci aceeași regulă.
--- `vse_select` / `vex_select` judecau doar șoferul (`poate_vedea_vehicul(…,
--- vehicul_sofer(…), false)`): pe pool-ul alocat unui om din echipă, managerul
--- primea `cost_piese`, `cost_manopera`, `cost_total` și `suma`, deși
--- `vehicle_costuri` de mai sus îi ascunde valoarea aceleiași mașini (verificarea
--- dublă din 23 oct; celula „pool cu șofer” din `proba-flota-matrice-roluri.sql`).
--- Planurile de service (`vsp_select`) n-au sume și rămân pe regula din 0203.
-drop policy vse_select on public.vehicle_service_entries;
-create policy vse_select on public.vehicle_service_entries
-  for select to authenticated
-  using (
-    (select app.is_platform_admin())
-    or (
-      organization_id = any ((select app.current_org_ids())::uuid[])
-      and app.feature_on(organization_id, 'fleet')
-      and app.poate_vedea_costurile_vehiculului(organization_id, vehicle_id)
-    )
-  );
-
-drop policy vex_select on public.vehicle_expenses;
-create policy vex_select on public.vehicle_expenses
-  for select to authenticated
-  using (
-    (select app.is_platform_admin())
-    or (
-      organization_id = any ((select app.current_org_ids())::uuid[])
-      and app.feature_on(organization_id, 'fleet')
-      and app.poate_vedea_costurile_vehiculului(organization_id, vehicle_id)
-    )
-  );
+-- Service-ul și cheltuielile (0203) sunt tot costuri, deci aceeași regulă:
+-- `vsp_select`, `vse_select` și `vex_select` se scriu direct în 0203 pe
+-- `app.poate_vedea_costurile_vehiculului` (pool-ul alocat unui om din echipă
+-- nu-i mai aduce managerului `cost_total` și `suma`). Nu se rescriu aici; §9
+-- verifică forma.
 
 -- ============================================================
 -- 5. Actor, audit, drepturi
@@ -362,10 +399,24 @@ $$;
 -- ============================================================
 -- O valoare NENULĂ scrisă în coloana veche (aplicația veche în fereastra
 -- dintre migrare și deploy, scripturi, fixture-uri) se mută în tabela de costuri
--- în aceeași instrucțiune, iar coloana rămâne goală. Rularea are loc ÎNAINTEA
--- verificării RLS a rândului-părinte: dacă `vehicule_insert/update` sau
--- `vdoc_insert/update` refuză rândul, toată instrucțiunea cade și mutarea se
--- anulează odată cu ea. `null` nu atinge costul (vezi antetul).
+-- în aceeași instrucțiune, iar coloana rămâne goală. `null` nu atinge costul
+-- (vezi antetul).
+--
+-- Rularea are loc ÎNAINTEA verificării RLS a rândului-părinte ȘI înaintea
+-- conflictului lui `INSERT … ON CONFLICT`. Pe UPDATE și pe un INSERT obișnuit,
+-- un refuz al lui `vehicule_*` / `vdoc_*` face toată instrucțiunea să cadă, iar
+-- mutarea se anulează odată cu ea. Pe `ON CONFLICT DO NOTHING` (upsert-ul
+-- PostgREST cu `resolution=ignore-duplicates`), NU: WITH CHECK judecă rândul
+-- PROPUS (firma proprie), conflictul sare rândul fără eroare, iar mutarea
+-- făcută deja de trigger rămâne. Cu `id`-ul unui rând al altei firme, asta
+-- suprascria costul acelei firme (revizia de securitate, constatările e și f).
+-- De aceea, trei închideri, fiecare suficientă pentru cazul ei:
+--   1. pe INSERT, un `id` care EXISTĂ deja (în orice firmă, și șters logic)
+--      înseamnă calea de conflict: coloana se golește, nimic nu se mută.
+--      Corectura costului se face pe tabela de costuri, sub politica ei;
+--   2. `do update` atinge doar rândul de cost al ACELEIAȘI firme; dacă n-a
+--      atins nimic (rândul existent e al altei firme), instrucțiunea cade;
+--   3. `vc_inainte` / `vdc_inainte` verifică firma părintelui și cu steagul pus.
 create or replace function internal.vehicles_valoare_in_costuri()
 returns trigger
 language plpgsql
@@ -375,14 +426,25 @@ as $$
 declare
   v_steag text := coalesce(pg_catalog.current_setting('app.flota_cost_mutat', true), '');
   v_actor uuid := coalesce(new.updated_by, auth.uid());
+  v_n     integer;
 begin
+  if tg_op = 'INSERT' and exists (select 1 from public.vehicles v where v.id = new.id) then
+    new.valoare_achizitie := null;
+    return new;
+  end if;
   perform pg_catalog.set_config('app.flota_cost_mutat', 'on', true);
   insert into public.vehicle_costuri (organization_id, vehicle_id, valoare_achizitie, created_by, updated_by)
   values (new.organization_id, new.id, new.valoare_achizitie, v_actor, v_actor)
   on conflict (vehicle_id) do update
     set valoare_achizitie = excluded.valoare_achizitie,
-        updated_by = excluded.updated_by;
+        updated_by = excluded.updated_by
+    where public.vehicle_costuri.organization_id = excluded.organization_id;
+  get diagnostics v_n = row_count;
   perform pg_catalog.set_config('app.flota_cost_mutat', v_steag, true);
+  if v_n = 0 then
+    raise exception using errcode = 'P0001',
+      message = 'Vehiculul ales nu există în organizația dumneavoastră.';
+  end if;
   new.valoare_achizitie := null;
   return new;
 end;
@@ -403,14 +465,26 @@ as $$
 declare
   v_steag text := coalesce(pg_catalog.current_setting('app.flota_cost_mutat', true), '');
   v_actor uuid := coalesce(new.updated_by, auth.uid());
+  v_n     integer;
 begin
+  -- Aceleași trei închideri ca la `vehicles_valoare_in_costuri`.
+  if tg_op = 'INSERT' and exists (select 1 from public.vehicle_documents d where d.id = new.id) then
+    new.cost := null;
+    return new;
+  end if;
   perform pg_catalog.set_config('app.flota_cost_mutat', 'on', true);
   insert into public.vehicle_document_costuri (organization_id, document_id, cost, created_by, updated_by)
   values (new.organization_id, new.id, new.cost, v_actor, v_actor)
   on conflict (document_id) do update
     set cost = excluded.cost,
-        updated_by = excluded.updated_by;
+        updated_by = excluded.updated_by
+    where public.vehicle_document_costuri.organization_id = excluded.organization_id;
+  get diagnostics v_n = row_count;
   perform pg_catalog.set_config('app.flota_cost_mutat', v_steag, true);
+  if v_n = 0 then
+    raise exception using errcode = 'P0001',
+      message = 'Documentul nu există în organizația dumneavoastră.';
+  end if;
   new.cost := null;
   return new;
 end;

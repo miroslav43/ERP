@@ -134,21 +134,21 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
   // ce cere `vehicule_update` în bază. O poartă mai largă aici ar lăsa un rol să
   // apese butonul și să fie respins tăcut, cu zero rânduri și mesaj de reușită.
   const poateAdministra = can(permisiuni, "vehicles:update", "all");
-  // Filele Service și Costuri (0203): planurile, intervențiile și cheltuielile se
-  // citesc cu `vehicles:read >= team` ȘI vehiculul echipei, FĂRĂ pool
-  // (`vsp_select` etc.). Șoferul (`own`) nu le vede, iar managerul nu le vede pe
-  // mașina comună, deci nici fila nu li se oferă; un `?fila=` scris de mână pe
-  // un cont fără drept cade pe fișa obișnuită, nu pe un ecran gol. (Un pool cu
-  // șofer alocat din echipă rămâne fără file sub `team`: restrictiv, nu gol.)
+  // Filele Service și Costuri și toate costurile vehiculului (planurile,
+  // intervențiile, cheltuielile din 0203, valoarea de achiziție și costul
+  // documentelor din 0225) se citesc printr-o SINGURĂ regulă,
+  // `app.poate_vedea_costurile_vehiculului`: `vehicles:update = all`, sau
+  // `vehicles:read = all`, sau `team` pe o mașină care NU e în pool — nici când
+  // pool-ul are șofer din echipă (Y1). Șoferul (`own`) și hr nu le văd, iar
+  // managerul nu le vede pe mașina comună, deci nici fila nu li se oferă; un
+  // `?fila=` scris de mână pe un cont fără drept cade pe fișa obișnuită, nu pe
+  // un ecran gol. Pentru restul, RLS-ul întoarce zero rânduri / embed `null`, iar
+  // coloana ar spune „—” acolo unde costul există: rândul și coloana lipsesc.
   const poateVedeaService =
+    poateAdministra ||
     can(permisiuni, "vehicles:read", "all") ||
     (can(permisiuni, "vehicles:read", "team") && !vehicul.pool);
-  // X1 (0225): costurile (valoarea de achiziție, costul documentelor) stau în
-  // `vehicle_costuri` / `vehicle_document_costuri`, citite de
-  // `app.poate_vedea_costurile_vehiculului`: `vehicles:update = all`, sau
-  // citirea service-ului de mai sus. Pentru restul, RLS-ul întoarce `null`, iar
-  // coloana ar spune „—” acolo unde costul există: rândul și coloana lipsesc.
-  const poateVedeaCosturi = poateAdministra || poateVedeaService;
+  const poateVedeaCosturi = poateVedeaService;
   const parametri = await searchParams;
   const filtreFila = filtreDinUrl(filtreServiceSchema, parametri);
   const fila = poateVedeaService ? filtreFila.fila : null;

@@ -1233,6 +1233,13 @@ async function flota() {
    * îl urcă singur — inclusiv la a doua rulare, când UPDATE-ul de aici îl
    * coboară pentru o clipă și fiecare foaie aprobată îl ridică la loc.
    */
+  /*
+   * 0225 (X1): valoarea de achiziție și costul documentelor NU mai stau pe
+   * rândurile pe care le văd șoferul și managerul pe pool, ci în
+   * `vehicle_costuri` / `vehicle_document_costuri`. Coloanele vechi sunt goale
+   * și închise cu CHECK; pe o bază fără 0225 se scrie în ele, ca înainte.
+   */
+  const cuCosturiFlota = await existaInBaza("vehicle_costuri", "valoare_achizitie");
   const vehiculDupaNumar = {};
   for (const v of VEHICULE) {
     vehiculDupaNumar[v.nr] = await asigura(
@@ -1254,11 +1261,18 @@ async function flota() {
         pool: v.pool ?? false,
         status: v.status,
         data_achizitie: v.achizitie,
-        valoare_achizitie: v.valoare,
+        ...(cuCosturiFlota ? {} : { valoare_achizitie: v.valoare ?? null }),
         observatii: v.observatii ?? null,
         ...AUTOR,
       },
     );
+    if (cuCosturiFlota && v.valoare != null) {
+      await asigura(
+        "vehicle_costuri",
+        { vehicle_id: vehiculDupaNumar[v.nr] },
+        { organization_id: ORG, valoare_achizitie: v.valoare, ...AUTOR },
+      );
+    }
   }
   console.log(
     `  · vehicles: ${String(VEHICULE.length)} (3 autoturisme, 3 autoutilitare, 1 în service)`,
@@ -1295,15 +1309,28 @@ async function flota() {
   let numarDocumente = 0;
   for (const [nr, documente] of Object.entries(DOCUMENTE_FLOTA)) {
     for (const d of documente) {
-      await asigura(
+      const idDocument = await asigura(
         "vehicle_documents",
         {
           organization_id: ORG,
           vehicle_id: vehiculDupaNumar[nr],
           document_type_id: TIP_DOCUMENT[d.tip],
         },
-        { valabil_de_la: d.de, expira_la: d.la, cost: d.cost, emitent: d.emitent, ...AUTOR },
+        {
+          valabil_de_la: d.de,
+          expira_la: d.la,
+          ...(cuCosturiFlota ? {} : { cost: d.cost ?? null }),
+          emitent: d.emitent,
+          ...AUTOR,
+        },
       );
+      if (cuCosturiFlota && d.cost != null) {
+        await asigura(
+          "vehicle_document_costuri",
+          { document_id: idDocument },
+          { organization_id: ORG, cost: d.cost, ...AUTOR },
+        );
+      }
       numarDocumente += 1;
     }
   }
@@ -4323,6 +4350,10 @@ async function mentenanta() {
   // `motiv_casare` / `casat_la` vin din `0182`. Pe o bază fără ea scriem fără ele:
   // altfel întreaga etapă ar cădea cu 42703 pe primul echipament.
   const cuCasare = await existaInBaza("equipment", "motiv_casare");
+  // 0232 (Y1): valoarea de achiziție stă în `equipment_costuri` (rândul
+  // echipamentului îl văd responsabilul și tehnicianul). Pe o bază fără 0232 se
+  // scrie în coloana veche, ca înainte.
+  const cuCosturiEchipament = await existaInBaza("equipment_costuri", "valoare_achizitie");
 
   const echipament = {};
   for (const e of ECHIPAMENTE) {
@@ -4344,10 +4375,17 @@ async function mentenanta() {
       ...(cuCasare ? { motiv_casare: e.motivCasare ?? null, casat_la: e.casatLa ?? null } : {}),
       este_iscir: e.iscir === true,
       tip_autorizare_necesara: e.autorizare ?? null,
-      valoare_achizitie: e.valoare,
+      ...(cuCosturiEchipament ? {} : { valoare_achizitie: e.valoare ?? null }),
       data_punerii_in_functiune: e.dinData,
       ...AUTOR,
     });
+    if (cuCosturiEchipament && e.valoare != null) {
+      await asigura(
+        "equipment_costuri",
+        { equipment_id: echipament[e.cod] },
+        { organization_id: ORG, valoare_achizitie: e.valoare, ...AUTOR },
+      );
+    }
   }
   console.log(`  · equipment: ${String(ECHIPAMENTE.length)} (unul redenumit, unul ISCIR)`);
 

@@ -104,6 +104,7 @@ export interface RezultatEchipamente {
 }
 
 export interface Echipament extends RandEchipament {
+  /** Din `equipment_costuri` (0232); `null` și pentru cine nu are dreptul s-o vadă. */
   readonly valoare_achizitie: number | null;
   readonly derogare_motiv: string | null;
   readonly derogare_acordata_de: string | null;
@@ -568,6 +569,16 @@ export async function listeazaEchipamente(
   };
 }
 
+/**
+ * Fișa echipamentului.
+ *
+ * Valoarea de achiziție vine din `equipment_costuri` (0232, Y1), încorporată:
+ * RLS-ul ei o arată doar cui are `maintenance:update = all` sau
+ * `maintenance:read >= team` (cheia costurilor intervențiilor). Responsabilul și
+ * tehnicianul atribuit, care văd rândul echipamentului, primesc `costuri: null`,
+ * deci `valoare_achizitie: null`. Coloana `equipment.valoare_achizitie` e GOALĂ
+ * din 0232 și nu se mai citește (poarta din `coloane.test.ts`).
+ */
 export async function citesteEchipament(
   organizationId: string,
   id: string,
@@ -576,18 +587,24 @@ export async function citesteEchipament(
   const { data, error } = await db
     .from("equipment")
     .select(
-      `${COLOANE_ECHIPAMENT_LISTA}, valoare_achizitie, derogare_motiv, derogare_acordata_de, ` +
+      `${COLOANE_ECHIPAMENT_LISTA}, derogare_motiv, derogare_acordata_de, ` +
         "derogare_acordata_la, service_garantie, motiv_casare, observatii, marcaj_ce, " +
-        "risc_specific, created_at, updated_at",
+        "risc_specific, created_at, updated_at, costuri:equipment_costuri(valoare_achizitie)",
     )
     .eq("organization_id", organizationId)
     .eq("id", id)
     .is("deleted_at", null)
-    .maybeSingle<Echipament>();
+    .maybeSingle<EchipamentBrut>();
 
   if (error !== null) throw error;
-  return data;
+  if (data === null) return null;
+  const { costuri, ...echipament } = data;
+  return { ...echipament, valoare_achizitie: costuri?.valoare_achizitie ?? null };
 }
+
+type EchipamentBrut = Omit<Echipament, "valoare_achizitie"> & {
+  readonly costuri: Readonly<{ valoare_achizitie: number | null }> | null;
+};
 
 export async function echipamenteDupaId(
   organizationId: string,

@@ -37,6 +37,7 @@ import {
   ID_1,
   ID_2,
   ORG_ID,
+  USER_ID,
 } from "@/lib/teste/actiune";
 import { areFiltru, eroarePostgrest } from "@/lib/teste/supabase-fals";
 import {
@@ -143,7 +144,11 @@ describe("creeazaEchipament", () => {
     const { server } = configureazaActiunea({ permisiuni: UPDATE });
     server.raspunde("equipment", "insert", { data: { id: ID_2 } });
 
-    const r = await creeazaEchipament({ ...echipament, derogare_acordata_de: ID_1 });
+    const r = await creeazaEchipament({
+      ...echipament,
+      valoare_achizitie: null,
+      derogare_acordata_de: ID_1,
+    });
 
     expect(r).toEqual({ ok: true, data: { id: ID_2 } });
     const [apel] = server.apeluriPe("equipment");
@@ -151,21 +156,63 @@ describe("creeazaEchipament", () => {
       organization_id: ORG_ID,
       cod: "CZ-01",
       an_fabricatie: 2015,
-      valoare_achizitie: 45000,
       status: "in_functiune",
       este_iscir: true,
     });
+    expect(apel?.payload).not.toHaveProperty("valoare_achizitie");
     expect(apel?.payload).not.toHaveProperty("derogare_acordata_de");
     expect(apel?.payload).not.toHaveProperty("derogare_acordata_la");
     expect(apel?.payload).not.toHaveProperty("created_by");
     expect(apel?.selectDupaScriere).toBe("id");
+    expect(server.apeluriPe("equipment_costuri")).toHaveLength(0);
     expect(caiRevalidate()).toEqual(["/mentenanta/echipamente", "/mentenanta"]);
+  });
+
+  // Y1 (0232): valoarea de achiziție NU mai stă pe rândul echipamentului (îl văd
+  // responsabilul și tehnicianul atribuit), ci în `equipment_costuri`, pe care o
+  // scrie doar `maintenance:update = all`.
+  it("cu valoare și `update = all`: echipamentul fără valoare, apoi rândul din `equipment_costuri`", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "maintenance:update": "all" } });
+    server.raspunde("equipment", "insert", { data: { id: ID_2 } });
+    server.raspunde("equipment_costuri", "insert", { data: null });
+
+    const r = await creeazaEchipament(echipament);
+
+    expect(r).toEqual({ ok: true, data: { id: ID_2 } });
+    const [echipamentScris] = server.apeluriPe("equipment");
+    expect(echipamentScris?.payload).not.toHaveProperty("valoare_achizitie");
+    const [cost] = server.apeluriPe("equipment_costuri");
+    expect(cost?.operatie).toBe("insert");
+    expect(cost?.payload).toEqual({
+      organization_id: ORG_ID,
+      equipment_id: ID_2,
+      valoare_achizitie: 45000,
+      created_by: USER_ID,
+      updated_by: USER_ID,
+    });
+  });
+
+  it("gestionarul pe `team` nu scrie valoarea: cu valoare ⇒ INTERZIS, zero apeluri", async () => {
+    const { server } = configureazaActiunea({ permisiuni: UPDATE });
+    const r = await creeazaEchipament(echipament);
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+    expect(server.apeluri).toHaveLength(0);
+  });
+
+  it("valoarea nu se scrie după ce echipamentul a intrat: CONFLICT care spune că echipamentul există", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "maintenance:update": "all" } });
+    server.raspunde("equipment", "insert", { data: { id: ID_2 } });
+    server.raspunde("equipment_costuri", "insert", { error: eroarePostgrest("42501") });
+    const r = await creeazaEchipament(echipament);
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    if (r.ok) return;
+    expect(r.error.message).toContain("a fost adăugat");
   });
 
   it("cod duplicat (23505): mesajul modulului, nu cel generic", async () => {
     const { server } = configureazaActiunea({ permisiuni: UPDATE });
     server.raspunde("equipment", "insert", { error: eroarePostgrest("23505", "equipment_uq") });
-    const r = await creeazaEchipament(echipament);
+    const r = await creeazaEchipament({ ...echipament, valoare_achizitie: null });
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
     if (!r.ok) expect(r.error.message).toContain("codul echipamentului");
   });
@@ -174,13 +221,14 @@ describe("creeazaEchipament", () => {
     const { server } = configureazaActiunea({ permisiuni: UPDATE });
     const mesaj = "Echipamentul ISCIR cere un responsabil autorizat sau o derogare motivată.";
     server.raspunde("equipment", "insert", { error: eroarePostgrest("P0001", mesaj) });
-    const r = await creeazaEchipament(echipament);
+    const r = await creeazaEchipament({ ...echipament, valoare_achizitie: null });
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT", message: mesaj } });
   });
 
   it("auditul nu poartă valoarea de achiziție și nici motivul derogării", async () => {
-    const { server } = configureazaActiunea({ permisiuni: UPDATE });
+    const { server } = configureazaActiunea({ permisiuni: { "maintenance:update": "all" } });
     server.raspunde("equipment", "insert", { data: { id: ID_2 } });
+    server.raspunde("equipment_costuri", "insert", { data: null });
     await creeazaEchipament({ ...echipament, derogare_motiv: "Responsabilul e în concediu." });
     await asteaptaDupa();
     const [audit] = server.audituri();
@@ -196,25 +244,70 @@ describe("actualizeazaEchipament", () => {
     const { server } = configureazaActiunea({ permisiuni: UPDATE });
     server.raspunde("equipment", "update", { data: { id: ID_2 } });
 
-    const r = await actualizeazaEchipament({ ...echipament, id: ID_2, status: "in_reparatie" });
+    const r = await actualizeazaEchipament({
+      ...echipament,
+      valoare_achizitie: null,
+      id: ID_2,
+      status: "in_reparatie",
+    });
 
     expect(r).toEqual({ ok: true, data: { id: ID_2 } });
     const [apel] = server.apeluriPe("equipment");
     expect(apel?.operatie).toBe("update");
     expect(apel?.payload).not.toHaveProperty("id");
     expect(apel?.payload).not.toHaveProperty("organization_id");
+    expect(apel?.payload).not.toHaveProperty("valoare_achizitie");
     expect(apel?.payload).toMatchObject({ status: "in_reparatie", cod: "CZ-01" });
     expect(areFiltru(apel, "eq", "id", ID_2)).toBe(true);
     expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(apel?.selectDupaScriere).toBeDefined();
+    // Gestionarul pe `team` nu vede câmpul (fișa nu i-l arată), deci `null`
+    // înseamnă „neatins”: un upsert l-ar fi golit pe al administratorului.
+    expect(server.apeluriPe("equipment_costuri")).toHaveLength(0);
     expect(caiRevalidate()).toEqual(["/mentenanta/echipamente", `/mentenanta/echipamente/${ID_2}`]);
   });
 
-  it("zero rânduri: NEGASIT, fără revalidare", async () => {
+  it("cu `update = all`: upsert pe `equipment_costuri` după echipament, și cu `null` (golirea golește)", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "maintenance:update": "all" } });
+    server.raspunde("equipment", "update", { data: { id: ID_2 } });
+    server.raspunde("equipment_costuri", "upsert", { data: null });
+    server.raspunde("equipment", "update", { data: { id: ID_2 } });
+    server.raspunde("equipment_costuri", "upsert", { data: null });
+
+    expect(await actualizeazaEchipament({ ...echipament, id: ID_2 })).toEqual({
+      ok: true,
+      data: { id: ID_2 },
+    });
+    expect(
+      await actualizeazaEchipament({ ...echipament, valoare_achizitie: null, id: ID_2 }),
+    ).toEqual({ ok: true, data: { id: ID_2 } });
+
+    const [scris, golit] = server.apeluriPe("equipment_costuri");
+    expect(scris?.operatie).toBe("upsert");
+    expect(scris?.payload).toEqual({
+      organization_id: ORG_ID,
+      equipment_id: ID_2,
+      valoare_achizitie: 45000,
+      created_by: USER_ID,
+      updated_by: USER_ID,
+    });
+    expect(scris?.optiuni).toEqual({ onConflict: "equipment_id" });
+    expect(golit?.payload).toMatchObject({ equipment_id: ID_2, valoare_achizitie: null });
+  });
+
+  it("gestionarul pe `team` cu valoare ⇒ INTERZIS, zero apeluri", async () => {
     const { server } = configureazaActiunea({ permisiuni: UPDATE });
+    const r = await actualizeazaEchipament({ ...echipament, id: ID_2 });
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+    expect(server.apeluri).toHaveLength(0);
+  });
+
+  it("zero rânduri: NEGASIT, fără revalidare și fără scrierea valorii", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "maintenance:update": "all" } });
     server.raspunde("equipment", "update", { data: null });
     const r = await actualizeazaEchipament({ ...echipament, id: ID_2 });
     expect(r).toMatchObject({ ok: false, error: { code: "NEGASIT" } });
+    expect(server.apeluriPe("equipment_costuri")).toHaveLength(0);
     expect(caiRevalidate()).toEqual([]);
   });
 
