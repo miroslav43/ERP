@@ -37,10 +37,11 @@
 -- VEHICUL, un `batchId` egal cu id-ul unui angajat ștergea, ocolind orice
 -- politică, contractul sau buletinul scanat al acelui angajat (la carduri:
 -- orice .csv/.xlsx din folderul vehiculului). Registrul ține lotul emis de
--- server: id-ul îl generează serverul, calea o construiește serverul și o
--- scrie aici, iar analiza CONSUMĂ rândul (o singură dată, doar cine l-a
+-- BAZĂ: id-ul îl generează baza (oricare ar fi id-ul trimis), folderul căii e
+-- al acelui id, iar analiza CONSUMĂ rândul (o singură dată, doar cine l-a
 -- creat) înainte de ștergere. Nicio cale nu se mai șterge pe cuvântul
--- clientului.
+-- clientului — nici al unui client care scrie direct în registru prin
+-- PostgREST, ocolind acțiunea.
 --
 -- Aplicare: psql byte-exact, după bancul local; producția cere confirmare.
 
@@ -315,6 +316,17 @@ grant execute on function public.seed_leave_balances(uuid, integer, numeric) to 
 -- Lanțul de manageri. Triggerul BEFORE rulează ÎNAINTEA politicii de scriere,
 -- deci un rând pus pe orice firmă ajungea aici: „nu există” vs „aparține altei
 -- organizații” spunea dacă un id de manager e al unei firme anume.
+--
+-- Căutarea doar în firma rândului NU ajunge: un rând pus pe firma VICTIMEI
+-- (org_admin-ul altei firme, `organization_id` ales de el) găsea managerul
+-- care există acolo, trecea de trigger și cădea abia la WITH CHECK (42501),
+-- iar managerul inexistent primea P0001 — sonda „există fișa X în firma Y?”
+-- rămânea deschisă (proba-securitate-reziduala 1f). Garda de firmă vine
+-- deci PRIMA, ca la `foi_parcurs_inainte` (0200, X2). Triggerul e primul
+-- BEFORE pe `employees` (ordinea e alfabetică) și se declanșează la orice
+-- INSERT și la orice UPDATE care mută `organization_id`, deci garda îi
+-- acoperă și pe cei de după el (`employees_validari_biu`,
+-- `zz_employees_legaturi_in_firma`).
 create or replace function public.tg_employees_manager_path()
 returns trigger
 language plpgsql
@@ -324,6 +336,12 @@ as $$
 declare
   v_mgr_path uuid[];
 begin
+  if not app.is_service_context()
+     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a scrie fișe de angajat în această organizație.';
+  end if;
+
   if new.manager_employee_id is null then
     new.manager_path := array[new.id];
   else
@@ -375,7 +393,9 @@ create policy foi_select on public.trip_sheets
 -- 3. Registrul încărcărilor de import
 -- ============================================================
 create table public.import_uploads (
-  id              uuid primary key,          -- = batchId, generat pe SERVER
+  -- = batchId. Îl emite BAZA (default + triggerul de mai jos), nu apelantul:
+  -- un id ales de client putea fi id-ul unei fișe sau al unui vehicul.
+  id              uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations (id) on delete cascade,
   -- Segmentul 2 al căii: resursa de permisiune care păzește importul.
   resursa         text not null,
@@ -410,6 +430,15 @@ comment on table public.import_uploads is
 
 -- Integritate, nu drepturi: rândul e o chitanță emisă de server, deci nimic
 -- din ce l-a definit nu se mai schimbă, iar consumul e ireversibil.
+--
+-- Id-ul și folderul le emite BAZA. Tabela e scriptibilă direct prin PostgREST
+-- de oricine are `<resursă>:create = all`: dacă id-ul și calea ar fi fost cele
+-- trimise, un hr scria aici `id = fișa unui angajat`, `cale = contractul ei`,
+-- apoi chema analiza — iar consumul trecea și clientul de serviciu ștergea
+-- documentul (proba-securitate-reziduala 3g). Acum id-ul e mereu unul nou, iar
+-- din calea trimisă se păstrează doar NUMELE fișierului (segmentul 4), sub
+-- folderul lotului nou: acolo nu există nimic de șters în afară de ce urcă
+-- apelantul pe URL-ul semnat. Acțiunea citește id-ul și calea înapoi.
 create or replace function internal.import_uploads_inainte()
 returns trigger
 language plpgsql
@@ -418,6 +447,9 @@ as $$
 begin
   if tg_op = 'INSERT' then
     if not app.is_service_context() then
+      new.id := pg_catalog.gen_random_uuid();
+      new.cale := new.organization_id::text || '/' || new.resursa || '/' || new.id::text || '/'
+                  || pg_catalog.split_part(coalesce(new.cale, ''), '/', 4);
       new.consumat_la := null;
       new.created_at := now();
     end if;
@@ -517,6 +549,17 @@ begin
       v_lipsa := v_lipsa || ('oracolul încă deschis în ' || v_f);
     end if;
   end loop;
+
+  -- Garda de firmă vine înaintea căutării managerului (sonda pe firma victimei).
+  if pg_catalog.pg_get_functiondef('public.tg_employees_manager_path()'::regprocedure)
+     not like '%current_org_ids%' then
+    v_lipsa := v_lipsa || 'garda de firmă din tg_employees_manager_path'::text;
+  end if;
+  -- Lotul îl emite baza: id-ul trimis de apelant nu se păstrează.
+  if pg_catalog.pg_get_functiondef('internal.import_uploads_inainte()'::regprocedure)
+     not like '%new.id := pg_catalog.gen_random_uuid()%' then
+    v_lipsa := v_lipsa || 'id-ul emis de bază în import_uploads_inainte'::text;
+  end if;
 
   if not exists (select 1 from pg_policies
                   where schemaname = 'public' and tablename = 'trip_sheets' and policyname = 'foi_select'

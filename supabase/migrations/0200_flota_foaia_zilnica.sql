@@ -1228,6 +1228,12 @@ revoke all on function internal.aloca_numar_foaie(uuid, integer) from public, an
 -- `count(*)` rulat DUPĂ ce lacătul e luat vede (READ COMMITTED: instantaneu
 -- nou pe fiecare instrucțiune) rândul deja comis. Se ia doar când rândul
 -- chiar ocupă un loc, deci redenumirile și ștergerile nu se așteaptă între ele.
+--
+-- X2 (revizie): garda de firmă vine ÎNAINTEA lacătului și a numărării. Un
+-- trigger BEFORE rulează înaintea WITH CHECK, deci un rând pus de altă firmă
+-- pe firma victimei lua lacătul victimei și, pe o firmă plină, primea mesajul
+-- plafonului (o sondă „are firma Y 100 de șabloane?”). Contextul de serviciu
+-- rămâne sub plafon, ca oricine scrie.
 
 create or replace function internal.sabloane_traseu_inainte()
 returns trigger language plpgsql security definer set search_path = '' as $$
@@ -1235,6 +1241,12 @@ declare
   v_numara boolean;
   c_plafon_sabloane constant integer := 100;
 begin
+  if not app.is_service_context()
+     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a scrie șabloane de traseu în această organizație.';
+  end if;
+
   -- `old` se citește într-un `if` separat: pe INSERT nu are rând.
   if tg_op = 'INSERT' then
     v_numara := new.deleted_at is null;

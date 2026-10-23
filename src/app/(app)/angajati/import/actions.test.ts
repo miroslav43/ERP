@@ -77,9 +77,12 @@ describe("pregatesteIncarcareaImportului", () => {
     expect(server.apeluriStocare).toHaveLength(0);
   });
 
-  it("succes: un lot nou, cu calea sub prefixul lui, sub organizația din sesiune", async () => {
+  it("succes: lotul și calea sunt cele emise de bază, sub organizația din sesiune", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
-    server.raspunde("import_uploads", "insert", {});
+    // X2 (revizie): baza emite id-ul și folderul (0226, `import_uploads_inainte`);
+    // acțiunea nu trimite id și semnează exact calea întoarsă.
+    const caleBaza = `${PREFIX}abc-personal.xlsx`;
+    server.raspunde("import_uploads", "insert", { data: { id: BATCH, cale: caleBaza } });
     server.raspundeStocare(BUCKET, "createSignedUploadUrl", { data: { signedUrl: "https://u" } });
 
     const r = await pregatesteIncarcareaImportului({
@@ -89,17 +92,23 @@ describe("pregatesteIncarcareaImportului", () => {
 
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.data.batchId).toMatch(/^[0-9a-f-]{36}$/u);
-    expect(r.data.cale.startsWith(`${ORG_ID}/employees/${r.data.batchId}/`)).toBe(true);
-    expect(r.data.urlSemnat).toBe("https://u");
-    // X2: lotul emis de server se înregistrează, cu id-ul și calea lui.
+    expect(r.data).toMatchObject({ batchId: BATCH, cale: caleBaza, urlSemnat: "https://u" });
     const [inregistrare] = server.apeluriPe("import_uploads", "insert");
-    expect(inregistrare?.payload).toMatchObject({
-      id: r.data.batchId,
-      organization_id: ORG_ID,
-      resursa: "employees",
-      cale: r.data.cale,
-    });
+    expect(inregistrare?.payload).toMatchObject({ organization_id: ORG_ID, resursa: "employees" });
+    expect(inregistrare?.payload).not.toHaveProperty("id");
+    expect(String((inregistrare?.payload as { cale?: unknown }).cale)).toMatch(/-personal\.xlsx$/u);
+    expect(inregistrare?.selectDupaScriere).toBe("id, cale");
+    expect(server.apeluriStocare).toEqual([
+      expect.objectContaining({ metoda: "createSignedUploadUrl", argumente: [caleBaza] }),
+    ]);
+  });
+
+  it("X2: baza nu întoarce rândul (RETURNING gol): CONFLICT, fără URL semnat", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("import_uploads", "insert", { data: null });
+    const r = await pregatesteIncarcareaImportului({ numeFisier: "a.xlsx", dimensiune: 100 });
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(server.apeluriStocare).toHaveLength(0);
   });
 
   it("X2: lotul refuzat de bază: CONFLICT, fără URL semnat", async () => {
@@ -122,7 +131,9 @@ describe("pregatesteIncarcareaImportului", () => {
 
   it("semnarea eșuează: CONFLICT", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
-    server.raspunde("import_uploads", "insert", {});
+    server.raspunde("import_uploads", "insert", {
+      data: { id: BATCH, cale: `${PREFIX}abc-a.xlsx` },
+    });
     server.raspundeStocare(BUCKET, "createSignedUploadUrl", { error: { message: "x" } });
     const r = await pregatesteIncarcareaImportului({ numeFisier: "a.xlsx", dimensiune: 100 });
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });

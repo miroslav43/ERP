@@ -77,6 +77,10 @@ describe("traduEroareAmenzi — mesajele triggerelor din 0206", () => {
     // 0206 §F, declarația șoferului: nu țin de un câmp al formularului.
     /^Declarantul unui incident/u,
     /^Contul dumneavoastră nu e legat de o fișă de angajat/u,
+    // X2 (revizie): garda de firmă a triggerelor (42501, rândul pus pe altă
+    // firmă). Nu ține de un câmp: e refuzul întregului rând.
+    /^Nu aveți dreptul de a înregistra amenzi/u,
+    /^Nu aveți dreptul de a înregistra incidente/u,
   ];
 
   const mesaje = mesajeleTriggerelor();

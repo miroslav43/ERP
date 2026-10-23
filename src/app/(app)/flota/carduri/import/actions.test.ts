@@ -82,10 +82,12 @@ function citiriAnaliza(server: ClientFals): void {
   server.raspunde("fuel_card_imports", "select", { data: [] });
 }
 
-describe("pregatesteIncarcareaExtrasului (X2: lotul emis de server)", () => {
-  it("înregistrează lotul (id și cale construite pe server) ÎNAINTEA URL-ului semnat", async () => {
+describe("pregatesteIncarcareaExtrasului (X2: lotul emis de bază)", () => {
+  it("înregistrează lotul ÎNAINTEA URL-ului semnat; id-ul și calea sunt cele întoarse de bază", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMISIUNI });
-    server.raspunde("import_uploads", "insert", {});
+    // Baza emite id-ul și rescrie folderul căii (0226, `import_uploads_inainte`):
+    // acțiunea nu trimite id și folosește ce primește înapoi, nu ce a calculat.
+    server.raspunde("import_uploads", "insert", { data: { id: LOT, cale: CALE } });
     server.raspundeStocare(BUCKET, "createSignedUploadUrl", {
       data: { signedUrl: "https://s/semnat" },
     });
@@ -95,16 +97,27 @@ describe("pregatesteIncarcareaExtrasului (X2: lotul emis de server)", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     const [inregistrare] = server.apeluriPe("import_uploads", "insert");
-    expect(inregistrare?.payload).toEqual({
-      id: r.data.batchId,
+    expect(inregistrare?.payload).toMatchObject({
       organization_id: ORG_ID,
       resursa: "vehicles",
-      cale: r.data.cale,
       created_by: USER_ID,
       updated_by: USER_ID,
     });
-    expect(r.data.cale.startsWith(`${ORG_ID}/vehicles/${r.data.batchId}/`)).toBe(true);
-    expect(server.apeluriStocare.map((a) => a.metoda)).toEqual(["createSignedUploadUrl"]);
+    expect(inregistrare?.payload).not.toHaveProperty("id");
+    expect(String((inregistrare?.payload as { cale?: unknown }).cale)).toMatch(/-extras\.csv$/u);
+    expect(inregistrare?.selectDupaScriere).toBe("id, cale");
+    expect(r.data).toMatchObject({ batchId: LOT, cale: CALE });
+    const [semnare] = server.apeluriStocare;
+    expect(semnare).toMatchObject({ metoda: "createSignedUploadUrl", argumente: [CALE] });
+    expect(server.apeluriStocare).toHaveLength(1);
+  });
+
+  it("baza nu întoarce rândul (RETURNING gol): CONFLICT, fără URL semnat", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMISIUNI });
+    server.raspunde("import_uploads", "insert", { data: null });
+    const r = await pregatesteIncarcareaExtrasului({ numeFisier: "extras.csv", dimensiune: 1000 });
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(server.apeluriStocare).toHaveLength(0);
   });
 
   it("lotul refuzat de bază: CONFLICT, fără URL semnat", async () => {

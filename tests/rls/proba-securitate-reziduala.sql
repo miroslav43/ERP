@@ -11,17 +11,25 @@
 -- (1c) seed_leave_balances: la fel;
 -- (1d) managerul din altă firmă și managerul inexistent → același răspuns;
 -- (1e) fișa proprie fără date sensibile ajunge la mesajul ei       [POZITIVĂ];
+-- (1f) rândul pus pe ALTĂ firmă (triggerul BEFORE rulează înaintea WITH
+--      CHECK): managerul care există acolo și cel inexistent → același refuz;
 -- Șoferul șters logic (0206)
 -- (2a) desemnarea unei fișe șterse logic: P0001; a uneia vii: 1 rând [POZITIVĂ];
 -- (2b) incidentul pe o fișă ștearsă logic: P0001;
+-- (2c) amenda și incidentul puse pe ALTĂ firmă: vehiculul și șoferul care
+--      există acolo și cele inexistente → același refuz;
 -- Registrul încărcărilor (0226 §3) și repotrivirea atomică (0214 §11b)
--- (3a) org_admin înregistrează lotul                                [POZITIVĂ];
--- (3b) o cale în afara lotului (folderul unui vehicul): 23514;
+-- (3a) org_admin înregistrează lotul; id-ul și calea le emite BAZA [POZITIVĂ];
+-- (3b) o cale în folderul unui vehicul nu se înregistrează ca atare; o cale
+--      fără nume de fișier: 23514;
 -- (3c) hr (fără vehicles:create) nu înregistrează un lot de vehicule: 42501;
 -- (3d) org_admin-ul altei firme și un coleg nu consumă lotul: 0 rânduri;
 -- (3e) creatorul îl consumă o dată (1 rând), a doua oară 0 rânduri, iar
 --      consumul nu se poate rescrie (P0001);
 -- (3f) repotrivirea cu un rând imposibil: P0001 și NIMIC scris; cea bună: 2 rânduri;
+-- (3g) un lot falsificat DIRECT prin PostgREST (id = fișa unui angajat, cale =
+--      documentul ei) nu păstrează nici id-ul, nici calea alese; consumul pe
+--      id-ul fișei: 0 rânduri, deci clientul de serviciu n-are ce șterge;
 -- super_admin pe foi (0226 §2)
 -- (5)  super_admin (platform_admins, NU membru) vede foaia; nu o modifică;
 -- Kilometrajul în mesajul de regres (0200)
@@ -33,7 +41,8 @@
 -- (8)  `driver_licenses_angajat_fk`: id inexistent și fișa altei firme → același
 --      cod și același mesaj (nicio sondă).
 --
--- Plafonul șabloanelor sub concurență (7) NU e aici: o probă într-o singură
+-- (7)  șablonul pus de altă firmă pe o firmă plină: 42501, nu plafonul ei.
+-- Plafonul șabloanelor sub CONCURENȚĂ NU e aici: o probă într-o singură
 -- tranzacție nu poate rula două scrieri simultane. Testul de concurență e
 -- separat, cu două sesiuni psql (raportul X2).
 --
@@ -119,6 +128,8 @@ declare
   v_a        text;
   v_b        text;
   v_c        text;
+  v_d        text;
+  v_e        text;
   v_n        bigint;
   v_m        bigint;
   v_esecuri  int := 0;
@@ -192,6 +203,21 @@ begin
   v_esecuri := v_esecuri + pg_temp.verifica('1e', v_a = 'P0001:Angajatul nu are date sensibile înregistrate.',
     'fișa proprie, fără date sensibile, trece de gărzi și primește mesajul ei', v_a);
 
+  -- Rândul pus de org_admin-ul firmei B pe firma NOASTRĂ: triggerul de lanț
+  -- rulează înaintea WITH CHECK, deci fără o gardă de firmă întâi ar spune
+  -- dacă managerul există în firma noastră (42501 de la politică vs P0001).
+  v_a := pg_temp.ruleaza(v_u_b, format(
+    $q$insert into public.employees (organization_id, marca, first_name, last_name, hired_on, status,
+                                    manager_employee_id)
+       values (%L, 'X2-Z', 'Ion', 'Pop', %L, 'activ', %L)$q$, v_org, v_zi, v_e_viu));
+  v_b := pg_temp.ruleaza(v_u_b, format(
+    $q$insert into public.employees (organization_id, marca, first_name, last_name, hired_on, status,
+                                    manager_employee_id)
+       values (%L, 'X2-Z', 'Ion', 'Pop', %L, 'activ', %L)$q$, v_org, v_zi, v_inexist));
+  v_esecuri := v_esecuri + pg_temp.verifica('1f', v_a not like 'ok:%' and v_a = v_b,
+    'rândul pus pe altă firmă: managerul care există acolo și cel inexistent primesc același refuz',
+    v_a || ' ≠ ' || v_b);
+
   -- ═══ (2) Șoferul șters logic ═════════════════════════════════════════════
   insert into public.vehicle_fines (id, organization_id, vehicle_id, numar_pv, constatata_la, fapta,
                                     created_by, updated_by)
@@ -214,23 +240,67 @@ begin
   v_esecuri := v_esecuri + pg_temp.verifica('2b', v_a like 'P0001:Șoferul incidentului nu există%',
     'incidentul pe o fișă ștearsă logic: P0001', v_a);
 
-  -- ═══ (3) Registrul încărcărilor ══════════════════════════════════════════
-  v_a := pg_temp.ruleaza(v_u_admin, format(
-    $q$insert into public.import_uploads (id, organization_id, resursa, cale, created_by, updated_by)
-       values (%L, %L, 'vehicles', %L, %L, %L)$q$,
-    v_lot, v_org, v_org::text || '/vehicles/' || v_lot::text || '/' || gen_random_uuid()::text || '-extras.csv',
-    v_u_admin, v_u_admin));
-  v_esecuri := v_esecuri + pg_temp.verifica('3a', v_a = 'ok:1',
-    'org_admin înregistrează lotul emis de server (1 rând)', v_a);
+  -- Aceeași sondă, prin amendă și incident: rândul pus de firma B pe firma
+  -- noastră nu are voie să deosebească vehiculul/șoferul care există aici.
+  v_a := pg_temp.ruleaza(v_u_b, format(
+    $q$insert into public.vehicle_fines (organization_id, vehicle_id, numar_pv, constatata_la, fapta,
+                                        sofer_desemnat_id, created_by, updated_by)
+       values (%L, %L, 'PV-X2B', now() - interval '3 days', 'Depășirea vitezei', %L, %L, %L)$q$,
+    v_org, v_veh, v_e_viu, v_u_b, v_u_b));
+  v_b := pg_temp.ruleaza(v_u_b, format(
+    $q$insert into public.vehicle_fines (organization_id, vehicle_id, numar_pv, constatata_la, fapta,
+                                        sofer_desemnat_id, created_by, updated_by)
+       values (%L, %L, 'PV-X2B', now() - interval '3 days', 'Depășirea vitezei', %L, %L, %L)$q$,
+    v_org, v_veh, v_inexist, v_u_b, v_u_b));
+  v_c := pg_temp.ruleaza(v_u_b, format(
+    $q$insert into public.vehicle_fines (organization_id, vehicle_id, numar_pv, constatata_la, fapta,
+                                        created_by, updated_by)
+       values (%L, %L, 'PV-X2B', now() - interval '3 days', 'Depășirea vitezei', %L, %L)$q$,
+    v_org, v_inexist, v_u_b, v_u_b));
+  v_d := pg_temp.ruleaza(v_u_b, format(
+    $q$insert into public.vehicle_incidents (organization_id, vehicle_id, tip, produs_la, descriere, sofer_id,
+                                             created_by, updated_by)
+       values (%L, %L, 'avarie', now() - interval '2 days', 'Zgârietură pe ușă', %L, %L, %L)$q$,
+    v_org, v_veh, v_e_viu, v_u_b, v_u_b));
+  v_e := pg_temp.ruleaza(v_u_b, format(
+    $q$insert into public.vehicle_incidents (organization_id, vehicle_id, tip, produs_la, descriere, sofer_id,
+                                             created_by, updated_by)
+       values (%L, %L, 'avarie', now() - interval '2 days', 'Zgârietură pe ușă', %L, %L, %L)$q$,
+    v_org, v_veh, v_inexist, v_u_b, v_u_b));
+  v_esecuri := v_esecuri + pg_temp.verifica('2c',
+    v_a not like 'ok:%' and v_a = v_b and v_b = v_c and v_d not like 'ok:%' and v_d = v_e,
+    'amenda și incidentul puse pe altă firmă: vehiculul/șoferul de acolo și cei inexistenți, același refuz',
+    format('amendă: %s | %s | %s; incident: %s | %s', v_a, v_b, v_c, v_d, v_e));
 
-  v_b := gen_random_uuid()::text;
+  -- ═══ (3) Registrul încărcărilor ══════════════════════════════════════════
+  -- Ca acțiunea: fără id (îl emite baza), cu o cale provizorie al cărei
+  -- segment 3 baza îl înlocuiește cu id-ul emis.
   v_a := pg_temp.ruleaza(v_u_admin, format(
-    $q$insert into public.import_uploads (id, organization_id, resursa, cale, created_by, updated_by)
-       values (%L, %L, 'vehicles', %L, %L, %L)$q$,
-    v_b, v_org, v_org::text || '/vehicles/' || v_veh::text || '/' || gen_random_uuid()::text || '-rca.xlsx',
+    $q$insert into public.import_uploads (organization_id, resursa, cale, created_by, updated_by)
+       values (%L, 'vehicles', %L, %L, %L)$q$,
+    v_org, v_org::text || '/vehicles/' || gen_random_uuid()::text || '/' || gen_random_uuid()::text || '-extras.csv',
     v_u_admin, v_u_admin));
-  v_esecuri := v_esecuri + pg_temp.verifica('3b', v_a like '23514:%iup_cale_ck%',
-    'o cale în afara lotului (folderul unui vehicul) e refuzată: 23514', v_a);
+  select u.id, u.cale into v_lot, v_c from public.import_uploads u
+   where u.organization_id = v_org and u.created_by = v_u_admin and u.resursa = 'vehicles';
+  v_esecuri := v_esecuri + pg_temp.verifica('3a',
+    v_a = 'ok:1' and v_lot is not null
+      and v_c like v_org::text || '/vehicles/' || v_lot::text || '/%-extras.csv',
+    'org_admin înregistrează lotul (1 rând), cu id-ul și folderul emise de bază', v_a || ' / ' || coalesce(v_c, '∅'));
+
+  v_a := pg_temp.ruleaza(v_u_admin, format(
+    $q$insert into public.import_uploads (organization_id, resursa, cale, created_by, updated_by)
+       values (%L, 'vehicles', %L, %L, %L)$q$,
+    v_org, v_org::text || '/vehicles/' || v_veh::text || '/' || gen_random_uuid()::text || '-rca.xlsx',
+    v_u_admin, v_u_admin));
+  select count(*) into v_n from public.import_uploads u
+   where u.cale like v_org::text || '/vehicles/' || v_veh::text || '/%';
+  v_b := pg_temp.ruleaza(v_u_admin, format(
+    $q$insert into public.import_uploads (organization_id, resursa, cale, created_by, updated_by)
+       values (%L, 'vehicles', %L, %L, %L)$q$,
+    v_org, v_org::text || '/vehicles/' || gen_random_uuid()::text, v_u_admin, v_u_admin));
+  v_esecuri := v_esecuri + pg_temp.verifica('3b', v_n = 0 and v_b like '23514:%iup_cale_ck%',
+    'o cale în folderul unui vehicul nu se înregistrează ca atare (0 rânduri); fără nume de fișier: 23514',
+    format('%s, rânduri în folderul vehiculului %s; %s', v_a, v_n, v_b));
 
   v_b := gen_random_uuid()::text;
   v_a := pg_temp.ruleaza(v_u_hr, format(
@@ -261,6 +331,23 @@ begin
   v_esecuri := v_esecuri + pg_temp.verifica('3e', v_a = 'ok:1' and v_b = 'ok:0' and v_c like 'P0001:%',
     'creatorul consumă lotul o dată (1 rând), a doua oară 0 rânduri, iar consumul nu se rescrie (P0001)',
     v_a || ' / ' || v_b || ' / ' || v_c);
+
+  -- Lotul falsificat DIRECT (PostgREST, fără acțiune): hr are `employees:create
+  -- = all`, deci politica de INSERT trece. Dacă baza ar păstra id-ul și calea
+  -- alese, consumul ar trece, iar analiza ar șterge contractul cu clientul de
+  -- serviciu — exact atacul pe care registrul trebuia să-l închidă.
+  v_c := v_org::text || '/employees/' || v_e_viu::text || '/' || gen_random_uuid()::text || '-contract.pdf';
+  v_a := pg_temp.ruleaza(v_u_hr, format(
+    $q$insert into public.import_uploads (id, organization_id, resursa, cale, created_by, updated_by)
+       values (%L, %L, 'employees', %L, %L, %L)$q$, v_e_viu, v_org, v_c, v_u_hr, v_u_hr));
+  select count(*) into v_n from public.import_uploads u where u.id = v_e_viu or u.cale = v_c;
+  v_b := pg_temp.ruleaza(v_u_hr, format(
+    $q$update public.import_uploads set consumat_la = now(), updated_by = %L
+        where id = %L and resursa = 'employees' and cale = %L and created_by = %L and consumat_la is null$q$,
+    v_u_hr, v_e_viu, v_c, v_u_hr));
+  v_esecuri := v_esecuri + pg_temp.verifica('3g', v_a = 'ok:1' and v_n = 0 and v_b = 'ok:0',
+    'lotul falsificat direct (id = fișa, cale = contractul ei): baza emite alt id și altă cale; consumul pe fișă: 0 rânduri',
+    format('%s, rânduri pe fișă/document %s, consum %s', v_a, v_n, v_b));
 
   -- Repotrivirea: două tranzacții ale unui import, scrise ca superuser.
   insert into public.fuel_card_imports (id, organization_id, emitent, fisier_nume, fisier_sha256,
@@ -323,6 +410,22 @@ begin
        values (%L, %L, %L, now() - interval '2 days', 1, %L, %L)$q$, v_org, v_veh, v_e_viu, v_u_admin, v_u_admin));
   v_esecuri := v_esecuri + pg_temp.verifica('6c', v_a like 'P0001:Kilometrajul de plecare (1 km)%(10000 km)%',
     'org_admin-ul firmei, care vede vehiculul, primește cifra în mesaj', v_a);
+
+  -- ═══ (7) Plafonul șabloanelor, de pe altă firmă ══════════════════════════
+  -- Triggerul plafonului (DEFINER, cu lacătul pe firmă) rulează înaintea WITH
+  -- CHECK: fără garda de firmă întâi, un rând pus de firma B pe firma noastră,
+  -- plină, primea „Firma are deja 100…” și lua lacătul firmei noastre.
+  insert into public.trip_route_templates (organization_id, denumire, de_la_loc, pana_la_loc, scop)
+  select v_org, 'Șablon X2 ' || g, 'A', 'B', 'Livrare' from generate_series(1, 100) g;
+  v_a := pg_temp.ruleaza(v_u_b, format(
+    $q$insert into public.trip_route_templates (organization_id, denumire, de_la_loc, pana_la_loc, scop)
+       values (%L, 'Sondă', 'A', 'B', 'Livrare')$q$, v_org));
+  v_b := pg_temp.ruleaza(v_u_admin, format(
+    $q$insert into public.trip_route_templates (organization_id, denumire, de_la_loc, pana_la_loc, scop)
+       values (%L, 'Al 101-lea', 'A', 'B', 'Livrare')$q$, v_org));
+  v_esecuri := v_esecuri + pg_temp.verifica('7', v_a like '42501:%' and v_b like 'P0001:Firma are deja 100%',
+    'șablonul pus de altă firmă pe o firmă plină: 42501, nu plafonul ei; org_admin-ul firmei: plafonul (P0001)',
+    v_a || ' / ' || v_b);
 
   -- ═══ (8) Cheile străine compuse (evaluare) ═══════════════════════════════
   v_a := pg_temp.ruleaza(v_u_hr, format(

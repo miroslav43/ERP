@@ -6342,7 +6342,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
-          id: string
+          id?: string
           organization_id: string
           resursa: string
           updated_at?: string

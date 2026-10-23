@@ -323,6 +323,17 @@ declare
   v_zi_fapta date;
   v_serviciu boolean := app.is_service_context();
 begin
+  -- X2 (revizie): triggerul BEFORE rulează ÎNAINTEA WITH CHECK. Fără garda de
+  -- firmă întâi, un rând pus de altă firmă pe firma victimei deosebea vehiculul
+  -- și șoferul care există acolo (trec, apoi 42501 de la politică) de cele
+  -- inexistente (P0001 mai jos) — o sondă între firme. Refuzul e neutru și
+  -- nu depinde de nimic din rând în afară de firmă.
+  if not v_serviciu
+     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a înregistra amenzi în această organizație.';
+  end if;
+
   if tg_op = 'UPDATE' and not v_serviciu then
     if old.deleted_at is not null then
       raise exception using errcode = 'P0001',
@@ -592,6 +603,13 @@ declare
   v_fisa    uuid;
   v_serviciu boolean := app.is_service_context();
 begin
+  -- X2 (revizie): garda de firmă înaintea oricărei căutări (vezi amenzile).
+  if not v_serviciu
+     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a înregistra incidente în această organizație.';
+  end if;
+
   if tg_op = 'UPDATE' and not v_serviciu then
     -- §F: declarantul e un fapt, nu un câmp de corectat.
     new.declarat_de_employee_id := old.declarat_de_employee_id;

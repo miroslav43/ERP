@@ -50,20 +50,22 @@ export const pregatesteIncarcareaImportului = createAction({
     const problema = verificaFisierImport(input.numeFisier, input.dimensiune);
     if (problema !== null) throw invalidInput(problema, {});
 
-    const batchId = crypto.randomUUID();
-    const cale = construiesteCaleDocument({
+    const caleProvizorie = construiesteCaleDocument({
       organizationId: ctx.tenant.organizationId,
       entitate: "employees",
-      entitateId: batchId,
+      entitateId: crypto.randomUUID(),
       numeFisier: input.numeFisier,
     });
     // X2: lotul se înregistrează (`import_uploads`, 0226) ÎNAINTEA URL-ului
-    // semnat. Analiza șterge doar fișierul unui lot înregistrat aici.
-    if (!(await inregistreazaIncarcarea(ctx, "employees", batchId, cale))) {
+    // semnat. Id-ul și folderul le emite BAZA; se semnează calea întoarsă.
+    // Analiza șterge doar fișierul unui lot înregistrat aici.
+    const lot = await inregistreazaIncarcarea(ctx, "employees", caleProvizorie);
+    if (lot === null) {
       throw businessRule(
         "Nu am putut pregăti încărcarea fișierului. Încearcă din nou în câteva secunde.",
       );
     }
+    const { batchId, cale } = lot;
     const { data, error } = await ctx.supabase.storage
       .from(BUCKET_DOCUMENTE)
       .createSignedUploadUrl(cale);

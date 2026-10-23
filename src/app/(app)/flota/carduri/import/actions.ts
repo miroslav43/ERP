@@ -124,14 +124,20 @@ export const pregatesteIncarcareaExtrasului = createAction({
   ): Promise<Readonly<{ batchId: string; cale: string; urlSemnat: string }>> => {
     const problema = verificaFisierExtras(input.numeFisier, input.dimensiune);
     if (problema !== null) throw invalidInput(problema, { fisier: [problema] });
-    const batchId = crypto.randomUUID();
-    const cale = caleSursaExtras(ctx.tenant.organizationId, batchId, input.numeFisier);
-    // Lotul se înregistrează ÎNAINTEA URL-ului semnat: nu există încărcare fără chitanță.
-    if (!(await inregistreazaIncarcarea(ctx, "vehicles", batchId, cale))) {
+    const caleProvizorie = caleSursaExtras(
+      ctx.tenant.organizationId,
+      crypto.randomUUID(),
+      input.numeFisier,
+    );
+    // Lotul se înregistrează ÎNAINTEA URL-ului semnat: nu există încărcare fără
+    // chitanță. Id-ul și folderul le emite BAZA (0226); se semnează calea întoarsă.
+    const lot = await inregistreazaIncarcarea(ctx, "vehicles", caleProvizorie);
+    if (lot === null) {
       throw businessRule(
         "Nu am putut pregăti încărcarea fișierului. Încercați din nou în câteva secunde.",
       );
     }
+    const { batchId, cale } = lot;
     const { data, error } = await ctx.supabase.storage
       .from(BUCKET_DOCUMENTE)
       .createSignedUploadUrl(cale);
