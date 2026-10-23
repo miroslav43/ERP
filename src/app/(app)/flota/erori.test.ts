@@ -1,4 +1,7 @@
 // src/app/(app)/flota/erori.test.ts
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { ActionDenied } from "@/lib/actions/errors";
@@ -8,6 +11,25 @@ import { traduEroare, traduEroareAlocare, traduEroareFiscal, traduEroareUit } fr
 
 function p0001(message: string) {
   return { code: "P0001", message, details: "", hint: "", name: "PostgrestError" };
+}
+
+/*
+ * Literele cu SEDILĂ (U+015E, U+015F, U+0162, U+0163) se construiesc din coduri:
+ * fișierul nu le conține literal, deci verificarea cu `grep -P` pe fișierele
+ * atinse rămâne curată, iar testele forma veche tot o exercită.
+ */
+const [S_SEDILA, s_SEDILA, T_SEDILA, t_SEDILA] = [0x15e, 0x15f, 0x162, 0x163].map((c) =>
+  String.fromCodePoint(c),
+) as [string, string, string, string];
+const SEDILE = new RegExp(`[${S_SEDILA}${s_SEDILA}${T_SEDILA}${t_SEDILA}]`, "u");
+
+/** Forma veche a unui mesaj (0012/0018/0172): ș/ț cu virgulă → aceleași litere cu sedilă. */
+function cuSedila(text: string): string {
+  return text
+    .replaceAll("ș", s_SEDILA)
+    .replaceAll("ț", t_SEDILA)
+    .replaceAll("Ș", S_SEDILA)
+    .replaceAll("Ț", T_SEDILA);
 }
 
 function prinde(error: unknown): ActionDenied {
@@ -25,11 +47,15 @@ describe("traduEroare — refuzurile bazei ajung pe câmpul vinovat", () => {
     ["Kilometrajul de sosire trebuie să fie mai mare decât cel de plecare.", ["km_sosire"]],
     ["Ora de sosire trebuie să fie după ora de plecare.", ["sosire_la"]],
     ["Data alimentării este în afara intervalului foii de parcurs.", ["alimentat_la"]],
+    // 0199/0200 rescriu triggerele din 0012/0018 cu ș/ț cu virgulă: tiparele se
+    // potrivesc pe forma pe care o trimite acum baza.
     [
-      "Completaţi ora şi kilometrajul de sosire înainte de a trimite foaia spre aprobare.",
+      "Completați ora și kilometrajul de sosire înainte de a trimite foaia spre aprobare.",
       ["sosire_la", "km_sosire"],
     ],
-    ["Şoferul selectat nu aparţine organizaţiei dumneavoastră.", ["employee_id"]],
+    ["Șoferul selectat nu aparține organizației dumneavoastră.", ["employee_id"]],
+    // Plasa pentru o bază rămasă pe forma veche (0018, cu sedilă): același câmp.
+    [cuSedila("Șoferul selectat nu aparține organizației dumneavoastră."), ["employee_id"]],
     // 0199: mesajele noi, cu ș/ț corecte.
     [
       "Vehiculul ales nu vă este alocat în ziua plecării și nu este o mașină comună (pool). Foaia se întocmește pe vehiculul primit în folosință sau pe unul din pool.",
@@ -39,7 +65,8 @@ describe("traduEroare — refuzurile bazei ajung pe câmpul vinovat", () => {
   ])("%s", (mesaj, campuri) => {
     const eroare = prinde(p0001(mesaj));
     expect(Object.keys(eroare.fieldErrors ?? {})).toEqual(campuri);
-    // Mesajele vechi din bază (0018) au ş/ţ cu sedilă; ajung la om cu virgulă.
+    // Un mesaj rămas cu sedilă (funcțiile din 0012/0018/0172 nerescrise) ajunge
+    // la om cu virgulă; unul deja corect trece neschimbat.
     expect(eroare.fieldErrors?.[campuri[0] ?? ""]).toEqual([cuVirgula(mesaj)]);
   });
 
@@ -75,29 +102,68 @@ describe("traduEroare — refuzurile bazei ajung pe câmpul vinovat", () => {
     expect(eroare.message).toBe(mesaj);
   });
 
-  it("un refuz fără câmp rămâne mesaj general, doar cu diacriticele corectate", () => {
+  it("un refuz fără câmp rămâne mesaj general, neschimbat (0199/0200, cu virgulă)", () => {
     const mesaj =
-      "Foaia de parcurs este aprobată. Pentru corecţii, stornaţi-o şi întocmiţi una nouă.";
+      "Foaia de parcurs este aprobată. Pentru corecții, stornați-o și întocmiți una nouă.";
     const eroare = prinde(p0001(mesaj));
     expect(eroare.fieldErrors).toBeNull();
-    expect(eroare.message).toBe(cuVirgula(mesaj));
+    expect(eroare.message).toBe(mesaj);
   });
 
-  it("kilometrajul în regres (0018): cifrele rămân, sedila devine virgulă (QA ADM-021)", () => {
-    const mesaj =
-      "Kilometrajul de plecare (9000 km) este mai mic decât ultimul kilometraj cunoscut al vehiculului (10000 km). Un odometru nu poate da înapoi: verificaţi cifra introdusă sau corectaţi foaia de parcurs anterioară.";
+  it("un refuz fără câmp rămas cu sedilă ajunge doar cu diacriticele corectate", () => {
+    const corect =
+      "Foaia de parcurs este aprobată. Pentru corecții, stornați-o și întocmiți una nouă.";
+    const eroare = prinde(p0001(cuSedila(corect)));
+    expect(eroare.fieldErrors).toBeNull();
+    expect(eroare.message).toBe(corect);
+  });
+
+  const KM_REGRES =
+    "Kilometrajul de plecare (9000 km) este mai mic decât ultimul kilometraj cunoscut al vehiculului (10000 km). Un odometru nu poate da înapoi: verificați cifra introdusă sau corectați foaia de parcurs anterioară.";
+  it.each([
+    // 0199/0200: forma de acum a bazei.
+    ["virgulă (0199/0200)", KM_REGRES],
+    // 0018: forma veche, cu sedilă (QA ADM-021).
+    ["sedilă (0018)", cuSedila(KM_REGRES)],
+  ])("kilometrajul în regres, forma cu %s: cifrele rămân, pe câmp, fără sedilă", (_, mesaj) => {
     const eroare = prinde(p0001(mesaj));
     const pecamp = eroare.fieldErrors?.km_plecare?.[0] ?? "";
-    expect(pecamp).toContain("verificați");
-    expect(pecamp).toContain("(9000 km)");
-    expect(pecamp).not.toMatch(/[şţŞŢ]/u);
-    expect(eroare.message).not.toMatch(/[şţŞŢ]/u);
+    expect(pecamp).toBe(KM_REGRES);
+    expect(pecamp).not.toMatch(SEDILE);
+    expect(eroare.message).not.toMatch(SEDILE);
+  });
+});
+
+/*
+ * Mesajele P0001 din 0199–0202 (rescrierile triggerelor din 0012/0018) se scriu
+ * cu ș/ț cu VIRGULĂ dedesubt (U+0219/U+021B), nu cu sedilă (U+015F/U+0163): așa
+ * cere regula proiectului, iar tiparele de mai sus se potrivesc pe forma asta.
+ * Migrările nu sunt încă aplicate nicăieri, deci se corectează pe loc; poarta
+ * le ține corectate.
+ */
+describe("migrările flotei 0199–0202 — fără sedile", () => {
+  const MIGRARI = [
+    "0199_flota_roluri.sql",
+    "0200_flota_foaia_zilnica.sql",
+    "0201_flota_conformitate_zilnica.sql",
+    "0202_flota_tipuri_si_fisiere.sql",
+  ];
+
+  it.each(MIGRARI)("%s nu conține litere cu sedilă", (fisier) => {
+    const text = readFileSync(join(process.cwd(), "supabase", "migrations", fisier), "utf8");
+    const linii = text
+      .split("\n")
+      .map((linie, i) => [i + 1, linie] as const)
+      .filter(([, linie]) => SEDILE.test(linie))
+      .map(([nr, linie]) => `${nr}: ${linie.trim()}`);
+    expect(linii).toEqual([]);
   });
 });
 
 describe("traduEroareAlocare — P0001 ajunge cu virgulă dedesubt", () => {
   it("un refuz general din alocări nu păstrează sedila", () => {
-    const mesaj = "Vehiculul selectat nu aparţine organizaţiei.";
+    // 0172 (alocările), nerescrisă: forma veche, cu sedilă.
+    const mesaj = cuSedila("Vehiculul selectat nu aparține organizației.");
     let prinsa: unknown;
     try {
       traduEroareAlocare(p0001(mesaj));
