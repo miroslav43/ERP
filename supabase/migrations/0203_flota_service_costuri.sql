@@ -570,6 +570,10 @@ alter table public.vehicle_expenses force row level security;
 -- oricui îl poate conduce — aducea managerului facturile și cheltuielile
 -- mașinii comune a firmei, care nu e a echipei lui (sweep-ul A4, matricea
 -- `proba-flota-matrice-roluri.sql`). La `all` rezultatul e același.
+--
+-- `vse_select` și `vex_select` se rescriu în 0225 §4 pe
+-- `app.poate_vedea_costurile_vehiculului`: aici judecă doar șoferul, deci
+-- pool-ul alocat unui om din echipă i-ar fi dat managerului sumele.
 create policy vsp_select on public.vehicle_service_plans
   for select to authenticated
   using (

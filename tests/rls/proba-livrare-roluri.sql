@@ -1037,10 +1037,11 @@ begin
   -- Baza lasă o mașină din pool să fie alocată (`vehicles.employee_id` se
   -- umple). Decizia din 21 oct dă managerului costurile echipei, „nu și ale
   -- pool-ului”, iar fișa (`poateVedeaService`) ascunde costurile oricărui pool.
-  -- 0225 a strâns `vehicle_costuri` / `vehicle_document_costuri`; service-ul și
-  -- cheltuielile (`vse_select` / `vex_select`, 0203) judecă doar după șofer și
-  -- arată managerului pool-ul alocat subordonatului: DEFECT cunoscut, lăsat
-  -- deschis de commitul 0225 („aceeași margine; rămân neatinse aici”).
+  -- 0225 a strâns `vehicle_costuri` / `vehicle_document_costuri`, iar §4 din
+  -- aceeași migrare rescrie și `vse_select` / `vex_select` (0203) pe
+  -- `poate_vedea_costurile_vehiculului`: înainte judecau doar după șofer și
+  -- arătau managerului service-ul și cheltuielile pool-ului alocat
+  -- subordonatului (fost `D:1/0`, închis după verificarea dublă din 23 oct).
   -- Alocarea cere pool-ul fără rezervări active (P0001): le anulează întâi
   -- administratorul, sub identitatea lui, ca în aplicație.
   perform set_config('request.jwt.claim.sub', a->>'u_adm', true);
@@ -1070,10 +1071,10 @@ begin
        array['1', '1', '0', '0', '0', '0', '0']),
       ('pool cu șofer: vehicle_service_entries (VP)', 'SELECT',
        $q$select 1 from public.vehicle_service_entries where vehicle_id = {vp}$q$,
-       array['1', '1', '0', 'D:1/0', '0', '0', '0']),
+       array['1', '1', '0', '0', '0', '0', '0']),
       ('pool cu șofer: vehicle_expenses (VP)', 'SELECT',
        $q$select 1 from public.vehicle_expenses where vehicle_id = {vp}$q$,
-       array['1', '1', '0', 'D:1/0', '0', '0', '0'])
+       array['1', '1', '0', '0', '0', '0', '0'])
     ) as t(eticheta, op, sql, ast)
   loop
     v_celule := v_celule + pg_temp.judeca(r.eticheta, r.op, r.sql, r.ast, v_useri, v_ctx, baza, v_roluri);
