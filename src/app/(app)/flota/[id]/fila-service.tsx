@@ -31,8 +31,9 @@ const fmtKm = (n: number): string => n.toLocaleString("ro-RO");
  * Fila „Service” a fișei vehiculului (0203): planurile cu scadența lor și
  * intervențiile făcute.
  *
- * Citirea nu are filtre de scope: `vsp_select` / `vse_select` cer
- * `vehicles:read >= team` ȘI vehiculul vizibil. Cine nu le poate citi primește
+ * Citirea nu are filtre de scope: `vsp_select` / `vse_select` judecă prin
+ * `app.poate_vedea_costurile_vehiculului` (`update = all`, `read = all`, sau
+ * `team` pe mașina echipei care nu e în pool). Cine nu le poate citi primește
  * zero rânduri; pagina nu deschide fila pentru el (vezi `poateVedeaService`).
  * Scrierea (butoanele) cere `vehicles:update = all`, `poateAdministra`.
  */

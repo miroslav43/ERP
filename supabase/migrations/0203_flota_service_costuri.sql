@@ -561,15 +561,51 @@ alter table public.vehicle_expenses enable row level security;
 alter table public.vehicle_expenses force row level security;
 
 -- Citire: costurile și planurile de service sunt date de administrare, nu de
--- exploatare. Cine vede parcul cu `team` sau `all` (managerul pe mașinile
--- echipei lui, administratorul pe toate) le vede; șoferul (`own`) nu — află de
--- scadență din notificare, nu din cifrele de pe factură.
+-- exploatare. Decizia utilizatorului (21 oct): angajatul NU vede costuri;
+-- managerul vede costurile mașinilor ECHIPEI lui, doar citire, nu și ale
+-- pool-ului; hr nimic din flotă în afara PV-ului și a „Mașinii mele”; cine are
+-- `vehicles:update = all` vede tot. Șoferul (`own`) află de scadență din
+-- notificare, nu din cifrele de pe factură.
 --
--- Vehiculul se judecă FĂRĂ ramura de pool (`poate_vedea_vehicul(…, false)`,
--- ca anomaliile din 0199). Cu `poate_vedea_vehicul_dupa_id`, pool-ul — vizibil
--- oricui îl poate conduce — aducea managerului facturile și cheltuielile
--- mașinii comune a firmei, care nu e a echipei lui (sweep-ul A4, matricea
--- `proba-flota-matrice-roluri.sql`). La `all` rezultatul e același.
+-- Pool-ul e exclus la `team` ȘI când e alocat unui om din echipă. Baza lasă o
+-- mașină din pool să fie alocată (`vehicles.employee_id` se umple), iar forma
+-- veche (`poate_vedea_vehicul(…, vehicul_sofer, false)`, judecată doar după
+-- șofer) îi aducea atunci managerului șoferului planurile, intervențiile și
+-- cheltuielile mașinii comune. Cu `poate_vedea_vehicul_dupa_id`, pool-ul —
+-- vizibil oricui îl poate conduce — le aducea oricând (sweep-ul A4).
+--
+-- O singură funcție pentru toate costurile flotei: aceste trei tabele și cele
+-- două tabele de costuri din 0225 (valoarea de achiziție, costul documentelor).
+-- E aceeași regulă ca `poateVedeaService` din fișă (`read = all`, sau `team` și
+-- nu pool), deci nicio filă nu arată „—” înșelător. Probele:
+-- `proba-flota-matrice-roluri.sql` și `proba-livrare-roluri.sql` („pool cu
+-- șofer”).
+create or replace function app.poate_vedea_costurile_vehiculului(p_organization_id uuid, p_vehicle_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select p_vehicle_id is not null
+     and (app.has_permission(p_organization_id, 'vehicles', 'update') = 'all'
+          or (app.can(p_organization_id, 'vehicles', 'read', 'team')
+              and exists (
+                select 1
+                  from public.vehicles v
+                 where v.id = p_vehicle_id
+                   and v.organization_id = p_organization_id
+                   and (app.has_permission(p_organization_id, 'vehicles', 'read') = 'all'
+                        or not v.pool)
+                   and app.poate_vedea_vehicul(p_organization_id, v.employee_id, false))));
+$$;
+
+comment on function app.poate_vedea_costurile_vehiculului(uuid, uuid) is
+  'Cine vede costurile unui vehicul (0203, folosită și de 0225): vehicles:update = all, sau vehicles:read = all, sau vehicles:read = team pe vehiculul echipei care NU e în pool (nici când pool-ul are șofer din echipă). Angajatul și hr nu. Planurile, intervențiile, cheltuielile, valoarea de achiziție și costul documentelor.';
+
+revoke all on function app.poate_vedea_costurile_vehiculului(uuid, uuid) from public, anon;
+grant execute on function app.poate_vedea_costurile_vehiculului(uuid, uuid) to authenticated, service_role;
+
 create policy vsp_select on public.vehicle_service_plans
   for select to authenticated
   using (
@@ -577,8 +613,7 @@ create policy vsp_select on public.vehicle_service_plans
     or (
       organization_id = any ((select app.current_org_ids())::uuid[])
       and app.feature_on(organization_id, 'fleet')
-      and app.can(organization_id, 'vehicles', 'read', 'team')
-      and app.poate_vedea_vehicul(organization_id, app.vehicul_sofer(vehicle_id), false)
+      and app.poate_vedea_costurile_vehiculului(organization_id, vehicle_id)
     )
   );
 
@@ -589,8 +624,7 @@ create policy vse_select on public.vehicle_service_entries
     or (
       organization_id = any ((select app.current_org_ids())::uuid[])
       and app.feature_on(organization_id, 'fleet')
-      and app.can(organization_id, 'vehicles', 'read', 'team')
-      and app.poate_vedea_vehicul(organization_id, app.vehicul_sofer(vehicle_id), false)
+      and app.poate_vedea_costurile_vehiculului(organization_id, vehicle_id)
     )
   );
 
@@ -601,8 +635,7 @@ create policy vex_select on public.vehicle_expenses
     or (
       organization_id = any ((select app.current_org_ids())::uuid[])
       and app.feature_on(organization_id, 'fleet')
-      and app.can(organization_id, 'vehicles', 'read', 'team')
-      and app.poate_vedea_vehicul(organization_id, app.vehicul_sofer(vehicle_id), false)
+      and app.poate_vedea_costurile_vehiculului(organization_id, vehicle_id)
     )
   );
 

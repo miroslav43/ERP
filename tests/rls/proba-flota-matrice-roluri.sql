@@ -581,6 +581,22 @@ begin
     v_esecuri := v_esecuri + 1;
     raise warning '  ✗ pool cu șofer: managerul vede costul documentelor pool-ului (%; intenționat 0)', v_n;
   end if;
+  -- Y1: aceeași regulă pe planurile, intervențiile și cheltuielile pool-ului
+  -- (0203). Cu `poate_vedea_vehicul(…, vehicul_sofer, false)` managerul le
+  -- vedea pe toate trei imediat ce pool-ul primea un șofer din echipa lui.
+  for r in
+    select * from (values
+      ('vehicle_service_plans'), ('vehicle_service_entries'), ('vehicle_expenses')
+    ) as t(tabela)
+  loop
+    v_celule := v_celule + 1;
+    v_n := pg_temp.numara(v_useri[3], pg_temp.sub(
+      format('select 1 from public.%I where vehicle_id = {vp}', r.tabela), a));
+    if v_n <> 0 then
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ pool cu șofer: managerul vede % pe pool (%; intenționat 0)', r.tabela, v_n;
+    end if;
+  end loop;
   raise notice '  %  %', rpad('pool cu șofer: mgr fără costuri', 40), case when v_esecuri = v_brut then 'OK' else '✗' end;
 
   raise notice '  ─────────────────────────────────────────────────────────────────────────────────';

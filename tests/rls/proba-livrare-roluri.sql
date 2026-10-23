@@ -945,6 +945,53 @@ begin
     end loop;
     raise notice '  %  %', rpad(r.eticheta, 52), v_linie;
   end loop;
+
+  -- ── Pool-ul cu șofer din echipă (Y1) ─────────────────────────────────────
+  -- În fixture pool-ul (VP) n-are șofer, deci matricea de mai sus nu atinge
+  -- marginea. Baza lasă însă pool-ul să fie alocat (`vehicles.employee_id` se
+  -- umple): alocat lui E2, subordonatul lui M, managerul vede în continuare
+  -- VEHICULUL (ramura de pool), dar nu planurile, intervențiile, cheltuielile și
+  -- valoarea de achiziție ale mașinii comune (decizia din 21 oct: „nu și ale
+  -- pool-ului”). E2 (`own`) nu vede costuri nici pe mașina primită. Alocarea e
+  -- ultima scriere a probei: nicio celulă de mai sus nu o vede. Rezervările
+  -- viitoare ale pool-ului blochează alocarea (0216), deci ies întâi.
+  delete from public.vehicle_reservations where vehicle_id = (a->>'vp')::uuid;
+  insert into public.vehicle_assignments (organization_id, vehicle_id, employee_id, de_la, created_by, updated_by)
+  values ((a->>'org')::uuid, (a->>'vp')::uuid, (a->>'e_e2')::uuid, now() - interval '1 day',
+          (a->>'u_adm')::uuid, (a->>'u_adm')::uuid);
+  if (select employee_id from public.vehicles where id = (a->>'vp')::uuid) is distinct from (a->>'e_e2')::uuid then
+    raise exception 'PROBA LIVRARE: alocarea pool-ului lui E2 nu a ajuns pe vehicul (fixture greșit)';
+  end if;
+  for r in
+    select * from (values
+      ('pool cu șofer E2: vehiculul',               'select 1 from public.vehicles where id = {vp}',                       '1', '1'),
+      ('pool cu șofer E2: vehicle_service_plans',   'select 1 from public.vehicle_service_plans where vehicle_id = {vp}',  '0', '0'),
+      ('pool cu șofer E2: vehicle_service_entries', 'select 1 from public.vehicle_service_entries where vehicle_id = {vp}', '0', '0'),
+      ('pool cu șofer E2: vehicle_expenses',        'select 1 from public.vehicle_expenses where vehicle_id = {vp}',       '0', '0'),
+      ('pool cu șofer E2: vehicle_costuri',         'select 1 from public.vehicle_costuri where vehicle_id = {vp}',        '0', '0')
+    ) as t(eticheta, sql, ast_mgr, ast_e2)
+  loop
+    v_linie := '';
+    -- Doar managerul (4) și E2 (6): restul rolurilor nu depind de șoferul pool-ului.
+    for i in 1 .. 7 loop
+      if i not in (4, 6) then
+        v_linie := v_linie || lpad('—', 7) || ' ';
+        continue;
+      end if;
+      v_obt := pg_temp.numara(v_useri[i], pg_temp.sub(r.sql, baza || v_ctx[i]))::text;
+      v_ver := pg_temp.verdict('SELECT', case i when 4 then r.ast_mgr else r.ast_e2 end, v_obt);
+      v_celule := v_celule + 1;
+      insert into pg_temp.rezultate (eticheta, op, rol, asteptat, obtinut, verdict)
+      values (r.eticheta, 'SELECT', v_roluri[i], case i when 4 then r.ast_mgr else r.ast_e2 end, v_obt, v_ver);
+      v_linie := v_linie || lpad(case v_ver when 'OK' then v_obt else '✗' || v_obt end, 7) || ' ';
+      if v_ver <> 'OK' then
+        raise warning '  ✗ % sub %: obținut „%”, intenționat „%” → %', r.eticheta, v_roluri[i], v_obt,
+          case i when 4 then r.ast_mgr else r.ast_e2 end, v_ver;
+      end if;
+    end loop;
+    raise notice '  %  %', rpad(r.eticheta, 52), v_linie;
+  end loop;
+
   raise notice '  ──────────────────────────────────────────────────────────────────────────────────────────────';
   for r in select verdict, count(*) as n from pg_temp.rezultate group by verdict order by verdict loop
     raise notice '  %  %', rpad(r.verdict, 28), r.n;

@@ -108,39 +108,17 @@ create index vdc_org_idx on public.vehicle_document_costuri (organization_id);
 -- ============================================================
 -- 2. Cine vede costurile
 -- ============================================================
--- Pornește de la forma lui `vex_select` (0203): `vehicles:read` cel puțin
--- `team` și vehiculul judecat FĂRĂ ramura de pool, plus `vehicles:update = all`
--- (cine scrie costurile le vede, și upsert-ul cere rândul existent vizibil).
--- În plus față de `vex_select`: la `read = team`, o mașină din pool e exclusă și
--- când are șofer din echipă. Baza lasă pool-ul să fie alocat
--- (`vehicles.employee_id` se umple), iar „fără ramura de pool” ar fi lăsat
--- atunci managerului șoferului costurile mașinii comune. Aceeași regulă ca
--- `poateVedeaService` din fișă (`read = all`, sau `team` și nu pool).
--- Rezultă: org_admin / responsabilul cu `update = all` — tot; managerul —
--- mașinile echipei, nu pool-ul; angajatul (`own`) și hr (fără `vehicles:read`)
--- — nimic.
-create or replace function app.poate_vedea_costurile_vehiculului(p_organization_id uuid, p_vehicle_id uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = ''
-as $$
-  select p_vehicle_id is not null
-     and (app.has_permission(p_organization_id, 'vehicles', 'update') = 'all'
-          or (app.can(p_organization_id, 'vehicles', 'read', 'team')
-              and exists (
-                select 1
-                  from public.vehicles v
-                 where v.id = p_vehicle_id
-                   and v.organization_id = p_organization_id
-                   and (app.has_permission(p_organization_id, 'vehicles', 'read') = 'all'
-                        or not v.pool)
-                   and app.poate_vedea_vehicul(p_organization_id, v.employee_id, false))));
-$$;
-
-comment on function app.poate_vedea_costurile_vehiculului(uuid, uuid) is
-  'Cine vede costurile unui vehicul (0225): vehicles:update = all, sau vehicles:read = all, sau vehicles:read = team pe vehiculul echipei care NU e în pool (nici când pool-ul are șofer din echipă). Angajatul și hr nu.';
+-- `app.poate_vedea_costurile_vehiculului` e definită în 0203 §7 (Y1) și e
+-- aceeași pentru TOATE costurile flotei: planurile, intervențiile și
+-- cheltuielile din 0203, plus cele două tabele de aici. `vehicles:update = all`
+-- (cine scrie costurile le vede, și upsert-ul cere rândul existent vizibil),
+-- sau `vehicles:read = all`, sau `read = team` pe mașina echipei care NU e în
+-- pool, nici când pool-ul are șofer din echipă (baza lasă pool-ul să fie
+-- alocat, `vehicles.employee_id` se umple). Aceeași regulă ca
+-- `poateVedeaService` din fișă. Rezultă: org_admin / responsabilul cu
+-- `update = all` — tot; managerul — mașinile echipei, nu pool-ul; angajatul
+-- (`own`) și hr (fără `vehicles:read`) — nimic. Nu se rescrie aici: o a doua
+-- definiție ar putea rămâne în urma celei din 0203.
 
 -- Vehiculul unui document, citit fără RLS: politica de cost se judecă pe
 -- vehiculul de AZI al documentului.
@@ -154,9 +132,7 @@ as $$
   select d.vehicle_id from public.vehicle_documents d where d.id = p_document_id;
 $$;
 
-revoke all on function app.poate_vedea_costurile_vehiculului(uuid, uuid) from public, anon;
 revoke all on function app.vehicul_documentului(uuid) from public, anon;
-grant execute on function app.poate_vedea_costurile_vehiculului(uuid, uuid) to authenticated, service_role;
 grant execute on function app.vehicul_documentului(uuid) to authenticated, service_role;
 
 -- ============================================================
