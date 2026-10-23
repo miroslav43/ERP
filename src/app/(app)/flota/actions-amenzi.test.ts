@@ -278,6 +278,19 @@ describe("desemneazaSofer", () => {
     });
   });
 
+  it("fișa ștearsă logic (X2): refuzul bazei ajunge pe `employee_id`, fără a doua încercare", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicle_fines:update": "all" } });
+    const mesaj =
+      "Șoferul desemnat nu există în organizația dumneavoastră sau fișa lui a fost ștearsă.";
+    server.raspunde("vehicle_fines", "update", { error: eroarePostgrest("P0001", mesaj) });
+    const r = await desemneazaSofer({ id: ID_1, employee_id: SOFER });
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "VALIDARE", fieldErrors: { employee_id: [mesaj] } },
+    });
+    expect(server.apeluriPe("vehicle_fines", "update")).toHaveLength(1);
+  });
+
   it("amenda a trecut între timp în alt stadiu (zero rânduri la ambele încercări) = CONFLICT", async () => {
     const { server } = configureazaActiunea({ permisiuni: { "vehicle_fines:update": "all" } });
     server.raspunde("vehicle_fines", "update", { data: null });

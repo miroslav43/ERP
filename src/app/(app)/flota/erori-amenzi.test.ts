@@ -134,6 +134,15 @@ describe("traduEroareAmenzi — mesajele triggerelor din 0206", () => {
         "Cercetarea SSM aleasă nu există în organizația dumneavoastră sau nu o puteți consulta.",
         "work_accident_id",
       ],
+      // X2: fișa ștearsă logic (sau inexistentă, sau din altă firmă).
+      [
+        "Șoferul desemnat nu există în organizația dumneavoastră sau fișa lui a fost ștearsă.",
+        "employee_id",
+      ],
+      [
+        "Șoferul incidentului nu există în organizația dumneavoastră sau fișa lui a fost ștearsă.",
+        "sofer_id",
+      ],
     ];
     for (const [mesaj, camp] of cazuri) {
       expect(Object.keys(prinde(pgEroare("P0001", mesaj)).fieldErrors ?? {}), mesaj).toEqual([

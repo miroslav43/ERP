@@ -365,6 +365,24 @@ begin
     end if;
   end if;
 
+  -- X2: șoferul comunicat autorității e o fișă VIE a firmei. Cheia străină
+  -- compusă `vf_sofer_fk` prinde doar firma, nu și ștergerea logică: o fișă
+  -- ștearsă (introdusă din greșeală) trecea. Judecat la desemnare și la
+  -- schimbare; o desemnare veche rămâne valabilă dacă fișa e ștearsă ulterior.
+  -- Un singur mesaj pentru „nu există”, „e ștearsă” și „e în altă firmă”, ca
+  -- refuzul să nu fie o sondă între firme.
+  if new.sofer_desemnat_id is not null
+     and (tg_op = 'INSERT' or new.sofer_desemnat_id is distinct from old.sofer_desemnat_id)
+     and not exists (
+       select 1 from public.employees e
+        where e.id = new.sofer_desemnat_id
+          and e.organization_id = new.organization_id
+          and e.deleted_at is null
+     ) then
+    raise exception using errcode = 'P0001',
+      message = 'Șoferul desemnat nu există în organizația dumneavoastră sau fișa lui a fost ștearsă.';
+  end if;
+
   if tg_op = 'INSERT' or new.constatata_la is distinct from old.constatata_la then
     if new.constatata_la > now() + interval '1 day' then
       raise exception using errcode = 'P0001',
@@ -645,6 +663,20 @@ begin
         end if;
       end if;
     end if;
+  end if;
+
+  -- X2: șoferul incidentului, la fel ca șoferul amenzii: o fișă vie a firmei,
+  -- judecată la schimbare, cu un singur mesaj pentru toate cazurile.
+  if new.sofer_id is not null
+     and (tg_op = 'INSERT' or new.sofer_id is distinct from old.sofer_id)
+     and not exists (
+       select 1 from public.employees e
+        where e.id = new.sofer_id
+          and e.organization_id = new.organization_id
+          and e.deleted_at is null
+     ) then
+    raise exception using errcode = 'P0001',
+      message = 'Șoferul incidentului nu există în organizația dumneavoastră sau fișa lui a fost ștearsă.';
   end if;
 
   if (tg_op = 'INSERT' or new.produs_la is distinct from old.produs_la)
