@@ -23,8 +23,8 @@ tabele:
 permisiuni: [vehicles:create, vehicles:update]
 feature: fleet
 capcane: [21]
-scris_pe: 363d3eb37be6a06d9f345e4b9d3903899f31b524
-scris_la: 2026-10-12
+scris_pe: bdf23c28f5dd664ad437a27a555b034b9f907214
+scris_la: 2026-10-23
 tags: [modul, operations]
 ---
 
@@ -101,11 +101,12 @@ ASCUNS: harta foilor ar pune „Vehiculul …” pe `vehicle_id`, iar mesajul s-
 „Corectați câmpurile marcate”. Suprapunerea (`23P01`) cade pe `de_la`, fără `details`, care
 are uuid-uri și intervale brute.
 
-Capcana potrivirii: **mesajele din 0012/0018 sunt scrise cu s și t cu SEDILĂ**
-(`0012_fleet.sql:600`, `0018_fix_flota.sql:98`), deci tiparele lor ocolesc literele acelea
-cu `.`. Mesajele noi (0171+) au ș/ț corecte și se potrivesc direct. Un tipar scris cu altă
-formă decât mesajul nu s-ar potrivi NICIODATĂ, iar eroarea ar cădea tăcut în mesajul
-general. `erori.test.ts` fixează asta mesaj cu mesaj; `erori-etichete.test.ts` lipește
+Capcana potrivirii: **mesajele funcțiilor din 0012/0018/0172 NErescrise sunt cu s și t cu
+SEDILĂ**. Rescrierile din 0199–0202 (foaia, alimentările, documentele, anomalia de km) au
+ș/ț cu virgulă; `erori.test.ts` ține cele patru migrări fără sedile. `traduEroare`
+aplică `cuVirgula` ÎNAINTEA tiparelor, deci tiparele se scriu pe forma cu virgulă și prind
+ambele forme. Un tipar scris pe altă formă decât cea de după `cuVirgula` nu s-ar potrivi
+NICIODATĂ, iar eroarea ar cădea tăcut în mesajul general. `erori.test.ts` fixează asta mesaj cu mesaj; `erori-etichete.test.ts` lipește
 hărțile din `etichete.ts` de enumurile din `src/schemas/fleet.ts`. Nomenclatorul are harta
 lui, `traduEroareTipuri` (23505 pe `vdt_org_cod_uq` și „Codul „…” cu sedilă → `denumire`).
 

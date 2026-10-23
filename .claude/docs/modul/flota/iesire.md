@@ -18,6 +18,7 @@ cai:
   - "src/app/(app)/flota/[id]/iesire/**"
   - "src/lib/queries/flota-iesire.ts"
   - "src/schemas/flota-iesire.ts"
+  - "src/app/(app)/flota/page.tsx"
   - "tests/rls/proba-flota-iesire.sql"
 tabele:
   [
@@ -31,8 +32,8 @@ tabele:
 permisiuni: [vehicles:read, vehicles:update]
 feature: fleet
 capcane: [18, 19, 23, 26, 59]
-scris_pe: 0e303a1085113be87dbcbe9a9e7c0afd49aca517
-scris_la: 2026-10-22
+scris_pe: bdf23c28f5dd664ad437a27a555b034b9f907214
+scris_la: 2026-10-23
 tags: [modul, operations]
 ---
 
@@ -84,8 +85,22 @@ ascuns în casetă).
 
 ## Citiri
 
-`src/lib/queries/flota-iesire.ts`: `iesireaVehiculului` (ieșirea vie + termenele) și
-`iesirileAnulate`. Termenele se citesc din tabela proprie, nu din `expirables`.
+`src/lib/queries/flota-iesire.ts`: `iesireaVehiculului` (ieșirea vie + termenele, plus
+`incident_id` și incidentul încorporat), `iesirileAnulate`, `incidentePentruIesire` (pentru
+caseta) și `termeneDeIesireDeschise`. Termenele se citesc din tabela proprie, nu din
+`expirables`.
+
+`termeneDeIesireDeschise` alimentează panoul „Termene după ieșirea din parc” de pe `/flota`
+(`iesire/panou-termene-iesire.tsx`, doar `vehicles:read` all, cursor `?termene=`): acolo duce
+notificarea lor. Deschis = cu dată, nebifat, nu „nu se aplică”, al unei ieșiri VII (join
+`!inner` cu `anulat_la is null`: termenele ieșirilor anulate rămân în tabelă). Keyset pe
+`(termen, id)`.
+
+**Incidentul daunei totale.** `incident_id` (F11) se alege în casetă doar la daună totală,
+din incidentele vehiculului (sub `vehicle_incidents:read`; lista goală ascunde selectorul).
+Schema și `valori-iesire.ts` îl trimit doar atunci (`vexit_incident_ck`); triggerul cere
+același vehicul (P0001 „Incidentul ales…”, pe câmp). Secțiunea arată legătura; fără
+dreptul pe incidente, încorporarea vine NULL și scrie doar că există.
 
 ## Ce refuză baza tăcut
 

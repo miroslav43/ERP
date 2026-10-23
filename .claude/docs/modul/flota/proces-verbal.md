@@ -21,8 +21,8 @@ tabele: [vehicle_handovers, vehicle_assignments, vehicles, registru_documente, d
 permisiuni: [vehicles:read, vehicles:update, employees:read]
 feature: fleet
 capcane: [17, 18, 22, 23, 29, 30, 31]
-scris_pe: c1ed19723565547c8571b6735b5e3973189cd888
-scris_la: 2026-10-22
+scris_pe: bdf23c28f5dd664ad437a27a555b034b9f907214
+scris_la: 2026-10-23
 tags: [modul, operations]
 ---
 
@@ -42,6 +42,10 @@ Alocările sunt în `[[modul/flota]]`; drepturile pe roluri, în `[[modul/flota/
 | `/flota/[id]/pv/[pv]`       | `vehicles:read` own + RLS; tranzițiile cer `vehicles:update` all       |
 | `/api/export/flota/pv/[id]` | modulul `fleet` + RLS, FĂRĂ poartă pe `vehicles:read` (decizia 3)      |
 | `/portal/masina-mea`        | modulul `fleet` și fișa principală; foile doar cu `trip_sheets:read`   |
+
+În portal, fiecare PV finalizat al omului are „Descarcă PDF” și, când e atașat, „Scanul
+semnat”: `pvurileMele` aduce `scan_path`, iar pagina semnează URL-ul sub sesiunea lui
+(`urlSemnateFlota`); bucketul îl dă părții pe calea exactă (proba 34).
 
 ## Server Actions
 

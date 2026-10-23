@@ -92,7 +92,9 @@ conectat: selectorul dispare, iar câmpul lipsă pleacă `null`. Datele vin din
 `dateFoaieNoua(org, { fel: "propriu", fisaId })` — mașina alocată plus pool-ul, NU tot ce
 vede rolul (managerul vede și mașinile echipei, pe care foaia ar cădea cu P0001).
 `bazaFoaie` alege unde duce „Deschide ciorna”. Contractul e fixat de
-`dialog-foaie-noua.test.tsx` (happy-dom).
+`dialog-foaie-noua.test.tsx` (happy-dom). Cheia casetei vine din `cheieCasetaFoaie(deschide,
+vehicul)` pe ambele pagini: vehiculul propus de asistent intră în cheie, deci a doua
+propunere, pe altă mașină, remontează caseta (F12e).
 
 Pe `/flota/foi/[id]`, închiderea și alimentarea apar doar pe foaia proprie când
 `trip_sheets:update` nu e `all`. Pe `/flota/[id]`, „Foaie nouă pe acest vehicul” apare sub

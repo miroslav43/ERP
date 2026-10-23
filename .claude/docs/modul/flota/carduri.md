@@ -21,6 +21,7 @@ cai:
   - "src/schemas/fleet-carduri.ts"
   - "src/lib/import/csv.ts"
   - "tests/rls/proba-flota-carduri.sql"
+  - "src/app/(portal)/portal/masina-mea/page.tsx"
 tabele:
   [
     fuel_cards,
@@ -34,8 +35,8 @@ tabele:
 permisiuni: [vehicles:read, vehicles:create, vehicles:update]
 feature: fleet
 capcane: [7, 18, 19, 23, 26]
-scris_pe: 0e303a1085113be87dbcbe9a9e7c0afd49aca517
-scris_la: 2026-10-22
+scris_pe: bdf23c28f5dd664ad437a27a555b034b9f907214
+scris_la: 2026-10-23
 tags: [modul, operations]
 ---
 
@@ -58,13 +59,22 @@ scrie în `fuel_entries` și nicio foaie aprobată nu se atinge.
 Fără chei noi de permisiune: cardul urmează drepturile vehiculelor. Lista o vede și
 managerul (cardurile echipei, ale pool-ului), dar NU tranzacțiile.
 
+`/portal/masina-mea` (sub `vehicles:read` own) arată cardurile omului: pe fișa lui SAU pe
+mașinile pe care le conduce, fără anulate, doar ultimele cifre (`carduleMele`, filtru
+EXPLICIT pe fișă). Acolo duce notificarea cardului care expiră pe cine n-are `team`/`all`.
+
 ## Server Actions
 
 | Fișier                                | Funcții                                                                                                                                        |
 | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | `flota/carduri/actions.ts`            | `creeazaCard` (create/all); `actualizeazaCard`, `stergeCard` (update/all)                                                                      |
 | `flota/carduri/import/actions.ts`     | `pregatesteIncarcareaExtrasului`, `analizeazaExtras` (create/all); `salveazaProfilImport`, `aplicaImportExtras`, `anuleazaImport` (update/all) |
-| `flota/carduri/tranzactii/actions.ts` | `repotrivesteTranzactii`, `leagaTranzactie`, `ignoraTranzactie` (update/all)                                                                   |
+| `flota/carduri/tranzactii/actions.ts` | `repotrivesteTranzactii`, `leagaTranzactie`, `ignoraTranzactie`, `reactiveazaTranzactie` (update/all)                                          |
+
+„Reactivează” scoate rândul din `ignorata` (stare fără legătură din
+`domain/fleet/carduri/reactivare.ts`, nota golită, zero rânduri = CONFLICT), apoi îl
+repotrivește DOAR pe el, pe luna lui (`repotrivesteLuna(..., doarId)`): legăturile
+celorlalte rânduri rămân ocupate. Pașii nu sunt atomici; „Repotrivește luna” reia restul.
 
 Importul urmează tiparul celui de angajați: URL semnat → analiza (citește, potrivește,
 urcă lotul JSON, NU scrie în bază) → aplicarea în felii, cu potrivirea RECALCULATĂ pe datele
