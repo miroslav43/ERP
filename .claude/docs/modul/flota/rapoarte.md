@@ -94,7 +94,7 @@ Foile ciornă, trimise și respinse ale lunii se numără separat și se spun pe
   `database.ts` în `fleet-rapoarte.test.ts`; o coloană inventată n-ar da eroare de
   compilare, ci 42703 în producție.
 - **Un vehicul șters logic rămâne în cifre, fără numărul de azi.** RLS-ul nu filtrează
-  `deleted_at` pe vehicule (forma din 0018 §F2, păstrată de 0199), deci service-ul,
+  `deleted_at` pe vehicule (forma din 0018 §F2, păstrată de 0199 și 0215), deci service-ul,
   cheltuielile, documentele și foile lui intră în total: au existat. Eticheta o filtrează
   aplicația (`vehiculeDupaId` cere `deleted_at is null`), așa că rândul ia numărul din
   instantaneul foii sau se numește „Vehicul șters", nu dispare.

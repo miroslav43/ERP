@@ -78,7 +78,8 @@ rânduri și când conduce o mașină a firmei.
   chiria; nimic la 50%, la firmă micro/specific sau la mașina personală. Din 0225 (§8,
   rescrisă de la forma 0205) valoarea de intrare vine din `vehicle_costuri`: funcția o dă
   cui are `payroll:read = all`, deci și lui hr, care altfel nu citește costurile parcului —
-  e baza legală a avantajului (Codul fiscal art. 76 alin. (3) lit. j), nu o citire a flotei.
+  e baza legală a avantajului (Codul fiscal art. 76 alin. (3) lit. a); procentul, HG 1/2016
+  titlul IV pct. 12 alin. (5) lit. a), `NOTES.md`), nu o citire a flotei.
 
 ## Ce refuză baza tăcut
 

@@ -55,21 +55,22 @@ active.
 
 ## Server Actions
 
-| Funcție                                                                              | Permisiune / minScope      | Fișier           |
-| ------------------------------------------------------------------------------------ | -------------------------- | ---------------- |
-| `inroleazaAngajat`                                                                   | `employees:create` / all   | `nou/actions.ts` |
-| `actualizeazaAngajat`                                                                | `employees:update` / team  | `actions.ts`     |
-| `creeazaContract`, `modificaSalariulContractului` (activarea cere și `update`)       | `employees:create` / all   | `actions.ts`     |
-| `inceteazaContract`                                                                  | `employees:update` / all   | `actions.ts`     |
-| `dezvaluieDateSensibile`                                                             | `employees:read` / **all** | `actions.ts`     |
-| `pregatesteIncarcareDocument`, `salveazaDocument`                                    | `employees:update` / team  | documente        |
-| `linkDescarcareDocument`                                                             | `employees:read` / team    | documente        |
-| `stergeDocument`                                                                     | `employees:delete` / all   | documente        |
-| `suprascriePermisiunea`                                                              | `roles:update` / team      | permisiuni       |
-| `pregatesteIncarcareaImportului`, `analizeazaImportAngajati`, `aplicaImportAngajati` | all                        | import           |
-| `emiteDocumente`, `regenereazaDocumente`                                             | `employees:create` / all   | documente        |     | `salveazaSablonDocument`, `restabilesteSablonPlatforma` | `employees:update` / all | sabloane-documente |
-| `actualizeazaIncadrarea`                                                             | `employees:update` / all   | `actions.ts`     |
-| `desemneazaSefDepartament`                                                           | `departments:update` / all | `actions.ts`     |
+| Funcție                                                                              | Permisiune / minScope      | Fișier             |
+| ------------------------------------------------------------------------------------ | -------------------------- | ------------------ |
+| `inroleazaAngajat`                                                                   | `employees:create` / all   | `nou/actions.ts`   |
+| `actualizeazaAngajat`                                                                | `employees:update` / team  | `actions.ts`       |
+| `creeazaContract`, `modificaSalariulContractului` (activarea cere și `update`)       | `employees:create` / all   | `actions.ts`       |
+| `inceteazaContract`                                                                  | `employees:update` / all   | `actions.ts`       |
+| `dezvaluieDateSensibile`                                                             | `employees:read` / **all** | `actions.ts`       |
+| `pregatesteIncarcareDocument`, `salveazaDocument`                                    | `employees:update` / team  | documente          |
+| `linkDescarcareDocument`                                                             | `employees:read` / team    | documente          |
+| `stergeDocument`                                                                     | `employees:delete` / all   | documente          |
+| `suprascriePermisiunea`                                                              | `roles:update` / team      | permisiuni         |
+| `pregatesteIncarcareaImportului`, `analizeazaImportAngajati`, `aplicaImportAngajati` | all                        | import             |
+| `emiteDocumente`, `regenereazaDocumente`                                             | `employees:create` / all   | documente          |
+| `salveazaSablonDocument`, `restabilesteSablonPlatforma`                              | `employees:update` / all   | sabloane-documente |
+| `actualizeazaIncadrarea`                                                             | `employees:update` / all   | `actions.ts`       |
+| `desemneazaSefDepartament`                                                           | `departments:update` / all | `actions.ts`       |
 
 ## Citiri
 

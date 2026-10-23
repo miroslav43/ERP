@@ -19,6 +19,7 @@ cai:
   - "src/app/(app)/flota/actions-amenzi.ts"
   - "src/app/(app)/flota/amenzi/**"
   - "src/app/(app)/flota/incidente/**"
+  - "src/app/api/export/flota/amenzi/**"
   - "src/domain/fleet/amenzi.ts"
   - "tests/rls/proba-flota-amenzi.sql"
 tabele: [vehicle_fines, vehicle_incidents, expirables, trip_sheet_curse, vehicle_assignments]

@@ -80,7 +80,9 @@ iar refuzul trece prin RLS fără nicio eroare.
 - **Flota fără parc** (decizia 3): nici `vehicles`, nici `trip_sheets`, nici cheile
   amenzilor și ale rezervărilor; doar permisele și avizele șoferilor (`driver_licenses`,
   0204). „Mașina mea” îi arată mașina alocată LUI și PV-urile la care e parte (0215), fără
-  costuri (0225): [[modul/flota/roluri-si-portal]].
+  costuri (0225): [[modul/flota/roluri-si-portal]]. Singura excepție, deliberată: valoarea
+  de intrare a mașinii cu folosință personală, prin `avantaj_natura_flota` (`payroll:read =
+  all`), pentru avantajul în natură — [[modul/flota/fiscal]].
 
 ## Precedența, când o firmă vrea altfel
 
