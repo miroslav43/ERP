@@ -19,11 +19,7 @@ cai:
   - "src/app/(app)/flota/actions-amenzi.ts"
   - "src/app/(app)/flota/amenzi/**"
   - "src/app/(app)/flota/incidente/**"
-  - "src/app/api/export/flota/amenzi/**"
   - "src/domain/fleet/amenzi.ts"
-  - "src/lib/pdf/scrisoare-desemnare.ts"
-  - "src/lib/queries/flota-amenzi.ts"
-  - "src/schemas/flota-amenzi.ts"
   - "tests/rls/proba-flota-amenzi.sql"
 tabele: [vehicle_fines, vehicle_incidents, expirables, trip_sheet_curse, vehicle_assignments]
 permisiuni:
@@ -51,13 +47,24 @@ de confirmat cu juristul (marcat ⚠️) sunt în `NOTES.md`, secțiunea „Flot
 daune”. Regula de fond: **aplicația ține evidența și generează scrisoarea; nu recuperează
 nimic de la șofer**.
 
+## Paginile secțiunii
+
+Pagina asta ține rutele și ce refuză baza; restul s-a spart după
+`.claude/docs/meta/conventii.md`.
+
+| Pagină                               | Ce ține                                                                                     |
+| ------------------------------------ | ------------------------------------------------------------------------------------------- |
+| [[modul/flota/amenzi-actiuni]]       | Server Actions și tranzițiile lor, citirile, erorile traduse, ce se mișcă împreună          |
+| [[modul/flota/amenzi-scrisoarea]]    | `app.sofer_la` (cine conducea), scrisoarea de la art. 39 cu CNP, recuperarea de la șofer    |
+| [[modul/flota/declaratia-soferului]] | declarația din „Mașina mea”, termenul în rezumatul zilnic, secțiunea de pe fișa vehiculului |
+
 ## Rute și cine ajunge
 
-| Rută / ecran                                | Poartă                                                           |
-| ------------------------------------------- | ---------------------------------------------------------------- |
-| `/flota/amenzi`, `/flota/amenzi/[id]`       | `vehicle_fines:read` all                                         |
-| `/flota/incidente`, `/flota/incidente/[id]` | `vehicle_incidents:read` all                                     |
-| `/api/export/flota/amenzi/[id]/scrisoare`   | `vehicle_fines:read` all ȘI `employees:read` all (CNP, vezi jos) |
+| Rută / ecran                                | Poartă                                                                                    |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `/flota/amenzi`, `/flota/amenzi/[id]`       | `vehicle_fines:read` all                                                                  |
+| `/flota/incidente`, `/flota/incidente/[id]` | `vehicle_incidents:read` all                                                              |
+| `/api/export/flota/amenzi/[id]/scrisoare`   | `vehicle_fines:read` all ȘI `employees:read` all (CNP: [[modul/flota/amenzi-scrisoarea]]) |
 
 Cheile sunt seedate doar pentru `org_admin` și `super_admin`: decizia 3 a planului (HR doar
 permisele șoferilor) rămâne, iar o firmă poate acorda cheile lui HR printr-o suprascriere.
@@ -67,36 +74,6 @@ doar declarațiile, `[[modul/flota/declaratia-soferului]]`). Matricea publică d
 pagina de prezentare (`matrice-roluri.ts`) are două rânduri pentru ele, doar `org_admin` = all. Dacă o firmă acordă cheile
 `create` lui HR, HR primește prin sugestie și cine conducea ce vehicul (`app.sofer_la` judecă după cheie). Casetele „Amendă nouă” și
 „Incident nou” se deschid prin parametru (`?amenda=noua`, `?incident=nou`), ca la parc.
-
-## Server Actions
-
-`src/app/(app)/flota/actions-amenzi.ts`, toate cu `minScope: "all"`.
-
-| Funcție                                                                         | Permisiune                 |
-| ------------------------------------------------------------------------------- | -------------------------- |
-| `inregistreazaAmenda`                                                           | `vehicle_fines:create`     |
-| `actualizeazaAmenda`, `desemneazaSofer`, `retrageDesemnarea`, `trimiteRaspuns`  | `vehicle_fines:update`     |
-| `schimbaStadiulAmenzii` (plătită, contestată, anulată cu motiv), `stergeAmenda` | `vehicle_fines:update`     |
-| `raporteazaIncident`                                                            | `vehicle_incidents:create` |
-| `actualizeazaIncident`, `schimbaStadiulIncidentului`, `stergeIncident`          | `vehicle_incidents:update` |
-
-Fiecare tranziție adaugă stadiul de plecare ca filtru (`.eq` sau `.in`) și `.select()` după:
-zero rânduri e CONFLICT, nu succes. Plecările permise se calculează din matricea
-`TRANZITII_AMENDA` din domeniu, aceeași ca a bazei.
-
-**Excepția cu două încercări:** `desemneazaSofer` și `trimiteRaspuns` încearcă întâi calea
-obișnuită (care schimbă stadiul), iar la zero rânduri o a doua, pe amenda `contestata` cu
-`raspuns_trimis_la` gol, care scrie doar șoferul / data răspunsului și lasă stadiul în pace.
-Altfel o amendă marcată „contestată” înainte de răspuns rămânea cu termenul în scadențe și
-fără nicio cale de a-l închide.
-
-## Citiri
-
-`src/lib/queries/flota-amenzi.ts` (`import "server-only"`): `listeazaAmenzi` și
-`listeazaIncidente` (cursor keyset pe momentul faptei, cu total exact), `citesteAmenda`,
-`citesteIncident`, `rezumatAmenzi` (numărători exacte, nu citire de rânduri),
-`soferSugerat`, `soferiPentruDesemnare` (și angajații plecați), `vehiculePentruAmenzi`
-(și vehiculele vândute), `cercetariSsm`, `datePersonaleSofer` (doar pentru scrisoare).
 
 ## Ce refuză baza tăcut
 
@@ -147,60 +124,6 @@ fără nicio cale de a-l închide.
 - **Un UPDATE respins de USING nu ridică eroare.** Probele numără rânduri.
 - **Unicitatea e pe hârtie, nu pe amendă:** `vf_numar_uq` (parțial, pe organizație,
   vehicul și numărul NORMALIZAT de trigger) refuză aceeași hârtie introdusă de două ori.
-
-## Cine conducea — `app.sofer_la` și `public.sofer_sugerat`
-
-`app.sofer_la(org, vehicul, moment)` e SECURITY DEFINER și **își judecă singură apelantul**
-(`vehicle_fines:create` all sau `vehicle_incidents:create` all, sau platforma); ceilalți
-primesc zero rânduri. Ordinea: ÎNTÂI linia de foaie (`trip_sheet_curse`) care acoperă
-momentul, pe o foaie care nu e respinsă; o linie fără sosire durează până la sfârșitul zilei
-foii. APOI alocarea deschisă atunci (`vehicle_assignments`, interval semideschis). Planul
-(F2) o pusese în 0173, dar acolo n-a ajuns; se naște în 0206. Prin `.rpc()` se cheamă
-învelișul `public.sofer_sugerat`, fiindcă PostgREST nu expune schema `app`.
-
-**E doar sugestie.** Selectorul din caseta de desemnare e precompletat, dar omul alege:
-cineva a putut conduce mașina altuia, sau foaia n-a fost completată. Sugestia spune pe ce
-se sprijină (foaia sau alocarea).
-
-## Scrisoarea de răspuns (art. 39) — ruta cu CNP
-
-Ruta cere TREI lucruri, în ordine: `vehicle_fines:read` all, `employees:read` all și o
-amendă cu șofer desemnat. A doua poartă există fiindcă scrisoarea poartă CNP-ul întreg și îl
-citește prin `hr_read_sensitive`, care cere `employees:read = all` EXACT și scrie un rând de
-audit la fiecare apel; fără ea, cine vede amenzile dar nu fișele ar primi o scrisoare cu linie
-goală la CNP, fără să știe de ce. Testul rutei (`route.test.ts`) probează că la 403 nu se
-cheamă nici `hr_read_sensitive`.
-
-Ce lipsește din fișă (CNP, domiciliu/reședință, serie și număr act) NU se inventează:
-documentul lasă linie de completat și o spune sus, răspunsul rămâne 200. Conținutul vine din
-`modelScrisoareDesemnare` (domeniu, cu teste), așezarea din `scrisoare-desemnare.ts`.
-Ruta nu marchează amenda „răspuns trimis”: asta o face omul, după ce a semnat și a trimis
-scrisoarea (`trimiteRaspuns`).
-
-## Recuperarea de la șofer NU e automată
-
-Pagina o spune pe ecran (`NOTA_RECUPERARE`, în domeniu): reținerea din salariu „cu titlu de
-daune” cere o datorie scadentă, lichidă și exigibilă, constatată printr-o hotărâre
-judecătorească definitivă și irevocabilă (Codul muncii art. 169 alin. (2)); recuperarea prin
-acordul părților urmează art. 254 (notă de constatare și evaluare, termen de cel puțin 30 de
-zile, plafon de 5 salarii minime brute). Aplicația nu calculează plafonul, nu ține nota și nu
-scrie nimic pe statul de plată. Vezi `NOTES.md` pentru articolele verificate.
-
-## Erori traduse
-
-În `flota/erori.ts`, blocul „amenzi și daune”: `traduEroareAmenzi` pune pe câmp restricțiile
-(`vf_*`, `vi_*`) și mesajele P0001 ale triggerelor; refuzurile de stadiu rămân mesaj general,
-cu textul bazei. `erori-amenzi.test.ts` citește migrarea și cere ca FIECARE mesaj să fie fie
-mapat pe un câmp, fie declarat general: un mesaj nou fără traducere pică testul.
-
-## Ce se mișcă împreună
-
-Migrarea → `src/types/database.ts` → `src/schemas/flota-amenzi.ts` →
-`src/lib/queries/flota-amenzi.ts` → `actions-amenzi.ts` → paginile. Tranzițiile stau în
-`src/domain/fleet/amenzi.ts`, iar `amenzi.test.ts` compară matricea cu textul migrării.
-Cheile de permisiune: `src/config/permissions.ts` + seed-ul din 0206. Rutele intră și în
-`file-module.ts` (filele), `porti-ruta.ts` (porțile), `destinatii.ts` (asistentul) și
-`e2e/module.spec.ts`, în blocuri delimitate.
 
 ## Ce NU e aici
 

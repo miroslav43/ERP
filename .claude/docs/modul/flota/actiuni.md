@@ -61,7 +61,7 @@ modificare. Pe `default 0`, prima foaie trecea de orice verificare (`Number("")`
 Corectura e `corecteazaKilometraj`, cu motivul în audit.
 
 **Starea foii decide tot ce se mai scrie** (0200 §D1, pe orice scope; cursele și
-alimentările DOAR pe ciornă): tabelul stărilor e în `[[modul/flota/foaia-zilnica]]`.
+alimentările DOAR pe ciornă): tabelul stărilor e în `[[modul/flota/foaia-zilnica-garzi]]`.
 
 Scrierile pe vehicule și documente sunt toate `minScope: "all"`, fiindcă politicile cer
 literal `has_permission(...) = 'all'`. **`vehicles:delete` NU se folosește**, deși

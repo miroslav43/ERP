@@ -47,8 +47,8 @@ permisiuni:
 feature: fleet
 capcane: [18, 19, 21, 22, 23, 26]
 citeste_daca:
-  - "foaie refuzată cu „Vehiculul ales nu vă este alocat” → [[modul/flota/roluri-si-portal]]; permis, aviz medical, șofer → [[modul/flota/soferi]]; amendă, art. 39, incident, daună → [[modul/flota/amenzi-si-daune]]; declarația șoferului din portal, amenzile în rezumatul zilnic și pe fișa vehiculului → [[modul/flota/declaratia-soferului]]"
-  - "curse, foaie trimisă, numărul FP, PDF, orele foilor → [[modul/flota/foaia-zilnica]]; service, costuri, anvelope → [[modul/flota/service-si-costuri]]; rapoarte lunare, Excel, pachet pentru contabil → [[modul/flota/rapoarte]]; Saga, WinMentor, notă contabilă → [[modul/flota/export-contabil]]"
+  - "foaie refuzată cu „Vehiculul ales nu vă este alocat” → [[modul/flota/roluri-si-portal]]; permis, aviz medical, șofer → [[modul/flota/soferi]]; amendă, art. 39, incident, daună → [[modul/flota/amenzi-si-daune]] (acțiunile, citirile, erorile → [[modul/flota/amenzi-actiuni]]; cine conducea, scrisoarea cu CNP, recuperarea → [[modul/flota/amenzi-scrisoarea]]); declarația șoferului din portal, amenzile în rezumatul zilnic și pe fișa vehiculului → [[modul/flota/declaratia-soferului]]"
+  - "curse, foaie trimisă, numărul FP, PDF, orele foilor → [[modul/flota/foaia-zilnica]]; plafoanele foii, foaia numerotată, gărzile, ce se mai mișcă pe o foaie trimisă sau aprobată → [[modul/flota/foaia-zilnica-garzi]]; service, costuri, anvelope → [[modul/flota/service-si-costuri]]; rapoarte lunare, Excel, pachet pentru contabil → [[modul/flota/rapoarte]]; Saga, WinMentor, notă contabilă → [[modul/flota/export-contabil]]"
   - "alerte de scadență, /flota/setari → [[modul/flota/alerte-si-setari]]; regim fiscal, avantaj în natură, /flota/fiscal → [[modul/flota/fiscal]]; proces-verbal de predare, PVA, confirmarea șoferului → [[modul/flota/proces-verbal]]"
 scris_pe: b6ed2c66abe3b535c04d7993c3465e8fff1629de
 scris_la: 2026-10-13

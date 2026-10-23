@@ -76,7 +76,7 @@ permisiuni rămâne așa. Matricea publică (`matrice-roluri.ts`) și fișa de m
   trimisă se schimbă doar starea: retragerea în ciornă sau decizia. Orice altă coloană dă
   P0001 („…este trimisă spre aprobare…”). Probat de (33)–(36). **Din 0200 regula e pe
   orice scope și urmează și copiii**: alimentările și cursele se scriu doar pe ciornă,
-  iar ștergerea logică e ireversibilă — `[[modul/flota/foaia-zilnica]]`.
+  iar ștergerea logică e ireversibilă — `[[modul/flota/foaia-zilnica-garzi]]`.
 - **Foaia în numele altcuiva** sub `own` cade pe `foi_insert` (`app.poate_crea_foaie`) cu 42501. `creeazaFoaie` o refuză înainte, cu CONFLICT și text clar.
 - **Storage.** `app.can_path` verifică entitatea la `team` și `own` și pe `trip_sheets`
   (segmentul 3 = fișa șoferului) și pe `vehicles` (segmentul 3 = vehiculul, proprietar =
