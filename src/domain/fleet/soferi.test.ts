@@ -6,6 +6,7 @@ import {
   categoriiAcceptate,
   esteInLocalitate,
   rezumatScurt,
+  starePermisCitit,
   type FapteSofer,
 } from "./soferi";
 
@@ -278,5 +279,30 @@ describe("rezumatul scurt pentru selectoare", () => {
         }),
       ),
     ).toBe("absent");
+  });
+});
+
+/*
+ * A1: secțiunea „Permis de conducere” spunea „Niciun permis înregistrat” și când
+ * RLS-ul ascundea permisul. Faptul `permis_exista` deosebește cele două: `false`
+ * = baza a putut verifica și omul n-are permis; `null` (sau angajatul lipsă din
+ * hartă) = „nu se știe”, deci nu se afirmă nimic despre existența permisului.
+ */
+describe("starePermisCitit", () => {
+  it("permisul citit e înregistrat, orice ar spune faptele", () => {
+    expect(starePermisCitit(true, true)).toBe("inregistrat");
+    expect(starePermisCitit(true, null)).toBe("inregistrat");
+  });
+
+  it("fără rând și cu `permis_exista = false`: lipsește", () => {
+    expect(starePermisCitit(false, false)).toBe("lipsa");
+  });
+
+  it("fără rând și fără semnal (`null`): fără acces, NU „niciun permis”", () => {
+    expect(starePermisCitit(false, null)).toBe("fara_acces");
+  });
+
+  it("fără rând deși faptele spun că există: tot fără acces", () => {
+    expect(starePermisCitit(false, true)).toBe("fara_acces");
   });
 });

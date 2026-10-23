@@ -31,8 +31,9 @@ const COLOANE_PERMIS =
   "id, employee_id, numar, categorii, eliberat_la, expira_la, observatii, fisier_path";
 
 /**
- * Permisul ACTIV al angajatului, sau `null` (n-are, ori apelantul nu-l vede —
- * pentru ecran e același lucru: „niciun permis înregistrat”).
+ * Permisul ACTIV al angajatului, sau `null` (n-are, ori apelantul nu-l vede).
+ * Cele două NU sunt același lucru pentru ecran: `permis_exista` din
+ * `verificariSoferi` le deosebește (`starePermisCitit`, `domain/fleet/soferi.ts`).
  */
 export async function permisulAngajatului(
   organizationId: string,
