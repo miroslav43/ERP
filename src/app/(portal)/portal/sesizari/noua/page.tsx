@@ -9,10 +9,10 @@ interface ProprietatiPagina {
  * Fosta pagină „Sesizare nouă" a portalului. Formularul e acum casetă pe
  * `/portal/sesizari` (`?sesizare=noua`).
  *
- * Rămâne ca redirect din același motiv ca ruta din aplicația mare: autocolantele
- * QR de pe utilaje duc aici (prin învelișul `(app)`, care trimite angajatul în
- * portal cu tot cu `?echipament=`). Numele parametrului nu se schimbă — ar
- * însemna autocolante de reimprimat.
+ * Rămâne ca redirect pentru legăturile vechi spre portal. Autocolantele QR duc
+ * la `/mentenanta/sesizari/noua`, din `(scanare)`, care îl trimite pe angajat
+ * direct pe `/portal/sesizari` cu `?echipament=` păstrat. Numele parametrului
+ * nu se schimbă — ar însemna autocolante de reimprimat.
  */
 export default async function PaginaSesizareNouaPortal({ searchParams }: ProprietatiPagina) {
   const parametri = await searchParams;

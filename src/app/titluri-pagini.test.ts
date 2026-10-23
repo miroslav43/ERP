@@ -21,10 +21,7 @@ const RADACINA = fileURLToPath(new URL(".", import.meta.url));
 const ZONE = ["(app)", "(platform)", "(portal)"] as const;
 
 /** Pagini care doar redirecționează — nu randează nimic, deci n-au titlu. */
-const EXCEPTII = new Set([
-  "(app)/mentenanta/sesizari/noua/page.tsx",
-  "(portal)/portal/sesizari/noua/page.tsx",
-]);
+const EXCEPTII = new Set(["(portal)/portal/sesizari/noua/page.tsx"]);
 
 const EXPORT_TITLU =
   /export\s+(const\s+metadata\b|(async\s+)?function\s+generateMetadata\b|const\s+generateMetadata\b)/;

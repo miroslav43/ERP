@@ -78,8 +78,10 @@ export const EXCLUSE: Readonly<Record<string, string>> = {
     "Se ajunge la ea din banda de instalare a portalului, nu prin navigare; a trimite pe cineva acolo din senin n-are înțeles.",
   "/registru/listare":
     "Vederea de tipar a registrului, deschisă în filă nouă din butonul „Listează registrul”. Fără filtrele alese în arhivă nu înseamnă nimic, iar trimis direct ar da o listare pe anul curent, fără context — destinația utilă e /registru.",
-  "/mentenanta/sesizari/noua":
-    "Redirect păstrat pentru autocolantele QR tipărite pe utilaje (`?echipament=`); formularul e caseta de pe /mentenanta/sesizari, destinația indexată e `mentenanta.sesizari.noua`.",
+  // `/mentenanta/sesizari/noua` (adresa de pe autocolantele QR) nu mai e aici:
+  // stă în `(scanare)`, în afara arborelui `(app)` pe care îl citește testul de
+  // drift, deci nu e nici candidată la index. Destinația indexată rămâne
+  // `mentenanta.sesizari.noua`, caseta de pe /mentenanta/sesizari.
   "/portal/sesizari/noua":
     "Redirect păstrat pentru aceleași autocolante QR, pe partea de portal; destinația indexată e `portal.sesizari.noua`, caseta de pe /portal/sesizari.",
 };

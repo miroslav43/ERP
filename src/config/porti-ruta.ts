@@ -181,8 +181,9 @@ export const PORTI_APP: readonly PoartaRuta[] = [
   // ── sfârșit M8 ──
   p("/mentenanta/sesizari", "maintenance", "maintenance:read"),
   p("/mentenanta/sesizari/[id]", "maintenance", "maintenance:read"),
-  // Redirecționează spre caseta `?sesizare=noua` din listă; poarta e a casetei.
-  p("/mentenanta/sesizari/noua", "maintenance", "maintenance:create"),
+  // `/mentenanta/sesizari/noua` (adresa de pe autocolantele QR) stă în
+  // `(scanare)`, în afara învelișului: alege lista după rol și nu are poartă
+  // proprie — poarta e a casetei de pe listă.
   p("/mentenanta/setari", "maintenance", "maintenance:update", "all"),
   p("/notificari", null, null),
   p("/onboarding", "onboarding", "checklists:read"),

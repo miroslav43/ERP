@@ -170,8 +170,9 @@ test("sesizare de la capăt la capăt: echipament nou, QR, raportare, triaj, teh
 
     await test.step("angajatul scanează adresa și trimite sesizarea din portal", async () => {
       await navigheaza(angajat, adresaQr);
-      // `employee` nu vede aplicația mare: învelișul îl mută în portal, iar
-      // `/portal/sesizari/noua` deschide caseta, cu `?echipament=` păstrat.
+      // `employee` nu vede aplicația mare: adresa de pe autocolant (din
+      // `(scanare)`, în afara învelișului) îl duce direct în portal, pe caseta
+      // de pe `/portal/sesizari`, cu `?echipament=` păstrat.
       await expect(angajat).toHaveURL(/\/portal\/sesizari\?/, { timeout: 30_000 });
       expect(new URL(angajat.url()).searchParams.get("sesizare")).toBe("noua");
       expect(new URL(angajat.url()).searchParams.get("echipament")).toBe(idEchipament);
