@@ -23,6 +23,9 @@
 --  (8) poarta bucketului: un id de intervenție nefolosit e rezervare pentru
 --      administrator, nu pentru manager; id-ul altei firme nu e rezervare
 --  (9) registrul înregistrează procesul-verbal la INSERT (`pv_interventie`)
+-- (11) `INSERT … ON CONFLICT` pe id-ul unei intervenții existente (a altei
+--      firme, proprie, upsert): 23505, nimic inserat sau modificat, contorul
+--      PV neatins; următoarea intervenție reală ia numărul următor [POZITIVĂ]
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh
@@ -41,6 +44,8 @@ declare
   v_echip    uuid := gen_random_uuid();
   v_echip2   uuid := gen_random_uuid();
   v_echip_b  uuid := gen_random_uuid();
+  v_echip11  uuid := gen_random_uuid();
+  v_seq      integer;
   v_plan     uuid := gen_random_uuid();
   v_i1       uuid;
   v_i2       uuid;
@@ -423,6 +428,71 @@ begin
   else
     v_esecuri := v_esecuri + 1;
     raise warning '  ✗ (10) A a primit rezervarea sub prefixul lui B';
+  end if;
+
+  -- ═══ (11) Rândul care nu intră nu consumă numărul ═══════════════════════
+  -- `maintenance_interventions_numar` (BEFORE) rulează înaintea conflictului din
+  -- `INSERT … ON CONFLICT`. Cu id-ul unei intervenții existente, `do nothing`
+  -- sărea rândul fără eroare și `do update` modifica rândul existent, iar
+  -- numărul rămânea consumat, fără audit și fără registru: o gaură în PV-uri.
+  insert into public.equipment (id, organization_id, cod, denumire)
+  values (v_echip11, v_org, 'GEN-' || v_sufix, 'Generator');
+  select next_number into v_seq from public.document_sequences
+   where organization_id = v_org and document_type = 'pv_interventie'
+     and year = extract(year from v_azi)::integer;
+  v_text := '';
+  perform set_config('request.jwt.claim.sub', v_u_adm::text, true);
+  set local role authenticated;
+  begin
+    insert into public.maintenance_interventions (id, organization_id, equipment_id, data, descriere)
+    values (v_i_b, v_org, v_echip11, v_azi, 'Sărită: id-ul lui B.') on conflict (id) do nothing;
+    v_text := v_text || 'B=ok ';
+  exception when others then
+    v_text := v_text || 'B=' || sqlstate || ' ';
+  end;
+  begin
+    insert into public.maintenance_interventions (id, organization_id, equipment_id, data, descriere)
+    values (v_i2, v_org, v_echip11, v_azi, 'Sărită: id propriu.') on conflict (id) do nothing;
+    v_text := v_text || 'propriu=ok ';
+  exception when others then
+    v_text := v_text || 'propriu=' || sqlstate || ' ';
+  end;
+  begin
+    insert into public.maintenance_interventions (id, organization_id, equipment_id, data, descriere)
+    values (v_i2, v_org, v_echip, v_azi, 'Suprascrisă prin upsert.')
+    on conflict (id) do update set descriere = excluded.descriere;
+    v_text := v_text || 'upsert=ok';
+  exception when others then
+    v_text := v_text || 'upsert=' || sqlstate;
+  end;
+  reset role;
+  select count(*) into v_n from public.maintenance_interventions where equipment_id = v_echip11;
+  if v_text = 'B=23505 propriu=23505 upsert=23505'
+     and v_n = 0
+     and (select descriere from public.maintenance_interventions where id = v_i2) <> 'Suprascrisă prin upsert.'
+     and (select next_number from public.document_sequences
+           where organization_id = v_org and document_type = 'pv_interventie'
+             and year = extract(year from v_azi)::integer) = v_seq then
+    raise notice '  ✓ (11) ON CONFLICT pe un id existent (al lui B, propriu, upsert): 23505, 0 rânduri, contorul neatins';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (11) % · rânduri noi %, contorul % → %', v_text, v_n, v_seq,
+      (select next_number from public.document_sequences
+        where organization_id = v_org and document_type = 'pv_interventie'
+          and year = extract(year from v_azi)::integer);
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_u_adm::text, true);
+  set local role authenticated;
+  insert into public.maintenance_interventions (organization_id, equipment_id, data, descriere)
+  values (v_org, v_echip11, v_azi, 'Următoarea intervenție reală.') returning numar into v_numar;
+  reset role;
+  if v_numar = 'PV-' || extract(year from v_azi)::text || '-' || lpad(v_seq::text, 4, '0') then
+    raise notice '  ✓ (11) următoarea intervenție reală ia numărul imediat următor (%), fără gaură', v_numar;
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (11) următoarea intervenție a primit %, așteptat PV-%-%', v_numar,
+      extract(year from v_azi)::text, lpad(v_seq::text, 4, '0');
   end if;
 
   raise notice '  ─────────────────────────────────────────────────────────';

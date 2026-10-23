@@ -146,6 +146,16 @@ $$;
 -- doar cine are `update = all`). O singură dată: corectura (`do update`) cere
 -- `vc_update` / `vdc_update`, adică `update = all`. Citit fără RLS: un membru
 -- cu `create` poate să nu aibă `vehicles:read` pe vehiculul lui.
+--
+-- ȘI doar în primele 5 minute după creare (santinela, după constatarea k):
+-- fără fereastră, ramura acoperea ORICE vehicul sau document creat vreodată de
+-- apelant fără rând de cost, deci un membru rămas doar cu `create` scria, zile
+-- mai târziu, valoarea unui vehicul existent. Cele două cereri ale aplicației
+-- (`creeazaVehicul`, `adaugaDocument`) vin la milisecunde una de alta; o
+-- valoare pusă mai târziu e o corectură și cere `update = all`. Fereastra se
+-- judecă pe `created_at`, pe care la INSERT îl scrie baza
+-- (`internal.flota_creat_acum`, mai jos): trimis de client, un `created_at` din
+-- viitor ar fi redeschis-o oricând.
 create or replace function app.vehicul_creat_de_apelant(p_organization_id uuid, p_vehicle_id uuid)
 returns boolean
 language sql
@@ -159,7 +169,8 @@ as $$
      where v.id = p_vehicle_id
        and v.organization_id = p_organization_id
        and v.deleted_at is null
-       and v.created_by = (select auth.uid()));
+       and v.created_by = (select auth.uid())
+       and v.created_at between now() - interval '5 minutes' and now());
 $$;
 
 create or replace function app.document_creat_de_apelant(p_organization_id uuid, p_document_id uuid)
@@ -175,8 +186,36 @@ as $$
      where d.id = p_document_id
        and d.organization_id = p_organization_id
        and d.deleted_at is null
-       and d.created_by = (select auth.uid()));
+       and d.created_by = (select auth.uid())
+       and d.created_at between now() - interval '5 minutes' and now());
 $$;
+
+-- `created_at` al vehiculului și al documentului îl scrie baza la INSERT: e
+-- ceasul ferestrei de mai sus. Contextul de serviciu (importuri, fixture-uri)
+-- își păstrează data. UPDATE-ul nu se atinge: cine poate modifica rândul are
+-- `update = all`, deci scrie costul oricum, fără ramura `create`.
+create or replace function internal.flota_creat_acum()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if not app.is_service_context() then
+    new.created_at := now();
+  end if;
+  return new;
+end;
+$$;
+
+create trigger vehicles_creat_acum
+  before insert on public.vehicles
+  for each row execute function internal.flota_creat_acum();
+create trigger vdoc_creat_acum
+  before insert on public.vehicle_documents
+  for each row execute function internal.flota_creat_acum();
+
+revoke all on function internal.flota_creat_acum() from public, anon, authenticated;
 
 revoke all on function app.vehicul_documentului(uuid) from public, anon;
 revoke all on function app.vehicul_creat_de_apelant(uuid, uuid) from public, anon;
@@ -314,9 +353,10 @@ create policy vdc_select on public.vehicle_document_costuri
 -- (`vehicule_update` / `vdoc_update`), iar inserarea la fel, cu o singură
 -- excepție: cine CREEAZĂ vehiculul sau documentul (`vehicule_insert` /
 -- `vdoc_insert` cer `vehicles:create = all`) îi pune valoarea inițială, dar
--- DOAR pe rândul-părinte creat de el (§2, constatarea k). Altfel un membru cu
--- `create` fără `update` (suprascriere pe firmă sau pe membru) scria valoarea
--- oricărui vehicul existent care n-avea încă rând de cost.
+-- DOAR pe rândul-părinte creat de el, în primele 5 minute (§2, constatarea k).
+-- Altfel un membru cu `create` fără `update` (suprascriere pe firmă sau pe
+-- membru) scria valoarea oricărui vehicul existent care n-avea încă rând de
+-- cost, sau a oricărui vehicul creat de el vreodată.
 create policy vc_insert on public.vehicle_costuri
   for insert to authenticated
   with check (
@@ -691,6 +731,11 @@ begin
   end if;
   if exists (select 1 from public.vehicle_documents where cost is not null) then
     v_lipsa := v_lipsa || 'vehicle_documents.cost golită';
+  end if;
+  if (select count(*) from pg_trigger
+       where tgname in ('vehicles_creat_acum', 'vdoc_creat_acum')
+         and tgrelid in ('public.vehicles'::regclass, 'public.vehicle_documents'::regclass)) <> 2 then
+    v_lipsa := v_lipsa || 'created_at scris de bază pe vehicles și vehicle_documents (fereastra ramurii create)';
   end if;
   foreach t in array array['vehicle_service_entries', 'vehicle_expenses'] loop
     if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = t and cmd = 'SELECT'

@@ -32,6 +32,10 @@
 --      nu scrie valoarea unui vehicul / cost al unui document EXISTENT creat de
 --      altcineva (42501); pe vehiculul și documentul abia create de el, da
 --      [POZITIVĂ]; corectura lor (upsert `do update`) îi rămâne refuzată.
+-- (1m) fereastra ramurii `create` (santinela): pe vehiculul / documentul creat
+--      de el acum trei zile, refuz (0 rânduri); acum 30 de secunde, din altă
+--      tranzacție, da [POZITIVĂ]; un `created_at` trimis de client e înlocuit
+--      de bază, deci fereastra nu se mută în viitor.
 -- Mentenanța (0232): valoarea de achiziție a echipamentului
 -- (2a) responsabilul echipamentului (employee) își vede utilajul, dar nu
 --      valoarea: nici în rând, nici în `equipment_costuri`;
@@ -156,6 +160,13 @@ declare
   v_vc_nou  uuid := gen_random_uuid();
   v_dc_nou  uuid := gen_random_uuid();
   v_da2     uuid := gen_random_uuid();
+  -- (1m): fereastra ramurii `create`
+  v_vc_vechi  uuid := gen_random_uuid();
+  v_dc_vechi  uuid := gen_random_uuid();
+  v_vc_recent uuid := gen_random_uuid();
+  v_dc_recent uuid := gen_random_uuid();
+  v_vc_viitor uuid := gen_random_uuid();
+  v_dc_viitor uuid := gen_random_uuid();
   -- mentenanța
   v_u_mgr   uuid := gen_random_uuid();
   v_u_hr    uuid := gen_random_uuid();
@@ -422,6 +433,61 @@ begin
   v_esecuri := v_esecuri + pg_temp.verifica('1l-corectura',
     v_a like '42501:%' and (select valoare_achizitie from public.vehicle_costuri where vehicle_id = v_vc_nou) = 33000,
     'create fără update: corectura valorii (upsert do update) rămâne refuzată', v_a);
+
+  -- (1m) Fereastra ramurii `create` (santinela). Vehiculul și documentul create
+  -- de C acum trei zile, apoi altele acum 30 de secunde (a doua cerere a
+  -- aplicației vine în ALTĂ tranzacție), scrise ca proprietar cu data aleasă.
+  insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent,
+                               created_by, updated_by, created_at)
+  values (v_vc_vechi,  v_org, 'B' || (100 + (random() * 800)::int)::text || 'YCV', 'Dacia', 'Logan', 1000,
+          v_u_c, v_u_c, now() - interval '3 days'),
+         (v_vc_recent, v_org, 'B' || (100 + (random() * 800)::int)::text || 'YCR', 'Dacia', 'Jogger', 0,
+          v_u_c, v_u_c, now() - interval '30 seconds');
+  insert into public.vehicle_documents (id, organization_id, vehicle_id, document_type_id, numar, expira_la,
+                                        created_by, updated_by, created_at)
+  values (v_dc_vechi,  v_org, v_vc_vechi,  v_itp, 'ITP-YCV', v_zi + 200, v_u_c, v_u_c, now() - interval '3 days'),
+         (v_dc_recent, v_org, v_vc_recent, v_itp, 'ITP-YCR', v_zi + 300, v_u_c, v_u_c, now() - interval '30 seconds');
+  v_a := pg_temp.ruleaza(v_u_c, format(
+    $q$insert into public.vehicle_costuri (organization_id, vehicle_id, valoare_achizitie, created_by, updated_by)
+       values (%L, %L, 1, %L, %L)$q$, v_org, v_vc_vechi, v_u_c, v_u_c));
+  v_b := pg_temp.ruleaza(v_u_c, format(
+    $q$insert into public.vehicle_document_costuri (organization_id, document_id, cost, created_by, updated_by)
+       values (%L, %L, 1, %L, %L)$q$, v_org, v_dc_vechi, v_u_c, v_u_c));
+  v_esecuri := v_esecuri + pg_temp.verifica('1m-vechi',
+    v_a like '42501:%' and v_b like '42501:%'
+    and (select count(*) from public.vehicle_costuri where vehicle_id = v_vc_vechi) = 0
+    and (select count(*) from public.vehicle_document_costuri where document_id = v_dc_vechi) = 0,
+    'create fără update: vehiculul și documentul create de el acum trei zile nu mai primesc valoarea (0 rânduri)',
+    v_a || ' · ' || v_b);
+  v_a := pg_temp.ruleaza(v_u_c, format(
+    $q$insert into public.vehicle_costuri (organization_id, vehicle_id, valoare_achizitie, created_by, updated_by)
+       values (%L, %L, 41000, %L, %L)$q$, v_org, v_vc_recent, v_u_c, v_u_c));
+  v_b := pg_temp.ruleaza(v_u_c, format(
+    $q$insert into public.vehicle_document_costuri (organization_id, document_id, cost, created_by, updated_by)
+       values (%L, %L, 180, %L, %L)$q$, v_org, v_dc_recent, v_u_c, v_u_c));
+  v_esecuri := v_esecuri + pg_temp.verifica('1m-fereastra',
+    v_a = 'ok:1' and v_b = 'ok:1'
+    and (select valoare_achizitie from public.vehicle_costuri where vehicle_id = v_vc_recent) = 41000
+    and (select cost from public.vehicle_document_costuri where document_id = v_dc_recent) = 180,
+    'create fără update: valoarea inițială trece și din a doua tranzacție, la 30 de secunde după creare',
+    v_a || ' · ' || v_b);
+  -- Un `created_at` din viitor, trimis de client, ar fi mutat fereastra oricând.
+  v_a := pg_temp.ruleaza(v_u_c, format(
+    $q$insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent,
+                                    created_by, updated_by, created_at)
+       values (%L, %L, 'B993YCF', 'Dacia', 'Spring', 0, %L, %L, now() + interval '3 days')$q$,
+    v_vc_viitor, v_org, v_u_c, v_u_c));
+  v_b := pg_temp.ruleaza(v_u_c, format(
+    $q$insert into public.vehicle_documents (id, organization_id, vehicle_id, document_type_id, numar, expira_la,
+                                            created_by, updated_by, created_at)
+       values (%L, %L, %L, %L, 'ITP-YCF', %L, %L, %L, now() + interval '3 days')$q$,
+    v_dc_viitor, v_org, v_vc_viitor, v_itp, v_zi + 300, v_u_c, v_u_c));
+  v_esecuri := v_esecuri + pg_temp.verifica('1m-ceas',
+    v_a = 'ok:1' and v_b = 'ok:1'
+    and (select created_at from public.vehicles where id = v_vc_viitor) = now()
+    and (select created_at from public.vehicle_documents where id = v_dc_viitor) = now(),
+    '`created_at` trimis de client pe vehicul și document e înlocuit de bază (ceasul ferestrei)',
+    v_a || ' · ' || v_b || ' · ' || coalesce((select (created_at - now())::text from public.vehicles where id = v_vc_viitor), '—'));
 
   -- ═══ (2) Mentenanța: valoarea de achiziție a echipamentului ═════════════════
   -- Fișele ÎNAINTEA membrilor (0083 creează una doar pentru org_admin fără fișă).

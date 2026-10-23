@@ -11,7 +11,8 @@
 -- 1. Număr `PV-2026-0001` prin `public.document_sequences` (tipul
 --    `pv_interventie`, același mecanism ca sesizările `SZ-…`, 0181 §4 — al
 --    treilea contor e interzis de 0098:16). Rândurile existente îl primesc
---    retroactiv, în ordinea datei (cazul 46).
+--    retroactiv, în ordinea datei (cazul 46). Un INSERT pe un `id` care există
+--    deja (calea `ON CONFLICT`) e refuzat cu 23505 înainte să consume numărul.
 -- 2. Garanția LUCRĂRII (`garantie_lucrare_pana`), numărul documentului
 --    furnizorului (deviz, factură, raport de service) și `acoperit_de_garantie`
 --    — costul unei intervenții acoperite de garanție se raportează separat
@@ -174,6 +175,23 @@ begin
   end if;
 
   if not app.is_service_context() or coalesce(new.numar, '') = '' then
+    -- Un rând care nu va intra nu consumă un număr. Triggerul BEFORE rulează și
+    -- pe `INSERT … ON CONFLICT`, ÎNAINTEA conflictului: cu `id`-ul unui rând care
+    -- există (în orice firmă, și anulat), `do nothing` (PostgREST
+    -- `resolution=ignore-duplicates`) sărea rândul fără eroare, iar `do update`
+    -- modifica rândul existent; în ambele cazuri numărul rămânea consumat, iar
+    -- triggerele AFTER (auditul, registrul) nu rulau pentru rândul nou: o gaură
+    -- în registrul PV fără nicio urmă. Refuzul e 23505 pe cheia primară, exact ce
+    -- dă INSERT-ul obișnuit pe același id (deci niciun oracol nou, iar
+    -- `inregistreazaInterventie` își recunoaște trimiterea dublă). Zăvorul pe id:
+    -- o inserare concurentă cu același id așteaptă prima și o vede; fără el,
+    -- verificarea de existență trecea înainte ca prima să fie comisă.
+    perform pg_catalog.pg_advisory_xact_lock(
+      pg_catalog.hashtextextended('maintenance_interventions:' || new.id::text, 0));
+    if exists (select 1 from public.maintenance_interventions mi where mi.id = new.id) then
+      raise exception using errcode = '23505', constraint = 'maintenance_interventions_pkey',
+        message = 'Intervenția a fost deja înregistrată.';
+    end if;
     new.numar := internal.aloca_numar_pv_interventie(
       new.organization_id, internal.an_pv_interventie(new.data));
   end if;
