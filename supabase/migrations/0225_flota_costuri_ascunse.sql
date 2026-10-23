@@ -118,7 +118,12 @@ create index vdc_org_idx on public.vehicle_document_costuri (organization_id);
 -- `poateVedeaService` din fișă (`read = all`, sau `team` și nu pool).
 -- Rezultă: org_admin / responsabilul cu `update = all` — tot; managerul —
 -- mașinile echipei, nu pool-ul; angajatul (`own`) și hr (fără `vehicles:read`)
--- — nimic.
+-- — nimic din tabele.
+-- O singură excepție, deliberată, în afara RLS-ului: `avantaj_natura_flota`
+-- (§8), păzită de `payroll:read = all`, îi dă salarizării (deci și lui hr)
+-- valoarea de intrare și chiria mașinii cu folosință personală a UNUI angajat,
+-- pe o lună. E baza legală a avantajului în natură (Codul fiscal art. 76), nu o
+-- citire a parcului; `proba-flota-matrice-roluri.sql` o cere explicit.
 create or replace function app.poate_vedea_costurile_vehiculului(p_organization_id uuid, p_vehicle_id uuid)
 returns boolean
 language sql
@@ -140,7 +145,7 @@ as $$
 $$;
 
 comment on function app.poate_vedea_costurile_vehiculului(uuid, uuid) is
-  'Cine vede costurile unui vehicul (0225): vehicles:update = all, sau vehicles:read = all, sau vehicles:read = team pe vehiculul echipei care NU e în pool (nici când pool-ul are șofer din echipă). Angajatul și hr nu.';
+  'Cine vede costurile unui vehicul (0225): vehicles:update = all, sau vehicles:read = all, sau vehicles:read = team pe vehiculul echipei care NU e în pool (nici când pool-ul are șofer din echipă). Angajatul și hr nu; salarizarea primește valoarea de intrare a mașinii cu folosință personală doar prin avantaj_natura_flota (payroll:read = all, Codul fiscal art. 76).';
 
 -- Vehiculul unui document, citit fără RLS: politica de cost se judecă pe
 -- vehiculul de AZI al documentului.
@@ -298,6 +303,37 @@ create policy vdc_update on public.vehicle_document_costuri
     and app.feature_on(organization_id, 'fleet')
     and app.has_permission(organization_id, 'vehicles', 'update') = 'all'
     and updated_by = (select auth.uid())
+  );
+
+-- Service-ul și cheltuielile (0203) sunt tot costuri, deci aceeași regulă.
+-- `vse_select` / `vex_select` judecau doar șoferul (`poate_vedea_vehicul(…,
+-- vehicul_sofer(…), false)`): pe pool-ul alocat unui om din echipă, managerul
+-- primea `cost_piese`, `cost_manopera`, `cost_total` și `suma`, deși
+-- `vehicle_costuri` de mai sus îi ascunde valoarea aceleiași mașini (verificarea
+-- dublă din 23 oct; celula „pool cu șofer” din `proba-flota-matrice-roluri.sql`).
+-- Planurile de service (`vsp_select`) n-au sume și rămân pe regula din 0203.
+drop policy vse_select on public.vehicle_service_entries;
+create policy vse_select on public.vehicle_service_entries
+  for select to authenticated
+  using (
+    (select app.is_platform_admin())
+    or (
+      organization_id = any ((select app.current_org_ids())::uuid[])
+      and app.feature_on(organization_id, 'fleet')
+      and app.poate_vedea_costurile_vehiculului(organization_id, vehicle_id)
+    )
+  );
+
+drop policy vex_select on public.vehicle_expenses;
+create policy vex_select on public.vehicle_expenses
+  for select to authenticated
+  using (
+    (select app.is_platform_admin())
+    or (
+      organization_id = any ((select app.current_org_ids())::uuid[])
+      and app.feature_on(organization_id, 'fleet')
+      and app.poate_vedea_costurile_vehiculului(organization_id, vehicle_id)
+    )
   );
 
 -- ============================================================
@@ -580,6 +616,12 @@ begin
   if exists (select 1 from public.vehicle_documents where cost is not null) then
     v_lipsa := v_lipsa || 'vehicle_documents.cost golită';
   end if;
+  foreach t in array array['vehicle_service_entries', 'vehicle_expenses'] loop
+    if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = t and cmd = 'SELECT'
+                    and position('poate_vedea_costurile_vehiculului' in qual) > 0) then
+      v_lipsa := v_lipsa || ('citirea costurilor pe ' || t || ' prin poate_vedea_costurile_vehiculului');
+    end if;
+  end loop;
   if position('vehicle_costuri' in pg_get_functiondef('public.avantaj_natura_flota(uuid,uuid,date)'::regprocedure)) = 0 then
     v_lipsa := v_lipsa || 'avantaj_natura_flota din vehicle_costuri';
   end if;

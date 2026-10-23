@@ -38,7 +38,7 @@ tabele:
 permisiuni: [vehicles:read, vehicles:update]
 feature: fleet
 capcane: [19, 22, 26]
-scris_pe: b06fb2e640bedcc3c3bfa2e19aa9a08a2914e678
+scris_pe: 58fa107ae8b87ee0434ec19906e366a78b7926ef
 scris_la: 2026-10-23
 tags: [modul, operations]
 ---
@@ -59,7 +59,9 @@ echipei, FĂRĂ pool (`poate_vedea_vehicul(…, false)`); pe un pool, sub `team`
 lipsesc. Un `?fila=` scris de mână pe un cont fără drept cade pe fișa obișnuită, nu pe un
 ecran gol. Scrierea cere `vehicles:update` all — literal ca politicile. Managerul
 citește planurile, intervențiile și cheltuielile mașinii echipei lui, nu și ale mașinii
-comune (proba `proba-flota-matrice-roluri.sql`); șoferul (`own`) și
+comune, nici când pool-ul e alocat unui om din echipă (`vse_select` / `vex_select`, 0225
+§4; planurile, fără sume, rămân pe regula din 0203; celula „pool cu șofer” din
+`proba-flota-matrice-roluri.sql`); șoferul (`own`) și
 `hr` nu citesc nimic, fără eroare: află de scadență din notificare. Fila Costuri a
 managerului NU arată cifrele derivate din foi (vezi „Costuri”).
 
@@ -134,8 +136,9 @@ din `pragSaltVehicul` (`[[modul/flota/alerte-si-setari]]`).
   stau în `vehicle_costuri` și `vehicle_document_costuri` (1:1, fără `deleted_at`, unic
   TOTAL pe părinte — `on_conflict` nu poate numi un index parțial, 42P10), citite prin
   `app.poate_vedea_costurile_vehiculului`: `vehicles:update = all`, `vehicles:read = all`,
-  sau citirea lui `vex_select` (echipa, fără pool) — strânsă: la `team`, pool-ul e exclus și când e alocat
-  unui om din echipă (`vex_select` îl arată atunci managerului). Restul primește embed-ul
+  sau `team` pe mașina echipei care NU e pool (exclus și când e alocat unui om din echipă).
+  Păzește și `vse_select` / `vex_select`. Excepție deliberată: `avantaj_natura_flota`
+  (`payroll:read = all`) dă și lui hr valoarea de intrare (art. 76 Cod fiscal). Restul primește embed-ul
   `null`, fără eroare; fișa
   ascunde rândul „Valoare” și coloana „Cost”. Aplicația scrie explicit (insert la creare
   doar cu valoare, upsert la corectură, și cu `null`, ca golirea să golească).

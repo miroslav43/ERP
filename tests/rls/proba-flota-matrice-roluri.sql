@@ -581,6 +581,31 @@ begin
     v_esecuri := v_esecuri + 1;
     raise warning '  ✗ pool cu șofer: managerul vede costul documentelor pool-ului (%; intenționat 0)', v_n;
   end if;
+  -- Aceeași regulă pe service și cheltuieli (verificarea dublă din 23 oct):
+  -- `vse_select` / `vex_select` din 0203 judecau doar șoferul, deci managerul
+  -- primea `cost_total` și `suma` pe pool-ul alocat lui E2. 0225 §2 le rescrie
+  -- pe `poate_vedea_costurile_vehiculului`.
+  v_celule := v_celule + 2;
+  v_n := pg_temp.numara(v_useri[3], pg_temp.sub(
+    'select 1 from public.vehicle_service_entries where vehicle_id = {vp}', a));
+  if v_n <> 0 then
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ pool cu șofer: managerul vede intervențiile de service ale pool-ului (%; intenționat 0)', v_n;
+  end if;
+  v_n := pg_temp.numara(v_useri[3], pg_temp.sub(
+    'select 1 from public.vehicle_expenses where vehicle_id = {vp}', a));
+  if v_n <> 0 then
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ pool cu șofer: managerul vede cheltuielile pool-ului (%; intenționat 0)', v_n;
+  end if;
+  -- Managerul vede în continuare service-ul și cheltuielile mașinii echipei (V2).
+  v_celule := v_celule + 1;
+  v_n := pg_temp.numara(v_useri[3], pg_temp.sub(
+    'select 1 from public.vehicle_service_entries where vehicle_id = {v2} union all select 1 from public.vehicle_expenses where vehicle_id = {v2}', a));
+  if v_n <> 2 then
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ managerul nu mai vede service-ul și cheltuielile mașinii echipei (%; intenționat 2)', v_n;
+  end if;
   raise notice '  %  %', rpad('pool cu șofer: mgr fără costuri', 40), case when v_esecuri = v_brut then 'OK' else '✗' end;
 
   raise notice '  ─────────────────────────────────────────────────────────────────────────────────';

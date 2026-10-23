@@ -4,8 +4,9 @@
 -- (flotă F3–F12, mentenanță M6–M10, salarizare).
 --
 -- ── DE CE EXISTĂ ────────────────────────────────────────────────────────────
--- Ramura aduce 23 de tabele `public.*` noi și 9 funcții `public.*` noi (0191,
--- 0199–0206, 0210–0218). Probele fiecărui pachet le judecă pe bucăți, fiecare cu
+-- Ramura aduce 26 de tabele `public.*` noi și 11 funcții `public.*` noi (0191,
+-- 0199–0206, 0210–0218, 0225, 0226), plus `foi_select` rescrisă în 0226 (ramura
+-- de platformă). Probele fiecărui pachet le judecă pe bucăți, fiecare cu
 -- fixture-ul lui. Aici, pe UN SINGUR fixture, fiecare tabelă și funcție nouă e
 -- atinsă sub identitatea fiecăruia dintre cele cinci roluri (`super_admin` din
 -- `platform_admins`, `org_admin`, `hr`, `manager`, doi `employee`) plus
@@ -36,6 +37,11 @@
 --                 confirmă PV-ul la care e parte; fără costuri, amenzi, ieșiri;
 --   străin      — administratorul altei firme: zero rânduri, zero scrieri, iar în
 --                 firma LUI nu poate lega rânduri de obiectele firmei A (FK compus).
+--   Costurile ascunse (0225): valoarea de achiziție și costul documentelor le
+--   citesc `vehicles:update = all` și managerul pe mașinile echipei, NU pe pool
+--   (nici pe pool-ul alocat unui om din echipă); scrie doar org_admin.
+--   Loturile de import (0226): le vede și le consumă doar cine le-a creat, cu
+--   `<resursă>:create = all` (angajați: adm, hr; extrase de card: adm).
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh
@@ -153,6 +159,45 @@ create temp table rezultate (
   verdict   text not null
 ) on commit drop;
 
+-- Un rând al matricei: fiecare celulă sub identitatea ei, verdictul în
+-- `rezultate`, linia tabelului în NOTICE. Întoarce numărul de celule judecate.
+-- Ordinea celulelor: super_admin, org_admin, hr, manager, E1, E2, străin.
+create function pg_temp.judeca(p_eticheta text, p_op text, p_sql text, p_ast text[],
+                               p_useri uuid[], p_ctx jsonb[], p_baza jsonb, p_roluri text[])
+returns int
+language plpgsql as $f$
+declare
+  v_linie  text := '';
+  v_obt    text;
+  v_ver    text;
+  v_celule int := 0;
+begin
+  for i in 1 .. 7 loop
+    if p_ast[i] is null then
+      v_linie := v_linie || lpad('—', 7) || ' ';
+      continue;
+    end if;
+    if p_op = 'SELECT' then
+      v_obt := pg_temp.numara(p_useri[i], pg_temp.sub(p_sql, p_baza || p_ctx[i]))::text;
+    else
+      v_obt := pg_temp.incearca(p_useri[i], pg_temp.sub(p_sql, p_baza || p_ctx[i]));
+    end if;
+    v_ver := pg_temp.verdict(p_op, p_ast[i], v_obt);
+    v_celule := v_celule + 1;
+    insert into pg_temp.rezultate (eticheta, op, rol, asteptat, obtinut, verdict)
+    values (p_eticheta, p_op, p_roluri[i], p_ast[i], v_obt, v_ver);
+    v_linie := v_linie || lpad(case v_ver when 'OK' then split_part(v_obt, ' ', 1)
+                                          when 'DEFECT' then 'D' || split_part(v_obt, ' ', 1)
+                                          else '✗' || split_part(v_obt, ' ', 1) end, 7) || ' ';
+    if v_ver not in ('OK', 'DEFECT') then
+      raise warning '  ✗ % sub %: obținut „%”, intenționat „%” → %', p_eticheta, p_roluri[i], v_obt, p_ast[i], v_ver;
+    end if;
+  end loop;
+  raise notice '  %  %', rpad(p_eticheta, 52), v_linie;
+  return v_celule;
+end
+$f$;
+
 -- ── FIRMA A ─────────────────────────────────────────────────────────────────
 --   org_admin (cu fișă: e_adm, tehnicianul de mentenanță); hr (Horia, cu mașina
 --   VH); manager M (Mihai, fără mașină, conduce pool-ul); E1 (Elena, fără șef);
@@ -215,6 +260,9 @@ declare
   pv_c     uuid;
   iesire   uuid;
   v_casco  uuid;
+  v_rca    uuid;
+  d1       uuid;
+  d_vp     uuid;
   t_f1     timestamptz := pg_temp.la(v_zi - 1, '08:00');
   t_f2v    timestamptz := pg_temp.la(v_zi - 20, '08:00');
   t_fp     timestamptz := pg_temp.la(v_zi - 2, '08:00');
@@ -224,6 +272,7 @@ declare
   t_amenda timestamptz := pg_temp.la(v_zi - 3, '09:30');
 begin
   select id into v_casco from public.vehicle_document_types where organization_id is null and cod = 'casco';
+  select id into strict v_rca from public.vehicle_document_types where organization_id is null and cod = 'rca';
 
   insert into public.organizations (id, slug, name, cui) values
     (v_org, 'proba-livrare-a-' || s, 'Proba Livrare A SRL', 'RO' || (85000000 + (random() * 900000)::int)::text);
@@ -291,6 +340,15 @@ begin
     (c_f1,              v_org, f1,  t_f1,  t_f1  + interval '2 hours', 'Sediu', 'Client', 'Livrare', 10100, 10150, u_e1,  u_e1),
     (c_f2,              v_org, f2,  t_f1,  t_f1  + interval '2 hours', 'Sediu', 'Client', 'Livrare', 20000, 20050, u_e2,  u_e2),
     (gen_random_uuid(), v_org, fp,  t_fp,  t_fp  + interval '2 hours', 'Sediu', 'Client', 'Livrare', 30000, 30050, u_e2,  u_e2);
+
+  -- RCA cu cost pe V1, V2, VP și VH: costul scris în coloana veche se mută în
+  -- `vehicle_document_costuri` (0225 §6), câte un rând de cost pe document.
+  insert into public.vehicle_documents (organization_id, vehicle_id, document_type_id, numar,
+                                        valabil_de_la, expira_la, cost, created_by, updated_by)
+  select v_org, x.v, v_rca, 'RCA-' || s || '-' || x.n, v_zi - 355, v_zi + 10, 1200, u_adm, u_adm
+    from (values (v1, 1), (v2, 2), (vp, 3), (vh, 4)) as x(v, n);
+  select id into strict d1   from public.vehicle_documents where organization_id = v_org and vehicle_id = v1;
+  select id into strict d_vp from public.vehicle_documents where organization_id = v_org and vehicle_id = vp;
 
   insert into public.vehicle_document_type_setari (organization_id, document_type_id, activ, obligatoriu,
                                                    created_by, updated_by)
@@ -390,6 +448,16 @@ begin
                                     created_by, updated_by)
   values (v_org, vx, 'vanzare', v_zi - 1, 90000, 'Vândută la licitație.', 'Cumpărător SRL', u_adm, u_adm)
   returning id into iesire;
+  -- Lotul de import al extrasului de card, emis de bază (0226 §3), neconsumat.
+  insert into public.import_uploads (organization_id, resursa, cale, created_by, updated_by)
+  values (v_org, 'vehicles', 'x/vehicles/x/extras.csv', u_adm, u_adm);
+  reset role;
+
+  -- Lotul de import de angajați al lui hr, neconsumat.
+  perform set_config('request.jwt.claim.sub', u_hr::text, true);
+  set local role authenticated;
+  insert into public.import_uploads (organization_id, resursa, cale, created_by, updated_by)
+  values (v_org, 'employees', 'x/employees/x/angajati.xlsx', u_hr, u_hr);
   reset role;
 
   -- Rezervările pe pool, fiecare de omul ei: E2 mâine, E1 poimâine, M peste 3 zile.
@@ -429,7 +497,7 @@ begin
     'al_e2_v1', al_e2_v1, 'al_e1_v1', al_e1_v1, 'al_e2_v2', al_e2_v2, 'al_hr_vh', al_hr_vh,
     'f1', f1, 'f2', f2, 'f2v', f2v, 'fp', fp, 'fm', fm, 'c_f1', c_f1, 'c_f2', c_f2, 'c_fm', c_fm,
     'eq1', eq1, 'i1', i1, 'a1', a1, 'lot', lot, 'tx1', tx1, 'c_e1', c_e1,
-    'pv_e1', pv_e1, 'pv_hr', pv_hr, 'pv_c', pv_c, 'iesire', iesire)
+    'pv_e1', pv_e1, 'pv_hr', pv_hr, 'pv_c', pv_c, 'iesire', iesire, 'd1', d1, 'd_vp', d_vp)
   || jsonb_build_object(
     -- Cursa nouă de după cea existentă: 11:00–12:00, de la km-ul de sosire.
     'f1_de', pg_temp.la(v_zi - 1, '11:00'), 'f1_la', pg_temp.la(v_zi - 1, '12:00'), 'f1_zi', v_zi - 1, 'f1_km', 10150,
@@ -477,10 +545,6 @@ declare
   v_ctx      jsonb[];
   v_n_oblig  bigint;
   r          record;
-  i          int;
-  v_obt      text;
-  v_ver      text;
-  v_linie    text;
   v_celule   int := 0;
 begin
   baza := a || b;
@@ -541,7 +605,7 @@ begin
   end if;
 
   raise notice '';
-  raise notice '  PROBA „LIVRARE — SCRIERE REALĂ PE ROLURI” (0191, 0199–0206, 0210–0218)';
+  raise notice '  PROBA „LIVRARE — SCRIERE REALĂ PE ROLURI” (0191, 0199–0206, 0210–0218, 0225, 0226)';
   raise notice '  ──────────────────────────────────────────────────────────────────────────────────────────────';
   raise notice '  %  % % % % % % %', rpad('operație (firma A)', 52), lpad('sa', 7), lpad('adm', 7), lpad('hr', 7),
     lpad('mgr', 7), lpad('E1', 7), lpad('E2', 7), lpad('str', 7);
@@ -566,6 +630,22 @@ begin
       ('vehicles.valoare_achizitie (coloana veche)', 'SELECT',
        $q$select 1 from public.vehicles where organization_id = {org} and valoare_achizitie is not null$q$,
        array['0', '0', '0', '0', '0', '0', '0']),
+      -- 0225: costul documentelor (RCA pe V1, V2, VP, VH), aceeași regulă:
+      -- managerul doar V2 (echipa, fără pool), hr nici pe VH-ul lui.
+      ('vehicle_document_costuri', 'SELECT',
+       $q$select 1 from public.vehicle_document_costuri where organization_id = {org}$q$,
+       array['4', '4', '0', '1', '0', '0', '0']),
+      ('vehicle_documents.cost (coloana veche)', 'SELECT',
+       $q$select 1 from public.vehicle_documents where organization_id = {org} and cost is not null$q$,
+       array['0', '0', '0', '0', '0', '0', '0']),
+      -- 0226 §2: `foi_select` primește ramura de platformă (doar citire).
+      ('trip_sheets', 'SELECT',
+       $q$select 1 from public.trip_sheets where organization_id = {org}$q$,
+       array['5', '5', '0', '4', '1', '3', '0']),
+      -- 0226 §3: lotul îl vede doar cine l-a creat (adm: extrasul, hr: angajații).
+      ('import_uploads', 'SELECT',
+       $q$select 1 from public.import_uploads where organization_id = {org}$q$,
+       array['0', '1', '1', '0', '0', '0', '0']),
       ('maintenance_rezumat_trimis', 'SELECT',
        $q$select 1 from public.maintenance_rezumat_trimis where organization_id = {org}$q$,
        array['2', '1', '0', '1', '0', '0', '0']),
@@ -662,6 +742,9 @@ begin
       ('flota_fiscal_luna (cu regim)', 'SELECT',
        $q$select 1 from public.flota_fiscal_luna({org}, {luna}::date) where regim is not null$q$,
        array['2', '2', '0', '0', '0', '0', '0']),
+      -- hr = 1 prin `payroll:read = all`, cu `valoare_intrare`: excepția salarizării
+      -- (0225 §8), baza legală a avantajului (Codul fiscal art. 76 alin. (3)
+      -- lit. j), doar pe alocările cu folosință personală — nu „costurile” parcului.
       ('avantaj_natura_flota(E1)', 'SELECT',
        $q$select 1 from public.avantaj_natura_flota({org}, {e_e1}, {luna}::date)$q$,
        array['1', '1', '1', '0', '0', '0', '0']),
@@ -681,6 +764,11 @@ begin
        array['0', '1', '1', '1', '1', '1', '0']),
       ('reinnoieste_autorizatie_iscir', 'RPC',
        $q$select public.reinnoieste_autorizatie_iscir({a1}, app.azi_local() + 500, 'ISCIR-NOU', null, app.azi_local(), null, null)$q$,
+       array['refuz', 'ok:1', 'refuz', 'refuz', 'refuz', 'refuz', 'refuz']),
+      -- 0214 §11b (X2): repotrivirea atomică, INVOKER, sub RLS-ul apelantului;
+      -- un rând neatins (USING) derulează tot apelul (P0001).
+      ('repotriveste_tranzactii_card', 'RPC',
+       $q$select public.repotriveste_tranzactii_card({org}, jsonb_build_array(jsonb_build_object('id', {tx1}::text, 'stare_potrivire', 'fara_alimentare')))$q$,
        array['refuz', 'ok:1', 'refuz', 'refuz', 'refuz', 'refuz', 'refuz']),
 
       -- ═══ INSERT ═══════════════════════════════════════════════════════════
@@ -711,6 +799,16 @@ begin
       -- 0225: upsert-ul aplicației pe rândul de cost existent.
       ('UPSERT vehicle_costuri', 'INSERT',
        $q$insert into public.vehicle_costuri (organization_id, vehicle_id, valoare_achizitie, created_by, updated_by) values ({org}, {v1}, 61000, auth.uid(), auth.uid()) on conflict (vehicle_id) do update set valoare_achizitie = excluded.valoare_achizitie, updated_by = excluded.updated_by$q$,
+       array['refuz', 'ok:1', 'refuz', 'refuz', 'refuz', 'refuz', 'refuz']),
+      ('UPSERT vehicle_document_costuri', 'INSERT',
+       $q$insert into public.vehicle_document_costuri (organization_id, document_id, cost, created_by, updated_by) values ({org}, {d1}, 1300, auth.uid(), auth.uid()) on conflict (document_id) do update set cost = excluded.cost, updated_by = excluded.updated_by$q$,
+       array['refuz', 'ok:1', 'refuz', 'refuz', 'refuz', 'refuz', 'refuz']),
+      -- 0226 §3: `<resursă>:create = all` (angajați: adm, hr; extrase: adm).
+      ('INSERT import_uploads (angajați)', 'INSERT',
+       $q$insert into public.import_uploads (organization_id, resursa, cale, created_by, updated_by) values ({org}, 'employees', 'x/employees/x/angajati.xlsx', auth.uid(), auth.uid())$q$,
+       array['refuz', 'ok:1', 'ok:1', 'refuz', 'refuz', 'refuz', 'refuz']),
+      ('INSERT import_uploads (extras de card)', 'INSERT',
+       $q$insert into public.import_uploads (organization_id, resursa, cale, created_by, updated_by) values ({org}, 'vehicles', 'x/vehicles/x/extras.csv', auth.uid(), auth.uid())$q$,
        array['refuz', 'ok:1', 'refuz', 'refuz', 'refuz', 'refuz', 'refuz']),
       ('INSERT driver_licenses (permisul lui hr)', 'INSERT',
        $q$insert into public.driver_licenses (organization_id, employee_id, numar, categorii, expira_la) values ({org}, {e_hr}, 'P-HR-PROBA', array['B'], app.azi_local() + 300)$q$,
@@ -801,6 +899,17 @@ begin
       ('UPDATE vehicle_costuri', 'UPDATE',
        $q$update public.vehicle_costuri set valoare_achizitie = 1000, updated_by = auth.uid() where organization_id = {org}$q$,
        array['refuz', 'ok:6', 'refuz', 'refuz', 'refuz', 'refuz', 'refuz']),
+      ('UPDATE vehicle_document_costuri', 'UPDATE',
+       $q$update public.vehicle_document_costuri set cost = 900, updated_by = auth.uid() where organization_id = {org}$q$,
+       array['refuz', 'ok:4', 'refuz', 'refuz', 'refuz', 'refuz', 'refuz']),
+      -- Consumul: fiecare își consumă DOAR lotul lui (adm nu-l atinge pe al lui hr).
+      ('UPDATE import_uploads: consum lotul meu', 'UPDATE',
+       $q$update public.import_uploads set consumat_la = now(), updated_by = auth.uid() where organization_id = {org} and consumat_la is null$q$,
+       array['refuz', 'ok:1', 'ok:1', 'refuz', 'refuz', 'refuz', 'refuz']),
+      -- Calea emisă nu se mută pe documentul unui angajat (P0001), pentru nimeni.
+      ('UPDATE import_uploads: mut calea pe o fișă', 'UPDATE',
+       $q$update public.import_uploads set cale = {org} || '/employees/' || {e_e1} || '/contract.pdf', updated_by = auth.uid() where organization_id = {org}$q$,
+       array['refuz', 'refuz', 'refuz', 'refuz', 'refuz', 'refuz', 'refuz']),
       ('UPDATE driver_licenses', 'UPDATE',
        $q$update public.driver_licenses set updated_by = auth.uid() where organization_id = {org}$q$,
        array['refuz', 'ok:3', 'ok:3', 'refuz', 'refuz', 'refuz', 'refuz']),
@@ -921,29 +1030,54 @@ begin
        array[null, null, null, null, null, null, 'refuz'])
     ) as t(eticheta, op, sql, ast)
   loop
-    v_linie := '';
-    for i in 1 .. 7 loop
-      if r.ast[i] is null then
-        v_linie := v_linie || lpad('—', 7) || ' ';
-        continue;
-      end if;
-      if r.op = 'SELECT' then
-        v_obt := pg_temp.numara(v_useri[i], pg_temp.sub(r.sql, baza || v_ctx[i]))::text;
-      else
-        v_obt := pg_temp.incearca(v_useri[i], pg_temp.sub(r.sql, baza || v_ctx[i]));
-      end if;
-      v_ver := pg_temp.verdict(r.op, r.ast[i], v_obt);
-      v_celule := v_celule + 1;
-      insert into pg_temp.rezultate (eticheta, op, rol, asteptat, obtinut, verdict)
-      values (r.eticheta, r.op, v_roluri[i], r.ast[i], v_obt, v_ver);
-      v_linie := v_linie || lpad(case v_ver when 'OK' then split_part(v_obt, ' ', 1)
-                                            when 'DEFECT' then 'D' || split_part(v_obt, ' ', 1)
-                                            else '✗' || split_part(v_obt, ' ', 1) end, 7) || ' ';
-      if v_ver not in ('OK', 'DEFECT') then
-        raise warning '  ✗ % sub %: obținut „%”, intenționat „%” → %', r.eticheta, v_roluri[i], v_obt, r.ast[i], v_ver;
-      end if;
-    end loop;
-    raise notice '  %  %', rpad(r.eticheta, 52), v_linie;
+    v_celule := v_celule + pg_temp.judeca(r.eticheta, r.op, r.sql, r.ast, v_useri, v_ctx, baza, v_roluri);
+  end loop;
+
+  -- ═══ Pool-ul alocat unui om din echipă (0225, revizia X1) ═══════════════
+  -- Baza lasă o mașină din pool să fie alocată (`vehicles.employee_id` se
+  -- umple). Decizia din 21 oct dă managerului costurile echipei, „nu și ale
+  -- pool-ului”, iar fișa (`poateVedeaService`) ascunde costurile oricărui pool.
+  -- 0225 a strâns `vehicle_costuri` / `vehicle_document_costuri`, iar §4 din
+  -- aceeași migrare rescrie și `vse_select` / `vex_select` (0203) pe
+  -- `poate_vedea_costurile_vehiculului`: înainte judecau doar după șofer și
+  -- arătau managerului service-ul și cheltuielile pool-ului alocat
+  -- subordonatului (fost `D:1/0`, închis după verificarea dublă din 23 oct).
+  -- Alocarea cere pool-ul fără rezervări active (P0001): le anulează întâi
+  -- administratorul, sub identitatea lui, ca în aplicație.
+  perform set_config('request.jwt.claim.sub', a->>'u_adm', true);
+  set local role authenticated;
+  update public.vehicle_reservations
+     set status = 'anulata', motiv_anulare = 'Mașina trece la un singur șofer.', updated_by = auth.uid()
+   where vehicle_id = (a->>'vp')::uuid and status in ('ceruta', 'confirmata');
+  reset role;
+  insert into public.vehicle_assignments (organization_id, vehicle_id, employee_id, de_la, created_by, updated_by)
+  values ((a->>'org')::uuid, (a->>'vp')::uuid, (a->>'e_e2')::uuid, now() - interval '2 days',
+          (a->>'u_adm')::uuid, (a->>'u_adm')::uuid);
+  if (select employee_id from public.vehicles where id = (a->>'vp')::uuid) is distinct from (a->>'e_e2')::uuid
+     or not (select pool from public.vehicles where id = (a->>'vp')::uuid) then
+    raise exception 'PROBA LIVRARE: alocarea pool-ului VP către E2 nu a ajuns pe vehicul (fixture greșit)';
+  end if;
+  raise notice '  %', rpad('— pool-ul VP alocat lui E2 (subordonatul lui M) —', 52);
+  for r in
+    select * from (values
+      ('pool cu șofer: vehicles (VP)', 'SELECT',
+       $q$select 1 from public.vehicles where id = {vp}$q$,
+       array['1', '1', '0', '1', '1', '1', '0']),
+      ('pool cu șofer: vehicle_costuri (VP)', 'SELECT',
+       $q$select 1 from public.vehicle_costuri where vehicle_id = {vp}$q$,
+       array['1', '1', '0', '0', '0', '0', '0']),
+      ('pool cu șofer: vehicle_document_costuri (VP)', 'SELECT',
+       $q$select 1 from public.vehicle_document_costuri where document_id = {d_vp}$q$,
+       array['1', '1', '0', '0', '0', '0', '0']),
+      ('pool cu șofer: vehicle_service_entries (VP)', 'SELECT',
+       $q$select 1 from public.vehicle_service_entries where vehicle_id = {vp}$q$,
+       array['1', '1', '0', '0', '0', '0', '0']),
+      ('pool cu șofer: vehicle_expenses (VP)', 'SELECT',
+       $q$select 1 from public.vehicle_expenses where vehicle_id = {vp}$q$,
+       array['1', '1', '0', '0', '0', '0', '0'])
+    ) as t(eticheta, op, sql, ast)
+  loop
+    v_celule := v_celule + pg_temp.judeca(r.eticheta, r.op, r.sql, r.ast, v_useri, v_ctx, baza, v_roluri);
   end loop;
   raise notice '  ──────────────────────────────────────────────────────────────────────────────────────────────';
   for r in select verdict, count(*) as n from pg_temp.rezultate group by verdict order by verdict loop

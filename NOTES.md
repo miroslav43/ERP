@@ -116,18 +116,89 @@ lasă trei ciorne ale aceluiași vehicul în aceeași zi, deci 0200 s-ar opri,
 corect, cu lista lor. Bancul servește aici doar containerul și portul (rețeta
 verificată pe 23 oct 2026: EXIT 0).
 
-**Imediat înainte de 0200 pe producție**, aceeași verificare pe datele reale
-(la 23 oct 2026: zero dubluri pe 9 foi). Până la aplicare, aplicația permite
-încă două foi active pe același vehicul în aceeași zi (doi șoferi pe o mașină de
-pool), iar 0200 refuză atunci întreaga migrare și cere respingerea sau ștergerea
-logică a foilor în plus — o decizie de luat cu utilizatorul, nu de migrare:
+### Lotul flotă–mentenanță pe producție: ordinea exactă
+
+Lotul NU e atomic: `db:migrate` aplică fișierele pe rând, fiecare cu `commit`
+propriu, și se oprește la primul eșec. Un eșec la 0200 sau la 0211 lasă 0191 și
+0199 comise peste aplicația VECHE: drepturile globale din 0199 (`employee
+vehicles:read = own`, `manager vehicles:read = team`) deschid `/flota/[id]`
+angajaților și managerilor, iar până la 0225 fișa veche le arată valoarea de
+achiziție și costul documentelor. De aceea verificările de date se fac ÎNAINTE,
+nu se lasă pe seama migrării (verificarea dublă din 23 oct 2026).
+
+**1. Cu zile înainte.**
+
+- Commitul de livrare verde pe staging (migrări + deploy) și proba pe date de
+  mai sus cu EXIT 0. Ideal, lotul se repetă întâi pe o copie a datelor de
+  producție restaurată în banc (nu pe cloud).
+- Juristul confirmă plafonul rovinietei la 3.500 kg (0202, ⚠ în migrare).
+- Regula „o foaie activă pe vehicul și zi” (`ts_vehicul_zi_uq`, 0200) se
+  confirmă cu firmele care folosesc pool-ul în ture: după 0200, al doilea șofer
+  pe aceeași mașină în aceeași zi nu mai poate întocmi foaie (23505).
+- Firmele se anunță: angajații și managerii văd de acum flota (0199); primul
+  rezumat de conformitate (0201) cuprinde TOT ce e restant, pe toate tipurile de
+  scadență; tipul de document „Revizie” se retrage (0203), rovinieta se cere
+  doar până la 3,5 t, trusa și extinctorul nu și la remorci (0202).
+
+**2. Imediat înainte de `db:migrate`, pe datele reale (doar citire).** Primele
+trei trebuie să întoarcă ZERO rânduri; altfel nu se pornește, se repară datele
+(respinse, șterse logic, corectate) cu utilizatorul:
 
 ```sql
+-- a. 0200: o singură foaie activă pe vehicul și zi (la 23 oct: zero pe 9 foi).
 select vehicle_id, (plecare_la at time zone 'Europe/Bucharest')::date as zi, count(*)
   from public.trip_sheets
  where deleted_at is null and status <> 'respins'
  group by 1, 2 having count(*) > 1;
+-- b. 0200 §11: cursa din backfill are CHECK-uri stricte (tsc_km_ck, tsc_ora_ck).
+select id from public.trip_sheets
+ where (km_sosire is not null and km_sosire <= km_plecare)
+    or (sosire_la is not null and sosire_la <= plecare_la);
+-- c. 0211: numărul autorizației ISCIR nu mai poate fi gol.
+select id from public.iscir_authorizations where btrim(numar) = '';
+-- d. 0191: restanța pe care o închide prima rulare a jobului (05:10 UTC).
+select fr.organization_id, count(*)
+  from public.fault_reports fr
+  left join public.maintenance_settings s
+    on s.organization_id = fr.organization_id and s.deleted_at is null
+ where fr.deleted_at is null and fr.status = 'rezolvat'
+   and fr.rezolvat_la < now() - make_interval(days => coalesce(s.inchidere_automata_zile, 5))
+ group by 1;
 ```
+
+La (d), fiecare rând înseamnă sesizări care trec în `inchis` la prima rulare,
+cu câte o notificare (push) raportorului, care pierde calea `rezolvat →
+in_lucru`. Cu restanță nenulă se decide cu utilizatorul: se anunță firmele, sau
+se ridică temporar `maintenance_settings.inchidere_automata_zile` (maximum 90)
+pe firmele cu restanță până după prima rulare.
+
+**3. Fereastra.** Seara, fără activitate în flotă și mentenanță, terminată
+înainte de 05:00 UTC (08:00 ora României): atunci pornesc `conformitate-zilnica`
+(0201) și, la 05:10, `mentenanta-zilnica` (0191). Rezumatele trimit spre
+`/portal/masina-mea`, rută care există doar în aplicația nouă.
+
+**4. `db:migrate`** (confirmarea explicită a utilizatorului), tot lotul. La
+eșec: deploy-ul NU pleacă (aplicația nouă cere 0200+), se repară datele și se
+reia `db:migrate` de la fișierul picat. Dacă reparația nu încape în fereastră,
+expunerea de mai sus rămâne deschisă; oprirea ei e o decizie a utilizatorului
+(de exemplu, modulul `fleet` oprit temporar pe firmele cu flotă).
+
+**5. Deploy imediat**, în aceeași fereastră, din worktree curat, pe commitul
+verificat pe staging. Între migrare și deploy aplicația veche: nu mai poate
+trimite foi (`trimiteFoaie` scrie orele și kilometrii pe antet, refuzat de 0200
+cu P0001), nu creează a doua foaie pe aceeași mașină și zi (23505), arată „—” la
+valoarea vehiculului și la costul documentelor (0225 le-a golit), nu poate trece
+un vehicul în `vandut`/`casat` (garda din 0218), nu adaugă documente „Revizie”
+(0203) și refuză atribuirea unui tehnician fără cont sau fără `maintenance:read`,
+suspendarea ISCIR fără motiv și mutarea unei intervenții (0210–0212). Datele nu
+se strică; toate se închid prin deploy.
+
+**6. După deploy:** o foaie trimisă cap-coadă, `/portal/masina-mea` răspunde,
+fișa vehiculului arată valoarea (din `vehicle_costuri`).
+
+**7. Datorie:** coloanele golite `vehicles.valoare_achizitie` și
+`vehicle_documents.cost` (CHECK `is null`) se aruncă într-o migrare ULTERIOARĂ
+deploy-ului.
 
 ---
 
