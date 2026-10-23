@@ -17,6 +17,7 @@ import {
   foileMele,
   scadenteCurente,
   tipuriDocument,
+  urlSemnateFlota,
   vehiculeDupaId,
   vehicululMeu,
   type RandVehicul,
@@ -122,12 +123,16 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
   const toateMasinile: readonly RandVehicul[] = [...masini.alocate, ...masini.pool];
   // Numărul vehiculului pe foaie se citește separat: foaia de luna trecută poate
   // fi pe o mașină care nu mai e a lui, iar `vehiculeDupaId` trece prin RLS.
-  const [scadente, vehiculeFoi] = await Promise.all([
+  const [scadente, vehiculeFoi, urlScanPv] = await Promise.all([
     poateVedeaMasina ? scadenteCurente(masini.alocate.map((v) => v.id)) : Promise.resolve([]),
     vehiculeDupaId(tenant.organizationId, [
       ...(foi?.randuri ?? []).map((f) => f.vehicle_id),
       ...(declaratii?.randuri ?? []).map((d) => d.vehicle_id),
     ]),
+    // F12c: scanul semnat al PV-ului, semnat sub sesiunea omului. Bucketul îl
+    // dă părții pe calea exactă `scan_path` (`app.flota_poate_fisier`, 0215),
+    // și omului fără `vehicles:read`.
+    urlSemnateFlota(pvuri.map((p) => p.scan_path)),
   ]);
   const numarVehicul = new Map<string, string>([
     ...[...vehiculeFoi.values()].map((v) => [v.id, v.nr_inmatriculare] as const),
@@ -376,13 +381,27 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
                       <p className="text-muted-foreground text-corp mt-0.5">
                         {ETICHETE_TIP_PV[p.tip]} · {formatDateTime(new Date(p.moment))}
                       </p>
-                      <p className="mt-1">
+                      <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
                         <a
                           href={`/api/export/flota/pv/${p.id}`}
                           className="text-corp underline underline-offset-2"
                         >
                           Descarcă PDF
                         </a>
+                        {p.scan_path === null ? null : urlScanPv.has(p.scan_path) ? (
+                          <a
+                            href={urlScanPv.get(p.scan_path)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-corp underline underline-offset-2"
+                          >
+                            Scanul semnat (filă nouă)
+                          </a>
+                        ) : (
+                          <span className="text-muted-foreground text-corp">
+                            Scanul semnat nu e disponibil acum.
+                          </span>
+                        )}
                       </p>
                     </div>
                     {p.anulat_la !== null ? (
