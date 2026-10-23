@@ -89,7 +89,8 @@ Reguli obligatorii, pentru că plasa locală acoperă doar DDL-ul:
 
 Bancul (`banc-migrare.sh`, CI) aplică migrările pe o bază GOALĂ: o umplere
 retroactivă, un index unic nou sau un UPDATE pe rânduri vechi nu atinge acolo
-niciun rând. Pentru livrarea flotă–mentenanță (0191, 0199–0206, 0210–0218),
+niciun rând. Pentru livrarea flotă–mentenanță (0191, 0199–0206, 0210–0218,
+0225, 0226),
 `tests/rls/proba-migrari-pe-date.sql` pornește de la starea lui `origin/main`,
 populează trei firme, aplică ea migrările (prin `\ir`) și verifică invarianții.
 Prin globul bancului rulează doar pe baza deja migrată, unde se oprește singură

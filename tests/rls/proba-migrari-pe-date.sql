@@ -1,6 +1,7 @@
 -- tests/rls/proba-migrari-pe-date.sql
 --
--- MIGRĂRILE FLOTEI ȘI ALE MENTENANȚEI (0191, 0199–0206, 0210–0218) PE DATE
+-- MIGRĂRILE FLOTEI ȘI ALE MENTENANȚEI (0191, 0199–0206, 0210–0218, 0225, 0226)
+-- PE DATE
 -- EXISTENTE.
 --
 -- ── DE CE ───────────────────────────────────────────────────────────────────
@@ -40,7 +41,13 @@
 --      intervenția veche se editează [POZITIVĂ], foaia aprobată veche se
 --      stornează [POZITIVĂ], predarea peste o alocare veche [POZITIVĂ],
 --      ieșirea din parc a unui vehicul cu istoric [POZITIVĂ], sesizarea veche
---      se închide [POZITIVĂ].
+--      se închide [POZITIVĂ], managerul unei fișe vechi se schimbă în firmă
+--      [POZITIVĂ] și se refuză din altă firmă cu răspunsul unic (0226), valoarea
+--      de achiziție mutată se corectează în `vehicle_costuri` [POZITIVĂ];
+--  (11) 0225: valoarea de achiziție și costul documentelor se mută EXACT în
+--      tabelele 1:1 (aceleași rânduri, aceleași sume, aceeași firmă), coloanele
+--      vechi rămân goale și păzite de CHECK; vehiculele nu se ating (amprenta
+--      din (6) include `updated_at`).
 --
 -- ── CUM SE RULEAZĂ ──────────────────────────────────────────────────────────
 -- Cere o bază în starea lui origin/main: migrările ramurii le aplică EA, prin
@@ -77,7 +84,7 @@ do $$ begin raise exception 'PROBA MIGRĂRI PE DATE: baza e parțial migrată (u
 \endif
 
 \echo ''
-\echo '  PROBA „MIGRĂRI PE DATE EXISTENTE" (0191, 0199–0206, 0210–0218)'
+\echo '  PROBA „MIGRĂRI PE DATE EXISTENTE" (0191, 0199–0206, 0210–0218, 0225, 0226)'
 \echo '  ─────────────────────────────────────────────────────────'
 \echo '  ▶ populez trei firme peste starea origin/main'
 
@@ -327,6 +334,15 @@ begin
   insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent, status, deleted_at)
   values (pg_temp.u('B-v5'), pg_temp.u('B-org'), 'CJ05BBB', 'Dacia', 'Spring', 100, 'activ', now() - interval '20 days');
 
+  -- Valoarea de achiziție pe o parte din vehicule (0225 o mută în
+  -- `vehicle_costuri`): una cu bani mărunți, una pe un vehicul de pool, una pe
+  -- vehiculul șters logic. Restul rămân fără valoare, ca pe producție.
+  alter table public.vehicles disable trigger user;
+  update public.vehicles v set valoare_achizitie = x.val
+    from (values ('A-v1', 65000.00), ('A-v3', 120000.50), ('B-v2', 48000.00), ('B-v5', 91000.00)) x(k, val)
+   where v.id = pg_temp.u(x.k);
+  alter table public.vehicles enable trigger user;
+
   -- Datele istorice ale trimiterii și aprobării (triggerul pune now()).
   alter table public.trip_sheets disable trigger user;
   update public.trip_sheets t
@@ -546,6 +562,16 @@ create temp table x5_numarate as
          (select count(*) from public.trip_sheets where organization_id in (select id from x5_firme) and numar is not null) as foi_cu_numar,
          (select count(*) from public.maintenance_interventions where organization_id in (select id from x5_firme)) as interventii;
 
+-- Banii care trebuie să ajungă în tabelele 1:1 ale lui 0225.
+create temp table x5_costuri as
+  select 'vehicul'::text as fel, v.id, v.organization_id, v.valoare_achizitie as suma
+    from public.vehicles v
+   where v.organization_id in (select id from x5_firme) and v.valoare_achizitie is not null
+  union all
+  select 'document', d.id, d.organization_id, d.cost
+    from public.vehicle_documents d
+   where d.organization_id in (select id from x5_firme) and d.cost is not null;
+
 \echo '  ▶ aplic migrările ramurii, în ordine lexicală'
 \ir ../../supabase/migrations/0191_mentenanta_zilnica.sql
 \ir ../../supabase/migrations/0199_flota_roluri.sql
@@ -565,6 +591,8 @@ create temp table x5_numarate as
 \ir ../../supabase/migrations/0216_flota_rezervari.sql
 \ir ../../supabase/migrations/0217_flota_uit_etransport.sql
 \ir ../../supabase/migrations/0218_flota_iesire_din_parc.sql
+\ir ../../supabase/migrations/0225_flota_costuri_ascunse.sql
+\ir ../../supabase/migrations/0226_securitate_reziduala.sql
 \echo '  ▶ verific'
 
 do $$
@@ -730,6 +758,56 @@ begin
   else
     v_esecuri := v_esecuri + 1;
     raise warning '  ✗ (8) setările după migrare: %', v_txt;
+  end if;
+
+  -- ═══ (11) 0225: banii se mută exact, coloanele vechi rămân goale ══════════
+  if to_regclass('public.vehicle_costuri') is null or to_regclass('public.vehicle_document_costuri') is null then
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (11) lipsesc tabelele costurilor (vehicle_costuri / vehicle_document_costuri)';
+  else
+    execute $q$
+      select count(*) from x5_costuri x
+       where x.fel = 'vehicul' and not exists (
+         select 1 from public.vehicle_costuri c
+          where c.vehicle_id = x.id and c.organization_id = x.organization_id
+            and c.valoare_achizitie = x.suma)
+    $q$ into v_n;
+    execute $q$
+      select count(*) from x5_costuri x
+       where x.fel = 'document' and not exists (
+         select 1 from public.vehicle_document_costuri c
+          where c.document_id = x.id and c.organization_id = x.organization_id and c.cost = x.suma)
+    $q$ into v_m;
+    execute $q$
+      select (select count(*) from public.vehicle_costuri c where c.organization_id in (select id from x5_firme))
+           + (select count(*) from public.vehicle_document_costuri c where c.organization_id in (select id from x5_firme))
+           - (select count(*) from x5_costuri)
+    $q$ into v_txt;
+    if v_n = 0 and v_m = 0 and v_txt = '0'
+       and (select count(*) from x5_costuri where fel = 'vehicul') = 4
+       and (select count(*) from x5_costuri where fel = 'document') > 0 then
+      raise notice '  ✓ (11) 0225 mută exact % valori de achiziție și % costuri de document, fără rânduri în plus',
+        (select count(*) from x5_costuri where fel = 'vehicul'), (select count(*) from x5_costuri where fel = 'document');
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (11) vehicule nemutate: %, documente nemutate: %, rânduri în plus: %', v_n, v_m, v_txt;
+    end if;
+  end if;
+  select count(*) into v_n from public.vehicles
+   where organization_id in (select id from x5_firme) and valoare_achizitie is not null;
+  select count(*) into v_m from public.vehicle_documents
+   where organization_id in (select id from x5_firme) and cost is not null;
+  if v_n = 0 and v_m = 0
+     and exists (select 1 from pg_constraint where conrelid = 'public.vehicles'::regclass and contype = 'c'
+                    and pg_get_constraintdef(oid) like '%valoare_achizitie IS NULL%'
+                    and pg_get_constraintdef(oid) not like '%>=%')
+     and exists (select 1 from pg_constraint where conrelid = 'public.vehicle_documents'::regclass and contype = 'c'
+                    and pg_get_constraintdef(oid) like '%cost IS NULL%'
+                    and pg_get_constraintdef(oid) not like '%>=%') then
+    raise notice '  ✓ (11) coloanele vechi (vehicles.valoare_achizitie, vehicle_documents.cost) sunt goale și păzite de CHECK';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (11) coloane vechi încă pline: vehicule %, documente % (sau CHECK-ul lipsește)', v_n, v_m;
   end if;
 
   if v_esecuri > 0 then
@@ -1024,6 +1102,65 @@ begin
   exception when others then
     reset role; v_esecuri := v_esecuri + 1;
     raise warning '  ✗ (10j) închiderea sesizării vechi: % (%)', sqlerrm, sqlstate;
+  end;
+
+  -- (10k) 0226: managerul unei fișe de dinainte se schimbă în firmă; unul din
+  -- altă firmă primește răspunsul unic, fără să afle că fișa există. Id-urile
+  -- se iau ÎNAINTE de schimbarea rolului: sub RLS-ul lui A, fișa lui B nu se
+  -- vede, iar `pg_temp.e` ar da NULL (un „manager acceptat” fals).
+  v_c  := pg_temp.e('B-E-mgr');
+  v_ts := pg_temp.e('A-E-e2');
+  v_asteptat := pg_temp.e('A-E-mgr')::text;
+  perform set_config('request.jwt.claim.sub', pg_temp.u('A-admin')::text, true);
+  set local role authenticated;
+  begin
+    update public.employees set manager_employee_id = v_asteptat::uuid
+     where id = v_ts returning manager_employee_id::text into v_st;
+    get diagnostics v_n = row_count;
+    reset role;
+    if v_n = 1 and v_st = v_asteptat then
+      raise notice '  ✓ (10k) managerul fișei de dinainte se schimbă în firmă';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (10k) schimbarea managerului: % rânduri, manager %', v_n, v_st;
+    end if;
+  exception when others then
+    reset role; v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (10k) schimbarea managerului pe fișa veche: % (%)', sqlerrm, sqlstate;
+  end;
+  set local role authenticated;
+  begin
+    update public.employees set manager_employee_id = v_c where id = v_ts;
+    get diagnostics v_n = row_count;
+    reset role; v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (10k) managerul din altă firmă (%) a fost acceptat: % rânduri', v_c, v_n;
+  exception when others then
+    reset role;
+    if sqlstate = 'P0001' and sqlerrm = 'Managerul indicat nu există în organizația dumneavoastră sau fișa lui a fost ștearsă.' then
+      raise notice '  ✓ (10k) managerul din altă firmă: același răspuns ca unul inexistent';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (10k) managerul din altă firmă: % (%)', sqlerrm, sqlstate;
+    end if;
+  end;
+
+  -- (10l) 0225: administratorul corectează valoarea mutată din coloana veche
+  perform set_config('request.jwt.claim.sub', pg_temp.u('A-admin')::text, true);
+  set local role authenticated;
+  begin
+    execute 'update public.vehicle_costuri set valoare_achizitie = 66000 where vehicle_id = $1'
+      using pg_temp.u('A-v1');
+    get diagnostics v_n = row_count;
+    reset role;
+    if v_n = 1 then
+      raise notice '  ✓ (10l) valoarea de achiziție mutată se corectează în vehicle_costuri';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (10l) corectarea valorii mutate: % rânduri', v_n;
+    end if;
+  exception when others then
+    reset role; v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (10l) corectarea valorii mutate: % (%)', sqlerrm, sqlstate;
   end;
 
   raise notice '  ─────────────────────────────────────────────────────────';

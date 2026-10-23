@@ -143,6 +143,7 @@ din `pragSaltVehicul` (`[[modul/flota/alerte-si-setari]]`).
   tabela de costuri în aceeași instrucțiune (BEFORE, cheie străină DEFERRABLE); `null` se
   ignoră, ca o corectură din aplicația veche să nu șteargă costul mutat. CHECK `is null`
   e plasa dacă triggerul e oprit (23514). Citirea lor e oprită de `coloane.test.ts`.
+  Mutarea pe date existente o verifică `proba-migrari-pe-date.sql` (11) și (10l).
 - **Tipul de document `revizie` e retras pe platformă** (0203); documentele deja scrise
   pe el rămân și se corectează; o firmă îl reactivează din setările de tipuri (0202).
 
