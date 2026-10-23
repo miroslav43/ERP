@@ -15,7 +15,7 @@ citeste_daca:
   - "cineva nu primește rezumatul, îl primește dublat sau vede ceva ce nu-i aparține → „Cine primește ce”"
   - "pragurile salvate în setări nu schimbă alertele → „Ce refuză baza tăcut”"
   - "fișiere rămase în bucket fără rând → „Curățarea încărcărilor”"
-scris_pe: 5f553e6416758697e9aedabd352464f50cb70fd8
+scris_pe: 7b5017938d3fb0376a52b2c528973a3b09c3cac3
 scris_la: 2026-10-23
 tags: [modul, operations]
 ---
@@ -113,7 +113,8 @@ motorul le aplica deja unui plan (regula `maintenance_plan`/`'*'` a firmei, altf
 NU scrie nicio regulă în `alert_rules`: umplerea rulează înaintea triggerului. Cu ordinea
 inversă, o firmă cu regulă proprie pe planuri (90/30) și `'*'` (60/30/7) își vedea ISCIR-ul
 și garanțiile mutate tăcut pe 90/30 (prins de `tests/rls/proba-migrari-pe-date.sql` (8)).
-Prima salvare din formular le aliniază pe toate trei. Excepția: o regulă `'*'` cu un prag
+Prima salvare care SCHIMBĂ pragurile le aliniază pe toate trei; o salvare cu pragurile
+neschimbate (alt câmp) nu atinge `alert_rules`. Excepția: o regulă `'*'` cu un prag
 peste 365 nu încape în CHECK — câmpul rămâne pe 30/14/7, motorul pe regula ei.
 
 ## Când NU e suficientă pagina asta
