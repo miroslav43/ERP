@@ -1,17 +1,11 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import {
-  appendFileSync,
-  chmodSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { appendFileSync, chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
+
+import { pasulDinWorkflow } from "./pas-din-workflow";
 
 /**
  * Pasul „Comite și publică" din `.github/workflows/documentatie.yml`, extras din
@@ -28,39 +22,8 @@ import { afterEach, describe, expect, it } from "vitest";
  * singur. Starea „main inactiv" e exact cazul pentru care există jurnalul zilei.
  */
 
-const WORKFLOW = join(process.cwd(), ".github/workflows/documentatie.yml");
 const SHA = "a".repeat(40);
-
-/** Corpul blocului `run: |` al pasului cu numele dat, fără indentarea YAML. */
-function pasulDinWorkflow(nume: string): string {
-  const linii = readFileSync(WORKFLOW, "utf8").split("\n");
-  const linia = (i: number): string => linii[i] ?? "";
-  const start = linii.findIndex((l) => l.trim() === `- name: ${nume}`);
-  if (start < 0) throw new Error(`pasul „${nume}" nu e în ${WORKFLOW}`);
-  const nivelPas = linia(start).search(/\S/);
-  let i = start + 1;
-  for (; i < linii.length; i++) {
-    const l = linia(i);
-    if (l.trim() && l.search(/\S/) <= nivelPas) throw new Error(`pasul „${nume}" n-are run`);
-    if (/^\s*run: \|\s*$/.test(l)) break;
-  }
-  if (i >= linii.length) throw new Error(`pasul „${nume}" n-are run`);
-  const nivelRun = linia(i).search(/\S/);
-  const corp: string[] = [];
-  let nivelCorp = -1;
-  for (i += 1; i < linii.length; i++) {
-    const l = linia(i);
-    if (l.trim() === "") {
-      corp.push("");
-      continue;
-    }
-    const nivel = l.search(/\S/);
-    if (nivel <= nivelRun) break;
-    if (nivelCorp < 0) nivelCorp = nivel;
-    corp.push(l.slice(nivelCorp));
-  }
-  return `${corp.join("\n").trimEnd()}\n`;
-}
+const SHA_VECHI = "b".repeat(40);
 
 let dosare: string[] = [];
 
@@ -84,9 +47,20 @@ type Caz = {
   mainSeMutaLaPush?: boolean;
   /** O comandă din pas înlocuită cu una care iese cu 1 fără niciun mesaj. */
   comandaCazuta?: string;
+  /**
+   * Subpagină NOUĂ, neurmărită, ca după o spargere: agentul îi copiază
+   * `scris_pe` din pagina-mamă, iar publicarea trebuie s-o avanseze mecanic.
+   */
+  subpaginaNoua?: boolean;
 };
 
-type Rezultat = { cod: number | null; iesire: string; mesajeMain: string[] };
+type Rezultat = {
+  cod: number | null;
+  iesire: string;
+  mesajeMain: string[];
+  /** Conținutul unui fișier de pe `main`-ul remote-ului, după publicare. */
+  peMain: (cale: string) => string;
+};
 
 function ruleaza(caz: Caz): Rezultat {
   const radacina = mkdtempSync(join(tmpdir(), "publicare-docs-"));
@@ -158,6 +132,12 @@ function ruleaza(caz: Caz): Rezultat {
 
   // Pagina „aplicată" de jobul `pagina`, ca în arborele real.
   appendFileSync(join(runner, ".claude/docs/modul/x.md"), "\nrând nou\n");
+  if (caz.subpaginaNoua) {
+    fisier(
+      ".claude/docs/modul/x/nou.md",
+      `---\nscris_pe: ${SHA_VECHI}\nscris_la: 2026-01-01\n---\n\n# X — nou\n`,
+    );
+  }
   if (caz.comandaCazuta) {
     writeFileSync(join(bin, caz.comandaCazuta), "#!/bin/sh\nexit 1\n");
     chmodSync(join(bin, caz.comandaCazuta), 0o755);
@@ -205,7 +185,10 @@ function ruleaza(caz: Caz): Rezultat {
   })
     .trim()
     .split("\n");
-  return { cod: r.status, iesire: `${r.stdout}${r.stderr}`, mesajeMain };
+  const peMain = (cale: string): string =>
+    spawnSync("git", ["--git-dir", remote, "show", `main:${cale}`], { env, encoding: "utf8" })
+      .stdout;
+  return { cod: r.status, iesire: `${r.stdout}${r.stderr}`, mesajeMain, peMain };
 }
 
 // Fiecare caz pornește o duzină de procese git și un bash, SINCRON: pe o
@@ -227,6 +210,19 @@ describe.skipIf(process.platform === "win32")(
 
       expect(r.cod).toBe(0);
       expect(r.mesajeMain[0]).toMatch(/^docs\(vault\): sincronizare automată/);
+    });
+
+    it("subpagina NOUĂ a unei spargeri primește și ea `scris_pe` mecanic, nu pe al mamei", () => {
+      // `git diff --name-only` nu vede fișierele neurmărite: fără ele în buclă,
+      // subpagina ar ajunge pe main cu SHA-ul vechi copiat din mamă și ar intra
+      // în coada triajului chiar a doua zi.
+      const r = ruleaza({ oreDeLaUltimulCommit: 1, subpaginaNoua: true });
+
+      expect(r.cod).toBe(0);
+      const nou = r.peMain(".claude/docs/modul/x/nou.md");
+      expect(nou).toContain(`scris_pe: ${SHA}`);
+      expect(nou).not.toContain(SHA_VECHI);
+      expect(r.peMain(".claude/docs/meta/log.md")).toContain("modul/x/nou.md");
     });
 
     it("prinde un commit împins de altcineva după checkout, prin fetch + merge", () => {

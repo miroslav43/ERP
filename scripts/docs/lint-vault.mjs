@@ -373,6 +373,26 @@ const verifica = (cale) => {
 
   // ── H — wikilink-uri ──
   const propria = relative(VAULT, cale).replace(/\.md$/, "");
+
+  // O subpagină (`modul/<slug>/<sub>.md`) există ca s-o găsească cine citește
+  // pagina-mamă — CLAUDE.md trimite agentul la `modul/<slug>.md`, nu la
+  // subarbore. Nelegată de acolo, e o pagină pe care n-o deschide nimeni, iar
+  // spargerea făcută de nocturnă ar fi o ștergere tăcută a secțiunii mutate.
+  const segmenteProprii = propria.split("/");
+  if (segmenteProprii.length >= 3) {
+    const mama = segmenteProprii.slice(0, -1).join("/");
+    const caleMama = join(VAULT, `${mama}.md`);
+    if (existsSync(caleMama)) {
+      num("H");
+      const scapat = propria.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      if (!new RegExp(`\\[\\[\\s*${scapat}\\s*(\\||\\]\\])`).test(readFileSync(caleMama, "utf8")))
+        E(
+          "H",
+          1,
+          `subpagina nu e legată din [[${mama}]] — adaugă \`[[${propria}]]\` în tabelul paginilor modulului`,
+        );
+    }
+  }
   for (const { linie, nr } of [...proza, ...blocuri]) {
     for (const m of linie.matchAll(/\[\[([^\]]+)\]\]/g)) {
       const tinta = m[1].split("|")[0].trim();
@@ -395,7 +415,10 @@ const verifica = (cale) => {
     }
   }
 
-  return { rel, erori, averts, verificari };
+  // `corp` e mărimea MĂSURATĂ: nocturna o citește ca să decidă spargerea, în
+  // loc să-l lase pe agent — care n-are `Bash` — s-o estimeze.
+  const corpMasurat = { octeti: octetiCorp, tinta: plafon.tinta, dur: plafon.dur };
+  return { rel, erori, averts, verificari, corp: corpMasurat };
 };
 
 // ── Rulare ─────────────────────────────────────────────────────────────────
