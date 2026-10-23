@@ -20,6 +20,7 @@ import { z } from "zod";
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule, invalidInput } from "@/lib/actions/errors";
 import { citesteExcelDinBuffer, LOT_IMPORT, verificaFisierImport } from "@/lib/import/excel";
+import { consumaIncarcarea, inregistreazaIncarcarea } from "@/lib/import/incarcare";
 import { etichetaCampImport, mapeazaColoane, mapeazaRand } from "@/domain/import/mapare";
 import { schemaLotImport, valideazaRanduri, type AngajatProtejat } from "@/domain/import/validare";
 import { normaZilnicaPeCinciZile } from "@/domain/payroll/program-saptamanal";
@@ -56,6 +57,13 @@ export const pregatesteIncarcareaImportului = createAction({
       entitateId: batchId,
       numeFisier: input.numeFisier,
     });
+    // X2: lotul se înregistrează (`import_uploads`, 0226) ÎNAINTEA URL-ului
+    // semnat. Analiza șterge doar fișierul unui lot înregistrat aici.
+    if (!(await inregistreazaIncarcarea(ctx, "employees", batchId, cale))) {
+      throw businessRule(
+        "Nu am putut pregăti încărcarea fișierului. Încearcă din nou în câteva secunde.",
+      );
+    }
     const { data, error } = await ctx.supabase.storage
       .from(BUCKET_DOCUMENTE)
       .createSignedUploadUrl(cale);
@@ -94,6 +102,19 @@ export const analizeazaImportAngajati = createAction({
       throw businessRule("Fișierul încărcat nu mai este disponibil. Reia încărcarea.");
     }
     const octeti = await descarcare.data.arrayBuffer();
+
+    /*
+     * X2: lotul emis de server se CONSUMĂ înainte de ștergere. Prefixul de mai
+     * sus nu ajunge: segmentul 3 al unei căi `employees` e de obicei id-ul unei
+     * FIȘE, iar `batchId` vine din client — cu id-ul unui angajat, ștergerea de
+     * mai jos ar fi scos contractul sau buletinul lui scanat, ocolind orice
+     * politică. Consumul trece doar pe lotul înregistrat de apelant, o dată.
+     */
+    if (!(await consumaIncarcarea(ctx, "employees", input.batchId, input.cale))) {
+      throw businessRule(
+        "Încărcarea nu mai e valabilă: fișierul a fost deja analizat sau nu a fost pregătit de tine. Reia încărcarea.",
+      );
+    }
 
     /*
      * Excel-ul SURSĂ pleacă imediat ce a fost citit în memorie.

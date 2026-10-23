@@ -33,7 +33,6 @@ import {
   leagaTranzactieSchema,
   repotrivesteSchema,
 } from "@/schemas/fleet-carduri";
-import type { TablesUpdate } from "@/types/database";
 
 import { traduEroareCarduri } from "../erori";
 
@@ -131,18 +130,6 @@ export const repotrivesteTranzactii = createAction({
       return neschimbat ? [] : [{ t, r }];
     });
 
-    const scrie = async (id: string, valori: TablesUpdate<"fuel_card_transactions">) => {
-      const { data, error } = await ctx.supabase
-        .from("fuel_card_transactions")
-        .update({ ...valori, updated_by: ctx.user.id })
-        .eq("id", id)
-        .eq("organization_id", org)
-        .is("deleted_at", null)
-        .select("id")
-        .maybeSingle();
-      if (error !== null) traduEroareCarduri(error);
-      if (data === null) throw businessRule(MESAJ_CONFLICT);
-    };
     const finala = (r: (typeof schimbari)[number]["r"]) => ({
       card_id: r.cardId,
       vehicle_id: r.vehicleId,
@@ -162,28 +149,42 @@ export const repotrivesteTranzactii = createAction({
      * când două rânduri își schimbă alimentările între ele (niciunul nu poate
      * scrie primul). Rândul care pierde alimentarea fără să primească alta se
      * scrie direct în forma finală; cel care primește alta trece întâi prin
-     * „fără alimentare” (starea corectă fără legătură, `fctx_stare_ck`). Bucla nu
-     * e atomică: o cădere între pași lasă rânduri „fără alimentare”, pe care
-     * repotrivirea următoare le reia.
+     * „fără alimentare” (starea corectă fără legătură, `fctx_stare_ck`).
+     *
+     * X2: lista de scrieri pleacă într-un SINGUR apel
+     * (`repotriveste_tranzactii_card`, 0214 §11b), aplicat atomic în ordinea
+     * dată, sub RLS-ul utilizatorului. Înainte, fiecare scriere era o cerere
+     * separată: o cădere la mijloc lăsa luna pe jumătate repotrivită, cu rânduri
+     * „fără alimentare” care spuneau, până la repotrivirea următoare, alimentări
+     * nedeclarate inexistente. Acum un singur rând refuzat (anulat între timp,
+     * 23505) derulează înapoi tot, iar luna rămâne exact cum era.
      */
     const luateDeAltii = new Set(
       schimbari.flatMap(({ t, r }) =>
         r.fuelEntryId !== null && r.fuelEntryId !== t.fuel_entry_id ? [r.fuelEntryId] : [],
       ),
     );
+    const scrieri: Record<string, string | null>[] = [];
     const scriseFinal = new Set<string>();
     for (const { t, r } of schimbari) {
       if (t.fuel_entry_id === null || r.fuelEntryId === t.fuel_entry_id) continue;
       if (!luateDeAltii.has(t.fuel_entry_id)) continue;
       if (r.fuelEntryId === null) {
-        await scrie(t.id, finala(r));
+        scrieri.push({ id: t.id, ...finala(r) });
         scriseFinal.add(t.id);
       } else {
-        await scrie(t.id, { fuel_entry_id: null, stare_potrivire: "fara_alimentare" });
+        scrieri.push({ id: t.id, fuel_entry_id: null, stare_potrivire: "fara_alimentare" });
       }
     }
     for (const { t, r } of schimbari) {
-      if (!scriseFinal.has(t.id)) await scrie(t.id, finala(r));
+      if (!scriseFinal.has(t.id)) scrieri.push({ id: t.id, ...finala(r) });
+    }
+    if (scrieri.length > 0) {
+      const { error } = await ctx.supabase.rpc("repotriveste_tranzactii_card", {
+        p_organization_id: org,
+        p_scrieri: scrieri,
+      });
+      if (error !== null) traduEroareCarduri(error);
     }
     return { verificate: deRefacut.length, schimbate: schimbari.length };
   },

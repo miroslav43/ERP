@@ -6323,6 +6323,53 @@ export type Database = {
           },
         ]
       }
+      import_uploads: {
+        Row: {
+          cale: string
+          consumat_la: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          organization_id: string
+          resursa: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          cale: string
+          consumat_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id: string
+          organization_id: string
+          resursa: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          cale?: string
+          consumat_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          organization_id?: string
+          resursa?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_uploads_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inrolare_ciorne: {
         Row: {
           autor_id: string
@@ -16090,6 +16137,10 @@ export type Database = {
           p_valabil_pana: string
         }
         Returns: string
+      }
+      repotriveste_tranzactii_card: {
+        Args: { p_organization_id: string; p_scrieri: Json }
+        Returns: number
       }
       sedii_pentru_pontaj: {
         Args: { p_organization_id: string }

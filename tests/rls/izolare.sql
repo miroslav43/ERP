@@ -661,6 +661,16 @@ begin
     from loturi l;
   -- ═══ SFÂRȘIT BLOC: fixture carduri de combustibil (0214, F12b) ════════════
 
+  -- ═══ ÎNCEPUT BLOC: fixture registrul încărcărilor de import (0226, X2) ═════
+  -- Câte un lot emis de server pentru fiecare firmă (unul de angajați, unul de
+  -- extras), ca verificarea (c) să aibă rânduri ale lui Beta.
+  insert into public.import_uploads (id, organization_id, resursa, cale, created_by, updated_by)
+  select l.id, l.org, l.resursa, l.org::text || '/' || l.resursa || '/' || l.id::text || '/import.xlsx',
+         l.admin, l.admin
+    from (values (gen_random_uuid(), v_alfa, 'employees', v_admin_alfa),
+                 (gen_random_uuid(), v_beta, 'vehicles', v_admin_beta)) as l(id, org, resursa, admin);
+  -- ═══ SFÂRȘIT BLOC: fixture registrul încărcărilor de import (0226, X2) ═════
+
   -- ═══ ÎNCEPUT BLOC: fixture procesul-verbal de predare (0215, F12c) ════════
   -- Câte o CIORNĂ de PV de predare pe alocarea deschisă a fiecărei firme.
   -- Ciorna, nu finalizatul: fără număr PVA și fără rând în registru, ca

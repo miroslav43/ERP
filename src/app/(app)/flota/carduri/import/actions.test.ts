@@ -36,7 +36,12 @@ import { configureazaActiunea, ID_1, ID_2, ID_3, ORG_ID, USER_ID } from "@/lib/t
 import { areFiltru, eroarePostgrest, type ClientFals } from "@/lib/teste/supabase-fals";
 import type { LotExtras } from "@/schemas/fleet-carduri";
 
-import { analizeazaExtras, anuleazaImport, aplicaImportExtras } from "./actions";
+import {
+  analizeazaExtras,
+  anuleazaImport,
+  aplicaImportExtras,
+  pregatesteIncarcareaExtrasului,
+} from "./actions";
 
 const BUCKET = "org-documents";
 const LOT = "88888888-8888-4888-8888-888888888888";
@@ -77,7 +82,64 @@ function citiriAnaliza(server: ClientFals): void {
   server.raspunde("fuel_card_imports", "select", { data: [] });
 }
 
+describe("pregatesteIncarcareaExtrasului (X2: lotul emis de server)", () => {
+  it("înregistrează lotul (id și cale construite pe server) ÎNAINTEA URL-ului semnat", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMISIUNI });
+    server.raspunde("import_uploads", "insert", {});
+    server.raspundeStocare(BUCKET, "createSignedUploadUrl", {
+      data: { signedUrl: "https://s/semnat" },
+    });
+
+    const r = await pregatesteIncarcareaExtrasului({ numeFisier: "extras.csv", dimensiune: 1000 });
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const [inregistrare] = server.apeluriPe("import_uploads", "insert");
+    expect(inregistrare?.payload).toEqual({
+      id: r.data.batchId,
+      organization_id: ORG_ID,
+      resursa: "vehicles",
+      cale: r.data.cale,
+      created_by: USER_ID,
+      updated_by: USER_ID,
+    });
+    expect(r.data.cale.startsWith(`${ORG_ID}/vehicles/${r.data.batchId}/`)).toBe(true);
+    expect(server.apeluriStocare.map((a) => a.metoda)).toEqual(["createSignedUploadUrl"]);
+  });
+
+  it("lotul refuzat de bază: CONFLICT, fără URL semnat", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMISIUNI });
+    server.raspunde("import_uploads", "insert", { error: eroarePostgrest("42501", "denied") });
+    const r = await pregatesteIncarcareaExtrasului({ numeFisier: "extras.csv", dimensiune: 1000 });
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(server.apeluriStocare).toHaveLength(0);
+  });
+});
+
 describe("analizeazaExtras", () => {
+  it("X2: lotul nu e al apelantului, nu există sau a fost deja analizat: CONFLICT și NIMIC șters", async () => {
+    // `batchId` = id-ul unui vehicul, calea = un .xlsx din folderul lui: trece
+    // de prefix, dar nu e un lot emis de server pentru apelant.
+    const { server, admin } = configureazaActiunea({ permisiuni: PERMISIUNI });
+    const caleVehicul = `${ORG_ID}/vehicles/${ID_2}/99999999-9999-4999-8999-999999999999-asigurare.xlsx`;
+    server.raspundeStocare(BUCKET, "download", { data: csv(EXTRAS) });
+    server.raspunde("import_uploads", "update", { data: null });
+
+    const r = await analizeazaExtras({ batchId: ID_2, cale: caleVehicul, emitent: "omv_petrom" });
+
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(admin.apeluriStocare).toHaveLength(0);
+    const [consum] = server.apeluriPe("import_uploads", "update");
+    expect(consum?.payload).toMatchObject({ updated_by: USER_ID });
+    expect(areFiltru(consum, "eq", "id", ID_2)).toBe(true);
+    expect(areFiltru(consum, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(consum, "eq", "resursa", "vehicles")).toBe(true);
+    expect(areFiltru(consum, "eq", "cale", caleVehicul)).toBe(true);
+    expect(areFiltru(consum, "eq", "created_by", USER_ID)).toBe(true);
+    expect(areFiltru(consum, "is", "consumat_la", null)).toBe(true);
+    expect(consum?.selectDupaScriere).toBe("id");
+  });
+
   it("calea în afara prefixului lotului: VALIDARE, fără descărcare", async () => {
     const { server, admin } = configureazaActiunea({ permisiuni: PERMISIUNI });
     const r = await analizeazaExtras({
@@ -92,6 +154,7 @@ describe("analizeazaExtras", () => {
 
   it("sursa se șterge cu clientul admin ÎNAINTE de parsare, chiar dacă fișierul e greșit", async () => {
     const { server, admin } = configureazaActiunea({ permisiuni: PERMISIUNI });
+    server.raspunde("import_uploads", "update", { data: { id: LOT } });
     server.raspundeStocare(BUCKET, "download", {
       data: csv("doar un rând fără date"),
     });
@@ -114,6 +177,7 @@ describe("analizeazaExtras", () => {
     const { server, admin } = configureazaActiunea({ permisiuni: PERMISIUNI });
     const linii = ["Numar card;Data;Produs;Valoare"];
     for (let i = 0; i < 1001; i += 1) linii.push(`1234;05.10.2026;Motorina;${String(i)}`);
+    server.raspunde("import_uploads", "update", { data: { id: LOT } });
     server.raspundeStocare(BUCKET, "download", { data: csv(linii.join("\n")) });
     admin.raspundeStocare(BUCKET, "remove", { data: [] });
     server.raspunde("fuel_card_import_profiles", "select", { data: null });
@@ -133,6 +197,7 @@ describe("analizeazaExtras", () => {
 
   it("coloane nerecunoscute: cere maparea, NU urcă lotul, iar eșantionul n-are numere întregi", async () => {
     const { server, admin } = configureazaActiunea({ permisiuni: PERMISIUNI });
+    server.raspunde("import_uploads", "update", { data: { id: LOT } });
     server.raspundeStocare(BUCKET, "download", {
       data: csv("Col A;Col B;Col C\n7002 5100 0000 1234;05.10.2026;12,50\n"),
     });
@@ -161,6 +226,7 @@ describe("analizeazaExtras", () => {
     // o celulă peste ele trecea de previzualizare, apoi INSERT-ul felie cădea
     // întreg pe 22003, la fiecare reluare, fără să spună rândul.
     const { server, admin } = configureazaActiunea({ permisiuni: PERMISIUNI });
+    server.raspunde("import_uploads", "update", { data: { id: LOT } });
     server.raspundeStocare(BUCKET, "download", {
       data: csv(
         "Numar card;Data;Produs;Cantitate;Pret;Valoare;Km\n" +
@@ -189,6 +255,7 @@ describe("analizeazaExtras", () => {
 
   it("extras recunoscut: lotul urcat fără numere întregi, rândul de total respins, AdBlue nu e combustibil", async () => {
     const { server, admin } = configureazaActiunea({ permisiuni: PERMISIUNI });
+    server.raspunde("import_uploads", "update", { data: { id: LOT } });
     server.raspundeStocare(BUCKET, "download", { data: csv(EXTRAS) });
     admin.raspundeStocare(BUCKET, "remove", { data: [] });
     citiriAnaliza(server);
@@ -223,6 +290,7 @@ describe("analizeazaExtras", () => {
 
   it("cheile deja importate se numără ca duplicate și nu se potrivesc din nou", async () => {
     const { server, admin } = configureazaActiunea({ permisiuni: PERMISIUNI });
+    server.raspunde("import_uploads", "update", { data: { id: LOT } });
     server.raspundeStocare(BUCKET, "download", { data: csv(EXTRAS) });
     admin.raspundeStocare(BUCKET, "remove", { data: [] });
     // Prima cheie există deja: o aflăm întâi dintr-o analiză curată.
@@ -240,6 +308,7 @@ describe("analizeazaExtras", () => {
     const { server: s2, admin: a2 } = configureazaActiunea({
       permisiuni: PERMISIUNI,
     });
+    s2.raspunde("import_uploads", "update", { data: { id: LOT } });
     s2.raspundeStocare(BUCKET, "download", { data: csv(EXTRAS) });
     a2.raspundeStocare(BUCKET, "remove", { data: [] });
     s2.raspunde("fuel_card_import_profiles", "select", { data: null });
@@ -308,6 +377,8 @@ function lotDeTest(chei: readonly string[]): LotExtras {
 }
 
 function lotInStocare(server: ClientFals, lot: LotExtras): void {
+  // X2: aplicarea cere întâi lotul emis de server și deja analizat (`import_uploads`).
+  server.raspunde("import_uploads", "select", { data: { id: LOT } });
   server.raspundeStocare(BUCKET, "download", {
     data: new Blob([JSON.stringify(lot)], { type: "application/json" }),
   });
@@ -322,6 +393,21 @@ function citiriPotrivire(server: ClientFals): void {
 }
 
 describe("aplicaImportExtras", () => {
+  it("X2: lotul neanalizat sau al altcuiva: CONFLICT, fără citirea lotului și fără ștergere", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: PERMISIUNI });
+    server.raspunde("import_uploads", "select", { data: null });
+
+    const r = await aplicaImportExtras({ batchId: ID_2, offset: 0 });
+
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(server.apeluriStocare).toHaveLength(0);
+    expect(admin.apeluriStocare).toHaveLength(0);
+    const [citire] = server.apeluriPe("import_uploads", "select");
+    expect(areFiltru(citire, "eq", "created_by", USER_ID)).toBe(true);
+    expect(areFiltru(citire, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(citire, "not", "consumat_la", "is")).toBe(true);
+  });
+
   it("offset 0: creează lotul cu id = batchId, filtrează cheile existente, scrie restul", async () => {
     const { server, admin } = configureazaActiunea({ permisiuni: PERMISIUNI });
     lotInStocare(server, lotDeTest(["h:a#1", "h:b#1"]));
@@ -626,6 +712,7 @@ describe("aplicaImportExtras", () => {
 
   it("lotul expirat din Storage: CONFLICT cu instrucțiunea de reluare", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMISIUNI });
+    server.raspunde("import_uploads", "select", { data: { id: LOT } });
     server.raspundeStocare(BUCKET, "download", {
       error: { message: "not found" },
     });
