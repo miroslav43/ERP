@@ -161,11 +161,24 @@ describe("costuriVehicul", () => {
     });
     db.raspunde("vehicle_documents", "select", {
       data: [
-        { id: ID_1, cost: 1800 },
-        { id: ID_2, cost: 200.5 },
+        { id: ID_1, costuri: { cost: 1800 } },
+        { id: ID_2, costuri: { cost: 200.5 } },
       ],
     });
   }
+
+  // X1 (0225): costul documentului stă în `vehicle_document_costuri`, sub RLS-ul
+  // costurilor. Încorporarea e `!inner`: documentul fără rând de cost VIZIBIL nu
+  // intră în adunare, iar coloana veche `vehicle_documents.cost` (goală) nu se
+  // mai cere.
+  it("costul documentelor vine din `vehicle_document_costuri`, încorporat `!inner`", async () => {
+    programeaza();
+    await costuriVehicul(ORG_ID, ID_1, "2026-01-01", "2026-10-12", true);
+    const apel = db.apeluriPe("vehicle_documents")[0];
+    expect(apel?.coloane).toBe("id, costuri:vehicle_document_costuri!inner(cost)");
+    expect(areFiltru(apel, "not", "costuri.cost")).toBe(true);
+    expect(areFiltru(apel, "not", "cost")).toBe(false);
+  });
 
   it("adună cele patru surse, cost pe km din foile aprobate și consumul real", async () => {
     programeaza();
@@ -258,7 +271,7 @@ describe("costuriVehicul", () => {
     db.raspunde("vehicle_expenses", "select", {
       data: [{ id: ID_1, categorie: "parcare", suma: 15, litri: null }],
     });
-    db.raspunde("vehicle_documents", "select", { data: [{ id: ID_1, cost: 200.5 }] });
+    db.raspunde("vehicle_documents", "select", { data: [{ id: ID_1, costuri: { cost: 200.5 } }] });
     // Un răspuns programat pe foi, ca să se vadă că NU e citit.
     db.raspunde("trip_sheets", "select", {
       data: [{ id: ID_1, km_parcursi: 400, alimentari: [{ litri: 30, cost: 220 }] }],

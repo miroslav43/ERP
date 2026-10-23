@@ -397,44 +397,62 @@ export async function listeazaIncidente(
 }
 
 /**
+ * O declarație de incident, așa cum o vede ȘOFERUL: doar ce a declarat și
+ * stadiul. Nu are costurile, despăgubirea, asigurătorul, dosarul, observațiile
+ * interne și nici legătura cu cercetarea SSM — pe acelea le scrie responsabilul
+ * și nu-i sunt arătate (X1).
+ */
+export interface RandDeclaratie {
+  readonly id: string;
+  readonly vehicle_id: string;
+  readonly tip: TipIncident;
+  readonly produs_la: string;
+  readonly locul: string | null;
+  readonly descriere: string;
+  readonly stadiu: StadiuIncident;
+  readonly inchis_la: string | null;
+}
+
+export interface RezultatDeclaratii {
+  readonly randuri: readonly RandDeclaratie[];
+  readonly urmatorulCursor: string | null;
+  readonly total: number;
+}
+
+/**
  * Incidentele declarate de șofer din portal („Mașina mea”, 0206 §F), cele mai
  * noi întâi, cu cursor keyset pe momentul incidentului.
  *
- * Filtrul pe declarant e EXPLICIT, ca la tot portalul: politica îi arată
- * angajatului doar declarațiile lui, dar un administrator care e și șofer
- * (`read = all`) ar vedea altfel toate incidentele firmei sub „ale mele”.
+ * Citirea trece prin `public.incidente_declarate_de_mine`, NU prin tabelă: din
+ * X1, `vehicle_incidents_select` nu mai are ramura `own` (RLS-ul taie rânduri,
+ * nu coloane, iar șoferul primea rândul întreg, cu costurile). Funcția judecă
+ * singură declarantul (`app.fisa_mea`, fișa PRINCIPALĂ a contului) și firma —
+ * filtrul pe declarant rămâne explicit, deci un administrator care e și șofer
+ * (`read = all`) vede aici doar declarațiile LUI. `total` numără toate
+ * declarațiile, nu doar pe cele de după cursor.
  */
 export async function declaratiileMele(
   organizationId: string,
-  fisaId: string,
   pagina: Readonly<{ cursor: string | null; limita: number }>,
-): Promise<RezultatIncidente> {
+): Promise<RezultatDeclaratii> {
   const db = await createServerSupabase();
-  let interogare = db
-    .from("vehicle_incidents")
-    .select(COLOANE_INCIDENT)
-    .eq("organization_id", organizationId)
-    .eq("declarat_de_employee_id", fisaId)
-    .is("deleted_at", null)
-    .order("produs_la", { ascending: false })
-    .order("id", { ascending: false })
-    .limit(pagina.limita + 1);
-  if (pagina.cursor !== null) {
-    const c = decodificaCursor(pagina.cursor);
-    if (c !== null) interogare = interogare.or(predicatKeyset("produs_la", c, "desc"));
-  }
-  const [rezultat, numarare] = await Promise.all([
-    interogare.returns<RandIncident[]>(),
-    db
-      .from("vehicle_incidents")
-      .select("id", { count: "exact", head: true })
-      .eq("organization_id", organizationId)
-      .eq("declarat_de_employee_id", fisaId)
-      .is("deleted_at", null),
-  ]);
-  if (rezultat.error !== null) throw rezultat.error;
-  if (numarare.error !== null) throw numarare.error;
-  const toate = rezultat.data ?? [];
+  const cursor = pagina.cursor === null ? null : decodificaCursor(pagina.cursor);
+  const { data, error } = await db.rpc("incidente_declarate_de_mine", {
+    p_organization_id: organizationId,
+    p_limita: pagina.limita + 1,
+    ...(cursor === null ? {} : { p_dupa_produs_la: cursor.valoare, p_dupa_id: cursor.id }),
+  });
+  if (error !== null) throw error;
+  const toate = (data ?? []).map((r): RandDeclaratie => ({
+    id: r.id,
+    vehicle_id: r.vehicle_id,
+    tip: r.tip,
+    produs_la: r.produs_la,
+    locul: r.locul,
+    descriere: r.descriere,
+    stadiu: r.stadiu,
+    inchis_la: r.inchis_la,
+  }));
   const areUrmatoarea = toate.length > pagina.limita;
   const randuri = areUrmatoarea ? toate.slice(0, pagina.limita) : toate;
   const ultim = randuri.at(-1);
@@ -444,7 +462,7 @@ export async function declaratiileMele(
       areUrmatoarea && ultim !== undefined
         ? codificaCursor({ valoare: ultim.produs_la, id: ultim.id })
         : null,
-    total: numarare.count ?? randuri.length,
+    total: data?.[0]?.total ?? 0,
   };
 }
 

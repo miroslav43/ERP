@@ -567,14 +567,21 @@ describe("declaraIncident", () => {
     expect(server.apeluri).toHaveLength(0);
   });
 
-  it("sub `own`: INSERT cu fișa proprie ca declarant și șofer, fără costuri, cu `.select()`", async () => {
+  // X1: `vehicle_incidents_select` nu mai are ramura `own` (rândul are costurile
+  // și observațiile responsabilului), deci INSERT-ul șoferului NU poate cere
+  // `RETURNING`: un `.select()` ar cădea cu 42501 pe fiecare declarație. Id-ul îl
+  // pune acțiunea.
+  it("sub `own`: INSERT cu fișa proprie ca declarant și șofer, fără costuri, cu id-ul dat de acțiune și FĂRĂ `.select()`", async () => {
     const { server } = configureazaActiunea({ permisiuni: { "vehicle_incidents:create": "own" } });
     server.raspunde("employees", "select", { data: { id: FISA } });
-    server.raspunde("vehicle_incidents", "insert", { data: { id: ID_1 } });
+    server.raspunde("vehicle_incidents", "insert", { data: null });
 
     const r = await declaraIncident(declaratie);
 
-    expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+    const [scriereId] = server.apeluriPe("vehicle_incidents", "insert");
+    const id = (scriereId?.payload as { id?: unknown } | undefined)?.id;
+    expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u);
+    expect(r).toEqual({ ok: true, data: { id } });
     const [fisa] = server.apeluriPe("employees", "select");
     expect(areFiltru(fisa, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(areFiltru(fisa, "eq", "user_id", USER_ID)).toBe(true);
@@ -582,6 +589,7 @@ describe("declaraIncident", () => {
     expect(areFiltru(fisa, "is", "deleted_at", null)).toBe(true);
     const [scriere] = server.apeluriPe("vehicle_incidents", "insert");
     expect(scriere?.payload).toEqual({
+      id,
       organization_id: ORG_ID,
       vehicle_id: VEHICUL,
       tip: "avarie",
@@ -593,7 +601,7 @@ describe("declaraIncident", () => {
       created_by: USER_ID,
       updated_by: USER_ID,
     });
-    expect(scriere?.selectDupaScriere).toBe("id");
+    expect(scriere?.selectDupaScriere).toBeUndefined();
     expect(caiRevalidate()).toEqual(["/portal/masina-mea", "/flota/incidente"]);
   });
 

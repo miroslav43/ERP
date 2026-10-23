@@ -28,6 +28,8 @@
  * trimite și apoi marchează „răspuns trimis”.
  */
 
+import { randomUUID } from "node:crypto";
+
 import { STADII_AMENDA, STADII_INCIDENT, poateTrece } from "@/domain/fleet/amenzi";
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule, invalidInput } from "@/lib/actions/errors";
@@ -427,7 +429,8 @@ export const raporteazaIncident = createAction({
  * care declară din portal rămâne declarant, deci responsabilul e notificat.
  *
  * Fișa e citită prin clientul utilizatorului (`employees:read = own`, din 0023):
- * cea PRINCIPALĂ, singura pe care o recunoaște ramura `own` a politicii.
+ * cea PRINCIPALĂ, singura pe care o recunoaște ramura `own` a politicii de
+ * INSERT (și `incidente_declarate_de_mine`, la citire).
  */
 export const declaraIncident = createAction({
   name: "fleet.incident.declare",
@@ -457,24 +460,26 @@ export const declaraIncident = createAction({
         "Contul dumneavoastră nu e legat de o fișă de angajat, deci nu puteți declara un incident. Anunțați responsabilul de flotă.",
       );
     }
-    const { data, error } = await ctx.supabase
-      .from("vehicle_incidents")
-      .insert({
-        organization_id: ctx.tenant.organizationId,
-        vehicle_id: input.vehicle_id,
-        tip: input.tip,
-        produs_la: input.produs_la,
-        locul: input.locul,
-        descriere: input.descriere,
-        declarat_de_employee_id: fisa.data.id,
-        sofer_id: fisa.data.id,
-        created_by: ctx.user.id,
-        updated_by: ctx.user.id,
-      })
-      .select("id")
-      .single();
+    // X1: id-ul îl pune acțiunea și NU se cere `.select()`. Șoferul nu citește
+    // rândul incidentului (`vehicle_incidents_select` e doar `read = all`: rândul
+    // are costurile și observațiile responsabilului), iar `RETURNING` cere
+    // rândul vizibil — ar cădea cu 42501 pe fiecare declarație.
+    const id = randomUUID();
+    const { error } = await ctx.supabase.from("vehicle_incidents").insert({
+      id,
+      organization_id: ctx.tenant.organizationId,
+      vehicle_id: input.vehicle_id,
+      tip: input.tip,
+      produs_la: input.produs_la,
+      locul: input.locul,
+      descriere: input.descriere,
+      declarat_de_employee_id: fisa.data.id,
+      sofer_id: fisa.data.id,
+      created_by: ctx.user.id,
+      updated_by: ctx.user.id,
+    });
     if (error !== null) traduEroareAmenzi(error);
-    return { id: data.id };
+    return { id };
   },
 });
 

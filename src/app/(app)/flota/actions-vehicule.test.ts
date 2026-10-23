@@ -161,6 +161,46 @@ describe("creeazaVehicul", () => {
     expect(r.error.message).toContain("număr de înmatriculare");
   });
 
+  // X1 (0225): valoarea de achiziție NU mai stă pe rândul vehiculului (pe care îl
+  // vede și șoferul), ci în `vehicle_costuri`, cu RLS-ul costurilor.
+  it("cu valoare de achiziție: vehiculul fără valoare, apoi rândul din `vehicle_costuri`", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicles:create": "all" } });
+    server.raspunde("vehicles", "insert", { data: { id: ID_1 } });
+    server.raspunde("vehicle_costuri", "insert", { data: null });
+
+    const r = await creeazaVehicul(vehicul({ valoare_achizitie: "65000" }));
+
+    expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+    const [vehiculScris] = server.apeluriPe("vehicles");
+    expect(vehiculScris?.payload).not.toHaveProperty("valoare_achizitie");
+    const [cost] = server.apeluriPe("vehicle_costuri");
+    expect(cost?.operatie).toBe("insert");
+    expect(cost?.payload).toEqual({
+      organization_id: ORG_ID,
+      vehicle_id: ID_1,
+      valoare_achizitie: 65000,
+      created_by: USER_ID,
+      updated_by: USER_ID,
+    });
+  });
+
+  it("fără valoare de achiziție: nicio scriere în `vehicle_costuri`", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicles:create": "all" } });
+    server.raspunde("vehicles", "insert", { data: { id: ID_1 } });
+    await creeazaVehicul(vehicul());
+    expect(server.apeluriPe("vehicle_costuri")).toHaveLength(0);
+  });
+
+  it("valoarea nu se scrie după ce vehiculul a intrat: CONFLICT care spune că vehiculul există", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicles:create": "all" } });
+    server.raspunde("vehicles", "insert", { data: { id: ID_1 } });
+    server.raspunde("vehicle_costuri", "insert", { error: eroarePostgrest("42501") });
+    const r = await creeazaVehicul(vehicul({ valoare_achizitie: "65000" }));
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    if (r.ok) return;
+    expect(r.error.message).toContain("a fost adăugat");
+  });
+
   it("un VIN cu litera O (exclusă din standard) e respins de schemă", async () => {
     const { server } = configureazaActiunea({ permisiuni: { "vehicles:create": "all" } });
     const r = await creeazaVehicul(vehicul({ vin: "OOOOOOOOOOOOOOOOO" }));
@@ -182,6 +222,7 @@ describe("actualizeazaVehicul", () => {
   it("succes: UPDATE pe id + organizație, pe un vehicul viu, cu `updated_by` și `.select()`", async () => {
     const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "all" } });
     server.raspunde("vehicles", "update", { data: { id: ID_1 } });
+    server.raspunde("vehicle_costuri", "upsert", { data: null });
 
     const r = await actualizeazaVehicul({
       id: ID_1,
@@ -210,6 +251,7 @@ describe("actualizeazaVehicul", () => {
   it("auditul modificării păstrează doar allow-list-ul: fără valoare, observații sau culoare", async () => {
     const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "all" } });
     server.raspunde("vehicles", "update", { data: { id: ID_1 } });
+    server.raspunde("vehicle_costuri", "upsert", { data: null });
     await actualizeazaVehicul({
       id: ID_1,
       ...vehicul({
@@ -240,13 +282,49 @@ describe("actualizeazaVehicul", () => {
     }
   });
 
-  it("zero rânduri: NEGASIT", async () => {
+  it("zero rânduri: NEGASIT, fără să atingă `vehicle_costuri`", async () => {
     const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "all" } });
     server.raspunde("vehicles", "update", { data: null });
     const r = await actualizeazaVehicul({ id: ID_1, ...vehicul(), status: "activ" });
     expect(r).toMatchObject({ ok: false, error: { code: "NEGASIT" } });
+    expect(server.apeluriPe("vehicle_costuri")).toHaveLength(0);
     expect(caiRevalidate()).toEqual([]);
   });
+
+  // X1 (0225): valoarea se corectează în `vehicle_costuri` (upsert pe vehicul).
+  // Un câmp golit TREBUIE să golească valoarea: de aceea upsert-ul pleacă și cu
+  // `null`. Coloana veche ignoră `null` (o golire n-ar ajunge nicăieri).
+  // `null` e ce trimite formularul pentru câmpul golit (`valoriVehicul`).
+  it.each([
+    ["65000", 65000],
+    [null, null],
+  ])(
+    "valoarea „%s”: upsert în `vehicle_costuri` pe vehicul, nu pe rândul vehiculului",
+    async (trimis, scris) => {
+      const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "all" } });
+      server.raspunde("vehicles", "update", { data: { id: ID_1 } });
+      server.raspunde("vehicle_costuri", "upsert", { data: null });
+
+      const r = await actualizeazaVehicul({
+        id: ID_1,
+        ...vehicul({ valoare_achizitie: trimis }),
+        status: "activ",
+      });
+
+      expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+      expect(server.apeluriPe("vehicles")[0]?.payload).not.toHaveProperty("valoare_achizitie");
+      const [cost] = server.apeluriPe("vehicle_costuri");
+      expect(cost?.operatie).toBe("upsert");
+      expect(cost?.optiuni).toEqual({ onConflict: "vehicle_id" });
+      expect(cost?.payload).toEqual({
+        organization_id: ORG_ID,
+        vehicle_id: ID_1,
+        valoare_achizitie: scris,
+        created_by: USER_ID,
+        updated_by: USER_ID,
+      });
+    },
+  );
 
   it.each([["vandut"], ["casat"]])(
     "ieșirea din parc (`%s`) fără motiv e respinsă de schemă",
@@ -322,6 +400,7 @@ describe("adaugaDocument", () => {
   it("succes: reînnoirea e un INSERT nou, fără `este_curent`, cu autorul", async () => {
     const { server } = configureazaActiunea({ permisiuni: { "vehicles:create": "all" } });
     server.raspunde("vehicle_documents", "insert", { data: { id: ID_3 } });
+    server.raspunde("vehicle_document_costuri", "insert", { data: null });
 
     const r = await adaugaDocument({
       vehicle_id: ID_1,
@@ -342,17 +421,36 @@ describe("adaugaDocument", () => {
       vehicle_id: ID_1,
       document_type_id: ID_2,
       expira_la: "2027-09-01",
-      cost: 1200,
       created_by: USER_ID,
       updated_by: USER_ID,
     });
     expect(apel?.payload).not.toHaveProperty("este_curent");
+    // X1 (0225): costul NU stă pe rândul documentului (pe care îl văd și șoferul
+    // și managerul pe pool), ci în `vehicle_document_costuri`.
+    expect(apel?.payload).not.toHaveProperty("cost");
+    const [cost] = server.apeluriPe("vehicle_document_costuri");
+    expect(cost?.operatie).toBe("insert");
+    expect(cost?.payload).toEqual({
+      organization_id: ORG_ID,
+      document_id: ID_3,
+      cost: 1200,
+      created_by: USER_ID,
+      updated_by: USER_ID,
+    });
     expect(caiRevalidate()).toEqual(["/flota", `/flota/${ID_1}`]);
+  });
+
+  it("fără cost: nicio scriere în `vehicle_document_costuri`", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicles:create": "all" } });
+    server.raspunde("vehicle_documents", "insert", { data: { id: ID_3 } });
+    await adaugaDocument({ vehicle_id: ID_1, document_type_id: ID_2 });
+    expect(server.apeluriPe("vehicle_document_costuri")).toHaveLength(0);
   });
 
   it("auditul adăugării nu poartă costul și nici observațiile", async () => {
     const { server } = configureazaActiunea({ permisiuni: { "vehicles:create": "all" } });
     server.raspunde("vehicle_documents", "insert", { data: { id: ID_3 } });
+    server.raspunde("vehicle_document_costuri", "insert", { data: null });
     await adaugaDocument({
       vehicle_id: ID_1,
       document_type_id: ID_2,
@@ -400,6 +498,7 @@ describe("actualizeazaDocument", () => {
   it("succes: corectează rândul existent, fără să-l mute pe alt vehicul", async () => {
     const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "all" } });
     server.raspunde("vehicle_documents", "update", { data: { id: ID_3 } });
+    server.raspunde("vehicle_document_costuri", "upsert", { data: null });
 
     const r = await actualizeazaDocument({
       id: ID_3,
@@ -418,6 +517,19 @@ describe("actualizeazaDocument", () => {
     expect(apel?.payload).not.toHaveProperty("vehicle_id");
     expect(apel?.payload).not.toHaveProperty("id");
     expect(apel?.payload).not.toHaveProperty("este_curent");
+    // X1 (0225): costul se corectează în `vehicle_document_costuri`; golit, pleacă
+    // `null` (coloana veche ar ignora golirea).
+    expect(apel?.payload).not.toHaveProperty("cost");
+    const [cost] = server.apeluriPe("vehicle_document_costuri");
+    expect(cost?.operatie).toBe("upsert");
+    expect(cost?.optiuni).toEqual({ onConflict: "document_id" });
+    expect(cost?.payload).toEqual({
+      organization_id: ORG_ID,
+      document_id: ID_3,
+      cost: null,
+      created_by: USER_ID,
+      updated_by: USER_ID,
+    });
     expect(areFiltru(apel, "eq", "id", ID_3)).toBe(true);
     expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
@@ -425,11 +537,12 @@ describe("actualizeazaDocument", () => {
     expect(caiRevalidate()).toEqual(["/flota", `/flota/${ID_1}`]);
   });
 
-  it("zero rânduri: NEGASIT", async () => {
+  it("zero rânduri: NEGASIT, fără să atingă `vehicle_document_costuri`", async () => {
     const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "all" } });
     server.raspunde("vehicle_documents", "update", { data: null });
     const r = await actualizeazaDocument({ id: ID_3, vehicle_id: ID_1, document_type_id: ID_2 });
     expect(r).toMatchObject({ ok: false, error: { code: "NEGASIT" } });
+    expect(server.apeluriPe("vehicle_document_costuri")).toHaveLength(0);
   });
 });
 
@@ -522,6 +635,7 @@ describe("actualizeazaVehicul — șoferul nu mai trece pe aici (0173)", () => {
   it("un `employee_id` trimis e ignorat de schemă, nu ajunge în UPDATE", async () => {
     const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "all" } });
     server.raspunde("vehicles", "update", { data: { id: ID_1 } });
+    server.raspunde("vehicle_costuri", "upsert", { data: null });
 
     await actualizeazaVehicul({ id: ID_1, ...vehicul({ employee_id: ID_2 }), status: "activ" });
 

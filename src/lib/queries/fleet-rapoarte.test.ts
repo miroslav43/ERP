@@ -177,13 +177,13 @@ describe("surseDeCostLuna", () => {
       data: [{ id: ID_1, vehicle_id: ID_1, suma: 15 }],
     });
     db.raspunde("vehicle_documents", "select", {
-      data: [{ id: ID_1, vehicle_id: ID_1, cost: 1800 }],
+      data: [{ id: ID_1, vehicle_id: ID_1, costuri: { cost: 1800 } }],
     });
 
     const surse = await surseDeCostLuna(ORG_ID, INTERVAL, ID_1);
     expect(surse.servicii).toEqual([{ id: ID_1, vehicle_id: ID_1, cost_total: 750 }]);
     expect(surse.cheltuieli).toHaveLength(1);
-    expect(surse.documente).toHaveLength(1);
+    expect(surse.documente).toEqual([{ id: ID_1, vehicle_id: ID_1, cost: 1800 }]);
 
     const surseSiColoane: readonly (readonly [string, string])[] = [
       ["vehicle_service_entries", "data_interventiei"],
@@ -198,8 +198,13 @@ describe("surseDeCostLuna", () => {
       expect(areFiltru(apel, "lte", data, "2026-09-30"), `${tabela}: până la`).toBe(true);
       expect(areFiltru(apel, "eq", "vehicle_id", ID_1), `${tabela}: vehicul`).toBe(true);
     }
-    // Documentele fără cost nu intră în adunare.
-    expect(areFiltru(db.apeluriPe("vehicle_documents")[0], "not", "cost")).toBe(true);
+    // Documentele fără cost nu intră în adunare. X1 (0225): costul stă în
+    // `vehicle_document_costuri`, sub RLS-ul costurilor (`!inner`); coloana veche
+    // `vehicle_documents.cost` e goală și nu se mai cere.
+    const documente = db.apeluriPe("vehicle_documents")[0];
+    expect(documente?.coloane).toBe("id, vehicle_id, costuri:vehicle_document_costuri!inner(cost)");
+    expect(areFiltru(documente, "not", "costuri.cost")).toBe(true);
+    expect(areFiltru(documente, "not", "cost")).toBe(false);
   });
 });
 

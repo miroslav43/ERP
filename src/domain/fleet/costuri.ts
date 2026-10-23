@@ -19,8 +19,9 @@ import { consumLa100Km } from "./consum";
  *  · `combustibilFoi` — alimentările de pe foile APROBATE (`fuel_entries.cost`);
  *  · `cheltuieli` — `vehicle_expenses.suma`, inclusiv „combustibil fără foaie”,
  *    care prin definiție nu e pe nicio foaie;
- *  · `documente` — `vehicle_documents.cost` (RCA, ITP, rovinietă…), pentru
- *    documentele a căror valabilitate începe în perioadă.
+ *  · `documente` — `vehicle_document_costuri.cost` (RCA, ITP, rovinietă…; din
+ *    0225, nu mai `vehicle_documents.cost`), pentru documentele a căror
+ *    valabilitate începe în perioadă.
  */
 
 /** Bani întregi: 344,00 lei → 34400. */

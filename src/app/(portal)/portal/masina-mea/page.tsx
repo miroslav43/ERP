@@ -91,7 +91,8 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
   const poateCrea = poateFoi && can(permisiuni, "trip_sheets:create", "own");
   const poateVedeaMasina = can(permisiuni, "vehicles:read", "own");
   // 0206 §F: șoferul își declară dauna. Fără `vehicle_incidents:read`: își vede
-  // doar declarațiile lui (ramura `own` a politicii), nu incidentele firmei, și
+  // doar declarațiile lui, prin `incidente_declarate_de_mine` (fără costuri,
+  // asigurător sau observațiile responsabilului), nu incidentele firmei, și
   // nicio amendă.
   const poateDeclara = can(permisiuni, "vehicle_incidents:create", "own");
   const deschideDeclaratia = parametri["incident"] === "nou";
@@ -110,7 +111,7 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
     poateVedeaMasina ? tipuriDocument(tenant.organizationId) : Promise.resolve([]),
     pvurileMele(tenant.organizationId, fisaId),
     poateDeclara
-      ? declaratiileMele(tenant.organizationId, fisaId, {
+      ? declaratiileMele(tenant.organizationId, {
           cursor: cursorDeclaratii,
           limita: DECLARATII_PE_PAGINA,
         })

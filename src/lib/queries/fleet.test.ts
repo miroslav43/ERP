@@ -191,6 +191,25 @@ describe("citesteVehicul / citesteFoaie", () => {
     expect(apel?.coloane).toContain("motiv_iesire");
   });
 
+  // X1 (0225): valoarea de achiziție vine din `vehicle_costuri`, încorporată sub
+  // RLS-ul costurilor; coloana veche de pe `vehicles` e goală.
+  it("vehiculul: valoarea de achiziție vine din `vehicle_costuri`, nu din coloana veche", async () => {
+    db.raspunde("vehicles", "select", {
+      data: { id: ID_1, costuri: { valoare_achizitie: 65000 }, valoare_achizitie: null },
+    });
+    const v = await citesteVehicul(ORG_ID, ID_1);
+    expect(v?.valoare_achizitie).toBe(65000);
+    expect(v).not.toHaveProperty("costuri");
+    const [apel] = db.apeluri;
+    expect(apel?.coloane).toContain("costuri:vehicle_costuri(valoare_achizitie)");
+    expect(apel?.coloane).not.toMatch(/(^|,\s*)valoare_achizitie/u);
+  });
+
+  it("vehiculul: fără rând de cost vizibil (angajat, hr, pool la manager), valoarea e `null`", async () => {
+    db.raspunde("vehicles", "select", { data: { id: ID_1, costuri: null } });
+    expect((await citesteVehicul(ORG_ID, ID_1))?.valoare_achizitie).toBeNull();
+  });
+
   it("foaia: citită întreagă, cu motivul respingerii", async () => {
     db.raspunde("trip_sheets", "select", { data: { id: ID_1, motiv_respingere: "Lipsă bon" } });
     expect(await citesteFoaie(ORG_ID, ID_1)).toMatchObject({ motiv_respingere: "Lipsă bon" });
@@ -229,6 +248,21 @@ describe("documentele vehiculelor", () => {
     expect(areFiltru(apel, "order", "expira_la", { ascending: false, nullsFirst: false })).toBe(
       true,
     );
+  });
+
+  it("documentele unui vehicul: costul vine din `vehicle_document_costuri` (X1), nu din coloana veche", async () => {
+    db.raspunde("vehicle_documents", "select", {
+      data: [
+        { id: ID_2, cost: null, costuri: { cost: 1200 } },
+        { id: ID_3, cost: null, costuri: null },
+      ],
+    });
+    const docs = await documenteleVehiculului(ID_1);
+    expect(docs.map((d) => d.cost)).toEqual([1200, null]);
+    expect(docs[0]).not.toHaveProperty("costuri");
+    const [apel] = db.apeluri;
+    expect(apel?.coloane).toContain("costuri:vehicle_document_costuri(cost)");
+    expect(apel?.coloane).not.toMatch(/(^|,\s*)cost\s*,/u);
   });
 
   it("tipurile de document: platforma ȘI ale firmei, explicit, cu setarea firmei aplicată (0202)", async () => {

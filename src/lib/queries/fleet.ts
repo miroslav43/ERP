@@ -417,23 +417,40 @@ export async function listeazaVehicule(
   };
 }
 
+/**
+ * Fișa vehiculului.
+ *
+ * Valoarea de achiziție vine din `vehicle_costuri` (0225, X1), încorporată:
+ * RLS-ul costurilor o arată doar cui are `vehicles:update = all` sau
+ * `vehicles:read >= team` pe mașina echipei (fără pool). Angajatul, hr-ul și
+ * managerul pe pool primesc `costuri: null`, deci `valoare_achizitie: null`.
+ * Coloana `vehicles.valoare_achizitie` e GOALĂ din 0225 și nu se mai citește
+ * (poarta din `coloane.test.ts`).
+ */
 export async function citesteVehicul(organizationId: string, id: string): Promise<Vehicul | null> {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("vehicles")
     .select(
       `${COLOANE_VEHICUL_LISTA}, vin, culoare, capacitate_cilindrica, ` +
-        "numar_locuri, valoare_achizitie, data_achizitie, " +
-        "motiv_iesire, observatii, anvelope_montate, created_at",
+        "numar_locuri, data_achizitie, " +
+        "motiv_iesire, observatii, anvelope_montate, created_at, " +
+        "costuri:vehicle_costuri(valoare_achizitie)",
     )
     .eq("organization_id", organizationId)
     .eq("id", id)
     .is("deleted_at", null)
-    .maybeSingle<Vehicul>();
+    .maybeSingle<VehiculBrut>();
 
   if (error !== null) throw error;
-  return data;
+  if (data === null) return null;
+  const { costuri, ...vehicul } = data;
+  return { ...vehicul, valoare_achizitie: costuri?.valoare_achizitie ?? null };
 }
+
+type VehiculBrut = Omit<Vehicul, "valoare_achizitie"> & {
+  readonly costuri: Readonly<{ valoare_achizitie: number | null }> | null;
+};
 
 /**
  * Scadențele curente ale unui grup de vehicule, pentru semaforul din listă.
@@ -563,6 +580,13 @@ export async function departamentePentruVehicul(
   return data ?? [];
 }
 
+/**
+ * Documentele unui vehicul, cele care expiră cel mai târziu primele.
+ *
+ * Costul vine din `vehicle_document_costuri` (0225, X1), încorporat sub RLS-ul
+ * costurilor: angajatul și managerul pe pool văd documentul (scadența, fișierul),
+ * dar `cost: null`. Coloana `vehicle_documents.cost` e GOALĂ din 0225.
+ */
 export async function documenteleVehiculului(
   vehiculId: string,
 ): Promise<readonly DocumentVehicul[]> {
@@ -570,17 +594,25 @@ export async function documenteleVehiculului(
   const { data, error } = await db
     .from("vehicle_documents")
     .select(
-      "id, document_type_id, emitent, valabil_de_la, expira_la, cost, " +
-        "fisier_path, fisier_nume, este_curent, observatii, created_at",
+      "id, document_type_id, emitent, valabil_de_la, expira_la, " +
+        "fisier_path, fisier_nume, este_curent, observatii, created_at, " +
+        "costuri:vehicle_document_costuri(cost)",
     )
     .eq("vehicle_id", vehiculId)
     .is("deleted_at", null)
     .order("expira_la", { ascending: false, nullsFirst: false })
-    .returns<DocumentVehicul[]>();
+    .returns<DocumentBrut[]>();
 
   if (error !== null) throw error;
-  return data ?? [];
+  return (data ?? []).map(({ costuri, ...document }) => ({
+    ...document,
+    cost: costuri?.cost ?? null,
+  }));
 }
+
+type DocumentBrut = Omit<DocumentVehicul, "cost"> & {
+  readonly costuri: Readonly<{ cost: number | null }> | null;
+};
 
 const COLOANE_TIP_DOCUMENT =
   "id, organization_id, cod, denumire, descriere, cere_expirare, obligatoriu, ordine, activ, " +
