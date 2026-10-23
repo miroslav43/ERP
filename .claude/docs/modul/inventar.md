@@ -80,8 +80,12 @@ prin trigger; ieșirea din `in_reparatie` are acțiune proprie.
 
 **Lotul de import se caută doar în firma obiectului** (0233):
 `internal.inventory_items_lot_propriu` dă un singur P0001 pentru lotul inexistent și
-pentru cel al altei firme, iar garda de firmă (42501) vine înaintea căutării. Proba:
-`tests/rls/proba-oracol-intre-firme.sql`.
+pentru cel al altei firme, iar garda de firmă (42501) vine înaintea căutării. La fel
+predarea (`internal.inventory_alloc_valideaza`, 0233 §9): obiectul și angajatul se caută
+doar în firma predării, deci cel inexistent și cel străin primesc același P0001 („…nu
+există în organizația dumneavoastră.” / „…nu are o fișă activă în organizația
+dumneavoastră.”); mesajul despre „aceeași organizație” a dispărut. Garda refuză și
+`organization_id` null. Proba: `tests/rls/proba-oracol-intre-firme.sql`.
 
 **Un obiect NEALOCAT e invizibil sub `all`.** Politica de SELECT pe `inventory_items`
 gradează după scope: la `all` se vede tot; la `team` doar dacă există o alocare pe un
