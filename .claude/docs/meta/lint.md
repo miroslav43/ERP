@@ -8,7 +8,7 @@ tabele: []
 permisiuni: []
 capcane: []
 scris_pe: MANUAL
-scris_la: 2026-09-03
+scris_la: 2026-10-23
 tags: [meta]
 ---
 
@@ -40,10 +40,13 @@ zeci de erori false — adică prima impresie ar fi „poarta e stricată".
 | `B`   | migrarea citată există în `supabase/migrations/`                                                                                                                                                |
 | `J`   | ruta citată se rezolvă la un `page.tsx` sau `route.ts`                                                                                                                                          |
 | `G`   | `capcana #N` există în `docs/design/ecrane/capcane.md`, iar `capcane:` din frontmatter la fel                                                                                                   |
-| `H`   | wikilink-urile duc undeva; capcanele NU se scriu ca wikilink; nicio pagină nu se leagă de ea însăși                                                                                             |
+| `H`   | wikilink-urile duc undeva; capcanele NU se scriu ca wikilink; nicio pagină nu se leagă de ea însăși; pagina-mamă își leagă fiecare subpagină (`<mamă>/<sub>.md`) — eroarea stă pe mamă          |
 
 Clasa `R` e singura care produce și avertismente: peste **țintă** avertizează, peste
-**plafonul dur** e eroare și pagina se sparge.
+**plafonul dur** e eroare și pagina se sparge — nocturna o sparge singură, după
+[[meta/conventii]]. Cu `--json`, fiecare pagină are și `corp` (octeți, țintă, plafon
+dur): nocturna îl citește ca să decidă spargerea, iar `lint-compara.mjs` ca să prindă o
+pagină deja peste plafon care mai crește.
 
 | Tip                      | Țintă | Plafon dur |
 | ------------------------ | ----- | ---------- |

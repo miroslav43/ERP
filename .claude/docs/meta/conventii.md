@@ -13,7 +13,7 @@ neverificat:
   - "[[capcana 12]] — exemplu negativ: pagina asta DEFINEȘTE de ce capcanele nu-s wikilink"
   - "lipsește politica X — text care ENUMERĂ formulările interzise de clasa P"
 scris_pe: MANUAL
-scris_la: 2026-08-28
+scris_la: 2026-10-23
 tags: [meta]
 ---
 
@@ -32,8 +32,23 @@ tags: [meta]
 
 Plafoanele se măsoară pe **corp**, fără frontmatter. Depășirea nu e o avertizare, e o
 condiție de spargere: un modul se sparge pe subarborele de rute
-(`modul/<slug>/<sub>.md`), iar dacă secțiunea „Server Actions" singură trece de 40 de
+(`modul/<slug>/<sub>.md`), iar dacă secțiunea „Server Actions” singură trece de 40 de
 rânduri se extrage în `modul/<slug>/actiuni.md`, indiferent de rute.
+
+### Spargerea, mecanic
+
+- Subpagina stă un singur nivel sub mamă, cu nume `[a-z0-9-]+.md`, și are frontmatter
+  complet, cu `cai:` restrâns la ce ține ea.
+- Legătura merge în ambele sensuri: subpagina începe cu „Secțiune extrasă din
+  [[modul/pontaj]]”, iar mama o trece în tabelul „Paginile modulului”. Lintul refuză
+  mama care nu-și leagă o subpagină (eroarea stă pe mamă, deci ea se revertește):
+  CLAUDE.md trimite la pagina-mamă, deci o subpagină nelegată nu e citită de nimeni.
+- Secțiunile se mută întregi, cu textul neschimbat.
+- Nocturna (`.github/workflows/documentatie.yml`) sparge singură: lintul măsoară corpul
+  după rescriere, iar peste plafonul dur urmează o a doua trecere, doar de spargere.
+  Spargerea ajunge pe main numai cu subpagini NOI. Dacă mama sau oricare subpagină nouă
+  capătă erori, se retrage toată. O pagină care e deja peste plafon și mai crește e
+  revertită, chiar dacă numărul ei de erori rămâne același.
 
 ## Frontmatter
 

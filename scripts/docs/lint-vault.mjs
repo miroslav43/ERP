@@ -373,6 +373,33 @@ const verifica = (cale) => {
 
   // ── H — wikilink-uri ──
   const propria = relative(VAULT, cale).replace(/\.md$/, "");
+
+  // O subpagină (`modul/<slug>/<sub>.md`) există ca s-o găsească cine citește
+  // pagina-mamă — CLAUDE.md trimite agentul la `modul/<slug>.md`, nu la
+  // subarbore. Nelegată de acolo, e o pagină pe care n-o deschide nimeni, iar
+  // spargerea făcută de nocturnă ar fi o ștergere tăcută a secțiunii mutate.
+  //
+  // Eroarea stă pe MAMĂ, nu pe subpagină: mama a pierdut (sau n-a primit)
+  // rândul din tabel, deci ea se repară sau se revertește. Pusă pe subpagină,
+  // poarta nocturnei revertea subpagina neatinsă, rămânea roșie și anula
+  // publicarea TUTUROR paginilor din noaptea aia.
+  const dirSubpagini = cale.replace(/\.md$/, "");
+  if (existsSync(dirSubpagini) && statSync(dirSubpagini).isDirectory()) {
+    const subpagini = readdirSync(dirSubpagini, { withFileTypes: true })
+      .filter((d) => d.isFile() && d.name.endsWith(".md"))
+      .map((d) => `${propria}/${d.name.slice(0, -".md".length)}`)
+      .sort();
+    for (const sub of subpagini) {
+      num("H");
+      const scapat = sub.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      if (!new RegExp(`\\[\\[\\s*${scapat}\\s*(\\||\\]\\])`).test(text))
+        E(
+          "H",
+          1,
+          `subpagina \`${sub}.md\` nu e legată de aici — adaugă \`[[${sub}]]\` în tabelul paginilor modulului`,
+        );
+    }
+  }
   for (const { linie, nr } of [...proza, ...blocuri]) {
     for (const m of linie.matchAll(/\[\[([^\]]+)\]\]/g)) {
       const tinta = m[1].split("|")[0].trim();
@@ -395,7 +422,10 @@ const verifica = (cale) => {
     }
   }
 
-  return { rel, erori, averts, verificari };
+  // `corp` e mărimea MĂSURATĂ: nocturna o citește ca să decidă spargerea, în
+  // loc să-l lase pe agent — care n-are `Bash` — s-o estimeze.
+  const corpMasurat = { octeti: octetiCorp, tinta: plafon.tinta, dur: plafon.dur };
+  return { rel, erori, averts, verificari, corp: corpMasurat };
 };
 
 // ── Rulare ─────────────────────────────────────────────────────────────────

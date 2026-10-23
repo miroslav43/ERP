@@ -10,13 +10,29 @@
 import { readFileSync, writeFileSync } from "node:fs";
 
 const [sablon, iesire] = process.argv.slice(2);
-const permise = ["REPO", "PAGINA", "SHA_VECHI", "SHA_NOU", "DIR"];
+const permise = [
+  "REPO",
+  "PAGINA",
+  "SHA_VECHI",
+  "SHA_NOU",
+  "DIR",
+  "SUBDIR",
+  "OCTETI",
+  "TINTA",
+  "DUR",
+];
+// Mărimile vin din lintul vault-ului (`corp`), nu din text liber: doar cifre.
+const numerice = new Set(["OCTETI", "TINTA", "DUR"]);
 
 let text = readFileSync(sablon, "utf8");
 for (const cheie of permise) {
+  // Se cer doar variabilele pe care șablonul chiar le folosește: cele două
+  // șabloane (rescrierea și spargerea) nu au același set.
+  if (!text.includes(`{{${cheie}}}`)) continue;
   const val = process.env[cheie];
   if (val === undefined) throw new Error(`lipsește variabila ${cheie}`);
   if (/[\n\r]/.test(val)) throw new Error(`${cheie} conține linie nouă — refuz`);
+  if (numerice.has(cheie) && !/^\d+$/.test(val)) throw new Error(`${cheie} nu e un număr — refuz`);
   text = text.split(`{{${cheie}}}`).join(val);
 }
 const ramase = text.match(/\{\{[A-Z_]+\}\}/g);

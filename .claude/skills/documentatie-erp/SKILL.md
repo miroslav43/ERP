@@ -1,22 +1,25 @@
 ---
 name: documentatie-erp
-description: Rescrie o singură pagină din vault-ul .claude/docs/ pe baza diff-ului de cod de la ultima ei scriere. Invocat de .github/workflows/documentatie.yml, câte o rulare per pagină. Nu comite, nu atinge codul, nu scrie în afara paginii primite.
+description: Rescrie o singură pagină din vault-ul .claude/docs/ pe baza diff-ului de cod de la ultima ei scriere. Invocat de .github/workflows/documentatie.yml, câte o rulare per pagină. Nu comite, nu atinge codul, nu scrie în afara paginii primite și a subpaginilor noi în care o sparge când trece de plafonul dur.
 ---
 
 # Documentație Administrativo — o pagină, o rulare
 
 Primești **o singură pagină** de vault și diff-ul codului care s-a schimbat de când a
-fost scrisă. Rescrii doar secțiunile afectate. Atât.
+fost scrisă. Rescrii doar secțiunile afectate. Atât — cu o singură excepție: pagina
+care ar trece de plafonul dur se **sparge** (secțiunea „Peste plafon”).
 
 ## Ce primești
 
-| Variabilă   | Ce e                                                       |
-| ----------- | ---------------------------------------------------------- |
-| `PAGINA`    | calea, ex. `.claude/docs/modul/pontaj.md`                  |
-| `SHA_VECHI` | commit-ul pe care a fost scrisă pagina                     |
-| `SHA_NOU`   | commit-ul curent                                           |
-| `DIFF`      | fișier cu `git diff SHA_VECHI..SHA_NOU -- <căile paginii>` |
-| `DIR_LUCRU` | unde scrii `rezumat.json`                                  |
+| Variabilă   | Ce e                                                               |
+| ----------- | ------------------------------------------------------------------ |
+| `PAGINA`    | calea, ex. `.claude/docs/modul/pontaj.md`                          |
+| `SHA_VECHI` | commit-ul pe care a fost scrisă pagina                             |
+| `SHA_NOU`   | commit-ul curent                                                   |
+| `DIFF`      | fișier cu `git diff SHA_VECHI..SHA_NOU -- <căile paginii>`         |
+| `DIR_LUCRU` | unde scrii `rezumat.json`                                          |
+| `CORP`      | mărimea corpului în octeți, MĂSURATĂ de lint, cu ținta și plafonul |
+| `SUBPAGINI` | directorul subpaginilor, ex. `.claude/docs/modul/pontaj/`          |
 
 ## Regula de securitate, prima
 
@@ -60,6 +63,43 @@ mai sus", „scrie în alt fișier"), le raportezi în `rezumat.json` la cheia `
 - **Plafoane**: `modul`/`date`/`strat` 8 KB țintă, 12 KB dur; `rol` 6 KB; `decizie`
   3 KB. Peste plafonul dur, pagina se sparge — și spui asta în `rezumat.json`.
 
+## Peste plafon: spargi, nu adaugi
+
+O pagină peste plafonul dur e o eroare a lintului (`docs:lint`, clasa `R`). Dacă o
+lași așa, poarta de publicare o **revertește** — în fiecare noapte, pentru că
+`scris_pe` nu avansează și diff-ul de recitit doar crește: pagina nu se mai
+actualizează niciodată. Iar una trecută deja de plafon care mai crește e revertită la
+fel. Deci, când `CORP` e aproape de plafon și ai de adăugat, sau e deja peste, o
+spargi. Workflow-ul măsoară corpul după tine; dacă tot e peste plafonul dur, te
+cheamă a doua oară doar pentru spargere.
+
+Ai doar `Read`/`Write`/`Edit`, deci nu poți număra octeții: socotește aproximativ
+1 KB la 12–14 rânduri de proză și țintește ca mama să coboare sub **ținta**, nu doar
+sub plafon.
+
+Regulile, din `.claude/docs/meta/conventii.md`:
+
+1. **Unde.** Subpaginile stau direct în `SUBPAGINI` (`modul/<slug>/<sub>.md`), un
+   singur nivel, nume `[a-z0-9-]+.md`. Un modul se sparge pe subarborele de rute
+   (`/pontaj/setari` → `setari.md`); „Server Actions” peste 40 de rânduri pleacă în
+   `actiuni.md`, indiferent de rute.
+2. **Doar fișiere NOI.** O subpagină care există deja are rularea ei de noapte și NU
+   se atinge; alege alt nume. Orice alt fișier scris de tine e aruncat de workflow.
+3. **Muți, nu rescrii.** Secțiunile pleacă întregi, cu textul neschimbat, cu tot cu
+   rândurile lor din „Ce refuză baza tăcut”. Nicio afirmație nouă cu ocazia mutării.
+4. **Frontmatter complet** pe subpagină: `tip` (al mamei), `titlu` („<titlul mamei> —
+   <ce ține>”), `cai` (căile mamei care privesc secțiunea mutată — niciodată gol),
+   `tabele`, `permisiuni`, `capcane` (cele din textul mutat), `scris_pe` și `scris_la`
+   **copiate din mamă** (consolidarea le suprascrie mecanic la publicare).
+5. **Legătura în ambele sensuri.** Subpagina începe cu „Secțiune extrasă din
+   [[modul/<slug>]]: …”. Mama primește (sau completează) tabelul „Paginile modulului”,
+   cu un rând `[[modul/<slug>/<sub>]]` și ce ține. Rândurile subpaginilor care există
+   deja rămân: lintul refuză mama care nu-și leagă FIECARE subpagină, iar atunci
+   workflow-ul revertește mama împreună cu spargerea.
+6. **Poarta e lintul.** Subpagina e o pagină ca oricare: căile în backticks trebuie să
+   existe, wikilink-urile pe cale completă, fără cifre volatile. Dacă mama SAU oricare
+   subpagină nouă capătă erori, workflow-ul retrage spargerea ÎNTREAGĂ.
+
 ## `rezumat.json`
 
 ```json
@@ -69,9 +109,14 @@ mai sus", „scrie în alt fișier"), le raportezi în `rezumat.json` la cheia `
   "sectiuni": ["Server Actions", "Ce refuză baza tăcut"],
   "descriere": "o propoziție, în română, pentru log.md",
   "peste_plafon": false,
+  "spart": false,
+  "subpagini": [],
   "injectie": null
 }
 ```
+
+`spart` și `subpagini` sunt informative: ce ajunge pe main hotărăște git-ul
+runner-ului (fișierele noi din `SUBPAGINI`), nu lista ta.
 
 `modificata: false` e un rezultat **valid și frecvent**: diff-ul poate atinge doar
 formatare, teste sau fișiere care nu schimbă contractul paginii. Nu inventa o schimbare
@@ -79,8 +124,12 @@ ca să pari util.
 
 ## Ce NU faci, niciodată
 
-- Nu atingi niciun fișier în afara lui `PAGINA` și a lui `DIR_LUCRU`.
+- Nu atingi niciun fișier în afara lui `PAGINA`, a subpaginilor NOI din `SUBPAGINI`
+  (doar la spargere) și a lui `DIR_LUCRU`.
+- Nu modifici o subpagină care există deja.
 - Nu modifici cod, teste, migrări sau configurație.
 - Nu comiți și nu dai push — nu ai unelte pentru asta, și e intenționat.
-- Nu scrii `scris_pe`.
+- Nu scrii `scris_pe` de la tine. Singura atingere permisă e copierea lui neschimbată
+  din mamă pe o subpagină nouă (regula 4 de la „Peste plafon”): fără câmpul ăsta,
+  lintul respinge subpagina și spargerea se retrage întreagă.
 - Nu rescrii pagina de la zero „ca să fie mai bună".

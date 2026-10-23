@@ -2,21 +2,24 @@
 """Altoiește ieșirea brută a generatorului de tipuri Supabase peste convențiile repo-ului.
 
     bash .claude/skills/administrativo/scripts/banc-migrare.sh --pastreaza
-    PORT=$(docker ps --filter name=administrativo-banc --format '{{.Ports}}' \
-           | grep -oE '0.0.0.0:[0-9]+' | head -1 | cut -d: -f2)
-    pnpm exec supabase gen types typescript \
-      --db-url "postgresql://postgres:banc@localhost:$PORT/postgres" \
-      | python3 scripts/altoieste-tipuri.py > src/types/database.ts
+    # URL-ul EXACT îl tipărește bancul la final („păstrat: <container> · <url>").
+    # NU `docker ps --filter name=administrativo-banc | head -1`: cu agenți în
+    # paralel, filtrul prinde bancul altcuiva, cu alte migrări.
+    URL=postgresql://postgres:banc@localhost:<port>/postgres
+    pnpm exec supabase gen types typescript --db-url "$URL" > brut.ts
+    python3 scripts/altoieste-tipuri.py --db-url "$URL" < brut.ts > src/types/database.ts
 
 DE CE EXISTĂ FIȘIERUL ĂSTA
-`src/types/database.ts` are două abateri deliberate față de ieșirea generatorului,
-amândouă documentate în antetul lui, amândouă pierdute la o regenerare oarbă:
+`src/types/database.ts` are trei abateri deliberate față de ieșirea generatorului,
+toate documentate în antetul lui, toate pierdute la o regenerare oarbă:
 
   1. antetul propriu-zis, care spune de unde vin tipurile;
-  2. `| null` pe argumentele opționale ale celor trei RPC-uri cu `default null` —
+  2. `| null` pe argumentele opționale ale RPC-urilor cu `default null` —
      generatorul le tipează doar `?: T`, dar apelanții trimit explicit `null`,
      nu omit cheia. Fără patch, regenerarea rupe fișiere care n-au nicio treabă
-     cu schema schimbată.
+     cu schema schimbată;
+  3. `| null` pe coloanele de `returns table` care pot fi NULL
+     (`LARGIRI_RETURNS`) — generatorul le îngustează la `T`, fără nicio eroare.
 
 Reaplicarea lor manuală a fost făcută de două ori dintr-un script ținut în
 scratchpad, care s-a pierdut de fiecare dată. De aici, în repo.
@@ -88,6 +91,27 @@ def argumente_cu_default_null(db_url: str) -> dict[str, set[str]]:
                 harta.setdefault(nume, set()).add(bucati[0])
     return harta
 
+# Coloanele întoarse prin `returns table (...)` care pot fi NULL. Aici catalogul
+# nu ajută: nullabilitatea unei coloane de `returns table` nu se poate deduce,
+# iar generatorul le tipează pe toate `T`, nu `T | null` (vezi și regresia
+# `temei_legal` din memoria proiectului). Lărgirile stăteau DOAR în
+# `database.ts`, scrise de mână, și se pierdeau la prima regenerare: tipul mai
+# îngust nu dă nicio eroare, doar lasă un `null` real să treacă drept `string`.
+#
+# Fiecare intrare are motivul ei în SQL. O intrare care nu mai găsește funcția
+# sau coloana în ieșirea generatorului oprește altoirea: o listă care nu se mai
+# potrivește trebuie să cadă, nu să tacă.
+LARGIRI_RETURNS: dict[str, frozenset[str]] = {
+    # 0196: coloane nullable din `employees`, plus `left join departments`.
+    "lantul_meu_de_sefi": frozenset(
+        {"department_denumire", "department_id", "functie", "manager_employee_id", "user_id"}
+    ),
+    # 0216: ramura „foaie” a uniunii întoarce `null::text` și `null::uuid`.
+    "ocuparea_vehiculelor_pool": frozenset({"rezervare_id", "status"}),
+    # 0212: `employees.full_name` e nullable (funcția ordonează `nulls last`).
+    "tehnicieni_mentenanta": frozenset({"full_name"}),
+}
+
 ANTET = """// GENERAT AUTOMAT — nu edita manual.
 //
 // Regenerare: `scripts/altoieste-tipuri.py` peste ieșirea lui
@@ -100,6 +124,10 @@ ANTET = """// GENERAT AUTOMAT — nu edita manual.
 // `null`, nu omit cheia. Lista se citește din catalog, nu din memorie. Fără patch,
 // regenerarea rupe fișierele care apelează aceste RPC-uri fără nicio schimbare
 // reală de schemă. Patch-ul e mecanic, aplicat de script.
+//
+// Coloanele de `returns table` care pot fi NULL primesc tot `| null`, din lista
+// `LARGIRI_RETURNS` a scriptului: acolo catalogul nu poate spune nullabilitatea,
+// iar generatorul le tipează pe toate `T`.
 //
 // Generatorul CLI poate adăuga și schema `graphql_public`; e eliminată tot
 // acolo, pentru că `src/lib/supabase/server.ts` tipează clientul strict pe
@@ -150,6 +178,54 @@ def adauga_null(text: str, harta: dict[str, set[str]] | None) -> str:
     return "\n".join(linii)
 
 
+def largeste_returns(text: str) -> str:
+    """Pune `| null` pe coloanele din `LARGIRI_RETURNS`, doar sub `Functions`."""
+    linii = text.split("\n")
+    in_functions = False
+    functie: str | None = None
+    in_returns = False
+    gasite: dict[str, set[str]] = {f: set() for f in LARGIRI_RETURNS}
+    atinse = 0
+
+    for i, linie in enumerate(linii):
+        if linie == "    Functions: {":
+            in_functions = True
+            continue
+        if in_functions and re.match(r"^    \w+: \{$", linie):
+            in_functions = False  # a început `Enums` sau `CompositeTypes`
+        if not in_functions:
+            continue
+        antet = re.match(r"^      (\w+): \{$", linie)
+        if antet:
+            functie = antet.group(1)
+            in_returns = False
+            continue
+        if functie not in LARGIRI_RETURNS:
+            continue
+        if linie == "        Returns: {":
+            in_returns = True
+            continue
+        if in_returns and linie.startswith("        }"):
+            in_returns = False
+            continue
+        if in_returns:
+            col = re.match(r"^(          )(\w+): (\S.*?)\s*$", linie)
+            if col and col.group(2) in LARGIRI_RETURNS[functie]:
+                gasite[functie].add(col.group(2))
+                if not re.search(r"\|\s*null$", col.group(3)):
+                    linii[i] = f"{col.group(1)}{col.group(2)}: {col.group(3)} | null"
+                    atinse += 1
+
+    lipsa = {f: sorted(c - gasite[f]) for f, c in LARGIRI_RETURNS.items() if c - gasite[f]}
+    if lipsa:
+        raise SystemExit(
+            f"altoire: LARGIRI_RETURNS cere coloane pe care generatorul nu le-a emis — {lipsa}. "
+            "Funcția sau coloana s-a redenumit: actualizează lista, nu o ocoli."
+        )
+    print(f"altoire: {atinse} coloane din `returns table` au primit `| null`", file=sys.stderr)
+    return "\n".join(linii)
+
+
 def scoate_graphql(text: str) -> str:
     """Taie schema `graphql_public`, dacă generatorul a emis-o."""
     inceput = text.find("\n  graphql_public: {")
@@ -186,7 +262,7 @@ def main() -> None:
         print(f"altoire: {len(harta)} RPC-uri cu DEFAULT NULL, citite din catalog", file=sys.stderr)
 
     inainte = numara_intrari(brut)
-    iesire = ANTET + "\n" + adauga_null(scoate_graphql(brut), harta).lstrip("\n")
+    iesire = ANTET + "\n" + largeste_returns(adauga_null(scoate_graphql(brut), harta)).lstrip("\n")
     dupa = numara_intrari(iesire)
 
     # Verificarea din memoria proiectului: o altoire care pierde o tabelă e
