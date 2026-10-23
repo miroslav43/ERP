@@ -33,6 +33,7 @@ import {
 } from "@/app/(app)/flota/etichete";
 import { TON_STADIU_INCIDENT } from "@/app/(app)/flota/amenzi/etichete";
 import { DialogFoaieNoua } from "@/app/(app)/flota/foi/dialog-foaie-noua";
+import { cheieCasetaFoaie } from "@/app/(app)/flota/foi/cheie-caseta-foaie";
 import { PermisSofer } from "@/app/(app)/flota/permis-sofer";
 
 import { FaraFisa } from "../fara-fisa";
@@ -88,6 +89,7 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
   const pagina = filtreDinUrl(filtreFoiSchema, parametri);
   // `/portal/masina-mea?foaie=noua` deschide caseta, ca `/flota/foi?foaie=noua`.
   const deschideCaseta = parametri["foaie"] === "noua";
+  const vehiculPropus = typeof parametri["vehicul"] === "string" ? parametri["vehicul"] : null;
   const poateCrea = poateFoi && can(permisiuni, "trip_sheets:create", "own");
   const poateVedeaMasina = can(permisiuni, "vehicles:read", "own");
   // 0206 §F: șoferul își declară dauna. Fără `vehicle_incidents:read`: își vede
@@ -154,7 +156,9 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
           ? {
               actiuni: (
                 <DialogFoaieNoua
-                  key={deschideCaseta ? "foaie-noua" : "lista"}
+                  // Vehiculul intră în cheie: a doua propunere a asistentului,
+                  // pe altă mașină, remontează caseta (F12e).
+                  key={cheieCasetaFoaie(deschideCaseta, vehiculPropus)}
                   date={{
                     vehicule: toateMasinile.map((v) => ({
                       id: v.id,
@@ -165,9 +169,7 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
                   }}
                   deschisInitial={deschideCaseta}
                   // F12d (0216): „Începe foaia zilei” dintr-o rezervare aduce mașina.
-                  vehiculInitial={
-                    typeof parametri["vehicul"] === "string" ? parametri["vehicul"] : null
-                  }
+                  vehiculInitial={vehiculPropus}
                   bazaFoaie="/portal/masina-mea/foi"
                 />
               ),

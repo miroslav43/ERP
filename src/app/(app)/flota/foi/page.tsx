@@ -23,6 +23,7 @@ import { filtreFoiSchema } from "@/schemas/fleet";
 import { ETICHETE_STATUS_FOAIE, TONURI_STATUS_FOAIE } from "../etichete";
 import { dateFoaieNoua } from "./date-foaie-noua";
 import { DialogFoaieNoua } from "./dialog-foaie-noua";
+import { cheieCasetaFoaie } from "./cheie-caseta-foaie";
 import { FiltreFoi } from "./filtre-foi";
 import { FileModul } from "@/components/ui/file-modul";
 import { FILE_FLOTA } from "@/config/file-module";
@@ -271,6 +272,7 @@ export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
   const scope = scopeFor(permisiuni, "trip_sheets:read");
   // `/flota/foi/noua` a dispărut; parametrul deschide caseta care i-a luat locul.
   const deschideCaseta = parametri["foaie"] === "noua";
+  const vehiculPropus = filtreDinUrl(filtreFoiSchema, parametri).vehicul;
 
   /*
    * Vehiculele pentru filtru se citesc AICI, nu în tabel: bara trebuie să fie pe
@@ -333,10 +335,12 @@ export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
           : {
               actiuni: (
                 <DialogFoaieNoua
-                  key={deschideCaseta ? "foaie-noua" : "listă"}
+                  // Vehiculul intră în cheie: a doua propunere a asistentului,
+                  // pe altă mașină, remontează caseta (F12e).
+                  key={cheieCasetaFoaie(deschideCaseta, vehiculPropus)}
                   date={dateFoaie}
                   deschisInitial={deschideCaseta}
-                  vehiculInitial={filtreDinUrl(filtreFoiSchema, parametri).vehicul}
+                  vehiculInitial={vehiculPropus}
                   poateVedeaParcul={can(permisiuni, "vehicles:read", "own")}
                 />
               ),
