@@ -16,7 +16,9 @@
 -- pus pe firma B, P0001-ul unic pentru perechi): altfel egalitatea ar putea
 -- trece pentru alt motiv decât cel probat. Pe baza de dinainte (vârful ramurii
 -- de livrare, 9224f864) toate verificările (g) și (h) PICĂ; trec după reparațiile
--- pe loc din 0200–0216/0225 și după 0233.
+-- pe loc din 0200–0216/0225 și după 0233. Verificările adăugate de revizie
+-- (g26–g28, n1–n14, h5–h8) PICĂ pe 97135f20 (21 din 21) și trec după
+-- `coalesce` în gărzi și după §8–§10 din 0233.
 --
 -- ── CE VERIFICĂ ─────────────────────────────────────────────────────────────
 -- (g) Rândul pus pe firma B: id existent acolo și id inexistent → același 42501
@@ -48,15 +50,34 @@
 --  g23 departments.manager_employee_id       (departament_sef_in_firma, 0152 → 0233)
 --  g24 tickets.inventory_item_id             (tickets_valideaza_inventarul, 0134 → 0233)
 --  g25 inventory_items.import_batch_id       (inventory_items_lot_propriu, 0016 → 0233)
+--  g26 employment_contracts.employee_id      (tg_contracts_validari, 0004 → 0233)
+--  g27 inventory_allocations.item_id         (inventory_alloc_valideaza, 0010 → 0233)
+--  g28 business_trip_legs.business_trip_id   (valideaza_etapa_deplasare, 0015 → 0233)
+-- (n) Rândul FĂRĂ firmă (`organization_id` null): id existent în B și inexistent
+--     → același 42501. `null = any(...)` e NULL, iar `not NULL` nu ridică: garda
+--     scrisă `not (org = any(...))` lăsa rândul să treacă, căutările fără filtru
+--     de firmă găseau id-ul firmei B, iar NOT NULL se judecă abia DUPĂ WITH CHECK.
+--  n1  vehicle_documents.vehicle_id   n2  vehicle_assignments.vehicle_id
+--  n3  fuel_entries.trip_sheet_id     n4  trip_sheet_curse.trip_sheet_id
+--  n5  vehicle_fiscal_regimes (spunea masa și locurile)   n6  vehicle_consumption_norms
+--  n7  vehicle_reservations           n8  vehicle_fines (0206, X2)
+--  n9  vehicle_incidents (0206, X2)   n10 trip_sheets.vehicle_id (0200, X2)
+--  n11 vehicle_handovers.alocare_primita_id               n12 employment_contracts
+--  n13 business_trip_legs (spunea intervalul deplasării)  n14 inventory_allocations
+--  n15 vehicle_exits (control: garda compusă din 0218 ridica deja)
 -- (h) Rândul pus în firma A cu id-ul firmei B și cu un id inexistent → același P0001
 --  h1  tipul de concediu        h2  departamentul superior
 --  h3  obiectul de inventar     h4  lotul de import
+--  h5  angajatul contractului   h6  obiectul predat     h7  angajatul predării
+--  h8  deplasarea etapei
 -- (c) Controale care treceau și înainte (nu sunt oracol): același răspuns
 --  c1  reges_read_credentiale  c2  reges_write_credentiale  c3  șeful din altă firmă
 -- (p) Pozitive: garda nu oprește scrierea legitimă a firmei A          [POZITIVĂ]
 --  p1  plan de service  p2  departament subordonat  p3  card pe vehicul
 --  p4  obiect de inventar din lotul propriu  p5  alimentare pe foaia proprie
 --  p6  parte de intervenție  p7  sesizare cu tehnician  p8  rezervare
+--  p9  contract (hr)  p10 predarea unui obiect (hr)  p11 angajatul confirmă primirea
+--  p12 etapă pe deplasarea proprie (employee)
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh
@@ -143,6 +164,16 @@ declare
   v_batch_a  uuid := gen_random_uuid();
   v_batch_b  uuid := gen_random_uuid();
   v_rca      uuid;
+  v_u_hr     uuid := gen_random_uuid();
+  v_u_ang    uuid := gen_random_uuid();
+  v_e_ang    uuid;
+  v_inv_a    uuid := gen_random_uuid();
+  v_inv_a2   uuid := gen_random_uuid();
+  v_pred_a   uuid := gen_random_uuid();
+  v_tara_ro  uuid;
+  v_tara_de  uuid;
+  v_depl_a   uuid := gen_random_uuid();
+  v_depl_b   uuid := gen_random_uuid();
   v_r        text;
   v_esecuri  int := 0;
 begin
@@ -213,6 +244,48 @@ begin
     (v_batch_b, v_org_b, 'inventar-b.xlsx');
   insert into public.inventory_items (id, organization_id, denumire, numar_inventar) values
     (v_inv_b, v_org_b, 'Laptop B', 'INV-B-' || v_sufix);
+
+  -- Contractele, predările de inventar și etapele deplasărilor (0233 §8–§10):
+  -- un hr și un angajat ai firmei A, câte un obiect al firmei A (unul predat
+  -- deja angajatului, pentru confirmarea primirii) și câte o deplasare în
+  -- fiecare firmă, cu politica de diurnă care o face posibilă.
+  insert into auth.users (id, email, email_confirmed_at) values
+    (v_u_hr,  'y2-hr-'  || v_sufix || '@proba.test', now()),
+    (v_u_ang, 'y2-ang-' || v_sufix || '@proba.test', now());
+  insert into public.organization_members (organization_id, user_id, role) values
+    (v_org_a, v_u_hr, 'hr'),
+    (v_org_a, v_u_ang, 'employee');
+  -- Fișa angajatului: a lui, dacă baza i-a creat-o la intrarea în firmă (0083),
+  -- altfel una nouă, legată de cont.
+  select e.id into v_e_ang from public.employees e
+   where e.organization_id = v_org_a and e.user_id = v_u_ang and e.deleted_at is null;
+  if v_e_ang is null then
+    insert into public.employees (organization_id, marca, first_name, last_name, hired_on, status, user_id)
+    values (v_org_a, 'Y2-ANG', 'Ana', 'Angajat', v_zi - 400, 'activ', v_u_ang)
+    returning id into v_e_ang;
+  end if;
+  insert into public.inventory_items (id, organization_id, denumire, numar_inventar) values
+    (v_inv_a,  v_org_a, 'Laptop A',  'INV-A-'  || v_sufix),
+    (v_inv_a2, v_org_a, 'Monitor A', 'INV-A2-' || v_sufix);
+  insert into public.inventory_allocations (id, organization_id, item_id, employee_id, predat_la, stare_la_predare)
+  values (v_pred_a, v_org_a, v_inv_a2, v_e_ang, now() - interval '2 days', 'bun');
+
+  select c.id into v_tara_ro from public.countries c where c.cod_alpha2 = 'RO' limit 1;
+  select c.id into v_tara_de from public.countries c where c.cod_alpha2 = 'DE' limit 1;
+  insert into public.per_diem_policies
+    (organization_id, denumire, country_id_intern, moneda_interna, diurna_interna_zi,
+     diurna_baza_legala_interna, multiplu_plafon_neimpozabil, multiplu_diurna_externa,
+     prag_ore_minim, prag_ore_zi_intreaga, fractiune_zi_partiala, tarif_km_auto_personal,
+     moneda_tarif_km, plafon_salarii_baza_luna, valabil_de_la)
+  select o, 'Politica Y2', v_tara_ro, 'RON', 125, 0, 1, 1, 12, 12, 1, 0, 'RON', 1, v_zi - 400
+    from unnest(array[v_org_a, v_org_b]) o;
+  insert into public.business_trips
+    (id, organization_id, employee_id, country_id, localitate, plecare_la, sosire_la, scop, mijloc_transport)
+  values
+    (v_depl_a, v_org_a, v_e_ang, v_tara_de, 'München', now() + interval '1 day', now() + interval '5 days',
+     'Probă', 'auto_personal'),
+    (v_depl_b, v_org_b, v_e_b,   v_tara_de, 'Berlin',  now() + interval '1 day', now() + interval '5 days',
+     'Probă', 'auto_personal');
 
   -- ═══ (g) Rândul pus pe firma B ═══════════════════════════════════════════
   v_esecuri := v_esecuri + pg_temp.pereche('g1', v_u_a, format(
@@ -346,6 +419,108 @@ begin
        values (%L, 'Monitor', 'INV-Y2-X', %%L)$q$, v_org_b), v_batch_b, v_inexist, '42501',
     'obiectul de inventar pe firma B: lotul de acolo și cel inexistent, același refuz');
 
+  v_esecuri := v_esecuri + pg_temp.pereche('g26', v_u_a, format(
+    $q$insert into public.employment_contracts (organization_id, employee_id, numar, data_contract, valabil_de_la,
+                                                salariu_baza, status)
+       values (%L, %%L, 'Y2/1', %L, %L, 5000, 'proiect')$q$, v_org_b, v_zi, v_zi), v_e_b, v_inexist, '42501',
+    'contractul pe firma B: angajatul de acolo și cel inexistent, același refuz');
+
+  v_esecuri := v_esecuri + pg_temp.pereche('g27', v_u_a, format(
+    $q$insert into public.inventory_allocations (organization_id, item_id, employee_id, predat_la, stare_la_predare)
+       values (%L, %%L, %L, now() - interval '1 hour', 'bun')$q$, v_org_b, v_e_b), v_inv_b, v_inexist, '42501',
+    'predarea pe firma B: obiectul de acolo și cel inexistent, același refuz');
+
+  v_esecuri := v_esecuri + pg_temp.pereche('g28', v_u_a, format(
+    $q$insert into public.business_trip_legs (organization_id, business_trip_id, ordine, from_country_id, to_country_id,
+                                              plecare_la, sosire_la)
+       values (%L, %%L, 1, %L, %L, now() + interval '2 days', now() + interval '3 days')$q$,
+    v_org_b, v_tara_ro, v_tara_de), v_depl_b, v_inexist, '42501',
+    'etapa pe firma B: deplasarea de acolo și cea inexistentă, același refuz');
+
+  -- ═══ (n) Rândul FĂRĂ firmă ═══════════════════════════════════════════════
+  -- `organization_id` null nu e o firmă a apelantului: garda trebuie să-l
+  -- refuze la fel ca pe firma B, altfel căutările după id (fără filtrul de
+  -- firmă) găsesc rândul firmei B și răspund altfel decât pentru un id inexistent.
+  v_esecuri := v_esecuri + pg_temp.pereche('n1', v_u_a, format(
+    $q$insert into public.vehicle_documents (organization_id, vehicle_id, document_type_id, numar, valabil_de_la, expira_la)
+       values (null, %%L, %L, 'RCA-N', %L, %L)$q$, v_rca, v_zi, v_zi + 300), v_veh_b, v_inexist, '42501',
+    'documentul fără firmă: vehiculul firmei B și cel inexistent, același refuz');
+
+  v_esecuri := v_esecuri + pg_temp.pereche('n2', v_u_a, format(
+    $q$insert into public.vehicle_assignments (organization_id, vehicle_id, employee_id, de_la)
+       values (null, %%L, %L, now() - interval '1 hour')$q$, v_e_b), v_veh_b, v_inexist, '42501',
+    'alocarea fără firmă: același refuz');
+
+  v_esecuri := v_esecuri + pg_temp.pereche('n3', v_u_a,
+    $q$insert into public.fuel_entries (organization_id, trip_sheet_id, litri, cost, alimentat_la)
+       values (null, %L, 10, 70, now() - interval '1 hour')$q$, v_foaie_b, v_inexist, '42501',
+    'alimentarea fără firmă: foaia firmei B și cea inexistentă, același refuz');
+
+  v_esecuri := v_esecuri + pg_temp.pereche('n4', v_u_a,
+    $q$insert into public.trip_sheet_curse (organization_id, trip_sheet_id, plecare_la, km_plecare)
+       values (null, %L, now() - interval '1 hour', 9000)$q$, v_foaie_b, v_inexist, '42501',
+    'cursa fără firmă: același refuz');
+
+  v_esecuri := v_esecuri + pg_temp.pereche('n5', v_u_a, format(
+    $q$insert into public.vehicle_fiscal_regimes (organization_id, vehicle_id, valabil_de_la, regim, motiv)
+       values (null, %%L, %L, 'peste_3500_sau_9_locuri', 'Proba')$q$, v_zi), v_veh_b, v_inexist, '42501',
+    'regimul fiscal fără firmă: același refuz, fără masa și locurile vehiculului firmei B');
+
+  v_esecuri := v_esecuri + pg_temp.pereche('n6', v_u_a, format(
+    $q$insert into public.vehicle_consumption_norms (organization_id, vehicle_id, valabil_de_la, l_100km)
+       values (null, %%L, %L, 7.5)$q$, v_zi), v_veh_b, v_inexist, '42501',
+    'norma de consum fără firmă: același refuz');
+
+  v_esecuri := v_esecuri + pg_temp.pereche('n7', v_u_a, format(
+    $q$insert into public.vehicle_reservations (organization_id, vehicle_id, employee_id, de_la, pana_la, scop)
+       values (null, %%L, %L, %L, %L, 'Deplasare')$q$, v_e_b, v_zi + 1, v_zi + 1), v_veh_b, v_inexist, '42501',
+    'rezervarea fără firmă: același refuz');
+
+  v_esecuri := v_esecuri + pg_temp.pereche('n8', v_u_a, format(
+    $q$insert into public.vehicle_fines (organization_id, vehicle_id, numar_pv, constatata_la, fapta)
+       values (null, %%L, 'PV-N', %L, 'Depășirea vitezei')$q$, now() - interval '3 days'), v_veh_b, v_inexist, '42501',
+    'amenda fără firmă: același refuz');
+
+  v_esecuri := v_esecuri + pg_temp.pereche('n9', v_u_a, format(
+    $q$insert into public.vehicle_incidents (organization_id, vehicle_id, tip, produs_la, descriere)
+       values (null, %%L, 'avarie', %L, 'Zgârietură pe ușă')$q$, now() - interval '2 days'), v_veh_b, v_inexist, '42501',
+    'incidentul fără firmă: același refuz');
+
+  v_esecuri := v_esecuri + pg_temp.pereche('n10', v_u_a, format(
+    $q$insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare)
+       values (null, %%L, %L, now(), 1)$q$, v_e_b), v_veh_b, v_inexist, '42501',
+    'foaia de parcurs fără firmă: vehiculul firmei B și cel inexistent, același refuz');
+
+  v_esecuri := v_esecuri + pg_temp.pereche('n11', v_u_a, format(
+    $q$insert into public.vehicle_handovers (organization_id, vehicle_id, alocare_primita_id)
+       values (null, %L, %%L)$q$, v_inexist), v_al_b, v_inexist, '42501',
+    'PV-ul fără firmă: alocarea firmei B și cea inexistentă, același refuz');
+
+  v_esecuri := v_esecuri + pg_temp.pereche('n12', v_u_a, format(
+    $q$insert into public.employment_contracts (organization_id, employee_id, numar, data_contract, valabil_de_la,
+                                                salariu_baza, status)
+       values (null, %%L, 'Y2/N', %L, %L, 5000, 'proiect')$q$, v_zi, v_zi), v_e_b, v_inexist, '42501',
+    'contractul fără firmă: același refuz');
+
+  v_esecuri := v_esecuri + pg_temp.pereche('n13', v_u_a, format(
+    $q$insert into public.business_trip_legs (organization_id, business_trip_id, ordine, from_country_id, to_country_id,
+                                              plecare_la, sosire_la)
+       values (null, %%L, 1, %L, %L, now() - interval '30 days', now() - interval '29 days')$q$,
+    v_tara_ro, v_tara_de), v_depl_b, v_inexist, '42501',
+    'etapa fără firmă: același refuz, fără intervalul deplasării firmei B');
+
+  v_esecuri := v_esecuri + pg_temp.pereche('n14', v_u_a, format(
+    $q$insert into public.inventory_allocations (organization_id, item_id, employee_id, predat_la, stare_la_predare)
+       values (null, %%L, %L, now() - interval '1 hour', 'bun')$q$, v_e_b), v_inv_b, v_inexist, '42501',
+    'predarea fără firmă: același refuz');
+
+  -- Control: garda din `iesire_inainte` (0218) e compusă, iar `feature_on(null)`
+  -- e `false`, deci `not (NULL and false …)` ridică și fără `coalesce`.
+  v_esecuri := v_esecuri + pg_temp.pereche('n15', v_u_a, format(
+    $q$insert into public.vehicle_exits (organization_id, vehicle_id, tip, data_iesire, motiv)
+       values (null, %%L, 'casare', %L, 'Proba')$q$, v_zi), v_veh_b, v_inexist, '42501',
+    'ieșirea din parc fără firmă: același refuz');
+
   -- ═══ (h) Perechile de mesaje, pe rândul firmei PROPRII ═══════════════════
   v_esecuri := v_esecuri + pg_temp.pereche('h1', v_u_a, format(
     $q$insert into public.leave_requests (organization_id, employee_id, leave_type_id, data_inceput, data_sfarsit)
@@ -368,6 +543,29 @@ begin
     $q$insert into public.inventory_items (organization_id, denumire, numar_inventar, import_batch_id)
        values (%L, 'Monitor', 'INV-Y2-H', %%L)$q$, v_org_a), v_batch_b, v_inexist, 'P0001',
     'lotul de import al firmei B și cel inexistent primesc același mesaj');
+
+  v_esecuri := v_esecuri + pg_temp.pereche('h5', v_u_a, format(
+    $q$insert into public.employment_contracts (organization_id, employee_id, numar, data_contract, valabil_de_la,
+                                                salariu_baza, status)
+       values (%L, %%L, 'Y2/H', %L, %L, 5000, 'proiect')$q$, v_org_a, v_zi, v_zi), v_e_b, v_inexist, 'P0001',
+    'angajatul firmei B și cel inexistent primesc același mesaj pe contractul propriu');
+
+  v_esecuri := v_esecuri + pg_temp.pereche('h6', v_u_a, format(
+    $q$insert into public.inventory_allocations (organization_id, item_id, employee_id, predat_la, stare_la_predare)
+       values (%L, %%L, %L, now() - interval '1 hour', 'bun')$q$, v_org_a, v_e_ang), v_inv_b, v_inexist, 'P0001',
+    'obiectul firmei B și cel inexistent primesc același mesaj pe predarea proprie');
+
+  v_esecuri := v_esecuri + pg_temp.pereche('h7', v_u_a, format(
+    $q$insert into public.inventory_allocations (organization_id, item_id, employee_id, predat_la, stare_la_predare)
+       values (%L, %L, %%L, now() - interval '1 hour', 'bun')$q$, v_org_a, v_inv_a), v_e_b, v_inexist, 'P0001',
+    'angajatul firmei B și cel inexistent primesc același mesaj pe predarea proprie');
+
+  v_esecuri := v_esecuri + pg_temp.pereche('h8', v_u_a, format(
+    $q$insert into public.business_trip_legs (organization_id, business_trip_id, ordine, from_country_id, to_country_id,
+                                              plecare_la, sosire_la)
+       values (%L, %%L, 1, %L, %L, now() - interval '30 days', now() - interval '29 days')$q$,
+    v_org_a, v_tara_ro, v_tara_de), v_depl_b, v_inexist, 'P0001',
+    'deplasarea firmei B și cea inexistentă primesc același mesaj, fără intervalul ei');
 
   -- ═══ (c) Controale: nu erau oracol nici înainte ══════════════════════════
   -- REGES judecă apartenența la firmă înaintea oricărei căutări: o firmă care
@@ -425,6 +623,30 @@ begin
     $q$insert into public.vehicle_reservations (organization_id, vehicle_id, employee_id, de_la, pana_la, scop, created_by, updated_by)
        values (%L, %L, %L, %L, %L, 'Deplasare', %L, %L)$q$, v_org_a, v_veh_a, v_e_a, v_zi + 3, v_zi + 3, v_u_a, v_u_a));
   v_esecuri := v_esecuri + pg_temp.verifica('p8', v_r = 'ok:1', 'org_admin A rezervă mașina de pool a firmei lui', v_r);
+
+  v_r := pg_temp.ruleaza(v_u_hr, format(
+    $q$insert into public.employment_contracts (organization_id, employee_id, numar, data_contract, valabil_de_la,
+                                                salariu_baza, status, created_by, updated_by)
+       values (%L, %L, 'Y2/P', %L, %L, 5000, 'proiect', %L, %L)$q$, v_org_a, v_e_ang, v_zi, v_zi, v_u_hr, v_u_hr));
+  v_esecuri := v_esecuri + pg_temp.verifica('p9', v_r = 'ok:1', 'hr A întocmește contractul unui angajat al firmei', v_r);
+
+  v_r := pg_temp.ruleaza(v_u_hr, format(
+    $q$insert into public.inventory_allocations (organization_id, item_id, employee_id, predat_la, stare_la_predare,
+                                                 created_by, updated_by)
+       values (%L, %L, %L, now() - interval '1 hour', 'bun', %L, %L)$q$, v_org_a, v_inv_a, v_e_ang, v_u_hr, v_u_hr));
+  v_esecuri := v_esecuri + pg_temp.verifica('p10', v_r = 'ok:1', 'hr A predă un obiect al firmei unui angajat al ei', v_r);
+
+  v_r := pg_temp.ruleaza(v_u_ang, format(
+    $q$update public.inventory_allocations set confirmat_de_angajat_la = now(), updated_by = %L where id = %L$q$,
+    v_u_ang, v_pred_a));
+  v_esecuri := v_esecuri + pg_temp.verifica('p11', v_r = 'ok:1', 'angajatul A confirmă primirea obiectului predat lui', v_r);
+
+  v_r := pg_temp.ruleaza(v_u_ang, format(
+    $q$insert into public.business_trip_legs (organization_id, business_trip_id, ordine, from_country_id, to_country_id,
+                                              plecare_la, sosire_la)
+       values (%L, %L, 1, %L, %L, now() + interval '2 days', now() + interval '3 days')$q$,
+    v_org_a, v_depl_a, v_tara_ro, v_tara_de));
+  v_esecuri := v_esecuri + pg_temp.verifica('p12', v_r = 'ok:1', 'angajatul A adaugă o etapă pe deplasarea lui', v_r);
 
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri > 0 then

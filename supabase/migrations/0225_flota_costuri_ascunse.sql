@@ -177,7 +177,7 @@ begin
   -- se caută în firma RÂNDULUI înaintea WITH CHECK, deci pe un rând pus pe
   -- firma B cel care există acolo trecea (apoi 42501), cel inexistent primea P0001.
   if not app.is_service_context()
-     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
     raise exception using errcode = '42501',
       message = 'Nu aveți dreptul de a scrie costurile vehiculelor în această organizație.';
   end if;
@@ -207,7 +207,7 @@ as $$
 begin
   -- Y2: garda de firmă, prima (documentul se caută în firma rândului).
   if not app.is_service_context()
-     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
     raise exception using errcode = '42501',
       message = 'Nu aveți dreptul de a scrie costurile documentelor în această organizație.';
   end if;

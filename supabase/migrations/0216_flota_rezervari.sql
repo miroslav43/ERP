@@ -369,7 +369,7 @@ begin
   -- Ocolirea e doar contextul de serviciu: steagul `app.flota_rezervari_sistem`
   -- îl pun funcțiile bazei pe rânduri ale firmei apelantului.
   if not app.is_service_context()
-     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
     raise exception using errcode = '42501',
       message = 'Nu aveți dreptul de a scrie rezervări de vehicule în această organizație.';
   end if;
@@ -796,7 +796,7 @@ begin
   -- Primul BEFORE pe `vehicle_assignments` e `alocari_inainte`, cu aceeași
   -- gardă din 0233; aici rămâne pentru cazul în care ordinea se schimbă.
   if not app.is_service_context()
-     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
     raise exception using errcode = '42501',
       message = 'Nu aveți dreptul de a aloca vehicule în această organizație.';
   end if;

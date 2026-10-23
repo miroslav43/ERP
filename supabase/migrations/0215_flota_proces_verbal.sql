@@ -362,7 +362,7 @@ begin
   -- refuzurile ei, dacă e încheiată, pe ce vehicul și cu ce km), cea
   -- inexistentă primea P0001.
   if not v_serviciu
-     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
     raise exception using errcode = '42501',
       message = 'Nu aveți dreptul de a scrie procese-verbale de predare în această organizație.';
   end if;

@@ -169,7 +169,7 @@ begin
   -- Y2: garda de firmă, prima: pe un rând pus pe firma B, vehiculul de acolo
   -- trecea (apoi 42501 de la politică), cel inexistent primea P0001.
   if not app.is_service_context()
-     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
     raise exception using errcode = '42501',
       message = 'Nu aveți dreptul de a scrie documentele vehiculelor în această organizație.';
   end if;

@@ -303,7 +303,7 @@ begin
   -- înaintea WITH CHECK, deci pe un rând pus pe firma B cel care există acolo
   -- trecea (apoi 42501), iar cel inexistent primea P0001.
   if not app.is_service_context()
-     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
     raise exception using errcode = '42501',
       message = 'Nu aveți dreptul de a scrie carduri de combustibil în această organizație.';
   end if;
@@ -549,7 +549,7 @@ begin
   -- un rând pus pe firma B, id-ul care există acolo trecea (apoi 42501), cel
   -- inexistent primea P0001.
   if not app.is_service_context()
-     and not (v_org = any ((select app.current_org_ids())::uuid[])) then
+     and not coalesce(v_org = any ((select app.current_org_ids())::uuid[]), false) then
     raise exception using errcode = '42501',
       message = 'Nu aveți dreptul de a scrie tranzacțiile cardurilor în această organizație.';
   end if;

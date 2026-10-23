@@ -431,8 +431,12 @@ begin
   -- (vehiculul și șoferul sunt căutați în firma RÂNDULUI, iar scope-ul `none`
   -- sare peste garda de alocare) și ajungea la mesajul de regres, care spunea
   -- kilometrajul vehiculului altei firme. Refuzul e neutru și vine primul.
+  -- Y2 (revizie): `coalesce(…, false)`, nu `not (…)` simplu: pe un rând cu
+  -- `organization_id` null comparația e NULL, `not NULL` nu ridică, iar
+  -- căutările de mai jos (după id, fără firmă) găseau vehiculul firmei B;
+  -- NOT NULL se judecă abia DUPĂ WITH CHECK (proba-oracol-intre-firme, n1–n14).
   if not app.is_service_context()
-     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
     raise exception using errcode = '42501',
       message = 'Nu aveți dreptul de a scrie foi de parcurs în această organizație.';
   end if;
@@ -824,7 +828,7 @@ begin
   -- cea inexistentă P0001, deci un membru al firmei A afla ce foi are firma B.
   -- Condiția e factorul de firmă al lui `alimentari_insert`/`_update`.
   if not app.is_service_context()
-     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
     raise exception using errcode = '42501',
       message = 'Nu aveți dreptul de a scrie alimentări în această organizație.';
   end if;
@@ -950,7 +954,7 @@ begin
   -- Y2: garda de firmă, prima (aceeași sondă ca la alimentări: foaia firmei B
   -- găsită → 42501, negăsită → P0001).
   if not v_serviciu
-     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
     raise exception using errcode = '42501',
       message = 'Nu aveți dreptul de a scrie curse în această organizație.';
   end if;
@@ -1260,7 +1264,7 @@ declare
   c_plafon_sabloane constant integer := 100;
 begin
   if not app.is_service_context()
-     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
     raise exception using errcode = '42501',
       message = 'Nu aveți dreptul de a scrie șabloane de traseu în această organizație.';
   end if;

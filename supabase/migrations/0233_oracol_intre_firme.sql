@@ -16,6 +16,13 @@
 --   · `internal.leave_requests_pregateste` (0112): tipul de concediu;
 --   · `internal.tickets_valideaza_inventarul` (0134): obiectul de inventar;
 --   · `internal.inventory_items_lot_propriu` (0016): lotul de import.
+-- Plus trei perechi cu altă formulare, găsite de revizie prin scanarea
+-- căutărilor după id fără filtru de firmă urmate de comparația firmei:
+--   · `public.tg_contracts_validari` (0004): „aparțin unor organizații diferite”;
+--   · `internal.inventory_alloc_valideaza` (0010): „trebuie să aparțină
+--     aceleiași organizații”, pentru obiect și pentru angajat;
+--   · `internal.valideaza_etapa_deplasare` (0015): „aceleiași organizații ca
+--     deplasarea”, iar fără firmă refuzul intervalului dădea datele deplasării.
 -- Căutarea se face acum DOAR în firma rândului, cu un singur mesaj pentru
 -- „nu există”, „e șters” și „e al altei firme”. Configurarea REGES (0087) NU
 -- e în listă: `reges_read/write_credentiale` judecă apartenența la firmă
@@ -38,13 +45,28 @@
 -- Pe `departments`, garda se aplică doar când rândul caută ceva (superior,
 -- șef): firma nouă își primește departamentul „Conducere” (0107) dintr-un
 -- trigger pe `organizations`, înainte ca apelantul să-i fie membru, iar un nod
--- rădăcină fără șef nu caută nimic, deci n-are ce spune.
+-- rădăcină fără șef nu caută nimic, deci n-are ce spune. Cele trei de la §1
+-- (contract, predare, etapă) au și ele garda, prima.
+--
+-- ── 3. GAURA LUI NULL ───────────────────────────────────────────────────────
+-- Garda scrisă `not (new.organization_id = any (current_org_ids()))` NU
+-- refuză un rând cu `organization_id` null: comparația e NULL, `not NULL` e
+-- NULL, iar `if NULL` nu ridică. Căutările de după (după id, fără firmă)
+-- găseau rândul firmei B, iar NOT NULL se judecă abia DUPĂ WITH CHECK, deci
+-- oracolul rămânea deschis pe aceeași scriere cu firma lăsată goală (proba,
+-- §n: alocarea, documentul, rezervarea, regimul fiscal cu masa și locurile
+-- vehiculului firmei B…). Toate gărzile sunt acum `not coalesce(…, false)`,
+-- aici și pe loc în 0200–0226; verificarea de la §11 caută forma veche în
+-- TOATE funcțiile vii. Nicio tabelă păzită nu acceptă `organization_id` null
+-- (toate sunt NOT NULL, fără valoare implicită), deci garda nu oprește nimic
+-- ce ar fi trecut.
 --
 -- Mesajele 42501 nu se propagă în aplicație (`mapPostgrestError` le dă textul
 -- fix „Nu aveți dreptul…”); P0001-urile noi sunt propagate ca atare de
--- `traduEroare` din concedii, inventar și ticketing, fără tipare pe text.
+-- `traduEroare` din concedii, inventar, diurnă, angajați și ticketing, fără
+-- tipare pe text.
 --
--- Probă: tests/rls/proba-oracol-intre-firme.sql (g12, g18, g21–g25, h1–h4).
+-- Probă: tests/rls/proba-oracol-intre-firme.sql (g12, g18, g21–g28, n1–n15, h1–h8).
 -- Aplicare: psql byte-exact, după bancul local; producția cere confirmare.
 
 begin;
@@ -64,7 +86,7 @@ begin
   -- 0233: garda de firmă, înaintea căutării superiorului (vezi antetul).
   if new.parent_id is not null
      and not app.is_service_context()
-     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
     raise exception using errcode = '42501',
       message = 'Nu aveți dreptul de a scrie departamente în această organizație.';
   end if;
@@ -113,7 +135,7 @@ begin
   -- 0233: garda de firmă, înaintea căutării șefului (vezi antetul).
   if new.manager_employee_id is not null
      and not app.is_service_context()
-     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
     raise exception using errcode = '42501',
       message = 'Nu aveți dreptul de a scrie departamente în această organizație.';
   end if;
@@ -146,7 +168,7 @@ begin
   -- de concediu care există acolo trecea (apoi calendarul sau politica
   -- refuzau), iar cel inexistent primea „nu există”.
   if not app.is_service_context()
-     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
     raise exception using errcode = '42501',
       message = 'Nu aveți dreptul de a scrie cereri de concediu în această organizație.';
   end if;
@@ -214,9 +236,9 @@ begin
   -- 0233: garda de firmă, prima. Aceeași condiție ca factorul de firmă al
   -- politicilor de tichete: membru al firmei sau administrator de platformă
   -- (`tickets_update` îl lasă pe acesta din urmă).
-  if not (app.is_service_context()
-          or app.is_platform_admin()
-          or new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+  if not coalesce(app.is_service_context()
+                  or app.is_platform_admin()
+                  or new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
     raise exception using errcode = '42501',
       message = 'Nu aveți dreptul de a scrie tichete în această organizație.';
   end if;
@@ -275,7 +297,7 @@ declare
 begin
   -- 0233: garda de firmă, prima (vezi antetul).
   if not app.is_service_context()
-     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
     raise exception using errcode = '42501',
       message = 'Nu aveți dreptul de a scrie obiecte de inventar în această organizație.';
   end if;
@@ -318,7 +340,7 @@ begin
   -- angajatul de acolo treceau (apoi `alocari_rezervari` dădea ziua primei
   -- rezervări a vehiculului), iar cele inexistente primeau P0001.
   if not app.is_service_context()
-     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
     raise exception using errcode = '42501',
       message = 'Nu aveți dreptul de a aloca vehicule în această organizație.';
   end if;
@@ -418,7 +440,7 @@ begin
   -- lui `fault_reports_insert`/`_update` (WITH CHECK), deci nu oprește pe nimeni
   -- pe care politica l-ar lăsa.
   if not v_serviciu
-     and not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
     raise exception using errcode = '42501',
       message = 'Nu aveți dreptul de a scrie sesizări în această organizație.';
   end if;
@@ -692,33 +714,234 @@ $$;
 revoke all on function internal.fault_reports_garda() from public, anon, authenticated;
 
 -- ============================================================
--- 8. Verificare
+-- 8. Angajatul contractului (forma ultimă 0004)
+-- ============================================================
+create or replace function public.tg_contracts_validari()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_emp_org uuid;
+begin
+  -- 0233: garda de firmă, prima. Fără ea, pe un contract pus pe firma B,
+  -- angajatul de acolo trecea (apoi 42501 de la politică), iar cel inexistent
+  -- primea „nu există”.
+  if not app.is_service_context()
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a scrie contracte de muncă în această organizație.';
+  end if;
+
+  -- 0233: angajatul se caută doar în firma contractului; unul inexistent, unul
+  -- șters și unul din altă firmă primesc același răspuns.
+  select e.organization_id into v_emp_org
+  from public.employees e
+  where e.id = new.employee_id
+    and e.deleted_at is null
+    and e.organization_id = new.organization_id;
+
+  if v_emp_org is null then
+    raise exception 'Angajatul indicat nu există în organizația dumneavoastră.' using errcode = 'P0001';
+  end if;
+  if new.status = 'incetat' and new.incetat_la is null then
+    raise exception 'Un contract încetat are nevoie de data încetării.' using errcode = 'P0001';
+  end if;
+  if new.incetat_la is not null and new.incetat_la < new.valabil_de_la then
+    raise exception 'Data încetării nu poate fi anterioară datei de început a contractului.' using errcode = 'P0001';
+  end if;
+  return new;
+end;
+$$;
+
+revoke execute on function public.tg_contracts_validari() from public, anon, authenticated;
+
+-- ============================================================
+-- 9. Obiectul și angajatul predării de inventar (forma ultimă 0010)
+-- ============================================================
+create or replace function internal.inventory_alloc_valideaza()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_obiect_org  uuid;
+  v_obiect_stat public.inventory_item_status;
+  v_angajat_org uuid;
+  v_privilegiat boolean;
+begin
+  new.updated_at := now();
+
+  if tg_op = 'UPDATE' then
+    new.organization_id := old.organization_id;
+    new.item_id         := old.item_id;
+    new.created_at      := old.created_at;
+  end if;
+
+  -- 0233: garda de firmă, înaintea primei căutări (după fixarea coloanelor pe
+  -- UPDATE, care nu caută nimic). Fără ea, pe o predare pusă pe firma B,
+  -- obiectul de acolo trecea (apoi 42501), iar cel inexistent primea „nu mai
+  -- există”.
+  if not app.is_service_context()
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a preda obiecte de inventar în această organizație.';
+  end if;
+
+  -- 0233: obiectul și angajatul se caută doar în firma predării; unul
+  -- inexistent și unul din altă firmă primesc același răspuns (înainte, al
+  -- doilea primea un mesaj aparte, despre organizația comună).
+  select i.organization_id, i.status into v_obiect_org, v_obiect_stat
+    from public.inventory_items i
+   where i.id = new.item_id
+     and i.organization_id = new.organization_id;
+  if v_obiect_org is null then
+    raise exception using errcode = 'P0001',
+      message = 'Obiectul de inventar indicat nu există în organizația dumneavoastră.';
+  end if;
+
+  select e.organization_id into v_angajat_org
+    from public.employees e
+   where e.id = new.employee_id
+     and e.deleted_at is null
+     and e.organization_id = new.organization_id;
+  if v_angajat_org is null then
+    raise exception using errcode = 'P0001',
+      message = 'Angajatul indicat nu are o fișă activă în organizația dumneavoastră.';
+  end if;
+
+  if tg_op = 'INSERT' and v_obiect_stat = 'casat' then
+    raise exception using errcode = 'P0001',
+      message = 'Obiectul este casat și nu mai poate fi predat unui angajat.';
+  end if;
+
+  if new.predat_la > now() then
+    raise exception using errcode = 'P0001',
+      message = 'Data predării nu poate fi în viitor.';
+  end if;
+
+  if new.returnat_la is not null and new.returnat_la > now() then
+    raise exception using errcode = 'P0001',
+      message = 'Data returnării nu poate fi în viitor.';
+  end if;
+
+  if new.returnat_la is not null and new.stare_la_returnare is null then
+    raise exception using errcode = 'P0001',
+      message = 'La returnare trebuie consemnată starea în care a fost primit obiectul.';
+  end if;
+
+  -- Angajatul care confirmă primirea are voie NUMAI la acest câmp. RLS decide
+  -- CINE atinge rândul; ce anume are voie să schimbe se decide aici, fiindcă o
+  -- politică RLS nu poate limita coloanele.
+  if tg_op = 'UPDATE' then
+    v_privilegiat := app.is_service_context()
+                     or (select app.is_platform_admin())
+                     or app.can(new.organization_id, 'inventory', 'update', 'all');
+
+    if not v_privilegiat then
+      if new.employee_id             is distinct from old.employee_id
+         or new.predat_la            is distinct from old.predat_la
+         or new.returnat_la          is distinct from old.returnat_la
+         or new.stare_la_predare     is distinct from old.stare_la_predare
+         or new.stare_la_returnare   is distinct from old.stare_la_returnare
+         or new.observatii           is distinct from old.observatii
+         or new.pv_document_path     is distinct from old.pv_document_path
+         or new.deleted_at           is distinct from old.deleted_at then
+        raise exception using errcode = 'P0001',
+          message = 'Puteți doar confirma primirea obiectului. Restul datelor se modifică de persoana care administrează inventarul.';
+      end if;
+
+      if old.confirmat_de_angajat_la is not null
+         and new.confirmat_de_angajat_la is distinct from old.confirmat_de_angajat_la then
+        raise exception using errcode = 'P0001',
+          message = 'Primirea a fost deja confirmată și nu mai poate fi modificată.';
+      end if;
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+-- ============================================================
+-- 10. Deplasarea etapei (forma ultimă 0015)
+-- ============================================================
+create or replace function internal.valideaza_etapa_deplasare()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_trip public.business_trips;
+begin
+  -- 0233: garda de firmă, prima. Fără ea, pe o etapă pusă pe firma B (sau
+  -- fără firmă), deplasarea de acolo trecea, iar refuzul „trebuie să se
+  -- încadreze între plecarea și sosirea deplasării” îi dădea intervalul.
+  if not app.is_service_context()
+     and not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
+    raise exception using errcode = '42501',
+      message = 'Nu aveți dreptul de a scrie etapele deplasărilor în această organizație.';
+  end if;
+
+  -- 0233: deplasarea se caută doar în firma etapei; una inexistentă și una
+  -- din altă firmă primesc același răspuns.
+  select * into v_trip from public.business_trips t
+   where t.id = new.business_trip_id
+     and t.organization_id = new.organization_id;
+  if not found then
+    raise exception 'Deplasarea asociată etapei nu există în organizația dumneavoastră.' using errcode = 'P0001';
+  end if;
+  if new.plecare_la < v_trip.plecare_la or new.sosire_la > v_trip.sosire_la then
+    raise exception 'Etapa trebuie să se încadreze între plecarea și sosirea deplasării.' using errcode = 'P0001';
+  end if;
+  if new.from_country_id = new.to_country_id then
+    raise exception 'O etapă trebuie să lege două țări diferite.' using errcode = 'P0001';
+  end if;
+  return new;
+end;
+$$;
+
+-- ============================================================
+-- 11. Verificare
 -- ============================================================
 do $$
 declare
-  v_lipsa text[] := '{}';
-  v_f     text;
-  v_def   text;
+  v_lipsa      text[] := '{}';
+  v_f          text;
+  v_def        text;
+  v_def_gauri  text[];
 begin
   -- Nicio funcție rescrisă nu mai deosebește „altă firmă” de „nu există”.
   foreach v_f in array array['public.tg_departments_path()',
                              'internal.departament_sef_in_firma()',
                              'internal.leave_requests_pregateste()',
                              'internal.tickets_valideaza_inventarul()',
-                             'internal.inventory_items_lot_propriu()'] loop
-    if pg_catalog.pg_get_functiondef(v_f::regprocedure) like '%aparține altei organizații%' then
+                             'internal.inventory_items_lot_propriu()',
+                             'public.tg_contracts_validari()',
+                             'internal.inventory_alloc_valideaza()',
+                             'internal.valideaza_etapa_deplasare()'] loop
+    v_def := pg_catalog.pg_get_functiondef(v_f::regprocedure);
+    if v_def like '%aparține altei organizații%'
+       or v_def like '%aparțin unor organizații diferite%'
+       or v_def like '%aparțină aceleiași organizații%' then
       v_lipsa := v_lipsa || ('perechea de mesaje încă deschisă în ' || v_f);
     end if;
   end loop;
 
-  -- Garda de firmă vine înaintea primei căutări, în toate șapte.
+  -- Garda de firmă vine înaintea primei căutări, în toate zece.
   foreach v_f in array array['public.tg_departments_path()',
                              'internal.departament_sef_in_firma()',
                              'internal.leave_requests_pregateste()',
                              'internal.tickets_valideaza_inventarul()',
                              'internal.inventory_items_lot_propriu()',
                              'internal.alocari_inainte()',
-                             'internal.fault_reports_garda()'] loop
+                             'internal.fault_reports_garda()',
+                             'public.tg_contracts_validari()',
+                             'internal.inventory_alloc_valideaza()',
+                             'internal.valideaza_etapa_deplasare()'] loop
     v_def := pg_catalog.pg_get_functiondef(v_f::regprocedure);
     if pg_catalog.strpos(v_def, 'current_org_ids') = 0
        or pg_catalog.strpos(v_def, 'current_org_ids') > pg_catalog.strpos(v_def, 'from public.') then
@@ -740,6 +963,19 @@ begin
        order by t.tgname limit 1) <> 'alocari_inainte' then
     v_lipsa := v_lipsa || 'alocari_inainte nu mai e primul BEFORE pe vehicle_assignments'::text;
   end if;
+
+  -- Nicio gardă de firmă nu mai are gaura lui NULL: `not (org = any (…))` pe
+  -- `organization_id` null e NULL, deci nu ridică (vezi antetul, §3).
+  select coalesce(array_agg(n.nspname || '.' || p.proname || ': garda fără coalesce'
+                            order by n.nspname, p.proname), '{}')
+    into v_def_gauri
+    from pg_catalog.pg_proc p
+    join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+   where n.nspname in ('public', 'internal', 'app')
+     and p.prokind = 'f'
+     and pg_catalog.pg_get_functiondef(p.oid)
+         ~ 'not \((new\.organization_id|v_org) = any \(\(select app\.current_org_ids\(\)\)::uuid\[\]\)\)';
+  v_lipsa := v_lipsa || v_def_gauri;
 
   if array_length(v_lipsa, 1) is not null then
     raise exception '0233: lipsesc %', array_to_string(v_lipsa, ', ');

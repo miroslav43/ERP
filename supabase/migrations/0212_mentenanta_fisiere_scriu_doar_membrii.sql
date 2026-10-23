@@ -240,7 +240,7 @@ begin
   -- Y2: garda de firmă, înaintea căutării tehnicianului în firma RÂNDULUI.
   -- Pe `fault_reports` primul BEFORE e `fault_reports_garda` (0181), care are
   -- aceeași gardă din 0233; aici rămâne pentru cazul în care ordinea se schimbă.
-  if not (new.organization_id = any ((select app.current_org_ids())::uuid[])) then
+  if not coalesce(new.organization_id = any ((select app.current_org_ids())::uuid[]), false) then
     raise exception using errcode = '42501',
       message = 'Nu aveți dreptul de a scrie sesizări în această organizație.';
   end if;
