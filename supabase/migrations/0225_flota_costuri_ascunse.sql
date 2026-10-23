@@ -164,8 +164,13 @@ grant execute on function app.vehicul_documentului(uuid) to authenticated, servi
 -- ============================================================
 -- Rândul de cost aparține părintelui din ACEEAȘI firmă și nu se mută. Pe
 -- drumul de compatibilitate (§6) părintele încă nu există în BEFORE INSERT;
--- acolo steagul `app.flota_cost_mutat` sare verificarea (valorile le pune
--- triggerul din rândul-părinte, nu clientul).
+-- acolo steagul `app.flota_cost_mutat` sare DOAR verificarea de existență
+-- (valorile le pune triggerul din rândul-părinte, nu clientul). Verificarea de
+-- firmă rămâne și cu steagul pus, și la UPDATE: un părinte care EXISTĂ trebuie
+-- să fie al firmei rândului de cost. Pe drumul legitim al steagului părintele
+-- nu există încă nicăieri, deci verificarea trece; orice altă cale (steagul pus
+-- de altcineva, un rând de cost lipit de vehiculul altei firmei) cade aici.
+-- Mesajul e același ca pentru vehiculul inexistent: fără oracol între firme.
 create or replace function internal.vc_inainte()
 returns trigger
 language plpgsql
@@ -173,12 +178,18 @@ security definer
 set search_path = ''
 as $$
 begin
-  if tg_op = 'UPDATE' then
-    if (new.organization_id, new.vehicle_id) is distinct from (old.organization_id, old.vehicle_id) then
-      raise exception using errcode = 'P0001',
-        message = 'Valoarea de achiziție nu se mută pe alt vehicul.';
-    end if;
-  elsif coalesce(pg_catalog.current_setting('app.flota_cost_mutat', true), '') <> 'on' then
+  if tg_op = 'UPDATE'
+     and (new.organization_id, new.vehicle_id) is distinct from (old.organization_id, old.vehicle_id) then
+    raise exception using errcode = 'P0001',
+      message = 'Valoarea de achiziție nu se mută pe alt vehicul.';
+  end if;
+  if exists (select 1 from public.vehicles v
+              where v.id = new.vehicle_id and v.organization_id <> new.organization_id) then
+    raise exception using errcode = 'P0001',
+      message = 'Vehiculul ales nu există în organizația dumneavoastră.';
+  end if;
+  if tg_op = 'INSERT'
+     and coalesce(pg_catalog.current_setting('app.flota_cost_mutat', true), '') <> 'on' then
     perform internal.flota_vehicul_al_firmei(new.organization_id, new.vehicle_id);
   end if;
   return new;
@@ -196,15 +207,22 @@ security definer
 set search_path = ''
 as $$
 begin
-  if tg_op = 'UPDATE' then
-    if (new.organization_id, new.document_id) is distinct from (old.organization_id, old.document_id) then
-      raise exception using errcode = 'P0001',
-        message = 'Costul nu se mută pe alt document.';
-    end if;
-  elsif coalesce(pg_catalog.current_setting('app.flota_cost_mutat', true), '') <> 'on'
-        and not exists (select 1 from public.vehicle_documents d
-                         where d.id = new.document_id and d.organization_id = new.organization_id
-                           and d.deleted_at is null) then
+  if tg_op = 'UPDATE'
+     and (new.organization_id, new.document_id) is distinct from (old.organization_id, old.document_id) then
+    raise exception using errcode = 'P0001',
+      message = 'Costul nu se mută pe alt document.';
+  end if;
+  -- Ca la `vc_inainte`: firma se verifică și cu steagul pus.
+  if exists (select 1 from public.vehicle_documents d
+              where d.id = new.document_id and d.organization_id <> new.organization_id) then
+    raise exception using errcode = 'P0001',
+      message = 'Documentul nu există în organizația dumneavoastră.';
+  end if;
+  if tg_op = 'INSERT'
+     and coalesce(pg_catalog.current_setting('app.flota_cost_mutat', true), '') <> 'on'
+     and not exists (select 1 from public.vehicle_documents d
+                      where d.id = new.document_id and d.organization_id = new.organization_id
+                        and d.deleted_at is null) then
     raise exception using errcode = 'P0001',
       message = 'Documentul nu există în organizația dumneavoastră.';
   end if;
@@ -326,10 +344,24 @@ $$;
 -- ============================================================
 -- O valoare NENULĂ scrisă în coloana veche (aplicația veche în fereastra
 -- dintre migrare și deploy, scripturi, fixture-uri) se mută în tabela de costuri
--- în aceeași instrucțiune, iar coloana rămâne goală. Rularea are loc ÎNAINTEA
--- verificării RLS a rândului-părinte: dacă `vehicule_insert/update` sau
--- `vdoc_insert/update` refuză rândul, toată instrucțiunea cade și mutarea se
--- anulează odată cu ea. `null` nu atinge costul (vezi antetul).
+-- în aceeași instrucțiune, iar coloana rămâne goală. `null` nu atinge costul
+-- (vezi antetul).
+--
+-- Rularea are loc ÎNAINTEA verificării RLS a rândului-părinte ȘI înaintea
+-- conflictului lui `INSERT … ON CONFLICT`. Pe UPDATE și pe un INSERT obișnuit,
+-- un refuz al lui `vehicule_*` / `vdoc_*` face toată instrucțiunea să cadă, iar
+-- mutarea se anulează odată cu ea. Pe `ON CONFLICT DO NOTHING` (upsert-ul
+-- PostgREST cu `resolution=ignore-duplicates`), NU: WITH CHECK judecă rândul
+-- PROPUS (firma proprie), conflictul sare rândul fără eroare, iar mutarea
+-- făcută deja de trigger rămâne. Cu `id`-ul unui rând al altei firme, asta
+-- suprascria costul acelei firme (revizia de securitate, constatările e și f).
+-- De aceea, trei închideri, fiecare suficientă pentru cazul ei:
+--   1. pe INSERT, un `id` care EXISTĂ deja (în orice firmă, și șters logic)
+--      înseamnă calea de conflict: coloana se golește, nimic nu se mută.
+--      Corectura costului se face pe tabela de costuri, sub politica ei;
+--   2. `do update` atinge doar rândul de cost al ACELEIAȘI firme; dacă n-a
+--      atins nimic (rândul existent e al altei firme), instrucțiunea cade;
+--   3. `vc_inainte` / `vdc_inainte` verifică firma părintelui și cu steagul pus.
 create or replace function internal.vehicles_valoare_in_costuri()
 returns trigger
 language plpgsql
@@ -339,14 +371,25 @@ as $$
 declare
   v_steag text := coalesce(pg_catalog.current_setting('app.flota_cost_mutat', true), '');
   v_actor uuid := coalesce(new.updated_by, auth.uid());
+  v_n     integer;
 begin
+  if tg_op = 'INSERT' and exists (select 1 from public.vehicles v where v.id = new.id) then
+    new.valoare_achizitie := null;
+    return new;
+  end if;
   perform pg_catalog.set_config('app.flota_cost_mutat', 'on', true);
   insert into public.vehicle_costuri (organization_id, vehicle_id, valoare_achizitie, created_by, updated_by)
   values (new.organization_id, new.id, new.valoare_achizitie, v_actor, v_actor)
   on conflict (vehicle_id) do update
     set valoare_achizitie = excluded.valoare_achizitie,
-        updated_by = excluded.updated_by;
+        updated_by = excluded.updated_by
+    where public.vehicle_costuri.organization_id = excluded.organization_id;
+  get diagnostics v_n = row_count;
   perform pg_catalog.set_config('app.flota_cost_mutat', v_steag, true);
+  if v_n = 0 then
+    raise exception using errcode = 'P0001',
+      message = 'Vehiculul ales nu există în organizația dumneavoastră.';
+  end if;
   new.valoare_achizitie := null;
   return new;
 end;
@@ -367,14 +410,26 @@ as $$
 declare
   v_steag text := coalesce(pg_catalog.current_setting('app.flota_cost_mutat', true), '');
   v_actor uuid := coalesce(new.updated_by, auth.uid());
+  v_n     integer;
 begin
+  -- Aceleași trei închideri ca la `vehicles_valoare_in_costuri`.
+  if tg_op = 'INSERT' and exists (select 1 from public.vehicle_documents d where d.id = new.id) then
+    new.cost := null;
+    return new;
+  end if;
   perform pg_catalog.set_config('app.flota_cost_mutat', 'on', true);
   insert into public.vehicle_document_costuri (organization_id, document_id, cost, created_by, updated_by)
   values (new.organization_id, new.id, new.cost, v_actor, v_actor)
   on conflict (document_id) do update
     set cost = excluded.cost,
-        updated_by = excluded.updated_by;
+        updated_by = excluded.updated_by
+    where public.vehicle_document_costuri.organization_id = excluded.organization_id;
+  get diagnostics v_n = row_count;
   perform pg_catalog.set_config('app.flota_cost_mutat', v_steag, true);
+  if v_n = 0 then
+    raise exception using errcode = 'P0001',
+      message = 'Documentul nu există în organizația dumneavoastră.';
+  end if;
   new.cost := null;
   return new;
 end;
