@@ -12,35 +12,23 @@ aliases:
   ]
 cai:
   - "supabase/migrations/0203_flota_service_costuri.sql"
-  - "supabase/migrations/0225_flota_costuri_ascunse.sql"
   - "src/app/(app)/flota/actions-service.ts"
   - "src/app/(app)/flota/etichete-service.ts"
   - "src/app/(app)/flota/[id]/fila-service.tsx"
-  - "src/app/(app)/flota/[id]/fila-costuri.tsx"
   - "src/app/(app)/flota/[id]/dialog-plan-service.tsx"
   - "src/app/(app)/flota/[id]/dialog-intrare-service.tsx"
   - "src/app/(app)/flota/[id]/dialog-cheltuiala.tsx"
   - "src/domain/fleet/service.ts"
-  - "src/domain/fleet/costuri.ts"
   - "src/lib/queries/fleet-service.ts"
   - "src/schemas/fleet-service.ts"
   - "tests/rls/proba-flota-service.sql"
-  - "tests/rls/proba-costuri-compatibilitate.sql"
-tabele:
-  [
-    vehicle_service_plans,
-    vehicle_service_entries,
-    vehicle_expenses,
-    vehicle_costuri,
-    vehicle_document_costuri,
-    expirables,
-    vehicles,
-  ]
+  - "tests/rls/proba-oracol-intre-firme.sql"
+tabele: [vehicle_service_plans, vehicle_service_entries, vehicle_expenses, expirables, vehicles]
 permisiuni: [vehicles:read, vehicles:update]
 feature: fleet
-capcane: [19, 22, 26]
-scris_pe: 58fa107ae8b87ee0434ec19906e366a78b7926ef
-scris_la: 2026-10-23
+capcane: [19, 26]
+scris_pe: c1ad3b039681d8b4d5f1f466c0c2a4e7f3ab67f8
+scris_la: 2026-10-24
 tags: [modul, operations]
 ---
 
@@ -50,6 +38,16 @@ Extrasă din `[[modul/flota]]`. Migrarea: `0203_flota_service_costuri.sql` (plan
 0177; numerele intermediare s-au ocupat). Tabelele sunt PROPRII flotei, nu
 `equipment.vehicle_id`: flota merge cu mentenanța oprită, iar utilajele n-au kilometri
 de bord.
+
+## Paginile secțiunii
+
+Pagina asta ține rutele, filele, citirile și scadențele; costurile și acțiunile s-au
+spart după `.claude/docs/meta/conventii.md`.
+
+| Pagină                                     | Ce ține                                                         |
+| ------------------------------------------ | --------------------------------------------------------------- |
+| [[modul/flota/service-si-costuri/costuri]] | totalul filei Costuri, cine vede foile, valorile ascunse (0225) |
+| [[modul/flota/service-si-costuri/actiuni]] | acțiunile de scriere, scrierile refuzate, caseta, erorile       |
 
 ## Rute și cine ajunge
 
@@ -64,24 +62,7 @@ intervențiile și cheltuielile mașinii echipei lui, nu și ale mașinii comune
 e alocată unui om din echipă (blocurile „pool cu șofer” din `proba-flota-matrice-roluri.sql`
 și `proba-livrare-roluri.sql`); șoferul (`own`) și `hr` nu citesc nimic, fără eroare:
 află de scadență din notificare. Fila Costuri a managerului NU arată cifrele derivate
-din foi (vezi „Costuri”).
-
-## Server Actions
-
-`src/app/(app)/flota/actions-service.ts`, toate `vehicles:update` / all.
-
-| Funcție                                    | Ce face                                               |
-| ------------------------------------------ | ----------------------------------------------------- |
-| `creeazaPlanService`                       | plan nou (interval km și/sau luni, bază, avertizare)  |
-| `actualizeazaPlanService`                  | corectură, inclusiv `activ` (oprit = iese din alerte) |
-| `adaugaIntrareService`                     | intervenție făcută, opțional legată de plan           |
-| `stergeIntrareService`, `stergeCheltuiala` | ștergere logică, zero rânduri = CONFLICT              |
-| `adaugaCheltuiala`                         | cheltuială fără foaie (parcare, taxe, combustibil)    |
-
-**Nu există „modifică intervenția” și „modifică cheltuiala”**: baza refuză cu P0001 orice
-schimbare de dată, km, tip, plan, costuri sau anvelope după inserare. Se șterge și se
-reintroduce, ca un plan să nu poată fi mutat de o corectură tăcută. Anvelopele montate
-se schimbă și din formularul vehiculului (`actualizeazaVehicul`).
+din foi ([[modul/flota/service-si-costuri/costuri]]).
 
 ## Citiri
 
@@ -94,16 +75,6 @@ din `pragSaltVehicul` (`[[modul/flota/alerte-si-setari]]`).
 
 ## Ce refuză baza tăcut
 
-- **`ultima_*`, `urmatoarea_data`, `urmatorii_km` și `cost_total` nu se trimit.**
-  Planul își calculează singur (trigger BEFORE) ultima intervenție — cea mai recentă dintre
-  BAZA introdusă de om și intervențiile vii legate — și următoarea scadență; `cost_total`
-  e GENERATED. Ce trimite clientul în derivate se ignoră; formularul cere `baza_*`.
-  Ștearsă o intervenție legată, planul revine la cea dinainte sau la bază. — capcana #22
-- **Intervenția ridică `vehicles.km_curent` și nu-l coboară niciodată.** O intervenție
-  veche, introdusă târziu, rămâne istoric. Ștergerea ei NU scade kilometrajul; corectura
-  e `corecteazaKilometraj`, cu motiv auditat. Caseta avertizează pe loc (domeniul
-  `evaluareKmIntrare`, peste `verificaContinuitate`): „sub kilometraj” = istoric, „salt” =
-  probabil cifră greșită — se semnalează, nu se blochează.
 - **Doar scadența pe DATĂ ajunge în `expirables`** (`entity_type = 'vehicle_service'`,
   `entity_id` = vehiculul, `kind` = planul). Planul doar pe kilometri n-are dată: îl ia
   jobul zilnic. NICIO listă din aplicație nu citește `expirables` pentru flotă: semaforul
@@ -118,85 +89,14 @@ din `pragSaltVehicul` (`[[modul/flota/alerte-si-setari]]`).
   tăcut ramurile celorlalte module (cele noi ajung pe `else false`, deci invizibile).
   Proba (13) numără ramurile și o prinde. Garda din 0023 (nicio ramură nu acceptă
   `employees:read` cu scope `own`) trece.
-- **Vehiculul vândut sau casat nu mai primește planuri** (P0001); scadențele planurilor
-  existente devin inactive prin triggerul `vehicles_service_sync` (separat de
-  `vehicles_dupa`, ca să nu rescriu o funcție care sincronizează documentele).
 - **Memento-urile fără dată** (alerta pe km, anvelopele din noiembrie) nu au rând în
   `compliance_alerts`, deci dedup-ul stă în `internal.flota_mementouri`. „Aproape de
   scadență” și „depășit” pleacă fiecare O DATĂ per ciclu (cheia conține ținta de km:
   după o intervenție ținta se mută și ciclul se reia). Anvelopele: doar noiembrie, o
   dată pe an, doar pentru `anvelope_montate = 'vara'`. Un element pe care nu-l vede
   niciun destinatar nu se marchează trimis și se reia a doua zi.
-- **Anvelopele montate urmează ultima intervenție de tip „anvelope”** (după dată) care le
-  precizează; ștearsă ultima, câștigă cea dinainte, iar fără niciuna vehiculul își
-  păstrează valoarea. `anvelope_montate` pe altă intervenție decât „anvelope” dă 23514
-  (`vse_anvelope_ck`), spus pe câmp.
-- **Valoarea de achiziție și costul documentelor NU stau pe rândul vizibil** (0225, X1).
-  Erau coloane pe `vehicles` / `vehicle_documents`, rânduri pe care le văd șoferul (mașina
-  lui, pool), managerul (pool) și hr-ul cu mașină (0215): RLS-ul nu taie coloane. Acum
-  stau în `vehicle_costuri` și `vehicle_document_costuri` (1:1, fără `deleted_at`, unic
-  TOTAL pe părinte — `on_conflict` nu poate numi un index parțial, 42P10), citite prin
-  `app.poate_vedea_costurile_vehiculului` — aceeași funcție ca planurile, intervențiile și
-  cheltuielile (definită în 0203, 0225 n-o rescrie). Excepție deliberată:
-  `avantaj_natura_flota` (`payroll:read = all`) dă și lui hr valoarea de intrare (art. 76
-  Cod fiscal). Restul primește embed-ul `null`, fără eroare; fișa ascunde rândul „Valoare” și coloana „Cost”. Aplicația scrie explicit
-  (insert la creare doar cu valoare, upsert la corectură, și cu `null`, ca golirea să golească).
-- **Coloanele vechi sunt goale, nu aruncate** (aplicația veche le citește până la deploy).
-  O valoare NENULĂ scrisă în ele (aplicația veche, scripturi, fixture-uri) se mută în
-  tabela de costuri în aceeași instrucțiune (BEFORE, cheie străină DEFERRABLE); `null` se
-  ignoră, ca o corectură din aplicația veche să nu șteargă costul mutat. CHECK `is null`
-  e plasa dacă triggerul e oprit (23514). Citirea lor e oprită de `coloane.test.ts`.
-  Mutarea pe date existente o verifică `proba-migrari-pe-date.sql` (11) și (10l).
-- **Triggerul de mutare rulează ÎNAINTEA conflictului** din
-  `INSERT … ON CONFLICT DO NOTHING` (upsert-ul PostgREST cu `ignore-duplicates`): cu id-ul
-  unui rând al altei firme, WITH CHECK trecea pe rândul propus, iar costul străin era
-  rescris. Acum un id care EXISTĂ golește coloana fără mutare, `do update` atinge doar
-  rândul aceleiași firme (altfel P0001), iar `vc_inainte` / `vdc_inainte` verifică firma
-  părintelui și cu steagul `app.flota_cost_mutat` pus. Garda de firmă e PRIMA în ele: un
-  rând pe firma altcuiva ia 42501 orice id ar purta (fără sondă de existență). Proba:
-  `proba-costuri-compatibilitate.sql` (1).
-- **Inserarea costului cere `vehicles:update = all`**; `create = all` singur o face DOAR
-  pe vehiculul / documentul creat de el în ultimele 5 minute
-  (`app.vehicul_creat_de_apelant`, `app.document_creat_de_apelant`), adică valoarea
-  inițială, din a doua cerere a acțiunii. `created_at`-ul lor îl scrie baza la INSERT
-  (`internal.flota_creat_acum`), deci fereastra nu se mută. Corectura (`do update`) îi
-  rămâne refuzată. Proba: (1l), (1m).
 - **Tipul de document `revizie` e retras pe platformă** (0203); documentele deja scrise
   pe el rămân și se corectează; o firmă îl reactivează din setările de tipuri (0202).
-
-## Costuri
-
-Totalul adună patru surse, fiecare cu originea ei, ca nimic să nu fie numărat de două
-ori: service (`cost_total`), combustibilul de pe foile APROBATE, cheltuielile fără foaie
-(inclusiv „combustibil fără foaie”) și costul documentelor cu valabilitatea începută în
-perioadă (din `vehicle_document_costuri`, embed `!inner`). Costul pe km și consumul real se împart la kilometrii foilor aprobate din
-aceeași perioadă; fără foi, cifra lipsește (și ecranul spune de ce), nu devine „0 lei/km”.
-Combustibilul fără foaie nu intră în consum: n-are kilometri cu care să fie pereche.
-Adunările trec prin bani întregi (`sumaLei`).
-
-**Foile se citesc sub alt drept decât service-ul.** Service-ul, cheltuielile și documentele
-sunt COMPLETE pentru orice vehicul cu filele deschise (`vehicles:read >= team`); foile și alimentările
-se citesc sub `trip_sheets:read`, iar la `team` (managerul) RLS le taie TĂCUT la foile
-șoferilor echipei, pe un vehicul pe care îl conduc și alții. De aceea `FilaCosturi` primește
-`vedeToateFoile = can(trip_sheets:read, all)`: fără el foile nu se interoghează, totalul
-exclude combustibilul de pe foi (și se numește „fără foi”), iar kilometrii, costul pe km și
-consumul nu se afișează, cu motivul scris pe ecran. Un cost pe km împărțit la kilometri
-parțiali ar ieși umflat, fără eroare.
-
-## Caseta planului
-
-La corectură, previzualizarea „Următoarea scadență” pornește de la `ultimaEfectiva`
-(domeniu): ultima intervenție legată de plan rămâne în joc cât timp baza introdusă e mai
-veche decât ea, exact ca în `vsp_inainte`. Intervenția legată se deduce din `ultima_*` a
-planului, strict peste baza lui veche.
-
-## Erori traduse
-
-`traduEroareService` în `erori.ts`: P0001 pe câmp (`baza_data`, `plan_id`,
-`data_interventiei`, `data_cheltuielii`), CHECK-urile pe câmpul lor și numele planului
-luat pe `denumire`. Vehiculul e câmp ASCUNS în casete, deci „Vehiculul ales nu există…”,
-„Intervenția de service nu se modifică…” și restul rămân mesaj general. Mesajele sunt
-citate din migrare în `erori-service.test.ts`.
 
 ## Ce se mișcă împreună
 

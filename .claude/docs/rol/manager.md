@@ -11,10 +11,16 @@ cai:
   - "supabase/migrations/0204_flota_soferi.sql"
   - "supabase/migrations/0216_flota_rezervari.sql"
 tabele: [role_permissions, organization_members, employees]
-permisiuni: [attendance:approve, leave:approve, per_diem:approve, trip_sheets:approve, roles:update]
+permisiuni:
+  - attendance:approve
+  - leave:approve
+  - per_diem:approve
+  - trip_sheets:approve
+  - vehicle_reservations:approve
+  - roles:update
 capcane: [4, 9, 16, 18, 26, 35]
-scris_pe: 207765022f02c2a4a537b38a14dc59740df9d8f7
-scris_la: 2026-10-12
+scris_pe: c1ad3b039681d8b4d5f1f466c0c2a4e7f3ab67f8
+scris_la: 2026-10-24
 tags: [rol]
 ---
 
@@ -27,6 +33,12 @@ pe care le are, iar de acolo vin ecranele complete cu butoane care n-au ce face.
 Sursa de adevăr e seed-ul din `0002_authz.sql` plus migrările care l-au corectat de
 atunci — nu `src/config/permissions.ts`, care e doar vocabularul.
 
+## Paginile rolului
+
+| Pagină                   | Ce ține                                           |
+| ------------------------ | ------------------------------------------------- |
+| [[rol/manager/matricea]] | cheile din seed și precedența celor trei niveluri |
+
 ## „Echipa" înseamnă subarborele, cu el cu tot
 
 `app.is_manager_of(org, angajat)` verifică `employees.manager_path @> array[fișa mea]`.
@@ -34,35 +46,14 @@ Lanțul conține angajatul însuși, deci **`is_manager_of(org, eu) = true`**: s
 `team` include propria fișă a managerului, nu doar subordonații
 (`0005_hr_rls.sql:36-38`). Unde asta ar însemna „își aprobă singur", excluderea se face
 explicit, nu prin scope — lanțul de aprobare al concediilor sare peste solicitant
-(`0017_fix_concedii.sql`).
+(`0017_fix_concedii.sql`). Flota a repetat excluderea de două ori: cu
+`trip_sheets:approve = team` nu-și aprobă nici propria foaie, nici una întocmită de el
+pentru altcineva, iar cu `vehicle_reservations:approve = team` nu-și decide propria
+rezervare (`0199_flota_roluri.sql` §C3, `0216_flota_rezervari.sql`).
 
 Subordonarea trăiește în `employees`, nu în `organization_members`. Un manager fără fișă
 principală de angajat are `team` peste o mulțime goală: nicio eroare, liste goale peste
 tot.
-
-## Ce are
-
-| Resursă                         | Acțiuni, cu scope-ul lor                              |
-| ------------------------------- | ----------------------------------------------------- |
-| `attendance`, `per_diem`        | `read`, `approve` — team                              |
-| `trip_sheets`                   | `read`, `approve` team; `create`, `update` own (0199) |
-| `vehicles`                      | `read` — team, plus mașinile pool (0199)              |
-| `driver_licenses`               | `read` — team (0204)                                  |
-| `vehicle_reservations`          | `read`, `approve` team; `create`, `update` own (0216) |
-| `leave`                         | `read`, `approve` team; `create`, `update` own (0071) |
-| `checklists`                    | `read`, `approve` team; `update` own (0088)           |
-| `tickets`                       | `read`, `update`, `approve` team; `create` own (0046) |
-| `evaluations`                   | `read`, `create`, `update` — team (0070)              |
-| `courses`                       | `read`, `create`, `update`, `export` — team (0075)    |
-| `employees`, `ssm`, `inventory` | `read` — team                                         |
-| `maintenance`                   | `read` team; `create` **all** — sesizarea defecțiunii |
-| `announcements`                 | `read` — all                                          |
-| `roles`                         | `update` — team (0063)                                |
-| `payroll`, `audit`              | _none_ — refuz EXPLICIT, nu rând lipsă                |
-
-`roles:update = team` e îngust cu intenție: managerul poate debloca punctual un modul
-cuiva din echipa lui, prin `role_permissions.member_id`, dar nu umblă la matricea
-rolurilor.
 
 ## Ce NU are — și cum arată asta pe ecran
 
@@ -88,6 +79,16 @@ rolurilor.
   `[[modul/flota/roluri-si-portal]]`
 - **`compliance:read`.** `public.expirables` îi întoarce zero rânduri, tăcut. Scadențele
   se calculează din tabelele sursă. — capcana #26
+- **`trip_sheets` liber pe foile proprii.** Cu `create`/`update = own` întocmește, dar
+  vehiculul trebuie să fie `pool` sau alocat șoferului foii în ziua plecării
+  (`0199_flota_roluri.sql` §C1), iar cu `rezervare_obligatorie` pornită pe firmă pool-ul
+  cere și o rezervare confirmată pe ziua foii (`0216_flota_rezervari.sql`); o foaie
+  TRIMISĂ nu se mai corectează, se retrage întâi în ciornă (§C5, lărgit la orice scope
+  de `0200_flota_foaia_zilnica.sql` §D1). Toate, P0001.
+- **Permisul și avizul șoferului, când firma i-a retras cheia.** `verificari_soferi` îi
+  dă atunci `null` pe câmpurile permisului și pe aviz — „nu se știe", nu „fără permis";
+  un avertisment care citește `null` ca `false` acuză pe nedrept
+  (`0204_flota_soferi.sql`).
 - **`reges:*` și `employees:invite`.** Niciun rând, în `0087_reges_online.sql` respectiv
   `0099_invitatia_leaga_fisa.sql` — absența rândului ESTE refuzul, nu o omisiune.
 
@@ -95,18 +96,6 @@ Atenție la sensul invers: `maintenance:create = all` e mai LARG decât pare. Po
 INSERT a echipamentelor și a planurilor îl lasă să treacă, deci poarta trebuie pusă în
 aplicație pe `maintenance:update` / `team`; doar sesizarea rămâne pe `create`.
 — capcana #35
-
-## Cum se rezolvă un refuz care nu se explică
-
-Precedența are trei niveluri, calculate identic în bază și în TypeScript: **rândul
-membrului** bate **rândul organizației**, care bate **implicitul global**
-(`app.has_permission`, extinsă de `0063_permisiuni_per_angajat.sql`; oglinda ei e
-`getPermissionMap` din `src/lib/auth/permissions.ts`). Tabelul de mai sus e doar
-implicitul: o firmă îi poate da sau lua managerului orice cheie fără deploy.
-
-Când ecranul și baza nu spun același lucru — buton care duce în refuz, modul deblocat
-care nu apare în meniu — cauza tipică e `getPermissionMap` chemat **fără** `memberId`:
-suprascrierile per membru rămân invizibile ecranului, deși baza le respectă.
 
 ## Când NU e suficientă pagina asta
 

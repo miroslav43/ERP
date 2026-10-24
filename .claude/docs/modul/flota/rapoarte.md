@@ -27,16 +27,18 @@ tabele:
   [
     trip_sheets,
     trip_sheet_curse,
+    trip_sheet_uit,
     fuel_entries,
     vehicle_service_entries,
     vehicle_expenses,
     vehicle_documents,
+    vehicle_document_costuri,
   ]
 permisiuni: [vehicles:read, vehicles:export, trip_sheets:read]
 feature: fleet
 capcane: [2, 18]
-scris_pe: 720d889bc73823b4982d9a06ff3943418b96d9a7
-scris_la: 2026-10-12
+scris_pe: c1ad3b039681d8b4d5f1f466c0c2a4e7f3ab67f8
+scris_la: 2026-10-24
 tags: [modul, operations]
 ---
 
@@ -58,6 +60,11 @@ Parametri: `?luna=AAAA-LL` (la export, obligatoriu și validat: 400 altfel; pe p
 lună lipsă sau stricată cade pe luna curentă din România) și `?vehicul=<uuid>` (opțional).
 Fila „Rapoarte" stă în `FILE_FLOTA`; registrul de porți (`porti-ruta.ts`) are un singur
 prag, deci al doilea drept se verifică în preambulul paginii.
+
+Caseta „Export pentru contabilitate" (`export-contabil.tsx`, formular GET spre
+`/api/export/flota/contabil`) o vede doar cine trece de `poateExportaFlota`; luna ei
+implicită e luna TRECUTĂ când pagina stă pe luna curentă, altfel luna din filtru
+(`lunaMutata`). Formatele, conturile și porțile rutei: `[[modul/flota/export-contabil]]`.
 
 ## Ce arată
 
@@ -89,6 +96,11 @@ Foile ciornă, trimise și respinse ale lunii se numără separat și se spun pe
 - **`max_rows = 1000` taie o agregare fără să spună.** Toate citirile de calcul trec prin
   `citesteTot` (keyset pe `id`), care aruncă în loc să trunchieze; lista de etichete se cere
   în felii de câte 100 de id-uri, ca adresa să rămână scurtă. — capcana #2
+- **Documentul fără cost VIZIBIL iese din total, fără eroare.** Costul stă din 0225 în
+  `vehicle_document_costuri`, citit cu embed `!inner` și `.not("costuri.cost", "is", null)`:
+  documentul fără rând de cost, sau cu unul pe care rolul nu-l vede
+  (`app.poate_vedea_costurile_vehiculului`), lipsește din coloana „Documente". Poarta de
+  `all` îl face vizibil, deci pe ecranul ăsta cifra e întreagă.
 - **Selecturile din `fleet-rapoarte.ts` stau în constante, iar `coloane.test.ts` nu le
   rezolvă** (citește doar `.select("literal")`). Coloanele lor sunt lipite de
   `database.ts` în `fleet-rapoarte.test.ts`; o coloană inventată n-ar da eroare de
@@ -107,22 +119,27 @@ Foile ciornă, trimise și respinse ale lunii se numără separat și se spun pe
 2026): lei, km, litri, consumuri și abateri sunt `CelulaNumerica` (valoarea, rotunjită la
 precizia afișată, + un cod Excel ca `#,##0.00`, pe care Excelul în română îl arată
 `1.002,50`); unitatea stă în format (`#,##0.00" l"`), abaterea e fracția cu format de
-procent. „—” rămâne text, sărit de SUM. Câmpurile de antet rămân text. `DocumentXlsx`
-lărgește DOAR celulele tabelelor, deci uneltele publice (`DocumentTabelar`, text) trec
-neschimbate. **Fără subsolul „Generat gratuit cu administrativo.ro”**: opțiunea `subsol` a
+procent. „—” rămâne text, sărit de SUM. Câmpurile de antet rămân text; `DocumentXlsx`
+lărgește DOAR celulele tabelelor, deci uneltele publice trec neschimbate.
+**Fără subsolul „Generat gratuit cu administrativo.ro”**: opțiunea `subsol` a
 lui `randeazaXlsx` e obligatorie; `raspunsDocument` (uneltele) trimite `"unealta"`, exporturile
 aplicației `"aplicatie"`. Testele: `src/lib/unelte/xlsx.test.ts` (ambele căi). Răspunsul
-trece prin `raspunsBinar`: `private, no-store`. PDF-ul și Word-ul comune (`randeazaPdf*`,
-`randeazaDocx*`) au aceeași opțiune, cu implicitul `"aplicatie"` (fără rând și fără
-legătură); `raspuns.ts` cere `"unealta"` pe toate formatele
-(`src/lib/unelte/subsol-aplicatie.test.ts`, ambele căi).
+trece prin `raspunsBinar`: `private, no-store`. PDF-ul și Word-ul comune au aceeași
+opțiune, cu implicitul `"aplicatie"` (`src/lib/unelte/subsol-aplicatie.test.ts`).
+
+Pe lângă cele trei tabele ale ecranului, fișierul are al patrulea — „Foile aprobate ale
+lunii" — iar din 0217 cu coloana „UIT": codurile distincte ale curselor foii, text, nu
+număr (`uituri:trip_sheet_uit!trip_sheet_id(uit)`, cu `.is("uituri.deleted_at", null)`);
+`[[modul/flota/uit]]`.
 
 ## Pachetul lunar
 
-ZIP cu `raport-flota-AAAA-LL.xlsx` la rădăcină și `foi/<nume>.pdf` pe fiecare foaie
-aprobată. Folosește `jszip`, în `dependencies` din `b6ed2c66` (aceeași versiune, același
-lock); niciun alt fișier de producție din `src/` nu importă o devDependency (verificat cu grep
-pe 22 oct 2026). Pașii:
+ZIP cu `raport-flota-AAAA-LL.xlsx` la rădăcină, `foi/<nume>.pdf` pe fiecare foaie
+aprobată și, din F12g, `jurnal-costuri-flota-AAAA-LL.csv` — jurnalul de costuri al lunii
+cu conturile PROPUSE (`CONFIGURARE_IMPLICITA`, implicita I-g7), de citit, nu de importat:
+fișierele de import se iau din casetă. Pe un vehicul ales, jurnalul are doar costurile
+lui, ca restul arhivei. Folosește `jszip`, în `dependencies` din `b6ed2c66` (aceeași
+versiune, același lock). Pașii:
 
 1. `numarFoiAprobateLuna` numără FĂRĂ să aducă rânduri; zero → 404, peste
    `PLAFON_FOI_PACHET` → 413 cu îndemnul de a alege un vehicul. Plafonul e calibrat pe
@@ -135,7 +152,9 @@ pe 22 oct 2026). Pașii:
 
 Modelul PDF al unei foi stă într-un singur loc, `modelFoaieDinDate`, folosit și de ruta
 foii singure (`[[modul/flota/foaia-zilnica]]`): instantaneul bate vehiculul de azi, iar
-alimentările și cursele se ordonează în model, nu în citire (embed-ul din pachet n-are `ORDER BY`).
+alimentările și cursele se ordonează în model, nu în citire (embed-ul din pachet n-are
+`ORDER BY`). Din 0217 poartă și codurile UIT sub cursa lor (`eTransportPentruPdf`), fără
+nota de prag pe masa vehiculului: instantaneul foii n-o are.
 
 ## Ce se mișcă împreună
 
@@ -146,8 +165,9 @@ omului înainte de clic.
 
 ## Ce NU e aici
 
-Verdictul fiscal al lunii (F10: `[[modul/flota/fiscal]]`), formatul Saga/WinMentor (F12g:
-`[[modul/flota/export-contabil]]`) și pachet pentru intervale mai lungi de o lună. Pagina nu a rulat într-un
+Verdictul fiscal al lunii (F10: `[[modul/flota/fiscal]]`), formatele și conturile
+exportului contabil (F12g: `[[modul/flota/export-contabil]]` — aici stă doar caseta) și
+pachet pentru intervale mai lungi de o lună. Pagina nu a rulat într-un
 browser pe date reale: baza din cloud n-are încă migrările fazelor F4–F7.
 
 ## Când NU e suficientă pagina asta

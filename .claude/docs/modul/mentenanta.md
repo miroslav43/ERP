@@ -4,6 +4,7 @@ titlu: Mentenanță
 aliases: [mentenanta, echipamente, sesizari, defecte]
 cai:
   - "src/app/(app)/mentenanta/**"
+  - "src/app/(scanare)/mentenanta/**"
   - "src/lib/queries/maintenance.ts"
   - "src/schemas/maintenance.ts"
   - "src/domain/maintenance/**"
@@ -16,10 +17,12 @@ cai:
   - "supabase/migrations/0210_mentenanta_interventii_complete.sql"
   - "supabase/migrations/0211_mentenanta_iscir_conformitate.sql"
   - "supabase/migrations/0212_mentenanta_fisiere_scriu_doar_membrii.sql"
+  - "supabase/migrations/0232_mentenanta_costuri_echipament.sql"
   - "tests/rls/izolare.sql"
 tabele:
   [
     equipment,
+    equipment_costuri,
     equipment_meters,
     maintenance_plans,
     maintenance_interventions,
@@ -32,11 +35,11 @@ permisiuni:
 feature: maintenance
 capcane: [17, 35, 50, 51, 55, 56, 57, 58]
 citeste_daca:
-  - "poartă de acțiune care pare prea largă → secțiunea „create nu e poarta”"
+  - "poartă de acțiune care pare prea largă → secțiunea „create nu e poarta”; buton, filă, casetă sau cod QR care duce greșit → [[modul/mentenanta/rute]]"
   - "sesizare care nu se mai mișcă, tehnician sau raportor refuzat → [[modul/mentenanta/sesizari]]"
-  - "poartă de acțiune, citire care taie rânduri, mesaj P0001 → [[modul/mentenanta/actiuni]]; casare, contoare → [[modul/mentenanta/echipamente]]; scadență, amânare → [[modul/mentenanta/planuri]]; ISCIR, VTP → [[modul/mentenanta/iscir]]"
-scris_pe: d73e7f38df015ae2084b174f6ad451b5ccb31ec2
-scris_la: 2026-10-12
+  - "poartă de acțiune, citire care taie rânduri, mesaj P0001 → [[modul/mentenanta/actiuni]]; casare, contoare, valoarea de achiziție → [[modul/mentenanta/echipamente]]; scadență, amânare → [[modul/mentenanta/planuri]]; ISCIR, VTP → [[modul/mentenanta/iscir]]"
+scris_pe: c1ad3b039681d8b4d5f1f466c0c2a4e7f3ab67f8
+scris_la: 2026-10-24
 tags: [modul]
 ---
 
@@ -57,50 +60,9 @@ corectare, anulare, procesul-verbal, garanția lucrării — `0210`):
 [[modul/mentenanta/interventii]]. ISCIR și verificările legale (regim RSVTI, suspendare,
 reînnoire, categoriile legale, dosarul de control — `0211`): [[modul/mentenanta/iscir]].
 Raportul pe perioadă (costuri, disponibilitate, MTTR/MTBF, „la timp”, CSV — M8, fără
-migrare): [[modul/mentenanta/rapoarte]].
-
-## Rute și cine ajunge
-
-| Rută                                                       | Poartă                    |
-| ---------------------------------------------------------- | ------------------------- |
-| `/mentenanta`                                              | `maintenance:read` own    |
-| `/mentenanta/sesizari`, `/mentenanta/sesizari/[id]`        | `maintenance:read` own    |
-| `/mentenanta/sesizari?sesizare=noua` (casetă)              | `maintenance:create` own  |
-| `/mentenanta/echipamente`, `/mentenanta/echipamente/[id]`  | `maintenance:read` team   |
-| `/mentenanta/echipamente?echipament=nou` (casetă)          | `maintenance:update` team |
-| `/mentenanta/planuri`, `/mentenanta/planuri/[id]`          | `maintenance:read` team   |
-| `/mentenanta/interventii`, `/mentenanta/interventii/[id]`  | `maintenance:read` team   |
-| `/mentenanta/interventii?interventie=noua` (casetă)        | `maintenance:update` team |
-| `/mentenanta/contoare`, `/mentenanta/echipamente/etichete` | `maintenance:read` team   |
-| `/mentenanta/iscir`                                        | `maintenance:read` team   |
-| `/mentenanta/rapoarte` (perioadă, CSV `export` team)       | `maintenance:read` team   |
-| `/mentenanta/setari`                                       | `maintenance:update` all  |
-
-Pragul `own` pe panou și pe sesizări e intenționat: **oricine poate sesiza o defecțiune**.
-Restul modulului — parcul de echipamente, planurile, intervențiile — cere `team`. Butoanele
-„Sesizare nouă” (panou, „Sesizările mele”, fișa echipamentului) se păzesc pe
-`maintenance:create`, nu mai apar necondiționat.
-
-Banda de file e `FileModul` cu `FILE_MENTENANTA` (`src/config/file-module.ts`), filtrată
-prin poarta rutei-ȚINTĂ (`poateDeschide`): „Setări” apare exact cui i se deschide
-`/mentenanta/setari`. Vezi [[strat/navigare]].
-
-Cele două formulare de creare sunt CASETE pe listele lor (`FormularDialog`, tiparul
-`?vehicul=nou` din [[modul/flota]]), nu pagini; butonul care le deschide se păzește pe
-permisiunea pe care o exercită. `?echipament=nou&model=<id>` precompletează caseta din
-altă fișă, fără cod și serie („Adaugă unul la fel”).
-
-**`/mentenanta/sesizari/noua` și `/portal/sesizari/noua` există doar ca REDIRECTURI** spre
-listă cu `?sesizare=noua`, păstrând `?echipament=`: autocolantele QR lipite pe utilaje codifică
-adresa veche. Echipamentul din QR se rezolvă pe server (`cautaEchipament`), vine cu
-`sesizare_deschisa` pentru avertismentul de duplicat, iar un id stricat ori un utilaj casat
-dau o bandă de atenție în casetă, nu 404. `/mentenanta/echipamente/nou` a fost șters.
-
-Pe `/mentenanta` poarta se citește de două ori: `own` deschide pagina, `team` decide dacă
-se vede panoul de organizație sau doar `SesizarileMele`. Cifrele panoului (`Indicator`, din
-M8) duc la listele cu EXACT rândurile numărate (`/mentenanta/planuri?scadenta=actiune`,
-`/mentenanta/sesizari?deschise=da`, `/mentenanta/iscir?stare=actiune`). Din M7 panoul
-are și „Verificări legale scadente” și alerta „Lipsește responsabilul RSVTI” (cazul 41).
+migrare): [[modul/mentenanta/rapoarte]]. Rutele cu poarta fiecăreia, banda de file,
+casetele de creare, adresa tipărită pe autocolantele QR și panoul:
+[[modul/mentenanta/rute]].
 
 ## `create` NU e poarta pentru echipamente
 
@@ -140,6 +102,13 @@ Postgres.
   zero rânduri sau eroare, intervenția abia inserată se anulează logic și acțiunea
   întoarce CONFLICT. Din 0180, anularea logică a unei intervenții legate de plan îl READUCE
   la intervenția anterioară.
+- **Valoarea de achiziție NU mai stă pe rândul echipamentului** (0232): `equipment.valoare_achizitie`
+  e golită, valoarea e în `equipment_costuri` și o citește doar `maintenance:update = all` ori
+  `maintenance:read >= team` (`app.poate_vedea_valoarea_echipamentelor`). Responsabilul utilajului
+  și tehnicianul atribuit — care văd rândul echipamentului, fiindcă RLS taie rânduri, nu coloane —
+  primesc `null`, deci „—", fără semnal; câmpul apare în fișă doar lui `update = all`, iar o
+  valoare trimisă totuși de un gestionar pe `team` e refuzată înainte de orice scriere. Coloana
+  golită e păzită de `src/lib/queries/coloane.test.ts`. — v. [[modul/mentenanta/echipamente]]
 - **Scadența pe contor pornește de la contorul real** (0180): planul nou fără
   `ultima_citire_contor` ia ultima citire a echipamentului; schema de editare OMITE coloana.
 - **Autorizația ISCIR are rândurile ei în `expirables`** (0180): `kind` fix, nu `tip`-ul

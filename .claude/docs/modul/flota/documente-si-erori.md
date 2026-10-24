@@ -16,6 +16,7 @@ cai:
   - "tests/rls/proba-flota-tipuri-fisiere.sql"
   - "supabase/migrations/0218_flota_iesire_din_parc.sql"
   - "supabase/migrations/0225_flota_costuri_ascunse.sql"
+  - "tests/rls/proba-oracol-intre-firme.sql"
 tabele:
   [
     vehicle_document_types,
@@ -27,8 +28,8 @@ tabele:
 permisiuni: [vehicles:create, vehicles:update]
 feature: fleet
 capcane: [21]
-scris_pe: bdf23c28f5dd664ad437a27a555b034b9f907214
-scris_la: 2026-10-23
+scris_pe: c1ad3b039681d8b4d5f1f466c0c2a4e7f3ab67f8
+scris_la: 2026-10-24
 tags: [modul, operations]
 ---
 
@@ -84,7 +85,9 @@ Valoarea efectivă e `coalesce(setarea, tipul)`, în `aplicaSetariTipuri`
 un tip retras nu rămâne obligatoriu (`vdts_inainte`). Citirile filtrează explicit
 `organization_id is null OR = firma`. Codul tipului propriu vine din denumire
 (`codDinDenumire`) și nu se mai schimbă; coliziunea cu un cod de platformă se spune pe
-`denumire`. Fără `.upsert()`: unicitatea setării e parțială (capcana #7).
+`denumire`. Fără `.upsert()`: unicitatea setării e parțială (capcana #7). Celula setării e
+un `<form>`, deci coloana ei merge pe `peTelefon: "actiuni"` — `meta` se randează pe
+telefon într-un `<p>`, marcaj nevalid și hidratare ratată (React #418).
 
 ## Fișierele — bucketul `org-flota`
 
@@ -96,6 +99,10 @@ triggerele cer calea în folderul entității (P0001). Trei pași în `actions-f
 (semnare pe clientul omului → urcare → `masoaraObiectul` + UPDATE cu `.select()`);
 `IncarcareFisierFlota` e caseta comună fișei și foii (și în portal). Linkurile se
 semnează pe server (`urlSemnateFlota`): cine n-are voie vede „indisponibil”, nu un link.
+Scanul procesului-verbal de predare (0215) stă în folderul VEHICULULUI, dar cu numele
+legat de PV (`construiesteCaleScanPv` / `caleScanPvValida`, aceeași formă cerută pe rând
+de `internal.pv_vehicul_inainte`): poarta îl arată și fostului șofer, care vede doar
+PV-ul, deci calea nu poate fi a altui fișier din folder — [[modul/flota/proces-verbal]].
 
 ## Ce refuză baza tăcut
 
@@ -103,6 +110,10 @@ semnează pe server (`urlSemnateFlota`): cine n-are voie vede „indisponibil”
   pentru ea dă P0001 la un document nou, iar unul retras din platformă (transportul, 0116) trece dacă firma l-a activat. Calea scanării și a bonului trebuie să stea în
   folderul entității (P0001); bonul se urcă doar pe ciornă. Proba:
   `tests/rls/proba-flota-tipuri-fisiere.sql`.
+- **Garda de firmă e PRIMA în `internal.vdoc_inainte`** (0202, Y2): un document pus pe
+  firma altcuiva — sau fără firmă — ia 42501 cu același mesaj, fie că vehiculul numit
+  există acolo, fie că nu. Triggerul BEFORE rulează înaintea politicii, deci căutarea
+  vehiculului vine după gardă. Proba: `tests/rls/proba-oracol-intre-firme.sql` (g4, n1).
 
 ## Erori traduse
 

@@ -53,8 +53,8 @@ citeste_daca:
   - "foaie refuzată cu „Vehiculul ales nu vă este alocat” → [[modul/flota/roluri-si-portal]]; permis, aviz medical, șofer → [[modul/flota/soferi]]; amendă, art. 39, incident, daună → [[modul/flota/amenzi-si-daune]] (acțiunile, citirile, erorile → [[modul/flota/amenzi-actiuni]]; cine conducea, scrisoarea cu CNP, recuperarea → [[modul/flota/amenzi-scrisoarea]]); declarația șoferului din portal, amenzile în rezumatul zilnic și pe fișa vehiculului → [[modul/flota/declaratia-soferului]]"
   - "curse, foaie trimisă, numărul FP, PDF, orele foilor → [[modul/flota/foaia-zilnica]]; plafoanele foii, foaia numerotată, gărzile, ce se mai mișcă pe o foaie trimisă sau aprobată → [[modul/flota/foaia-zilnica-garzi]]; service, costuri, anvelope → [[modul/flota/service-si-costuri]]; rapoarte lunare, Excel, pachet pentru contabil → [[modul/flota/rapoarte]]; Saga, WinMentor, notă contabilă → [[modul/flota/export-contabil]]"
   - "alerte de scadență, /flota/setari → [[modul/flota/alerte-si-setari]]; regim fiscal, avantaj în natură, /flota/fiscal → [[modul/flota/fiscal]]; proces-verbal de predare, PVA, confirmarea șoferului → [[modul/flota/proces-verbal]]"
-scris_pe: b6ed2c66abe3b535c04d7993c3465e8fff1629de
-scris_la: 2026-10-13
+scris_pe: c1ad3b039681d8b4d5f1f466c0c2a4e7f3ab67f8
+scris_la: 2026-10-24
 tags: [modul, operations]
 ---
 
@@ -106,7 +106,12 @@ casetele fără rută (vehicul nou, foaie nouă) și traducerea din `FormData`:
   link spre parc când lista vine goală. — capcana #18
 - **Costurile nu vin cu rândul vehiculului** (0225): valoarea de achiziție și costul
   documentelor stau în tabele 1:1; angajatul, hr-ul și managerul pe pool primesc `null`,
-  fără eroare — `[[modul/flota/service-si-costuri]]`.
+  fără eroare — `[[modul/flota/service-si-costuri]]`. Coloanele vechi
+  `vehicles.valoare_achizitie` și `vehicle_documents.cost` sunt GOALE, închise de
+  `vehicles_valoare_mutata_ck` și `vdoc_cost_mutat_ck`: citite dau mereu `null`, iar o
+  valoare nenulă scrisă în ele o MUTĂ un trigger în tabela de costuri (una nulă se
+  ignoră) — fără nicio eroare. Costul intră în a doua cerere, nu în tranzacția
+  rândului-părinte: de aici mesajul „s-a adăugat, dar costul nu s-a salvat".
 - **Semaforul de scadențe NU se citește din `expirables`.** Politica de acolo cere ȘI
   dreptul pe vehicul ȘI `compliance:read`, pe care în seed îl au doar `super_admin` și
   `org_admin`. Pentru `hr`, `manager` și `employee` tabela întoarce **zero rânduri,
@@ -122,7 +127,9 @@ casetele fără rută (vehicul nou, foaie nouă) și traducerea din `FormData`:
 - **`vehicles` și `vehicle_documents` cer `created_by` ȘI `updated_by` trimise
   explicit** din client — spre deosebire de tabelele acoperite de `internal.set_actor`.
   Omiterea lor dă **42501**, adică „Nu aveți dreptul…", un mesaj care trimite
-  investigația exact în direcția greșită. — capcana #23
+  investigația exact în direcția greșită. Cu `created_at` e invers: din 0225 îl rescrie
+  baza la INSERT pe amândouă (`internal.flota_creat_acum`), deci unul trimis din client
+  se pierde tăcut. — capcana #23
 - **O anomalie confirmată e închisă, din 0171 și în bază.** Orice schimbare de
   `confirmat_la`, `confirmat_de` sau `nota` după confirmare dă P0001, iar `confirmat_de`
   nu mai vine din payload. `confirmaAnomalie` păstrează `.is("confirmat_la", null)`: fără
@@ -132,6 +139,9 @@ casetele fără rută (vehicul nou, foaie nouă) și traducerea din `FormData`:
   `alimentari_insert`/`_update` prin `app.poate_scrie_foaie` (pe `update`). Înainte,
   ambele foloseau dreptul de citire. Proba: `tests/rls/proba-flota-integritate.sql`, care
   verifică și `department_id` din altă firmă (P0001).
+- **Ieșirea din parc nu mai trece prin `actualizeazaVehicul`** (0218): orice trecere a
+  statusului spre sau dinspre `vandut`/`casat` din afara asistentului „Scoate din parc"
+  dă P0001, cu mesajul care trimite la buton — `[[modul/flota/iesire]]`.
 - **Șoferul vehiculului NU se scrie pe `vehicles`** (0173): e derivatul alocării deschise,
   scris direct dă P0001 — `alocaVehicul` și ce închide alocarea: `[[modul/flota/actiuni]]`.
 - **Coloane GENERATED ALWAYS pe care clientul nu are voie să le trimită:**
