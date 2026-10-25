@@ -291,3 +291,10 @@ de oricine face un push.
 - module atinse: angajati flota mentenanta
 - straturi atinse: migrări citiri domeniu configurație
 - pagini rescrise: modul/flota.md modul/flota/alerte-si-setari.md modul/flota/amenzi-actiuni.md modul/flota/documente-si-erori.md modul/flota/rapoarte.md modul/flota/service-si-costuri.md modul/mentenanta.md rol/manager.md modul/flota/service-si-costuri/actiuni.md modul/flota/service-si-costuri/costuri.md modul/mentenanta/rute.md rol/manager/matricea.md
+
+## 2026-10-25
+
+- commit-uri în ultimele 24h: 1
+- module atinse: —
+- straturi atinse: —
+- pagini rescrise: modul/angajati.md modul/departamente.md modul/diurna.md modul/flota/amenzi-scrisoarea.md modul/flota/amenzi-si-daune.md modul/flota/fiscal.md modul/flota/foaia-zilnica.md modul/pontaj/navigare.md strat/navigare.md modul/angajati/actiuni.md modul/angajati/inrolare.md modul/angajati/sabloane-documente.md modul/departamente/actiuni.md modul/departamente/cod.md modul/diurna/actiuni.md modul/diurna/legaturi.md

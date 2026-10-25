@@ -18,8 +18,8 @@ tabele: [trip_sheets, trip_sheet_curse, trip_route_templates, fuel_entries, regi
 permisiuni: [trip_sheets:read, trip_sheets:create, trip_sheets:update, trip_sheets:approve]
 feature: fleet
 capcane: [17, 22, 23]
-scris_pe: 51d9f365e9618a5c1ac95a1a527079d009ab4972
-scris_la: 2026-10-22
+scris_pe: cd77c37564a0a2474dda087e9d2ec85035b57e46
+scris_la: 2026-10-25
 tags: [modul, operations]
 ---
 
@@ -31,6 +31,11 @@ Extrasă din `[[modul/flota]]`. Descrie faza F4 a planului „Flotă completă�
 Plafoanele (curse, alimentări, șabloane), suprapunerile față de foile declarate, foaia
 numerotată ca document emis, gărzile X2 și tabelul stărilor (ce se mai mișcă pe `trimis`,
 `respins`, `aprobat`): [[modul/flota/foaia-zilnica-garzi]].
+
+Două lucruri stau pe foaie, dar își au pagina lor — aici e doar ce ating pe ea (caseta,
+tabelul curselor, PDF-ul): încadrarea RO e-Transport și codurile UIT ale cursei
+(`0217_flota_uit_etransport.sql`) în [[modul/flota/uit]], bonul citit de pe poză
+(`0213_flota_bon_ocr.sql`) în [[modul/flota/bon-ocr]].
 
 ## Modelul
 
@@ -83,6 +88,13 @@ Cursele stau în `flota/actions-curse.ts`, șabloanele în `flota/actions-sabloa
 „Adaugă din șablon” e caseta „Cursă nouă” cu selectorul de șablon: precompletează locurile,
 scopul și km estimați (`cursaDinSablon`), iar `sablon_id` rămâne doar în audit.
 
+`adaugaCursa` și `actualizeazaCursa` duc și `e_transport`, trecut în allow-list-ul de audit.
+La cursa nouă schema îl dă `neaplicabil`; la corectură e **opțional**
+(`actualizeazaCursaSchema`) și, lipsă, nu se scrie — caseta n-are selector sub pragul de
+masă, iar un implicit ar fi șters tăcut încadrarea pusă înainte. Alimentarea poartă acum și
+`cui_statie`, iar la adăugare `fisier_bon_path` și `ocr_jeton`; corectura trimite
+`cui_statie` mereu, altfel l-ar goli ([[modul/flota/bon-ocr]]).
+
 ## Ecranele
 
 `/flota/foi/[id]` și `/portal/masina-mea/foi/[id]` folosesc aceeași `SectiuneCurse`
@@ -93,6 +105,19 @@ numerotată arată „Anulează foaia” doar sub `update = all`; altfel, textul
 anularea (`numar` și `poateAnula` pe `ActiuniFoaie`). Pe trimisă: doar „Retrage în
 ciornă”. Lista `/flota/foi` arată ziua și numărul, cu filtrele `de_la` și `pana_la` pe `data` (filtrul pe șofer rămâne `?sofer=`). `/flota/foi/sabloane` cere
 `trip_sheets:update = all`, ca politicile.
+
+`SectiuneCurse` primește și ziua foii, codurile (`uiturileFoii`) și `masa_maxima_kg` al
+vehiculului: coloana „e-Transport” apare doar dacă vreo cursă o cere (`arataSectiuneaUit`),
+cu lista `UitCursa`, avertismentele pe rând și un Callout nemodal deasupra — nimic nu
+oprește salvarea sau trimiterea. Peste `PLAFON_UIT_FOAIE` codurile se taie, și o spune.
+Selectorul din `DialogCursa` vine pe `arataETransport`, la cursa nouă doar de la prag în sus
+sau pe masă necunoscută.
+
+Caseta „Adaugă o alimentare” are poza bonului, urcată înainte de salvare
+(`foi/[id]/poza-bon-alimentare.tsx`), câmpul „CUI stație” și, cu `poateCitiBonul`
+(`citireaBonuluiDisponibila`, calculat pe server), butonul „Citește bonul”: propunerea
+completează doar câmpurile goale și le pune „(din bon)” în etichetă. Lângă alimentarea
+salvată stau pastilele de citire (`foi/[id]/pastile-bon.tsx`), pe ambele foi.
 
 Trimiterea și alimentarea (`foi/[id]/actiuni-foaie.tsx`) sunt două `<Formular>` separate:
 un refuz la alimentare nu înroșește trimiterea, iar valorile tastate rămân (ADM-022).
@@ -105,6 +130,12 @@ HG 1/2016 pct. 16 și 68, OMFP 2634/2015 anexa 1 pct. 2–3), randarea în
 `src/lib/pdf/foaie-parcurs.ts`, peisaj, cu `deseneazaAntet`/`antetOrganizatie`. Documentul
 incomplet o spune sus (neaprobat, fără număr, fără normă, cursă fără loc). Nu se
 înregistrează a doua oară în registru: o face triggerul la trimitere.
+
+Sub rândul cursei marcate sau cu coduri: „e-Transport: … · UIT: …”, ținut pe aceeași pagină
+cu rândul (`asiguraSpatiu`); avertismentele intră în lista de sus, iar la cel puțin un cod
+nota legală spune că UIT-ul se prezintă împreună cu documentul care însoțește transportul și
+că aplicația nu declară nimic la ANAF. Harta o dă apelantul (`eTransport` pe
+`IntrareFoaieParcurs`): modelul nu citește codurile singur.
 
 Cursele (`ordoneazaCurse`) și alimentările (`ordoneazaAlimentari`) se ordonează ÎN model, după
 oră: pachetul lunar le citește printr-un embed fără `ORDER BY`, ruta foii singure printr-o

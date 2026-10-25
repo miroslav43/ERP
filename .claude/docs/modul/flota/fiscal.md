@@ -18,14 +18,15 @@ cai:
   - "src/lib/queries/flota-fiscal.ts"
   - "src/schemas/flota-fiscal.ts"
   - "tests/rls/proba-flota-fiscal.sql"
+  - "tests/rls/proba-oracol-intre-firme.sql"
   - "supabase/migrations/0225_flota_costuri_ascunse.sql"
 tabele:
   [vehicle_fiscal_regimes, vehicle_consumption_norms, organizations, trip_sheets, vehicle_costuri]
 permisiuni: [vehicles:read, vehicles:update, organizations:update, payroll:read]
 feature: fleet
 capcane: [17, 23]
-scris_pe: b7a0575f273fdf672d77aa3420bcc140317ea9b9
-scris_la: 2026-10-23
+scris_pe: cd77c37564a0a2474dda087e9d2ec85035b57e46
+scris_la: 2026-10-25
 tags: [modul, operations, fiscal]
 ---
 
@@ -104,6 +105,13 @@ rânduri și când conduce o mașină a firmei.
   regimul a fost pus pe o fișă incompletă, iar corectura „șterge + perioadă nouă” nu trebuie
   să cadă exact pe rândul greșit (proba (18)). Invers (50% la un vehicul greu) e doar
   avertisment pe ecran, fiindcă e prudent, nu riscant.
+- **Garda de firmă e PRIMA în `internal.flota_fiscal_inainte`** (0205, Y2): un regim sau o
+  normă pusă pe firma altcuiva — ori fără firmă, cu `organization_id` null — ia 42501 cu
+  același mesaj, fie că vehiculul numit există acolo, fie că nu. Triggerul BEFORE rulează
+  înaintea politicii, deci căutarea vehiculului și mesajul regimului „peste 3.500 kg” (care
+  spune masa și locurile din fișă) vin după gardă. 42501 nu are câmp vinovat: cade pe ramura
+  `traduEroare` din `traduEroareFiscal`. Proba: `tests/rls/proba-oracol-intre-firme.sql`
+  (g8, g9, n5, n6).
 - **`created_by` și `updated_by` se trimit explicit** la INSERT (capcana #23), ca la restul
   tabelelor flotei; fără ele, 42501.
 

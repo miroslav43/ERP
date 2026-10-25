@@ -4,6 +4,8 @@ titlu: Navigarea între module
 aliases: [navigare, legaturi-intre-module, porti-ruta]
 cai:
   - "src/config/porti-ruta.ts"
+  - "src/config/porti-ruta.test.ts"
+  - "src/config/navigation.ts"
   - "src/components/ui/link-entitate.tsx"
   - "src/components/ui/tabel.tsx"
   - "src/components/data/rand-tabel.tsx"
@@ -14,8 +16,8 @@ cai:
 tabele: [registru_documente]
 permisiuni: []
 capcane: []
-scris_pe: d88200b8dc3f13fccad2ce8777662950d9c00eb8
-scris_la: 2026-10-09
+scris_pe: cd77c37564a0a2474dda087e9d2ec85035b57e46
+scris_la: 2026-10-25
 tags: [strat, navigare]
 ---
 
@@ -32,6 +34,15 @@ ea în celelalte module. Analiza completă, cu id-urile pe module:
 permissions})` din `src/config/porti-ruta.ts` (modul activ + permisiunea paginii, cu
    `minScope`). O rută pe care registrul n-o cunoaște se lasă cum e — lipsa din registru
    nu e un refuz. Pe o pagină care doar afișează linkul nu se folosește `requireFeature`.
+   Un rând de registru are **un singur prag**: pagina cu două condiții o verifică pe a
+   doua în preambul (`/flota/rapoarte` cere și `trip_sheets:read = all`, prin
+   `src/app/(app)/flota/rapoarte/acces.ts`; `/flota/carduri/import` cere `vehicles:create`
+   ȘI `vehicles:update` la `all`) — deci `poateDeschide` poate spune „da" unei pagini care
+   tot răspunde `AccesRestrictionat`: registrul e igienă, nu garanție. Pragul declarat e
+   cel din preambul, nu cel din meniu — meniul poate cere mai mult, niciodată mai puțin
+   (`src/config/porti-ruta.test.ts`). `/portal/masina-mea` n-are permisiune în registru:
+   se deschide și celui fără drept pe foi, cu mașina alocată și procesele-verbale la care
+   e parte, dar intrarea de meniu stă pe `trip_sheets:read`.
 2. **„Legabil" se decide PER RÂND**: rândul a venit prin RLS, `deleted_at` e `null`, iar
    `can()` trece — `LinkEntitate` + `hrefFisa()`. Un `can(employees:read, team)` global ar
    trimite managerul în refuz pe fișele din afara echipei. Un rând șters sau ascuns rămâne
@@ -95,6 +106,10 @@ permissions})` din `src/config/porti-ruta.ts` (modul activ + permisiunea paginii
   ambele (`meetsScope`), altfel un rol fără niciun rând `x:*` trece.
 - Un link spre `/anunturi/<id>` expirat duce în `not-found.tsx`-ul propriu, nu în 404-ul
   rădăcină; în notificări anunțul invizibil devine text.
+- O pagină din afara învelișurilor `(app)`/`(portal)` n-are rând în registru și nici testul
+  de completitudine nu se uită la ea: `/mentenanta/sesizari/noua` (adresa de pe autocolantele
+  QR) stă în `src/app/(scanare)/`, deci `poateDeschide` o refuză deși pagina există — de
+  acolo se alege lista după rol, cu `?echipament=` păstrat.
 - Coada REGES e tăiată la cele mai noi 200 de mesaje: „N mesaje în coadă" de pe eveniment
   se numără din ce e afișat, deci un eveniment vechi poate arăta 0 fără să fie gol.
 
@@ -103,6 +118,9 @@ permissions})` din `src/config/porti-ruta.ts` (modul activ + permisiunea paginii
 - Registrul porților în sine și testul lui de completitudine (lista se compară cu discul în
   ambele sensuri): `src/config/porti-ruta.test.ts`.
 - Traducerea notificărilor și învelișul push după rol: [[modul/notificari]].
+- Subarborii intrați recent în registru: flota (rapoarte, fiscal, amenzi, incidente,
+  carduri, rezervări, PV de predare-primire, „Mașina mea") — [[modul/flota]]; mentenanța
+  (fișa intervenției, PV tipăribil, ISCIR, raportul pe perioadă) — [[modul/mentenanta]].
 - Fișa angajatului ca punct de plecare: [[modul/angajati/navigare]].
 - Pontajul (lotul 7j; pagina [[modul/pontaj]] e peste plafon și se sparge separat): foaia
   leagă cererile din „Zile speciale”, perioadele, aprobarea pentru managerul cu foaie

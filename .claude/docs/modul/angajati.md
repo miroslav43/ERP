@@ -6,7 +6,6 @@ cai:
   - "src/app/(app)/angajati/**"
   - "src/lib/queries/employees.ts"
   - "src/schemas/employee.ts"
-  - "src/schemas/comun.ts"
   - "src/domain/hr/**"
 tabele:
   [
@@ -18,20 +17,32 @@ tabele:
     employee_dependents,
     employee_tax_exemptions,
     work_permits,
+    puncte_lucru,
+    organizations,
     organization_members,
     role_permissions,
     hr_document_templates,
     hr_issued_documents,
   ]
 permisiuni:
-  [employees:read, employees:create, employees:update, employees:delete, roles:update, users:update]
+  [
+    employees:read,
+    employees:create,
+    employees:update,
+    employees:delete,
+    employees:invite,
+    roles:update,
+    users:update,
+    departments:update,
+    payroll:create,
+  ]
 capcane: [10, 11, 22, 30]
 citeste_daca:
   - "CNP/IBAN care nu se văd → [[rol/hr]]"
   - "coloană inexistentă la SELECT → [[date/pontaj]]"
   - "importul din Excel, `import_uploads`, refuzul identic pentru fișa din altă firmă → [[modul/angajati/import-si-sonde]]"
-scris_pe: 6b8c5b371c99ccd786400dc3dbe8b901117c36c8
-scris_la: 2026-10-09
+scris_pe: cd77c37564a0a2474dda087e9d2ec85035b57e46
+scris_la: 2026-10-25
 tags: [modul, hr, nucleu]
 ---
 
@@ -43,34 +54,32 @@ schimbare aici atinge alte module.
 **Nu are feature flag**: paginile cer `requireFeature(…, "nucleu")`, deci sunt mereu
 active.
 
+## Paginile modulului
+
+| Pagină                                | Ce ține                                                            |
+| ------------------------------------- | ------------------------------------------------------------------ |
+| [[modul/angajati/actiuni]]            | tabelul Server Actions, cu permisiunea și `minScope` ale fiecăreia |
+| [[modul/angajati/inrolare]]           | asistentul `/angajati/nou`, schemele și ce refuză ele tăcut        |
+| [[modul/angajati/sabloane-documente]] | editorul de șabloane, emiterea, antetul tipărit și sigla           |
+| [[modul/angajati/import-si-sonde]]    | importul din Excel și refuzurile care nu deosebesc firmele         |
+| [[modul/angajati/navigare]]           | „În alte module", filtrele de intrare, paleta Ctrl+K               |
+
 ## Rute și cine ajunge
 
-| Rută                                                  | Poartă                                                                                                                                   |
-| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `/angajati`, `/angajati/nou`, `/angajati/import`      | `nucleu`; acțiunile cer `employees:create` all                                                                                           |
-| `/angajati/[id]`                                      | citirea fișei; butoanele cer `employees:update` all, `payroll:create` all, `evaluations:*` team, `users:update` all, `roles:update` team |
-| `/angajati/[id]/editeaza`, `/angajati/[id]/documente` | `nucleu`                                                                                                                                 |
-| `/angajati/[id]/permisiuni`                           | `roles:update` team                                                                                                                      |
-| `/angajati/sabloane-documente`, `…/[cod]`             | `employees:update` **all** — aceeași poartă ca `hr_templates_insert/_update`                                                             |
+| Rută                                             | Poartă                                                                                                                                                                                                                                                              |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/angajati`, `/angajati/nou`, `/angajati/import` | `nucleu`; crearea și importul cer `employees:create` **all**                                                                                                                                                                                                        |
+| `/angajati/[id]`                                 | citirea fișei, la scope-ul de pe `employees:read`; butoanele cer `employees:update` all, `employees:invite` all, `employees:delete` all, `payroll:create` all, `users:update` all, `roles:update` team, `evaluations:*` team (redeschiderea unei evaluări: **all**) |
+| `/angajati/[id]/editeaza`                        | `employees:update` **all** — `team` nu deschide ecranul                                                                                                                                                                                                             |
+| `/angajati/[id]/documente`                       | `employees:read`; încărcarea pe `employees:update`, ștergerea pe `employees:delete`, emiterea pe `employees:create` all, anularea unui document emis pe `employees:update` **all**                                                                                  |
+| `/angajati/[id]/permisiuni`                      | `roles:update` team **și** `employees:read` diferit de `none`: fișa se citește la scope-ul cititorului, deci managerul ajunge la subordonat, iar un ne-subordonat rămâne 404                                                                                        |
+| `/angajati/sabloane-documente`, `…/[cod]`        | `employees:update` **all** — aceeași poartă ca `hr_templates_update`                                                                                                                                                                                                |
+| `/angajati/sabloane-documente/nou`               | `employees:create` **all** — ca `hr_templates_insert`                                                                                                                                                                                                               |
 
 ## Server Actions
 
-| Funcție                                                                              | Permisiune / minScope      | Fișier             |
-| ------------------------------------------------------------------------------------ | -------------------------- | ------------------ |
-| `inroleazaAngajat`                                                                   | `employees:create` / all   | `nou/actions.ts`   |
-| `actualizeazaAngajat`                                                                | `employees:update` / team  | `actions.ts`       |
-| `creeazaContract`, `modificaSalariulContractului` (activarea cere și `update`)       | `employees:create` / all   | `actions.ts`       |
-| `inceteazaContract`                                                                  | `employees:update` / all   | `actions.ts`       |
-| `dezvaluieDateSensibile`                                                             | `employees:read` / **all** | `actions.ts`       |
-| `pregatesteIncarcareDocument`, `salveazaDocument`                                    | `employees:update` / team  | documente          |
-| `linkDescarcareDocument`                                                             | `employees:read` / team    | documente          |
-| `stergeDocument`                                                                     | `employees:delete` / all   | documente          |
-| `suprascriePermisiunea`                                                              | `roles:update` / team      | permisiuni         |
-| `pregatesteIncarcareaImportului`, `analizeazaImportAngajati`, `aplicaImportAngajati` | all                        | import             |
-| `emiteDocumente`, `regenereazaDocumente`                                             | `employees:create` / all   | documente          |
-| `salveazaSablonDocument`, `restabilesteSablonPlatforma`                              | `employees:update` / all   | sabloane-documente |
-| `actualizeazaIncadrarea`                                                             | `employees:update` / all   | `actions.ts`       |
-| `desemneazaSefDepartament`                                                           | `departments:update` / all | `actions.ts`       |
+Tabelul întreg, cu fișierele: [[modul/angajati/actiuni]]. Permisiunea de pe acțiune e
+poarta de aplicație; refuzul final îl dă RLS.
 
 ## Citiri
 
@@ -79,7 +88,19 @@ proiectul: `idFisaProprie`, `listeazaAngajati` (cursor keyset base64url),
 `citesteAngajat`, `citesteAngajatPentruEditare`, `lantulDeManageri`,
 `arboreleManagerial`, `colegiPentruManager`, `angajatiPentruPontaj`,
 `citesteRezumatDateSensibile`, `citesteScutiriFiscale`, `citesteComponenteSalariale`,
-`functiiFolosite`.
+`functiiFolosite`, `fiseDupaId`.
+
+- **`fiseDupaId` citește și fișele inactive sau încetate**, prin RLS: cine n-are
+  `employees:read = all` nu le primește. Organigrama numește așa managerul care a ieșit
+  din firmă, în loc de „manager inactiv sau șters".
+- **Șefii de deasupra NU se citesc din `employees`.** Sub `employees:read = own`,
+  politica `employees_select` dă doar rândul propriu, deci `.in("id", manager_path)`
+  întorcea zero rânduri, tăcut: `arboreleManagerial` cere acum lanțul de la
+  `lantul_meu_de_sefi` (`supabase/migrations/0196_lantul_de_sefi_al_angajatului.sql`),
+  ordonat vârf → șef direct.
+- Contractul citit pe fișă poartă și `punct_lucru_id` și `zile_concediu_anual` — al doilea
+  e baza din care `app.drept_concediu` (`0193_concediu_proportional_cu_lunile.sql`)
+  calculează dreptul de odihnă, nu `leave_types.zile_implicite`.
 
 ## Încadrarea (funcție, cod COR, departament, manager)
 
@@ -112,60 +133,23 @@ stătea pe nomenclator, deci corectarea lui rescria retroactiv ce se declara la 
   `no-restricted-imports`; excepția acoperă doar `actions.ts`, `reges/actiuni-api.ts`,
   route handlers, `rate-limit.ts`, scripts, tests).
 - **CNP și IBAN rămân închise chiar și pentru `own`.** `dezvaluieDateSensibile` cere
-  scope **all** exact, nu „cel puțin all" — un rol cu `team` nu trece.
+  scope **all** exact, nu „cel puțin all" — un rol cu `team` nu trece. La fel se citesc
+  și permisele de muncă (`work_permits`) și rezumatul datelor sensibile de pe fișă: numai
+  la `all`, altfel secțiunea nu pleacă deloc spre bază.
+- **Acordarea de permisiuni e PLAFONATĂ** de
+  `supabase/migrations/0197_plafon_acordare_permisiuni.sql`: pe `team` se dă cel mult ce
+  are acordantul pe aceeași cheie, iar RETRAGEREA trece prin același plafon, fiindcă
+  membrul cade pe implicitul rolului — altfel un manager fără salarizare redeschidea
+  subordonatului toate salariile prin simpla retragere a unei restricții. Pe propria
+  apartenență baza refuză orice suprascriere (`app.membrul_meu`, `0063`), cu 42501 fără
+  context: de aceea pagina proprie se citește, dar nu are controale active.
+- **Punctul de lucru al contractului** (`punct_lucru_id`, din `0097`) **se citește prin
+  RLS**: fără drept pe `puncte_lucru`, numele vine `null` și rândul fișei spune doar
+  „Setat", fără eroare.
 - **Cursorul keyset pe `full_name` cere `ghilimeleaza()`**, altfel o virgulă sau o
   ghilimea din nume sparge filtrul PostgREST `or=(…)`. Separatorul se scrie ca secvență
   de evadare, niciodată ca octet brut — un octet nul face fișierul invizibil pentru
   `grep`. — capcana #11
-
-## Ce refuză schema tăcut
-
-Baza nu e singurul loc care refuză fără să spună. Ajutoarele comune stau în
-`src/schemas/comun.ts`; `src/schemas/comun.test.ts` interzice redeclararea lor local
-oriunde în `src/schemas/`.
-
-- **Un `<select>` cu opțiune goală trimite ȘIRUL GOL, nu `null`**, iar
-  `z.enum(X).nullable()` îl respinge. Se vedea ca un buton „Continuă" mort în asistentul
-  de înrolare: validarea pica pe `special_regime` și pe `stare_civila`, iar niciunul nu
-  randa vreun mesaj. `enumOptional` normalizează `""`/`null`/`undefined` la `null` și dă
-  mesajul de două ori — `zodResolver` citește mesajul RAMURII, iar `z.flattenError` din
-  `create-action.ts` pe cel al UNIUNII. —
-  `src/app/(app)/angajati/nou/_components/poarta-pasilor.test.ts`
-- **`z.coerce.number()` dă `0` și pe `""`, și pe `null`.** Un câmp numeric golit nu
-  spunea „lipsește", ci plafonul câmpului calculat pe zero: `salariu_baza` se scria 0 RON
-  fără niciun mesaj, iar `norma_ore_saptamana` ieșea cu textul englezesc al lui zod.
-  `numarObligatoriu`, `numarOptional` și `numarCuImplicit` scot golul ÎNAINTE de
-  coerciție. Pe o coloană întreagă din bază, `intreg: true` e obligatoriu — altfel
-  Postgres rotunjește tăcut la inserare. — `src/schemas/comun.test.ts`
-- **`z.flattenError` colapsează calea unui câmp-listă la rădăcină**: serverul raportează
-  `autorizatii`, clientul `autorizatii.2.numar`. Rezumatul emite amândouă formele, altfel
-  una dintre căi dispare de pe ecran. —
-  `src/app/(app)/angajati/nou/_components/erori-formular.test.ts`
-
-## Documentele emise și șabloanele lor
-
-- **Șabloanele sunt DATE, nu cod**: `hr_document_templates.continut_html`, HTML cu
-  `{{variabila}}`. Rândul cu `organization_id is null` e seedul de platformă și e
-  **intangibil** — `with check` cere `organization_id is not null`, deci editarea lui dă
-  zero rânduri, nu eroare. Editarea din `/angajati/sabloane-documente` clonează seedul în
-  rândul firmei la prima salvare; generatorul preferă automat varianta firmei
-  (`generator.ts:76-77`). Nu `.upsert()`: indexurile sunt PARȚIALE, deci 42P10.
-- **O variabilă inventată într-un șablon nu strică o emitere, ci TOATE emiterile**
-  viitoare ale acelui document — `genereazaDocument` aruncă la prima variabilă fără
-  valoare. Mulțimea validă e `VARIABILE_PER_COD` din `src/lib/documents/variabile.ts`,
-  verificată la salvare. Cele trei copii ale listei (SQL-ul migrărilor, hărțile din
-  `valori-inrolare.ts`, constanta) sunt legate între ele de `valori-inrolare.test.ts`.
-- **HTML-ul de șablon NU e evadat** la randare: `randeaza` evadează doar valorile
-  interpolate, iar `paginaTiparibila` îl inserează brut într-o pagină servită de
-  `/documente/[id]`. De când firmele îl pot edita, singura apărare e `curataHtml`, care
-  RECONSTRUIEȘTE marcajul din șapte etichete și zero atribute
-  (`src/lib/documents/curata-html.ts`). Aceeași mulțime de șapte e și contractul cu
-  `src/lib/pdf/din-html.ts` și cu bara editorului; cele trei se schimbă împreună.
-- **Regenerarea nu suprascrie**: emite un document nou și îl marchează pe cel vechi
-  `anulat_la`. Întâi emite, apoi anulează — invers, un eșec de emitere ar lăsa angajatul
-  fără document valid. Acțiunea declară `employees:create` (cerut de `hr_issued_insert`),
-  dar anularea trece prin `hr_issued_update`, care cere `employees:update`. Probat
-  empiric în `tests/rls/proba-sabloane-documente.sql`, nu dedus.
 
 ## Ce se mișcă împreună
 
@@ -174,19 +158,10 @@ bancul LOCAL, nu din cloud) → `src/schemas/employee.ts` →
 `src/lib/queries/employees.ts` → acțiunile → formularele. Poarta care prinde coloanele
 inventate în stratul de citiri e `src/lib/queries/coloane.test.ts`.
 
-Pașii asistentului de înrolare nu mai au clase de câmp proprii: `campuri-comune.tsx` a
-dispărut, controalele trec prin `Camp` din `src/components/ui/camp.tsx`, iar mesajele
-prin `mesajCamp` din `nou/_components/erori-formular.ts`. Un câmp nou în
-`inroleazaAngajatSchema` cere **și** o intrare în `ETICHETE_CAMPURI`
-(`nou/_components/etichete-campuri.ts`): tipul e `Record<keyof …, string>`, deci
-omisiunea nu compilează — rezumatul de erori numește câmpuri care, de regulă, sunt pe un
-pas nemontat, așa că eticheta nu poate fi citită din arbore. Enumerările afișate se
-traduc din `src/app/(app)/angajati/etichete.ts` (`ETICHETE_REGIM_SPECIAL`,
-`ETICHETE_DURATA_CONTRACT`), nu din valoarea brută a bazei.
-
-## Navigarea dintre fișă și celelalte module
-
-Secțiunea „În alte module”, filtrele de intrare și paleta Ctrl+K: [[modul/angajati/navigare]].
+Zilele de concediu implicite ale firmei (`organizations.zile_concediu_anual_implicit`) se
+citesc în trei locuri cu aceeași intenție — caseta „Contract nou" de pe fișă,
+`/angajati/nou` și `creeazaContract` — fiindcă schema nu mai are implicit codificat;
+regula întreagă e în [[modul/angajati/inrolare]].
 
 ## Ce NU e aici
 

@@ -20,8 +20,8 @@ tabele: [attendance_entries, attendance_periods, attendance_approval_batches]
 permisiuni: [employees:read, leave:read, attendance:approve, departments:read]
 feature: attendance
 capcane: []
-scris_pe: bd516e390b0ca4dbe758079da30184b7288ceeb5
-scris_la: 2026-10-12
+scris_pe: cd77c37564a0a2474dda087e9d2ec85035b57e46
+scris_la: 2026-10-25
 tags: [modul, hr]
 ---
 
@@ -106,5 +106,8 @@ diferite pentru același lucru. Avertisment, nu poartă:
 acțiunea nu primește niciun steag de confirmare, iar blocarea rămâne permisă. Pe
 `/pontaj/perioade` contoarele se cer doar pentru lunile care SE POT bloca; pe
 `/pontaj/aprobare` liniile sunt deja citite, iar respinsele pleacă doar pentru cine vede
-caseta. „Deschide luna" rămâne directă — nu ia nimic nimănui. Coloana de acțiuni e
+caseta — acolo însă cifra e `linii.length`, nu un contor exact: la `trunchiat` spune mai
+puțin decât e, ca tot restul paginii. „Deschide luna" rămâne directă — nu ia nimic
+nimănui, și e singura care și-a păstrat alerta de lângă buton: pe celelalte două,
+reușita și eroarea le spune caseta (`mesajReusita`). Coloana de acțiuni e
 `peTelefon: "actiuni"`, nu `insigna`: un `<dialog>` randat într-un `<p>` cade la hidratare.

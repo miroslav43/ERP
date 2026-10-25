@@ -9,10 +9,12 @@ cai:
   - "src/lib/departamente/sef.ts"
   - "src/domain/departments/subordonare-sef.ts"
   - "src/schemas/department.ts"
+  - "src/schemas/mesaje-zod.ts"
   - "src/config/porti-ruta.ts"
   - "supabase/migrations/0004_hr.sql"
   - "supabase/migrations/0139_cod_departament_optional.sql"
   - "supabase/migrations/0143_seful_iese_din_departament.sql"
+  - "supabase/migrations/0152_legaturi_fara_fk_compus.sql"
   - "supabase/migrations/0233_oracol_intre_firme.sql"
 tabele: [departments, employees, profiles, organization_members]
 permisiuni:
@@ -24,13 +26,13 @@ permisiuni:
     employees:update,
     users:update,
   ]
-capcane: [2, 17]
+capcane: [2]
 citeste_daca:
   - "departament care nu se poate dezactiva → secțiunea „ce refuză”"
-  - "departament fără cod, sau cod schimbat → secțiunea „codul”"
-  - "șef desemnat, șters sau scos din departament → secțiunea „șeful”"
-scris_pe: ed4ad654d64120bfad37e146a32c8fbe4f6159f0
-scris_la: 2026-10-10
+  - "departament fără cod, sau cod schimbat → subpagina „codul departamentului”"
+  - "șef desemnat, șters sau scos din departament → subpagina „scrierile”"
+scris_pe: cd77c37564a0a2474dda087e9d2ec85035b57e46
+scris_la: 2026-10-25
 tags: [modul, hr]
 ---
 
@@ -43,6 +45,13 @@ aceleași date.
 Lanțul de subordonare **al oamenilor** (`manager_path`) e alt arbore și se citește la
 [[modul/organigrama]] — dar se SCRIE de aici, la fiecare schimbare de șef. Aici e arborele
 de departamente (`departments.path`).
+
+## Paginile modulului
+
+| Pagină                         | Ce ține                                                           |
+| ------------------------------ | ----------------------------------------------------------------- |
+| [[modul/departamente/actiuni]] | Server Actions, desemnarea șefului și `mutaAngajati`              |
+| [[modul/departamente/cod]]     | `departments.cod`: opțional, editabil, și cheia conducerii firmei |
 
 ## Ruta
 
@@ -81,94 +90,6 @@ Rândul „Manager" are trei stări, și a doua e tăcută: nume legat când emb
 afara echipei dumneavoastră" când `managerId` există dar embed-ul e `null` (RLS a ascuns
 fișa, deci nici linkul nu s-ar deschide); „nedesemnat" când lipsesc amândouă.
 
-## Server Actions
-
-`src/app/(app)/departamente/actions.ts` — toate pe `minScope: "all"`. Pragul, filtrele și
-`.select()`-ul de după scriere le fixează, pe clientul Supabase fals,
-`actions-structura.test.ts` și `actions-stare.test.ts` din același director.
-
-| Funcție                                             | Permisiune           |
-| --------------------------------------------------- | -------------------- |
-| `creeazaDepartament`                                | `departments:create` |
-| `actualizeazaDepartament`, `mutaDepartament`        | `departments:update` |
-| `dezactiveazaDepartament`, `reactiveazaDepartament` | `departments:update` |
-| `mutaAngajati`                                      | `employees:update`   |
-
-## Codul — opțional, editabil, și cheia conducerii
-
-`departments.cod` nu mai e obligatoriu: `0139_cod_departament_optional.sql` scoate
-`not null`-ul pus de `0004_hr.sql`. Obligatorie la creare rămâne doar denumirea, iar ea e și
-primul câmp al formularului — unul care începe cu un câmp facultativ îl face să pară cerut.
-
-Câmpul gol devine `null`, **nu șir vid** — `codOptional` din `src/schemas/department.ts`.
-Diferența e în bază: indexul unic `departments_org_cod_uniq` e pe `lower(cod)` și nu e
-declarat `nulls not distinct`, deci oricâte departamente fără cod coexistă, iar unicitatea
-mușcă în continuare pentru cine completează codul. Două șiruri vide s-ar ciocni la al doilea.
-
-CHECK-ul `departments_cod_len` nu trebuie rescris: evaluat pe NULL dă NULL, iar Postgres
-cere „not false", nu „true" — deci lasă NULL să treacă și continuă să interzică șirul vid și
-codurile peste 32 de caractere.
-
-Codul **se poate edita** (`actualizeazaDepartamentSchema` nu-l mai omite): cine a creat
-departamente fără cod și își face nomenclatura peste un an trebuie să le poată completa fără
-să refacă departamentul, pierzând istoricul. De aceea `"cod"` e și în
-`CAMPURI_AUDITATE_ACTUALIZARE`.
-
-`lower(cod) = 'conducere'` e cheia după care triggerele din
-`0107_departamentul_conducere.sql` recunosc conducerea firmei. Un cod NULL nu se potrivește
-niciodată (comparația dă NULL, deci fals în `where`), deci un departament fără cod nu devine
-din greșeală conducerea. Cine **schimbă** codul conducerii pierde repartizarea automată:
-comportament, nu defect, iar auditul e singurul loc din care se mai află cine și când.
-`esteConducerea` din `panou-departament.tsx` face aceeași verificare, cu gardă pe `null`.
-
-Tipul urcă neschimbat prin toate straturile — `string | null` din `RandDepartament` până în
-`OptiuneDepartament` — iar interfața **nu pune substitut** pentru codul lipsă (nici „—",
-nici denumirea repetată): ar arăta ca un cod adevărat.
-
-## Șeful — o desemnare scrie și pe `employees`
-
-`creeazaDepartament` și `actualizeazaDepartament` nu se opresc la `departments`: prin
-`src/lib/departamente/sef.ts` scriu și `employees.manager_employee_id` — subordonarea, nu
-doar rolul de manager (acela cere `org_admin`, fiindcă se scrie în `organization_members`).
-Un `hr` iese deci cu structura întreagă: pe `employees` are `employees:update = all`.
-
-`aplicaSubordonarea` ridică șeful sub șeful primului departament de DEASUPRA care are unul
-(nivelurile fără manager și cele dezactivate se sar) și abia apoi leagă membrii de el —
-invers, `tg_employees_manager_path` aruncă P0001 la ciclu și anulează tot lotul, fiindcă
-șeful e adesea subordonat cuiva din propriul departament. Regula pură:
-`src/domain/departments/subordonare-sef.ts`.
-
-Se cheamă **și la creare**, deși departamentul e gol: membri n-are, dar vârf are — fără
-apel, o ramură nouă intră în structură atârnată unde se nimerește. Calea strămoșilor vine
-din `RETURNING` (`.select("id, path")`), calculată de `tg_departments_path`.
-
-Ușa are **două sensuri**: „manager → gol" cheamă `elibereazaSubordonarea`, care desface
-numai fișele al căror manager DIRECT e fostul șef și le urcă la cel de deasupra — exact ce
-scrisese desemnarea.
-
-## `mutaAngajati` — cinci decizii care nu se văd din semnătură
-
-1. **Schemă îngustă, două câmpuri** — nu `actualizeazaAngajatSchema`, care are zeci de
-   câmpuri cu `.default(...)` și ar goli fișa dintr-un payload parțial.
-2. **`minScope: "all"`, nu `"team"`.** Poarta acțiunii se aliniază cu poarta paginii, nu cu
-   ce pare suficient: orice acțiune e invocabilă direct, ca endpoint POST, de cineva care
-   n-a văzut ecranul.
-3. **Departamentul-țintă se verifică explicit că e al organizației.**
-   `employees.department_id` e cheie străină simplă, fără componentă pe `organization_id` și
-   fără trigger — spre deosebire de `departments.parent_id` și
-   `departments.manager_employee_id`, care AU verificarea. Singura relație din trio-ul HR pe
-   care baza n-o păzește, deci o păzește acțiunea.
-4. **`.select("id")` după `.update()`, cu lungimea comparată.** Politica `employees_update`
-   refuză prin `USING` cu zero rânduri și fără eroare; la o mutare în masă, un refuz
-   parțial ar fi raportat altfel drept reușită deplină. — capcana #17
-5. **Un refuz parțial NU se poate anula.** PostgREST nu deschide o tranzacție peste două
-   cereri, deci mesajul spune cu cifre ce s-a întâmplat — „a eșuat" ar fi o minciună despre
-   rândurile deja scrise.
-
-`revalidate:` se **declară** aici, spre deosebire de acțiunile de deasupra din același
-fișier, care cheamă `revalidatePath()` din handler. Forma declarativă e cea canonică:
-rulează după succesul complet, inclusiv după jurnal.
-
 ## Citiri
 
 `src/lib/queries/departments.ts` dă `structuraDepartamentelor`, `angajatiPentruStructura` și
@@ -193,8 +114,15 @@ PostgREST. — capcana #2
 
 `public.tg_departments_path` rulează BEFORE INSERT sau UPDATE pe `parent_id` și ridică
 P0001 dacă: superiorul nu e în firma rândului (inexistent, șters sau străin: un mesaj,
-0233), structura ar deveni **circulară**, sau arborele ar depăși **12 niveluri**. `path` și
-`depth` sunt calculate de trigger, nu trimise de client.
+`0233_oracol_intre_firme.sql`), structura ar deveni **circulară**, sau arborele ar depăși
+**12 niveluri**. `path` și `depth` sunt calculate de trigger, nu trimise de client.
+
+Garda de firmă vine ÎNAINTEA căutării superiorului, cu 42501 neutru, fiindcă un trigger
+BEFORE rulează înaintea clauzei `WITH CHECK`: ordinea e ce ține răspunsul identic pentru un
+id inexistent și pentru unul al altei firme. Aceeași gardă stă pe
+`internal.departament_sef_in_firma` (`0152_legaturi_fara_fk_compus.sql`), triggerul care
+cere ca șeful ales să fie o fișă din firma departamentului, cu P0001. Amândouă se aplică
+doar când rândul caută ceva: un nod rădăcină fără superior și fără șef nu întreabă nimic.
 
 `mutaDepartament` mai adaugă o gardă în acțiune, înaintea bazei: un departament nu poate fi
 subordonat lui însuși.
@@ -208,14 +136,18 @@ numără altfel: efectivul cardului și banda nerepartizaților iau doar activii
 `incetat` n-are unde fi repartizat. Deci un departament care arată „gol" poate refuza
 dezactivarea, iar mesajul de refuz poartă linkul spre lista angajaților departamentului —
 singurul loc unde se văd și cei nenumărați. E o regulă de business a acțiunii, nu o eroare
-de bază, și de aceea există `mutaAngajati`.
+de bază, și de aceea există `mutaAngajati`. Antetul listei desparte la fel numărul de
+departamente, în active și inactive, dar numai când există vreunul dezactivat: unul
+dezactivat rămâne pe ecran, cu insigna lui, deci numărul singur l-ar da drept viu.
 
 **Cine e scos din departamentul pe care îl conduce nu-l mai conduce.**
 `trg_employees_75_sef_departament` (`0143_seful_iese_din_departament.sql`) golește
 `departments.manager_employee_id` la orice UPDATE care schimbă `department_id` sau șterge
 logic fișa — fără eroare, fără să ceară nimic. De aceea panoul primește `managerId` și
-avertizează ÎNAINTE de apăsare că persoana bifată conduce departamentul. Triggerul nu
-atinge nici rolul de aplicație, nici `manager_path`.
+avertizează ÎNAINTE de apăsare că persoana bifată conduce departamentul; același efect îl
+spune și câmpul „Manager" al formularelor de departament, din `conduceDepartamentulCurent`
+(`src/app/(app)/departamente/tipuri.ts`), când omul desemnat conduce departamentul din care
+ar pleca. Triggerul nu atinge nici rolul de aplicație, nici `manager_path`.
 
 ## Ce se mișcă împreună
 

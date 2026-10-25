@@ -20,8 +20,8 @@ tabele: [vehicle_fines, trip_sheet_curse, vehicle_assignments]
 permisiuni: [vehicle_fines:read, vehicle_fines:create, vehicle_incidents:create, employees:read]
 feature: fleet
 capcane: []
-scris_pe: 59875840fcf542f696cecc8982d47c68375f2596
-scris_la: 2026-10-23
+scris_pe: cd77c37564a0a2474dda087e9d2ec85035b57e46
+scris_la: 2026-10-25
 tags: [modul, operations, legal]
 ---
 
@@ -45,6 +45,12 @@ foii. APOI alocarea deschisă atunci (`vehicle_assignments`, interval semideschi
 **E doar sugestie.** Selectorul din caseta de desemnare e precompletat, dar omul alege:
 cineva a putut conduce mașina altuia, sau foaia n-a fost completată. Sugestia spune pe ce
 se sprijină (foaia sau alocarea).
+
+Cheia se cere **exact** `all`, și din 0206 §F asta se vede: șoferul care are
+`vehicle_incidents:create = own` (declarația din portal,
+[[modul/flota/declaratia-soferului]]) primește tot zero rânduri — nu află din sugestie cine
+conducea mașina. Pe declarația lui, `sofer_id` nici nu trece prin `app.sofer_la`: îl pune
+triggerul, egal cu fișa lui.
 
 ## Scrisoarea de răspuns (art. 39) — ruta cu CNP
 

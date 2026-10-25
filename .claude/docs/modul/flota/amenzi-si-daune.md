@@ -35,8 +35,8 @@ permisiuni:
   ]
 feature: fleet
 capcane: [17, 19, 23, 26]
-scris_pe: 59875840fcf542f696cecc8982d47c68375f2596
-scris_la: 2026-10-22
+scris_pe: cd77c37564a0a2474dda087e9d2ec85035b57e46
+scris_la: 2026-10-25
 tags: [modul, operations, legal]
 ---
 
@@ -71,10 +71,14 @@ Cheile sunt seedate doar pentru `org_admin` și `super_admin`: decizia 3 a planu
 permisele șoferilor) rămâne, iar o firmă poate acorda cheile lui HR printr-o suprascriere.
 `manager` și `employee` nu văd nimic, nici amenzile din echipa lor. Singura excepție:
 `employee` are `vehicle_incidents:create = own` (își declară dauna din portal și își vede
-doar declarațiile, `[[modul/flota/declaratia-soferului]]`). Matricea publică de pe
-pagina de prezentare (`matrice-roluri.ts`) are două rânduri pentru ele, doar `org_admin` = all. Dacă o firmă acordă cheile
+doar declarațiile, `[[modul/flota/declaratia-soferului]]`). Matricea publică de pe pagina
+de prezentare (`src/content/landing/matrice-roluri.ts`) are două rânduri pentru ele, doar
+`org_admin` = all — inclusiv `employee` = none, fiindcă coloanele ei sunt despre CITIRE, iar
+cheia declarației e `create`. Dacă o firmă acordă cheile
 `create` lui HR, HR primește prin sugestie și cine conducea ce vehicul (`app.sofer_la` judecă după cheie). Casetele „Amendă nouă” și
-„Incident nou” se deschid prin parametru (`?amenda=noua`, `?incident=nou`), ca la parc.
+„Incident nou” se deschid prin parametru (`?amenda=noua`, `?incident=nou`), ca la parc, iar
+ambele liste primesc `?vehicul=<uuid>` (legăturile de pe fișa vehiculului): o valoare care
+nu e UUID se ignoră TĂCUT și lista vine nefiltrată.
 
 ## Ce refuză baza tăcut
 
@@ -112,7 +116,11 @@ pagina de prezentare (`matrice-roluri.ts`) are două rânduri pentru ele, doar `
   administratorii) care citesc amenzile la `all`, niciodată la șofer:
   `[[modul/flota/declaratia-soferului]]`.
 - **`manager` și `employee` primesc zero rânduri, fără eroare.** Absența cheii e refuz. Un
-  `.single()` pe o amendă invizibilă dă NEGASIT, nu INTERZIS. — capcana #17
+  `.single()` pe o amendă invizibilă dă NEGASIT, nu INTERZIS. Nici șoferul care DECLARĂ un
+  incident nu-i vede rândul: `vehicle_incidents_select` a rămas doar `read = all` (X1), deci
+  declarațiile vin prin `public.incidente_declarate_de_mine` (DEFINER, doar câmpurile
+  declarației), iar un INSERT care cere `RETURNING` cade cu 42501 pe fiecare declarație —
+  `[[modul/flota/declaratia-soferului]]`. — capcana #17
 - **Legătura cu cercetarea SSM o pune doar cine o VEDE.** `incidente_inainte` (DEFINER)
   cere, la schimbarea `work_accident_id`, rândul firmei, neșters ȘI citibil de apelant după
   regulile SSM (modulul `ssm` activ, `app.ssm_acces(…, 'read', angajatul)`), cu un singur
@@ -129,11 +137,10 @@ pagina de prezentare (`matrice-roluri.ts`) are două rânduri pentru ele, doar `
 
 ## Ce NU e aici
 
-Declarația șoferului din „Mașina mea”, termenul în rezumatul zilnic și secțiunea de pe fișa
-vehiculului: `[[modul/flota/declaratia-soferului]]`. Plata amenzii și reținerea din salariu
-nu există. Costul unui incident NU intră în
-service sau costuri de vehicul (traseul F7). Fișa șoferului: `[[modul/angajati]]`; permisele
-și verificările încrucișate: `[[modul/flota/soferi]]`.
+Ce ține declarația șoferului: `[[modul/flota/declaratia-soferului]]`. Plata amenzii și
+reținerea din salariu nu există. Costul unui incident NU intră în service sau costuri de
+vehicul (traseul F7). Fișa șoferului: `[[modul/angajati]]`; permisele și verificările
+încrucișate: `[[modul/flota/soferi]]`.
 
 ## Când NU e suficientă pagina asta
 
