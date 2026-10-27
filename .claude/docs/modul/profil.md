@@ -5,20 +5,28 @@ aliases: [profil, cont, avatar]
 cai:
   - "src/app/(app)/profil/**"
   - "src/lib/queries/profile.ts"
+  - "src/lib/actions/profile.ts"
+  - "src/schemas/profile.ts"
   - "src/components/forms/formular-profil.tsx"
   - "src/config/porti-ruta.ts"
 tabele: [profiles, organization_members, employees]
 permisiuni: []
 capcane: [2]
-scris_pe: ed4ad654d64120bfad37e146a32c8fbe4f6159f0
-scris_la: 2026-10-10
+scris_pe: 773c1627da87c388355631aa7419448022014599
+scris_la: 2026-10-27
 tags: [modul]
 ---
 
 # Profilul meu
 
-Datele contului — nume afișat, avatar — nu ale fișei de angajat. Pagina e scurtă și n-are
-acțiuni proprii: formularul e componenta comună `src/components/forms/formular-profil.tsx`.
+Datele contului — avatar, nume afișat, telefon, parolă — nu ale fișei de angajat. Pagina
+e scurtă și n-are `actions.ts` propriu: formularul e componenta comună
+`src/components/forms/formular-profil.tsx`, iar scrierile stau în
+`src/lib/actions/profile.ts`. Acțiunile de acolo sunt scrise de mână, nu prin
+`createAction()`: n-au organizație, deci n-au nici `feature`, nici `permission`, nici
+`minScope` de dat — se sprijină pe `requireUser()` și pe RLS-ul rândului propriu. Tot de
+aici vine și singura abatere de la regula „`revalidate:` se declară": neavând definiție
+de acțiune în care să-l declare, cheamă ele `revalidatePath()` pe `RUTE_PROFIL_PROPRIU`.
 
 ## Singura pagină din `(app)` care nu cere organizație
 
@@ -44,6 +52,22 @@ fișei — `getPermissionMap`, `getEnabledFeatures` și `idFisaProprie` pleacă 
 
 Cele două linkuri legate de fișă — fișa proprie și pontajul — cer `idFisaProprie` nenul;
 pontajul alege `/pontaj/saptamana` când poarta lui trece, altfel cade pe `/pontaj`.
+
+## Parola contului
+
+Trei formulare separate într-un singur ecran — avatar, date de contact, parolă — tocmai
+ca reușita unuia să nu depindă de completarea celorlalte. Doar primele două își reiau
+valorile trimise după un eșec de validare; cel de parolă se golește deliberat, fiindcă o
+parolă întoarsă în `defaultValue` ar ajunge într-un atribut din DOM.
+
+Pragul parolei nu e al profilului: `schemaParolaNoua` din `src/schemas/profile.ts`
+împrumută `parolaSchema` din `src/schemas/auth.ts`, aceeași validare ca la invitație și la
+resetare — minimum 12 caractere, maximum 72 (limita bcrypt, peste care caracterele sunt
+tăcut ignorate la hashing). `minLength` și textul de ajutor din
+`src/components/forms/formular-profil.tsx` doar REPETĂ pragul, nu-l stabilesc, și au stat
+în urmă: schema urcase la 12 pe 8 oct 2026 (QA, ANG-030, ca să nu poată un cont deschis cu
+12 să coboare la 8 din profil), iar ecranul a continuat să ceară 8 și să scrie „Cel puțin 8
+caractere." până mai târziu. Cine mută pragul mută ambele locuri în același commit.
 
 ## Citiri
 

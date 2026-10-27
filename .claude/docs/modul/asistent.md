@@ -15,8 +15,8 @@ citeste_daca:
   - "bula nu apare nicăieri → verifică ÎNTÂI cele două comutatoare, secțiunea „Ce refuză baza tăcut”"
   - "bula e în DOM dar nu se vede pe ecran → învelișul flotant s-a strâns la 0×0; același loc"
   - "o pastilă duce în 404 → imposibil prin construcție; citește „Lista închisă”"
-scris_pe: 0f51456b15db11afe00f7a5e7681f424d8e7e3c0
-scris_la: 2026-10-22
+scris_pe: 773c1627da87c388355631aa7419448022014599
+scris_la: 2026-10-27
 tags: [modul, nucleu]
 ---
 
@@ -30,6 +30,13 @@ RLS-ul celui care întreabă.
 **Read-only, prin proiectare.** Nu depune cereri, nu aprobă, nu șterge. Explică și
 trimite; omul apasă. Asta scoate din discuție toată clasa de defecte „modelul a apăsat
 butonul greșit”, și e motivul pentru care modulul n-are nicio Server Action.
+
+## Paginile modulului
+
+| Pagină                          | Ce ține                                                       |
+| ------------------------------- | ------------------------------------------------------------- |
+| [[modul/asistent/unelte]]       | filtrarea indexului pe permisiuni, uneltele de date, citirile |
+| [[modul/asistent/unelte-flota]] | uneltele de parc auto (F12e), poarta dublă, „cine are mașina” |
 
 ## Lista închisă — de ce nu poate trimite într-un 404
 
@@ -52,7 +59,12 @@ ori în `EXCLUSE` cu motiv scris.
 Un `href` poate purta și parametru de interogare, fiindcă unele formulare au devenit casete
 deschise din URL (`/mentenanta/echipamente?echipament=nou`). „Nu trimite în gol” compară
 doar **calea**; „fiecare rută e acoperită” compară `href`-ul **întreg** — deci pagina de
-redirect rămasă pe disc pentru autocolantele QR tipărite intră în `EXCLUSE`, cu motiv.
+redirect rămasă pe disc pentru autocolantele QR tipărite pe partea de portal intră în
+`EXCLUSE`, cu motiv.
+
+Testul citește însă doar arborii `src/app/(app)/` și `src/app/(portal)/`. Adresa de pe
+autocolantele utilajelor stă în `src/app/(scanare)/`, deci nu e nici candidată la index,
+nici rând în `EXCLUSE` — motivul e un comentariu în `destinatii.ts`, în locul rândului.
 
 ## Rute și cine ajunge
 
@@ -70,55 +82,19 @@ oprească e cel care costă bani.
 Zona nu se ia pe cuvânt de la client: rolul `employee` e forțat pe `portal`, restul pe
 `app`. Poarta din layout-uri, repetată — fiindcă layout-ul nu e o barieră de securitate.
 
-## Filtrarea pe permisiuni
+## Al doilea client: viziunea
 
-`filtreaza.ts` taie din index tot ce omul nu poate deschide, cu **aceeași** `meetsScope`
-pe care o cheamă `buildNavigation()`. Nu e o copie a regulii: e regula — o a doua
-implementare ar fi divergat de meniu și ar fi oferit exact ce sidebar-ul ascunde.
+`src/lib/asistent/viziune.ts` — o imagine plus o schemă JSON, un răspuns structurat,
+dintr-o bucată. Stă aici fiindcă împarte cu asistentul cheia și modulul, dar **nu e o
+unealtă** și nu trece prin bucla de chat: singurul apelant e citirea bonului de
+combustibil, `src/app/(app)/flota/bon/actions.ts`. Separat de `openrouter.ts` deliberat —
+acela e scris pentru flux, iar lărgirea mesajului lui la conținut multimodal ar fi atins
+bucla asistentului; se reutilizează doar adresa, exportată ca `ENDPOINT_OPENROUTER`.
 
-Ascunderea nu e barieră de securitate — pagina verifică din nou, RLS respinge rândul
-oricum. E barieră de **utilitate** (nu trimite într-un ecran de refuz) și de **discreție**
-(enumerarea rutelor e o hartă a firmei).
-
-`permission`-ul unei intrări e al **ecranului**, nu al modulului sub care stă în meniu.
-Când pagina arată un secret, poarta e a secretului: `pontaj.setari.coduri-qr` are filele
-vecine pe `attendance:update`, dar cere `departments:update` — cine vede codul QR poate
-ponta de oriunde. Se ia poarta reală a rutei, iar la îndoială cea strictă.
-
-`featureKey`-ul se ia la fel, de la ecran: `evaluari.kpi` stă sub „Evaluări” în meniu, dar
-pagina cere `requireFeature(…, "kpi")` — KPI e modul propriu, vândut separat.
-
-## Uneltele de date
-
-În `src/lib/asistent/unelte/`. Fiecare declară modul, permisiune și prag, verificate
-de `poarta.ts` **înainte** de execuție — de două ori: o dată ca să decidă despre ce unelte
-află modelul, a doua oară imediat înainte de a rula. Prima e igienă de context, a doua e
-bariera; fără ea, autorizarea ar depinde de bunele intenții ale modelului.
-
-Toate citesc prin clientul de sesiune, cu RLS activ. `tip.ts` impune structural trei
-lucruri: organizația vine din context și nu din parametrii modelului; poarta precedă
-execuția; iar `executa` întoarce **text, nu rânduri** — deci CNP-ul și IBAN-ul n-au drum
-către contextul modelului, nu doar n-au intenție să ajungă acolo.
-
-Uneltele de flotă (F12e), cu a doua cheie obligatorie (`permisiuniSuplimentare`, verificată
-tot de `poarta.ts`) și precedența „cine are mașina”: `[[modul/asistent/unelte-flota]]`.
-
-`ContextUnealta` poartă două identități distincte: `userId` — contul — și `employeeId`,
-fișa lui de angajat, care poate lipsi. Ce e „al meu” se calculează din cont:
-`contoarePanou` cere `userId` ca să scoată din coada de concedii cererea proprie a celui
-care aprobă, și `role` fiindcă pașii de integrare se atribuie și pe rol, nu doar pe fișă.
-
-`cauta_om` întoarce și destinații **efemere** (`fisa.<uuid>`), valabile doar în răspunsul
-curent; uneltele de flotă, `vehicul.`, `foaie.` și `propune.foaie.`, cu href-ul ales după
-`ContextUnealta.zona` (o foaie se deschide altfel în aplicație și în portal). Mulțimea rămâne închisă, doar că e închisă prin proveniență: acolo ajung numai
-fișele întoarse de o citire pe care omul chiar avea dreptul să o facă.
-
-## Citiri
-
-Uneltele de personal se sprijină exclusiv pe funcții existente din
-`src/lib/queries/portal.ts`, `src/lib/queries/panou.ts` și `src/lib/queries/employees.ts`.
-Flota are un fișier propriu, `src/lib/queries/flota-asistent.ts`, cu filtru explicit pe firmă
-în fiecare citire; ce vede fiecare rol din el numără `tests/rls/proba-asistent-flota.sql`.
+Fără flux, antetele vin abia după generare, deci `fetchCuTermen` — care taie la antete —
+ar tăia orice citire: aici termenul e pe tot răspunsul. Ca `deschideFlux`, funcția **nu
+aruncă niciodată**: întoarce un motiv și un mesaj pentru om, care completează manual.
+Corpul exact trimis e fixat de `viziune.test.ts`, inclusiv ce NU se trimite.
 
 ## Ce refuză baza tăcut
 
@@ -126,6 +102,12 @@ Flota are un fișier propriu, `src/lib/queries/flota-asistent.ts`, cu filtru exp
   ⇒ ruta răspunde 404 și bula nu se randează în niciun layout. `OPENROUTER_API_KEY` goală
   ⇒ același 404, indiferent ce scrie în `organization_features`. Când bula lipsește,
   ăsta e primul lucru de verificat, nu codul.
+- **Confidențialitatea cerută poate rămâne fără niciun furnizor.** Citirea bonului cere
+  Zero Data Retention și refuz de colectare, iar endpoint-urile care le oferă nu acceptă
+  parametrul de temperatură — cerute împreună, răspunsul nu e o eroare de cerere, ci
+  „niciun furnizor nu îndeplinește condițiile”. `viziune.ts` îl deosebește de o pană
+  obișnuită, cu mesaj propriu pentru om. În jurnal nu ajung nici imaginea, nici
+  răspunsul: doar modelul, costul, tokenii și durata.
 - **`Contor = number | null` din `panou.ts` NU se turtește.** `0` înseamnă „coada se arată
   și e goală”; `null` înseamnă „coada nu se arată”, fiindcă modulul e stins sau rolul n-are
   permisiunea. Confundate, asistentul ar răspunde liniștitor „nu ai nimic de aprobat”
@@ -151,7 +133,8 @@ Flota are un fișier propriu, `src/lib/queries/flota-asistent.ts`, cu filtru exp
   mutată dintr-un grup în altul schimbă automat ce spune asistentul; una **ștearsă** lasă
   destinația fără părinte, iar `destinatii.test.ts` pică.
 - **Arborele de rute** — o pagină nouă în `src/app/(app)/` sau `src/app/(portal)/` pică
-  același test până e adăugată în index sau exclusă cu motiv.
+  același test până e adăugată în index sau exclusă cu motiv. Una pusă în alt grup de
+  rute nu pică nimic: nu e văzută nici de test, nici de asistent.
 - **`CoadaPanou` și `COZI` din `de-aprobat.ts`** — legătura e de mână și niciun test n-o
   ține: o coadă adăugată în `CoadaPanou` fără rândul ei în `COZI` nu există pentru
   asistent, fără nicio eroare. `regesDeTransmis` a stat exact așa. Și `referinta` fiecărei
@@ -175,11 +158,12 @@ Flota are un fișier propriu, `src/lib/queries/flota-asistent.ts`, cu filtru exp
 - Nicio Server Action, nicio scriere, niciun audit propriu.
 - Niciun embedding și niciun depozit vectorial: corpusul intră întreg în prompt.
 - Niciun SDK de LLM și nicio librărie de markdown — vezi docblock-urile din
-  `src/lib/asistent/openrouter.ts` și `src/lib/asistent/text.ts` pentru de ce.
+  `src/lib/asistent/openrouter.ts`, `src/lib/asistent/viziune.ts` și
+  `src/lib/asistent/text.ts` pentru de ce.
 - Nicio persistență a conversației: trăiește în memoria filei, iar layout-ul `(app)` nu se
   re-randează la navigare, deci supraviețuiește saltului dintr-o pagină în alta.
-- Citirea bonurilor (F12a) folosește aceeași cheie și același modul, dar trăiește în
-  flotă: `src/lib/asistent/viziune.ts` e doar clientul HTTP (`[[modul/flota/bon-ocr]]`).
+- Fluxul citirii bonului (F12a) — schema, promptul, ce se face cu rezultatul și costul pe
+  bon. Aici stă doar clientul HTTP; restul e în flotă: `[[modul/flota]]`.
 
 ## Când NU e suficientă pagina asta
 

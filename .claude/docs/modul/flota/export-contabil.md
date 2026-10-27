@@ -26,8 +26,8 @@ tabele:
 permisiuni: [vehicles:export, vehicles:read, trip_sheets:read]
 feature: fleet
 capcane: [2, 18]
-scris_pe: 85747125ae56ecd24a40bb6be584c83dfab3098e
-scris_la: 2026-10-22
+scris_pe: 773c1627da87c388355631aa7419448022014599
+scris_la: 2026-10-27
 tags: [modul, operations]
 ---
 
@@ -95,7 +95,9 @@ arată și ce n-a intrat, cu motivul:
   alimentări din 4, 2 vehicule din 3, **zero tranzacții de card** (`tranzactii_card_select`
   cere `vehicles:read = all`) și **zero regimuri** (`vehicle_fiscal_regimes_select`, tot
   `all`): bonul plătit cu cardul ar fi intrat în note, iar TVA-ul s-ar fi dedus cu regimul
-  implicit. — capcana #18
+  implicit. Cheltuielile și intervențiile se adaugă la pierdere: `vex_select`/`vse_select`
+  cer `app.poate_vedea_costurile_vehiculului`, iar la `team` vehiculele din **pool** rămân
+  afară chiar alocate echipei (forma e fixată de `0225` §9). — capcana #18
 - **`max_rows = 1000`**: toate citirile trec prin `citesteTot` (keyset pe `id`), iar
   legăturile cu cardul și regimurile se cer în felii de 200 de id-uri. — capcana #2
 - **Luna se taie în ora României** pe `alimentat_la` (timestamptz): o fereastră în UTC

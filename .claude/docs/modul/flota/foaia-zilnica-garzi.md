@@ -7,12 +7,13 @@ cai:
   - "supabase/migrations/0226_securitate_reziduala.sql"
   - "tests/rls/proba-flota-plafoane.sql"
   - "tests/rls/proba-flota-stare-foii.sql"
+  - "tests/rls/proba-oracol-intre-firme.sql"
 tabele: [trip_sheets, trip_sheet_curse, trip_route_templates, fuel_entries, registru_documente]
 permisiuni: [trip_sheets:read, trip_sheets:update]
 feature: fleet
 capcane: []
-scris_pe: 51d9f365e9618a5c1ac95a1a527079d009ab4972
-scris_la: 2026-10-23
+scris_pe: 773c1627da87c388355631aa7419448022014599
+scris_la: 2026-10-27
 tags: [modul, operations]
 ---
 
@@ -56,11 +57,12 @@ Reproduse pe banc ca `employee` înainte de reparare; proba e `proba-flota-plafo
   un contor dat înapoi de `org_admin` nu-l mai redă (§E5).
 - **Cine nu scrie foaia nu află nimic din ea** (§E5). `curse_inainte` și
   `alimentari_inainte` sunt DEFINER și rulează înaintea WITH CHECK-ului de INSERT, deci
-  primul lucru după citirea foii e `poate_scrie_foaie`, cu 42501 (afișat generic). Înainte,
+  primul lucru după citirea foii e `poate_scrie_foaie`, cu 42501 (afișat generic) — iar
+  înaintea citirii înseși stă garda de firmă de mai jos. Înainte,
   un coleg sau un utilizator din altă firmă care știa id-ul afla din P0001 ziua, orele și
   starea foii și numărul foilor declarate ale șoferului.
 
-## Gărzile X2 (0200, pe loc)
+## Gărzile X2/Y2 (0200, pe loc)
 
 - **Garda de firmă vine prima** în `foi_parcurs_inainte`: un BEFORE ROW rulează înaintea
   `WITH CHECK`, deci un rând pus pe o firmă străină ajungea la mesajul de regres și afla
@@ -71,7 +73,21 @@ Reproduse pe banc ca `employee` înainte de reparare; proba e `proba-flota-plafo
 - **Plafonul de 100 de șabloane e sub lacăt** (`pg_advisory_xact_lock` pe firmă): fără el,
   două inserări simultane la 99 treceau amândouă (101, măsurat pe banc). Garda de firmă
   vine și aici înaintea lacătului: de pe altă firmă, 42501, nu plafonul victimei.
+- **Toate cele patru triggere de scriere o au**: `foi_parcurs_inainte`,
+  `alimentari_inainte`, `curse_inainte` și `sabloane_traseu_inainte`. La cursă și la
+  alimentare (Y2) garda precede citirea foii, fiindcă poarta §E5 judecă dreptul pe foaia
+  GĂSITĂ: un rând pus pe firma B primea 42501 când foaia exista acolo și P0001 când nu,
+  deci un membru al firmei A afla, id cu id, ce foi are firma B. Acum ambele răspund la
+  fel (`proba-oracol-intre-firme.sql`, g1 și g2), iar alimentarea pe foaia proprie trece
+  mai departe (p5, poarta pozitivă).
+- **Rândul fără firmă** (`organization_id` null) trecea de garda scrisă `not (org = any
+(…))`: `null = any (…)` e NULL, iar `not NULL` nu ridică. Căutările de dedesubt, făcute
+  după id, găseau atunci foaia sau vehiculul firmei B, iar NOT NULL se judecă abia DUPĂ
+  `WITH CHECK`. Cele patru gărzi sunt scrise `coalesce(…, false)`
+  (`proba-oracol-intre-firme.sql`, n3, n4 și n10).
 - **`foi_select` are ramura `is_platform_admin`** (0226): super_admin vedea zero foi.
+  Numai la citire — blocul de verificare al lui `0226_securitate_reziduala.sql` pică dacă
+  vreo politică de SCRIERE de pe `trip_sheets` primește ramura.
 
 ## Paritatea stării (0200 §D, din revizia de securitate pe 20776502)
 

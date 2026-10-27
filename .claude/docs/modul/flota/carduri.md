@@ -37,8 +37,8 @@ tabele:
 permisiuni: [vehicles:read, vehicles:create, vehicles:update]
 feature: fleet
 capcane: [7, 18, 19, 23, 26]
-scris_pe: bdf23c28f5dd664ad437a27a555b034b9f907214
-scris_la: 2026-10-23
+scris_pe: 773c1627da87c388355631aa7419448022014599
+scris_la: 2026-10-27
 tags: [modul, operations]
 ---
 
@@ -116,6 +116,11 @@ din parc), după `vehicles.data_iesire` din context.
   acolo politica cere și `compliance:read`. — capcanele #19, #26
 - **Un UPDATE respins de USING atinge zero rânduri** (manager pe un card, altă firmă):
   fiecare acțiune face `.select()` și tratează golul drept CONFLICT.
+- **Un rând pus pe altă firmă cade pe 42501, nu pe P0001** (Y2): garda de firmă e prima
+  în `internal.carduri_inainte` și `internal.tranzactii_card_inainte`, înaintea lui
+  `WITH CHECK`. Gărzile de integritate de după ea caută vehiculul, șoferul, cardul,
+  alimentarea și foaia în firma RÂNDULUI: fără garda de firmă, un id inexistent acolo
+  primea „din altă organizație”, iar unul care exista trecea triggerul.
 - **Datele din extras sunt imuabile** după import (P0001); se schimbă doar legătura,
   starea, nota, categoria. Extrasul greșit se ANULEAZĂ (`anuleazaImport`: tranzacțiile,
   apoi lotul), abia apoi se reimportă: indexul de dedup e parțial pe `deleted_at is null`.
@@ -127,7 +132,8 @@ din parc), după `vehicles.data_iesire` din context.
 - **Repotrivirea e ATOMICĂ** (X2): toată lista de scrieri pleacă într-un singur
   `rpc("repotriveste_tranzactii_card")` (0214 §11b, INVOKER, în ordinea dată, doar coloanele
   potrivirii). Un rând refuzat (anulat între timp, 23505) derulează tot: luna rămâne cum era,
-  nu pe jumătate „fără alimentare”.
+  nu pe jumătate „fără alimentare”. Peste 10000 de scrieri într-un apel, baza refuză cu
+  P0001 și cere o lună mai scurtă.
 - **O celulă peste tipul coloanei** (km în `integer`, preț în `numeric(12,4)`, valoare în
   `numeric(14,2)`) ar trece de previzualizare și ar pica felia întreagă pe 22003: analiza
   golește km-ul și prețul și respinge rândul cu valoare absurdă.

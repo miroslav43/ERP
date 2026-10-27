@@ -4,6 +4,7 @@ titlu: Ticketing IT
 aliases: [ticketing, tichete, helpdesk]
 cai:
   - "src/app/(app)/ticketing/**"
+  - "src/domain/ticketing/**"
   - "src/lib/queries/ticketing.ts"
   - "src/schemas/ticketing.ts"
   - "supabase/migrations/0045_ticketing_it.sql"
@@ -15,11 +16,11 @@ permisiuni: [tickets:read, tickets:create, tickets:update, tickets:approve]
 feature: ticketing
 capcane: [11, 17]
 citeste_daca:
-  - "42P17 «infinite recursion» la citirea unui tichet → secțiunea despre 0062"
-  - "căutare liberă în listă care întoarce prea mult sau prea puțin → secțiunea „Citiri”"
-  - "tichet scris fără `department_id`, sau prioritate suprascrisă fără rând în istoric → partea despre clientul admin din „Server Actions”"
-scris_pe: a2cdfa5180b0b036c983f85f493fe74846b2909c
-scris_la: 2026-10-06
+  - "42P17 «infinite recursion» la citirea unui tichet → [[modul/ticketing/recursie-politici]]"
+  - "căutare liberă, o cifră a cozii care duce la altă listă, trunchiere → [[modul/ticketing/actiuni]]"
+  - "tichet fără `department_id`, repartizare refuzată, prioritate suprascrisă fără istoric → clientul admin, în [[modul/ticketing/actiuni]]"
+scris_pe: 773c1627da87c388355631aa7419448022014599
+scris_la: 2026-10-27
 tags: [modul]
 ---
 
@@ -29,6 +30,17 @@ Cereri de echipament și sesizări de defecțiune software, cu aprobare de la ma
 direct sau de la patron și o coadă pentru IT. **Nu s-a adăugat niciun rol nou** în
 `app_role`: aprobatorii ceruți existau deja, iar algebra de scope-uri face restul —
 angajatul `own`, managerul `team`, administratorul `all`.
+
+## Paginile modulului
+
+Trunchiul ține ce e modulul, cine ajunge unde, ce i se oferă pe ecran și **ce refuză baza
+fără să spună** — secțiunea pentru care se deschide pagina dintr-un bug. Scrierile și
+citirile s-au spart pe subpagină (`.claude/docs/meta/conventii.md`).
+
+| Pagină                                | Ce ține                                                                    |
+| ------------------------------------- | -------------------------------------------------------------------------- |
+| [[modul/ticketing/actiuni]]           | scrierile tichetului, clientul admin, citirile listei și predicatele cozii |
+| [[modul/ticketing/recursie-politici]] | de ce citirea unei tabele-copil cădea cu `42P17` și ce formă au politicile |
 
 ## Rute și cine ajunge
 
@@ -48,54 +60,43 @@ independente, pe tabele diferite, iar înlănțuite erau două dus-întorsuri se
 PostgREST. `can()` rămâne după amândouă, deci verdictul nu se schimbă — nu „îndrepta"
 forma înapoi la două `await` seriale doar fiindcă `anunturi/page.tsx` e scrisă așa.
 
-## Server Actions
+Segmentul `[id]` trece prin `idDinRuta`: numărul afișat pus în adresă dă 404, ca orice
+segment care nu e UUID. Proveniența rămâne tot în adresă (`?din=coada`), ca firimitura
+fișei să ducă înapoi în coada echipei și nu în „Tichetele mele"; orice legătură dintre
+module trece prin `poateDeschide`/`legaturaSigura` (`src/config/porti-ruta.ts`), deci un
+rol care n-ar putea deschide ținta vede text, nu link.
 
-`src/app/(app)/ticketing/actions.ts`.
+Un cont fără fișă de personal nu poate fi solicitant — `creeazaTichet` îl refuză în
+`fisaMea`. De-asta `/ticketing` îi ascunde butonul „Tichet nou" și îi oferă coada când
+are `tickets:read` la `team`, iar `/ticketing/nou` răspunde cu o stare goală în loc de
+un formular care s-ar refuza abia la trimitere.
 
-| Funcție                                                                  | Permisiune / minScope    |
-| ------------------------------------------------------------------------ | ------------------------ |
-| `creeazaTichet`                                                          | `tickets:create` / own   |
-| `schimbaStatusul`                                                        | `tickets:update` / own   |
-| `comenteaza`, `urmareste`                                                | `tickets:read` / own     |
-| `decideTichet`                                                           | `tickets:approve` / team |
-| `suprascriePrioritatea`, `asigneaza`, `marcheazaDuplicat`, `aplicaMacro` | `tickets:update` / all   |
+## Ce se oferă pe ecran
 
-Cele patru pe `all` sunt uneltele IT-ului: prioritate manuală, asignare, marcare de
-duplicat, macro. `schimbaStatusul` rămâne pe `own`, fiindcă și solicitantul închide sau
-redeschide propriul tichet.
+Butoanele de stare de pe fișă vin din `tranzitiiPeTichet` (`src/domain/ticketing/stari.ts`),
+nu din `tranzitiiOferite`: decizia pe o cerere are o singură cale, `DecizieCerere` →
+`decideTichet`, care scrie și `motiv_respingere`. Solicitantul care nu operează pierde
+doar `respins → redeschis` — din `redeschis` se trece în `in_lucru` fără nicio decizie,
+deci și-ar ocoli reaprobarea — și păstrează „Anulează", singura cale prin care își
+retrage cererea.
 
-Modulul ocolește RLS cu `createAdminSupabase()` în trei puncte, toate în `actions.ts`:
-`fisaMea` și departamentul din fișa solicitantului (`creeazaTichet`) — ca citirea să nu
-depindă de scope-ul `employees:read` al rolului care deschide tichetul — și rândul de
-justificare din `ticket_history` (`suprascriePrioritatea`), fiindcă `0045` dă pe tabela
-aia doar `grant select` și o politică `_select`: istoricul e scris altfel exclusiv de
-trigger. Toate trei filtrează explicit pe `organization_id` și toate trei își citesc
-`error`: înghițită, eroarea scria tichetul fără `department_id` sau raporta prioritate
-suprascrisă cu istoricul lipsă, definitiv și fără urmă. Cine mai adaugă o cale pe
-clientul admin aici păstrează amândouă plasele.
+Managerul direct al solicitantului primește butoanele de decizie numai dacă are
+`tickets:approve` la `team`, exact ce cere acțiunea: un `hr` care e șef direct le primea
+și se lovea de refuz.
 
-Contractul acțiunilor e fixat pe clientul Supabase fals, în `actions-solicitant.test.ts`
-(deschidere, decizie, tranziție, comentariu, urmărire) și `actions-operare.test.ts`
-(uneltele IT). Fiecare unealtă pe `all` e probată și cu `tickets:update = team` —
-treapta imediat sub prag, exact ce îi dă managerului seed-ul din
-`0046_ticketing_it_reguli.sql` — ca o coborâre a pragului să nu treacă neobservată.
-Testele NU prind o politică RLS greșită; aia rămâne pe `tests/rls/izolare.sql`.
-`etichete.test.ts` cere ca hărțile din `etichete.ts` să aibă exact cheile enum-urilor din
-`src/domain/ticketing/` — o stare nouă fără eticheta ei ajunge pe ecran ca cheie brută.
+Eticheta BUTONULUI solicitantului vine din `ETICHETE_ACTIUNE_SOLICITANT` — hartă parțială,
+care cade pe eticheta stării unde n-are verb: „Închis" pe un buton nu spune nimănui că e
+confirmarea rezolvării. `src/app/(app)/ticketing/etichete.ts` e folosit și de portal
+(`src/app/(portal)/portal/tichetele-mele`), deci etichetele de stare sunt impersonale și o
+schimbare aici se vede în ambele locuri. `etichete.test.ts` cere ca hărțile să aibă exact
+cheile enum-urilor din `src/domain/ticketing/` — o stare nouă fără eticheta ei ajunge pe
+ecran ca cheie brută — și ca verbul să difere de numele stării.
 
-## Citiri
-
-`src/lib/queries/ticketing.ts`. `listeazaTichete` caută liber în `titlu` și în
-`numar_afisat` — numărul afișat e ce are omul la îndemână („IT-2026-00042") — și tiparul
-`ilike` trece prin `tiparContine` (`src/lib/queries/cursor.ts`), nu prin text scris de
-mână. `%`, `_` și `*` tastate de om ar fi altfel jokeri, iar virgula și paranteza rup
-gramatica `or=`: rezultatul nu e o eroare, e o listă subtil greșită. Cine adaugă un filtru
-de text nou aici trece prin același ajutor. — capcana #11
-
-Paginarea e keyset pe `created_at desc, id desc` cu cursor opac, iar `total` se numără
-într-o **a doua** interogare, cu aceleași filtre dar fără predicatul de cursor: numărat pe
-interogarea rândurilor, keyset-ul ar fi filtrat și numărătoarea, deci totalul ar fi scăzut
-la fiecare pagină.
+Formularul de tichet nou trece prin `<Formular>` (`src/components/ui/formular.tsx`): un
+refuz de validare nu mai golește câmpurile, fiindcă React 19 resetează formularul după
+`<form action>`, iar `valoriTrimise` le pune înapoi. Se înlănțuie cu fotografia de la
+„Schimbă tipul", care rămâne sursa până la prima trimitere. Porțile sunt
+`actiuni-tichet.test.tsx` și `nou/formular-tichet.test.tsx`.
 
 ## Prioritatea nu se alege
 
@@ -115,30 +116,6 @@ iar alternativa era succes raportat peste o justificare pierdută. Verificarea r
 sărit de politică stă ÎNAINTEA istoricului, ca istoricul să nu consemneze o schimbare
 care nu s-a produs.
 
-## 42P17: recursiunea dintre politici (0062)
-
-Politicile modulului se citeau una pe alta în cerc:
-
-```
-ticket_attachments_select → tickets → tickets_select → ticket_watchers
-  → ticket_watchers_select → tickets → …
-```
-
-Efectul **nu** era un refuz, ci o eroare: orice citire care atinge o tabelă-copil cădea cu
-`42P17`, indiferent de drepturi. Aceleași două muchii închideau bucla și prin
-`ticket_comments` și `ticket_history`.
-
-`0062_ticketing_recursie_politici.sql` taie ciclul cu funcții `security definer`, care
-citesc tabelele **ocolind RLS** — regula de vizibilitate rămâne identică, doar mutată din
-politică în funcție. Cine adaugă o politică nouă aici trebuie să treacă prin funcțiile
-alea, nu să interogheze `tickets` direct.
-
-Nu s-a văzut la livrare fiindcă un tichet fără urmăritori nu declanșează totdeauna ramura,
-iar planificatorul nu intră în subinterogare când o condiție anterioară a decis deja
-rezultatul. A ieșit la iveală abia când `tests/rls/izolare.sql`, verificarea `(c)`, a
-primit primele rânduri de ticketing în fixture: cele cinci tabele fuseseră livrate fără
-niciun rând acolo, deci nimeni nu le citise vreodată sub o identitate reală.
-
 ## Ce refuză baza tăcut
 
 - **Obiectul de inventar al defecțiunii se caută doar în firma tichetului** (0233):
@@ -153,6 +130,13 @@ niciun rând acolo, deci nimeni nu le citise vreodată sub o identitate reală.
   tăcut lasă răspunsul deja publicat pe tichet; mesajul de CONFLICT spune exact asta, iar
   ordinea e fixată în `actions-operare.test.ts`. Cine inversează pașii îi trimite
   solicitantului un răspuns care anunță o schimbare ce nu s-a produs. — capcana #17
+- **Numele celui repartizat e invizibil solicitantului, deși repartizarea nu e.** La scope
+  `own`, `employees_select` ascunde rândul operatorului, deci embed-ul `asignat` vine NULL
+  pe un tichet care E repartizat, fără nicio eroare; același gol îl are aprobatorul cu
+  `employees:read = team`, fiindcă operatorul IT nu e în echipa lui. De-asta citirile cer
+  și coloana brută `asignat_employee_id`, iar textul îl dă `responsabilulTichetului`
+  (`src/app/(app)/ticketing/etichete.ts`): „Preluat de echipa de suport", niciodată
+  „Neatribuit încă". Cine citește doar embed-ul scrie pe ecran contrariul faptelor.
 - **`in_asteptare` înseamnă „se așteaptă răspunsul SOLICITANTULUI"**, nu al IT-ului —
   comentariul e pe enum, în `0045_ticketing_it.sql`. Nu există azi niciun cronometru care
   s-o consume; cine adaugă unul trebuie să scadă intervalul, altfel un tichet blocat pe
@@ -162,11 +146,14 @@ niciun rând acolo, deci nimeni nu le citise vreodată sub o identitate reală.
 
 `listeazaObiecteleMele` și `managerulDirectAl` leagă modulul de [[modul/inventar]] și de
 lanțul de subordonare: cererea de echipament pleacă de la ce are omul deja alocat, iar
-aprobarea merge la managerul lui direct.
+aprobarea merge la managerul lui direct. Pe fișă, „Are deja în primire" se arată doar
+aprobatorului sau operatorului care poate deschide `/inventar`, iar înregistrarea
+echipamentului cumpărat cere `inventory:update` la `all` și o cerere trecută de decizie —
+din „în lucru" încolo, nu mai devreme.
 
 ## Când NU e suficientă pagina asta
 
 - Cine aprobă și de ce nu apare butonul: [[rol/manager]].
 - Obiectele alocate și stocul: [[modul/inventar]].
-- Lotul 7h: „Nerepartizate” și „Asignate mie” pe coadă, căutarea după număr, firimituri după proveniență (`?din=coada`), „Are deja în primire” pe cererile de echipament, cererea aprobată → obiect nou în inventar (`?obiect=nou&denumire=`): [[strat/navigare]].
-- Lotul 7l: „Duplicat al…” se alege din tichetele deschise de același tip; fișa arată originalul și duplicatele; modulul din bug → ruta lui: [[strat/navigare]].
+- Firimituri, pastile de filtre, legături către fișe, proveniența în adresă — convențiile
+  comune tuturor modulelor: [[strat/navigare]].
