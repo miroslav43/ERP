@@ -312,3 +312,10 @@ de oricine face un push.
 - module atinse: —
 - straturi atinse: —
 - pagini rescrise: modul/asistent.md modul/flota/carduri.md modul/flota/export-contabil.md modul/flota/foaia-zilnica-garzi.md modul/pontaj/actiuni.md modul/profil.md modul/ticketing.md modul/asistent/unelte.md modul/pontaj/actiuni/lanturi.md modul/ticketing/actiuni.md modul/ticketing/recursie-politici.md
+
+## 2026-10-28
+
+- commit-uri în ultimele 24h: 0
+- module atinse: —
+- straturi atinse: —
+- pagini rescrise: modul/concedii.md modul/evaluari.md modul/flota/declaratia-soferului.md modul/flota/proces-verbal.md modul/mentenanta/interventii.md modul/mentenanta/sesizari.md rol/hr.md modul/concedii/documente.md modul/concedii/suspendare.md modul/concedii/vederi.md modul/evaluari/actiuni.md modul/evaluari/kpi.md rol/hr/matricea.md

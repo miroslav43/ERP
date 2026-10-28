@@ -6,6 +6,7 @@ aliases:
     declaratie incident,
     declaraIncident,
     declarat_de_employee_id,
+    incidente_inainte,
     vehicul_al_meu_la,
     flota_destinatari_cheie,
     incidente_notifica,
@@ -23,6 +24,7 @@ tabele:
   [
     vehicle_incidents,
     vehicle_fines,
+    employees,
     expirables,
     compliance_alerts,
     alert_notifications,
@@ -31,16 +33,17 @@ tabele:
 permisiuni: [vehicle_incidents:create, vehicle_incidents:read, vehicle_fines:read]
 feature: fleet
 capcane: [6, 17, 19, 26]
-scris_pe: 2eb73b5ae86623be53c160e06c06fe67b20fc67d
-scris_la: 2026-10-23
+scris_pe: f437506578f23173e26c942102cdd3ddd2d109c8
+scris_la: 2026-10-28
 tags: [modul, operations]
 ---
 
 # Flotă — declarația șoferului, amenzile în rezumat și pe fișa vehiculului
 
 Extrasă din `[[modul/flota/amenzi-si-daune]]` (pagina aceea era la plafon). Trei decizii
-din 21 oct 2026, toate în `0206_flota_amenzi_daune.sql` (§F, §G), editată pe loc: nu e
-pe `main` și nu e aplicată nicăieri.
+din 21 oct 2026, toate în `0206_flota_amenzi_daune.sql` (§F, §G), editată pe loc fiindcă
+nu e aplicată nicăieri — tot pe loc a intrat și revizia X2 din trigger (garda de firmă și
+fișa vie a șoferului).
 
 ## Declarația șoferului din „Mașina mea” (§F)
 
@@ -60,6 +63,21 @@ INSERT o verifică încă o dată și refuză (42501) costurile, asigurătorul, 
 cercetarea: le scrie responsabilul. WITH CHECK vede rândul de DUPĂ trigger — capcana #6.
 Declarantul nu se mai schimbă la UPDATE (triggerul îl fixează la valoarea veche). Un
 administrator nu declară în numele altuia (P0001 „Declarantul unui incident…”).
+
+**Garda de firmă e prima (revizia X2):** un rând trimis pe altă firmă cade cu 42501 („Nu
+aveți dreptul de a înregistra incidente în această organizație.”) înaintea oricărei
+căutări din trigger. Fără ea, triggerul BEFORE — care rulează înaintea lui WITH CHECK,
+capcana #6 — deosebea prin refuz vehiculul și fișa care EXISTĂ în firma victimei (P0001
+din trigger, apoi 42501 din politică) de cele inexistente. Verificarea (5) a probei cere
+exact asta: P0001 în firma lui, 42501 în firma străină. Tot din X2, `sofer_id` trebuie să
+fie o fișă VIE a firmei, judecată la INSERT și la fiecare schimbare a coloanei: cheia
+străină compusă `vi_sofer_fk` prinde doar firma, nu și ștergerea logică, deci o fișă
+ștearsă trecea. Un singur mesaj pentru „nu există”, „e ștearsă” și „e în altă firmă”
+(P0001 „Șoferul incidentului nu există…”), ca refuzul să nu fie o sondă între firme; o
+desemnare veche rămâne valabilă dacă fișa e ștearsă ulterior. Șoferul nu o atinge — ramura
+`own` îi pune `sofer_id` = `app.fisa_mea`; bate pe responsabilul care scrie coloana din
+`/flota/incidente`. Amenzile au primit garda identică, pe `sofer_desemnat_id`
+([[modul/flota/amenzi-si-daune]]).
 
 **Ce vede șoferul:** RÂNDUL incidentului deloc — `vehicle_incidents_select` e doar
 `read = all` (pachetul X1: RLS-ul taie rânduri, nu coloane, iar fosta ramură `own` îi

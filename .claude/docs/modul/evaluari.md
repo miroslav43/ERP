@@ -5,11 +5,12 @@ aliases: [evaluari, kpi, performanta]
 cai:
   - "src/app/(app)/evaluari/**"
   - "src/lib/queries/evaluari.ts"
-  - "src/lib/queries/kpi.ts"
-  - "src/schemas/evaluari.ts"
+  - "src/schemas/evaluation.ts"
   - "supabase/migrations/0038_evaluari_angajati.sql"
   - "supabase/migrations/0072_evaluari_sabloane_editabile.sql"
   - "supabase/migrations/0119_kpi_lunar.sql"
+  - "supabase/migrations/0168_sablon_evaluare_personalizat.sql"
+  - "supabase/migrations/0170_evaluarea_proprie_vizibila.sql"
 tabele:
   [
     employee_evaluations,
@@ -22,13 +23,13 @@ tabele:
   ]
 permisiuni: [evaluations:read, evaluations:create, evaluations:update]
 feature: [evaluations, kpi]
-capcane: [2, 17]
+capcane: [2, 48]
 citeste_daca:
-  - "manager care nu poate salva KPI deși vede echipa → secțiunea „managerul direct”"
   - "ecran KPI care dă 404 deși evaluările merg → secțiunea „Rute și cine ajunge”"
-  - "cifră de sus care pare prea mică sau listă KPI care pierde rânduri → secțiunea „Citiri”"
-scris_pe: 592cbf5b63e99ecbd46a87285dc6b2968523809e
-scris_la: 2026-10-03
+  - "ștergere care nu șterge nimic → secțiunea „Ce refuză baza tăcut”"
+  - "listă de șabloane din care lipsește unul → secțiunea „Citiri”"
+scris_pe: f437506578f23173e26c942102cdd3ddd2d109c8
+scris_la: 2026-10-28
 tags: [modul, hr]
 ---
 
@@ -44,27 +45,46 @@ De la desprinderea lui `kpi` ca modul propriu în `src/config/features.ts`, sepa
 permisiune rămân una singură (`evaluations:*`). Cine caută o permisiune `kpi:*` n-o
 găsește — nu există.
 
+## Paginile modulului
+
+Trunchiul ține rutele, citirile anualei și **ce refuză baza tăcut** — secțiunea pentru care
+se deschide pagina dintr-un bug. Restul s-a spart pe subpagini.
+
+| Pagină                     | Ce ține                                                                                             |
+| -------------------------- | --------------------------------------------------------------------------------------------------- |
+| [[modul/evaluari/actiuni]] | scrierile ambelor fluxuri, programarea, varianta firmei a unui șablon, ștergerea logică, anunțurile |
+| [[modul/evaluari/kpi]]     | managerul direct, citirile lunare, setul pe funcție, luna închisă                                   |
+
 ## Rute și cine ajunge
 
-| Rută                   | `requireFeature` | Poarta paginii          | Ce deblochează în plus scrierea                  |
-| ---------------------- | ---------------- | ----------------------- | ------------------------------------------------ |
-| `/evaluari`            | `evaluations`    | `evaluations:read` team | `evaluations:create` team                        |
-| `/evaluari/sabloane`   | `evaluations`    | `evaluations:read` team | `evaluations:update` **all**                     |
-| `/evaluari/kpi`        | `kpi`            | `evaluations:read` team | `evaluations:create` team                        |
-| `/evaluari/kpi/[id]`   | `kpi`            | `evaluations:read` team | `evaluations:update` team **și** luna în `draft` |
-| `/evaluari/kpi/seturi` | `kpi`            | `evaluations:read` team | `evaluations:update` team                        |
-| `/portal/kpi-ul-meu`   | `kpi`            | portalul angajatului    | propria serie, citire                            |
+| Rută                      | `requireFeature` | Poarta paginii          | Ce deblochează în plus scrierea                              |
+| ------------------------- | ---------------- | ----------------------- | ------------------------------------------------------------ |
+| `/evaluari`               | `evaluations`    | `evaluations:read` team | `evaluations:create` team programează, `update` team notează |
+| `/evaluari/sabloane`      | `evaluations`    | `evaluations:read` team | `evaluations:update` **all**                                 |
+| `/evaluari/ale-mele`      | `evaluations`    | **nicio permisiune**    | nimic, e numai citire                                        |
+| `/evaluari/kpi`           | `kpi`            | `evaluations:read` team | `evaluations:create` team                                    |
+| `/evaluari/kpi/[id]`      | `kpi`            | `evaluations:read` team | `evaluations:update` team **și** luna în `draft`             |
+| `/evaluari/kpi/seturi`    | `kpi`            | `evaluations:read` team | `evaluations:update` team                                    |
+| `/portal/evaluarile-mele` | `evaluations`    | portalul angajatului    | propria serie, citire                                        |
+| `/portal/kpi-ul-meu`      | `kpi`            | portalul angajatului    | propria serie, citire                                        |
 
-Toate paginile intră cu **aceeași** poartă de permisiune — `evaluations:read` la scope
-`team`. Ce diferă e booleanul de scriere calculat pe server: cine n-are `update` vede
-ecranul complet și fără butoane, nu `AccesRestrictionat`.
+Poarta fiecărei rute e declarată o singură dată, în `src/config/porti-ruta.ts`; din același
+registru se filtrează banda de file (`fileEvaluari()` din `src/config/file-module.ts`), deci
+o filă apare doar dacă pagina ei chiar se deschide. Componenta de file a modulului nu mai
+există.
 
-Ce **nu** mai e comun e modulul. O organizație cu `evaluations` activ dar fără `kpi`
-deschide `/evaluari` și `/evaluari/sabloane`, iar ecranele de KPI îi dau **404**:
-`requireFeature` cheamă `notFound()`, nu `AccesRestrictionat`, deci nimic nu explică
-refuzul. Intrarea de meniu `portal-kpi` are și ea `featureKey: "kpi"` și dispare în același
-caz. Pentru ecranele KPI de administrare nu există element de meniu deloc — se ajunge la
-ele din `/evaluari`.
+`/evaluari/ale-mele` e singura rută fără poartă de permisiune: evaluarea **proprie
+finalizată** se vede pentru orice rol (`0170`), iar RLS întoarce doar pe ea. Secțiunea
+„KPI-ul meu" de pe ea cere în plus modulul `kpi` și `evaluations:read` la `own`. Celelalte
+intră cu **aceeași** poartă — `evaluations:read` la scope `team` —, iar ce diferă e
+booleanul de scriere calculat pe server: cine n-are `update` vede ecranul complet și fără
+butoane, nu `AccesRestrictionat`.
+
+Ce **nu** e comun e modulul. O organizație cu `evaluations` activ dar fără `kpi` deschide
+`/evaluari` și `/evaluari/sabloane`, iar ecranele de KPI îi dau **404**: `requireFeature`
+cheamă `notFound()`, nu `AccesRestrictionat`, deci nimic nu explică refuzul. Intrarea de
+meniu `portal-kpi` are și ea `featureKey: "kpi"` și dispare în același caz. Invers, la o
+firmă doar cu `kpi`, firimitura „Evaluări" din luna de KPI nu se randează deloc.
 
 În preambul, `requireFeature` și `getPermissionMap` se cheamă **paralel** (`Promise.all`),
 ca la pasul 3+4 din `src/lib/actions/create-action.ts`: citiri independente, decizii în
@@ -75,45 +95,10 @@ cereau `employees:update`, pe care `manager` nu-l are la scope suficient, deci e
 erau în fapt exclusiv ale HR-ului. Astăzi `manager` are `read`, `create` și `update` la
 scope `team`.
 
-## Server Actions
-
-`src/app/(app)/evaluari/actions.ts` — anualele, toate pe `feature: "evaluations"`:
-
-| Funcție                                                                        | Permisiune / minScope       |
-| ------------------------------------------------------------------------------ | --------------------------- |
-| `creeazaSablonEvaluare`, `actualizeazaSablonEvaluare`, `duplicaSablonEvaluare` | `evaluations:update` / all  |
-| `arhiveazaSablonEvaluare`, `reactiveazaSablonEvaluare`                         | `evaluations:update` / all  |
-| `creeazaEvaluare`                                                              | `evaluations:create` / team |
-| `actualizeazaEvaluare`, `finalizeazaEvaluare`                                  | `evaluations:update` / team |
-| `redeschideEvaluare`                                                           | `evaluations:update` / all  |
-
-`src/app/(app)/evaluari/kpi/actions.ts` — KPI lunar, toate pe `feature: "kpi"` și
-`minScope: "team"`: `creeazaSetKpi`, `actualizeazaSetKpi`, `arhiveazaSetKpi`,
-`seteazaTintaKpi`, `stergeTintaKpi`, `deschideLunaKpi`, `salveazaLunaKpi`,
-`finalizeazaLunaKpi`. Toate cer `evaluations:update`, în afară de `deschideLunaKpi`, care
-cere `evaluations:create` — deschiderea lunii chiar inserează un rând. Cu modulul `kpi`
-inactiv se opresc toate în `MODUL_DEZACTIVAT`, înaintea oricărei verificări de permisiune;
-anualele, pe `evaluations`, nu sunt atinse.
-
-Redeschiderea unei evaluări anuale e singura care urcă la `all`: finalizarea o face
-managerul, anularea ei nu.
-
-## Managerul DIRECT, nu subarborele
-
-`app.is_manager_of` verifică `manager_path @> [angajatul curent]`, adică **tot
-subarborele** — șeful șefului trece la fel de bine ca șeful direct. Pentru evaluarea anuală
-e în regulă. La KPI, cerința e „ținte stabilite de managerul direct", deci **scrierea** cere
-`app.este_manager_direct`, care se uită la `manager_employee_id`.
-
-`minScope: "team"` din acțiuni e doar poarta aplicației; predicatul îngust e în politică.
-Consecința practică: un director care vede KPI-ul întregii divizii **nu-l poate scrie** —
-iar refuzul vine din bază, nu din buton. **Citirea** rămâne pe subarbore, deliberat: tăiată
-la managerul direct, ar fi ascuns KPI-ul echipei de cine răspunde de ea.
-
 ## Citiri
 
-`src/lib/queries/evaluari.ts` și `src/lib/queries/kpi.ts` — funcții libere, `organizationId`
-primul argument. Trei locuri unde varianta „simplă" scade tăcut, fără nicio eroare:
+`src/lib/queries/evaluari.ts` — funcții libere, `organizationId` primul argument. Două
+locuri unde varianta „simplă" scade tăcut, fără nicio eroare:
 
 - **„Folosit în N evaluări", la șabloane.** `listeazaSabloane` cere `count` cu
   `head: true`, câte o interogare pe șablon. Un embed agregat ar fi trecut prin RLS-ul
@@ -125,22 +110,33 @@ primul argument. Trei locuri unde varianta „simplă" scade tăcut, fără nici
   cu un rând în plus, ca un eșantion exact plin să nu se raporteze drept tăiat.
   `esantionTrunchiat` e singurul lucru care spune ecranului că media nu e pe toate; pe
   același eșantion se numără și `angajatiEvaluati`, iar acolo nimic nu se declară. — capcana #2
-- **Sortarea lunilor KPI după scor.** `scor_procent` e NULL pe orice lună abia deschisă
-  (scorul se scrie la salvarea valorilor), iar `gt`/`lt` nu potrivesc niciodată NULL: de
-  aceea `listeazaLuniKpi` trece pe `predicatKeysetNulabil` și `VALOARE_NULA` din
-  `src/lib/queries/cursor.ts` când cheia de sortare e scorul. Cu keyset-ul simplu,
-  „mai departe" pierdea exact lunile fără scor.
+
+Un șablon lipsă din listă nu e o eroare: `listeazaSabloane` **ascunde** șablonul de
+platformă cât timp firma are o variantă a lui (`derivat_din`, `0168`), ca să rămână un
+singur card — al firmei, cu insigna „Personalizat" —, în listă, la „Evaluare nouă" și pe
+fișă. Contează orice variantă neștearsă, inclusiv una arhivată: arhivarea e o alegere a
+firmei, nu o cerere de a reveni la cel generic.
+
+`listeazaEvaluari` duce în rând și instantaneul, notele, concluzia și `template_id`:
+„Evaluează" deschide ciorna direct din listă, iar numele șablonului e un link către lista
+filtrată pe el. Citirile lunare sunt în [[modul/evaluari/kpi]].
 
 ## Ce refuză baza tăcut
 
-- **Luna finalizată nu se redeschide, din nicio cale de cod.** Politica de UPDATE a lui
-  `kpi_evaluari_lunare` cere `status = 'draft'` în `USING`; un rând finalizat nu mai trece
-  de clauză, deci UPDATE-ul afectează **zero rânduri, fără eroare**. Fiecare tranziție face
-  `.select()` după `.update()` și tratează golul drept conflict. — capcana #17
-- **Evaluarea anuală rămasă în `draft` era vizibilă angajatului.** Politica de SELECT de pe
-  `employee_evaluations` nu filtrează după status, iar `0070` i-a dat angajatului scope
-  `own` — concluzia pe jumătate scrisă a managerului. Nimeni nu s-a lovit de ea fiindcă
-  portalul n-avea ecran de evaluări; `0119` adaugă unul și închide cazul în secțiunea 11.
+- **Ștergerea logică printr-un UPDATE pică întotdeauna cu `42501`**, pe tabelele modulului
+  care au `deleted_at is null` în politica SELECT: rândul NOU e verificat contra politicii
+  care tocmai îl ascunde. Șablonul, ținta și indicatorul KPI nu se ștergeau niciodată, iar
+  compensările își înghițeau eroarea. Drumul de astăzi, prin funcții de bază, e în
+  [[modul/evaluari/actiuni]]. — capcana #48
+- **Evaluarea proprie nu se mai scrie de propria mână.** `manager_path` îl conține și pe
+  angajatul însuși, deci pe scope `team` un manager își vedea ciorna și o putea modifica,
+  finaliza sau crea. `0170` scoate propria fișă din ramura `team` a lui
+  `app.can_access_evaluation` și lasă în loc o ramură de SELECT pentru evaluarea proprie
+  **finalizată**, valabilă oricărui rol. Ecranele nu ofereau drumul, dar baza îl lăsa
+  deschis oricui scria direct.
+- **UPDATE-ul de tranziție refuzat de `USING` afectează zero rânduri, fără eroare** — de
+  aceea fiecare tranziție face `.select()` după `.update()` și tratează golul drept
+  CONFLICT. Cazul lunii KPI închise e în [[modul/evaluari/kpi]].
 
 ## Instantaneul: de ce valorile își copiază definiția
 
@@ -151,31 +147,23 @@ istoric într-un „4 din 10"; o pondere schimbată în iulie rescrie scorul din
 
 De aceea `employee_evaluations.criterii_sablon` (0072) și `kpi_valori` (0119) țin
 **instantaneul** — `cod`, `denumire`, `tip`, `unitate`, `sens`, `pondere`, `scala_max`,
-`tinta` — scris la creare, nu citit din definiția curentă.
-
-`kpi_sens` există din același motiv de corectitudine: „vizite: țintă 40, realizat 37" e
-92%, dar „rebut: maxim 2%, realizat 1,4%" e 130%, nu 70%. Fără discriminantul de sens,
-jumătate din indicatorii reali se calculează exact invers, și nimic nu semnalează asta.
+`tinta` — scris la creare, nu citit din definiția curentă. Varianta firmei a unui șablon de
+platformă (`0168`) nu schimbă nimic aici: evaluările deja făcute poartă criteriile cu care
+au fost completate, iar ciornele programate cu `planificaEvaluari` își iau instantaneul în
+clipa programării, nu la notare.
 
 ## Ce se mișcă împreună
 
-Un set KPI activ per **funcție**, ținută ca text, nu ca cheie către `job_positions`
-(desființate de 0110). Consecința asumată: doi manageri cu subordonați pe aceeași funcție
-împart setul, iar divergențele se rezolvă din `kpi_tinte_angajat`, nu prin seturi paralele.
-
 Fiecare acțiune are test pe clientul Supabase fals, lângă acțiunea verificată
-(`src/app/(app)/evaluari/actions-sabloane.test.ts` și perechile din
+(`src/app/(app)/evaluari/actions-sabloane.test.ts`,
+`src/app/(app)/evaluari/actions-evaluari.test.ts` și perechile din
 `src/app/(app)/evaluari/kpi/`): acolo sunt fixate verbatim payload-ul fiecărei scrieri și
-căile de `revalidate`. O politică RLS greșită rămâne însă pe `tests/rls/izolare.sql`.
-
-Seria lunară e valoarea modulului, de aceea KPI-ul are tabele proprii în loc de `jsonb`:
-„media pe indicator pe ultimele trei luni" și graficul din portal ar fi devenit altfel
-agregări peste `jsonb_array_elements`, care încetinesc tăcut la 200 de angajați × 12 luni.
+căile de `revalidate`. O politică RLS greșită rămâne însă pe `tests/rls/izolare.sql`, iar
+un refuz tăcut al bazei nu se vede în niciunul dintre ele.
 
 ## Când NU e suficientă pagina asta
 
-- Fișa angajatului și lanțul de subordonare: [[modul/angajati]].
+- Fișa angajatului, lanțul de subordonare și țintele KPI puse de pe fișă: [[modul/angajati]].
 - De ce un manager vede dar nu poate scrie: [[rol/manager]].
-- Filtrul `?status=` pe KPI, seturile din antet, „Redeschide” pe fișă, notificările de programare și de lună închisă, luna din istoricul portalului: [[strat/navigare]].
-- Lotul 7m: țintele KPI proprii se pun și se scot de pe fișa angajatului (`TinteKpi`), nu doar din acțiuni orfane: [[strat/navigare]].
-- Lotul 7n (migrarea 0190, pe banc): managerul își citește propria lună KPI; secțiunea „KPI-ul meu” pe `/evaluari/ale-mele`: [[strat/navigare]].
+- Filtrele de intrare (`?angajat=`, `?status=`, `?template_id=`), seturile din antet,
+  „Redeschide” pe fișă, notificările și luna din istoricul portalului: [[strat/navigare]].

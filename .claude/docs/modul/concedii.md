@@ -7,7 +7,6 @@ cai:
   - "src/lib/queries/leave.ts"
   - "src/schemas/leave.ts"
   - "src/domain/leave/**"
-  - "src/lib/documents/cale.ts"
 tabele:
   [
     leave_requests,
@@ -18,19 +17,17 @@ tabele:
     leave_entitlement_rules,
     approval_tasks,
     notifications,
-    employment_contracts,
-    contract_suspendari,
-    reges_evenimente,
+    employees,
   ]
 permisiuni: [leave:read, leave:create, leave:update, leave:approve]
 feature: leave
-capcane: [2, 3, 11, 17, 33]
+capcane: [11, 17, 33]
 citeste_daca:
   - "cerere care rămâne în aceeași stare → [[date/pontaj]]"
   - "buton de aprobare absent → [[rol/manager]]"
   - "concediu aprobat care nu apare în foaia de prezență → [[modul/pontaj]]"
-scris_pe: 07a81ec335333f513aeef4d6358cf32025557e01
-scris_la: 2026-10-04
+scris_pe: f437506578f23173e26c942102cdd3ddd2d109c8
+scris_la: 2026-10-28
 tags: [modul, hr]
 ---
 
@@ -42,14 +39,17 @@ apare și în alte module, iar tiparul de tranziție de aici se copiază.
 
 ## Paginile modulului
 
-Trunchiul ține ce e modulul, cine ajunge unde și **ce refuză baza fără să spună** —
-secțiunea pentru care se deschide pagina dintr-un bug. Restul s-a spart pe subpagini
-(`.claude/docs/meta/conventii.md`).
+Trunchiul ține ce e modulul, cine ajunge unde și **ce refuză baza fără să spună pe drumul
+cererii** — secțiunea pentru care se deschide pagina dintr-un bug. Restul s-a spart pe
+subpagini (`.claude/docs/meta/conventii.md`).
 
-| Pagină                     | Ce ține                                                                                          |
-| -------------------------- | ------------------------------------------------------------------------------------------------ |
-| [[modul/concedii/actiuni]] | cele șase scrieri ale cererii, citirile ei, ce se mișcă la o schimbare de formă                  |
-| [[modul/concedii/setari]]  | tipurile reglementate legal, grilele de zile suplimentare, zilele de bază, aplicarea drepturilor |
+| Pagină                        | Ce ține                                                                                          |
+| ----------------------------- | ------------------------------------------------------------------------------------------------ |
+| [[modul/concedii/actiuni]]    | cele șase scrieri ale cererii, citirile ei, ce se mișcă la o schimbare de formă                  |
+| [[modul/concedii/setari]]     | tipurile reglementate legal, grilele de zile suplimentare, zilele de bază, aplicarea drepturilor |
+| [[modul/concedii/documente]]  | atașamentul: calea, conținutul, cerința de document, eroarea tradusă                             |
+| [[modul/concedii/vederi]]     | calendarul, planificatorul, coada de aprobări, marcajul zilelor ocupate                          |
+| [[modul/concedii/suspendare]] | concediul care suspendă contractul de muncă și evenimentele REGES                                |
 
 ## Rute și cine ajunge
 
@@ -59,7 +59,7 @@ secțiunea pentru care se deschide pagina dintr-un bug. Restul s-a spart pe subp
 | `/concedii/[id]`                         | `leave:read` own/team; `leave:update` own                       |
 | `/concedii/aprobari`                     | `leave:approve` team                                            |
 | `/concedii/echipa`, `/concedii/calendar` | `leave:read` team                                               |
-| `/concedii/sold`                         | `leave:read` own/team/all                                       |
+| `/concedii/sold`                         | `leave:read` own/team/all; `?an=`, `?toate=1`                   |
 | `/concedii/setari`                       | `leave:update` all — v. [[modul/concedii/setari]]               |
 
 Toate trec prin `requireFeature(tenant.organizationId, "leave")`, dar **în paralel cu
@@ -67,16 +67,16 @@ Toate trec prin `requireFeature(tenant.organizationId, "leave")`, dar **în para
 canonic. Refuzul rămâne identic: o poartă căzută respinge tot `Promise.all`-ul, înainte de
 orice `can()`. Tiparul e la fel pe toate paginile modulului.
 
-**Cererea nouă NU mai are rută.** `/concedii/noua` a dispărut în favoarea unei casete
-deschise din listă (`dialog-cerere-noua.tsx`); datele formularului se citesc în
-`date-cerere-noua.ts`, într-un singur `Promise.all`, ODATĂ cu lista — deci deschiderea
-casetei nu atinge rețeaua. În același val intră fișa proprie și cererile care ocupă deja
-zile, de aceea citirea cere și `user.id`. `/concedii?cerere=noua` o deschide direct
-(butonul din panou, starea goală a listei); pagina remontează componenta prin `key`,
-fiindcă o navigare pe aceeași rută ar păstra altfel starea clientului; același `key` ține
-controalele din `src/app/(app)/concedii/calendar/navigare-luna.tsx` pe valorile din adresă.
-`soldAnual` e memoizată cu `cache()`, ca `zileNelucratoare`: lista o cere de două ori, o
-dată pentru rezumat și o dată pentru soldul din casetă.
+**Cererea nouă NU are rută.** `/concedii/noua` a dispărut în favoarea unei casete deschise
+din listă (`dialog-cerere-noua.tsx`); datele ei se citesc în `date-cerere-noua.ts`, ODATĂ
+cu lista, într-un singur `Promise.all` — deci deschiderea casetei nu atinge rețeaua. În
+același val intră fișa proprie și cererile care ocupă deja zile, de aceea citirea cere și
+`user.id`. `/concedii?cerere=noua` o deschide direct (butonul din panou, starea goală a
+listei, antetul calendarului și al echipei), iar `&pentru=<id>` precompletează angajatul —
+parametru DISTINCT de filtrele listei, validat pe server contra celor pe care privitorul
+chiar îi poate alege, altfel ignorat tăcut. Pagina remontează componenta prin `key` (care
+include `pentru`), fiindcă o navigare pe aceeași rută ar păstra altfel starea clientului.
+`soldAnual` e memoizată cu `cache()`, ca `zileNelucratoare`: lista o cere de două ori.
 
 **Concediul se cere doar pe ZILE ÎNTREGI.** Jumătățile de zi au ieșit în
 `0112_concediu_doar_zi_intreaga.sql`: coloanele `portiune_inceput`/`portiune_sfarsit` și
@@ -105,6 +105,15 @@ Cele șase scrieri de configurare și citirile lor: [[modul/concedii/setari]].
 - **Cursorul keyset pe text** (`full_name`, `denumire`) cere funcția `ghilimeleaza()` din
   `src/lib/queries/employees.ts`: o virgulă sau o ghilimea dintr-un nume sparge altfel
   filtrul PostgREST `or=(…)`. — capcana #11
+- **O perioadă fără zile lucrătoare, sau dinaintea angajării, se refuză la TRIMITERE.**
+  `refuzulPerioadei` rulează în `verificaInainteDeTrimitere`, **înaintea soldului**: zero
+  zile ar fi trecut trivial de el (0 ≤ orice) și ar fi ajuns la aprobator fără rost. Data
+  angajării e `employees.hired_on` de pe fișa CERERII — cu scope `all` nu e a celui care
+  apasă — citită cu clientul admin, fiindcă rolul `employee` nu-și vede fișa prin RLS; un
+  `hired_on` gol SARE verificarea, nu refuză. Trecutul nu se refuză deloc: concediul
+  medical e retroactiv prin natura lui. Ciorna rămâne nevalidată, deliberat — `recalc_sold`
+  numără doar `trimisa` și `in_aprobare`. Caseta blochează butonul la zero zile, dar data
+  angajării nu ajunge în client. — `src/domain/leave/verificari.ts`
 - **Concediul aprobat înlocuiește ziua pontată.** Din 6 oct 2026,
   `sincronizeazaZileleDeConcediu` rescrie pe ACELAȘI rând ziua cu
   `sursa <> "sincronizare_concedii"` (manuală, ceas, plan, import): zero ore, fără
@@ -118,61 +127,16 @@ Cele șase scrieri de configurare și citirile lor: [[modul/concedii/setari]].
 - **Sincronizarea e best-effort, aprobarea nu.** Apelul stă într-un `try` din
   `decideCerere`: dacă pică (tipic, luna n-are perioadă de pontaj deschisă —
   `internal.pontaj_intrare_pregateste` refuză INSERT-ul), decizia rămâne dată, eșecul se
-  loghează, iar `zilePastrate` întoarce `0` — deci absența avertismentului **nu**
+  loghează, iar `zileInlocuite` întoarce `0` — deci absența avertismentului **nu**
   înseamnă că nu există zile suprapuse. Recuperarea se face din pontaj, cu
   `sincronizeazaConcediile`. — `decideCerere`, în `src/app/(app)/concedii/actions.ts`
-- **Declararea suspendării nu aruncă niciodată.** Un concediu cu
-  `leave_types.suspenda_contract` produce, la aprobare, un rând în `contract_suspendari` și
-  două evenimente REGES: `suspendare` pe `data_inceput` și `reluare_activitate` în ziua de
-  DUPĂ `data_sfarsit`. Orice eșec — fișă fără contract activ, suprapunere respinsă cu
-  `23P01`, termen REGES negăsit — iese ca `motiv`, nu ca eroare: aprobarea rămâne dată, iar
-  declarația rămâne de făcut de mână. Termenul e ziua anterioară începerii și
-  netransmiterea în termen e contravenție **per salariat**, deci `motiv` se AFIȘEAZĂ, ca
-  `zilePastrate`. `revalidate` nu conține nicio cale de REGES.
-  — `src/app/(app)/concedii/suspendare-contract.ts`
-- **Cerința de atașament nu lovește toate tipurile la fel.**
-  `internal.leave_requests_pregateste` ridică P0001 la trimiterea unui tip cu
-  `necesita_document` doar dacă `atasament_path` e gol **și** `medical_code_id` e null —
-  un ecran fără încărcare de fișier lasă deci să treacă tipurile cu cod de indemnizație și
-  blochează restul, fără ca diferența să apară nicăieri. Scutite explicit: cheile din
-  `TIPURI_CU_ORIGINAL_FIZIC`. — `supabase/migrations/0106_concediu_document_original.sql`
-- **Segmentul 2 al căii de Storage e un nume de resursă REAL, nu un cuvânt liber.**
-  `app.can_path` îl dă direct lui `app.has_permission`, iar un cuvânt absent din
-  `role_permissions.resource` întoarce `none` — refuz TĂCUT la fiecare încărcare. Calea
-  concediilor e `{org}/leave/{employee_id}/…`, exclusiv prin `construiesteCaleDocument`.
-  — `src/lib/documents/cale.ts`, `supabase/migrations/0073_cale_storage_resurse.sql`
-- **Calea primită de la client nu se crede pe cuvânt.** Poarta de Storage păzește
-  scrierea fișierului, nu referința scrisă în rând, deci `creeazaCerereConcediu` trece
-  `atasament_path` prin `caleInPrefix`, nu prin `startsWith`: pe lângă prefixul fișei se
-  cer segmente curate — cad segmentul gol, `.`, `..` și formele lor procent-codificate. La
-  citire, zero rânduri sub politica de SELECT nu se deosebesc de „nu există": ambele ies
-  ca același `notFound`. — `verificaCaleaDocumentului` și `linkDocumentConcediu`, în
-  `src/app/(app)/concedii/actions.ts`
-- **`traduEroare` ÎNTOARCE eroarea, nu o aruncă** (invers față de rudele din alte module):
-  fiecare apel se scrie `throw traduEroare(e)`. Fără `throw`, o eroare de citire a cererii
-  ieșea pe ecran ca document lipsă, prin `notFound`-ul de mai sus.
-  — `src/app/(app)/concedii/erori.ts`, capcana #3
-- **Marcajul zilelor deja ocupate e semnalizare, nu poartă.** Caseta de cerere nouă
-  colorează zilele prinse de o cerere `trimisa`/`in_aprobare`/`aprobata`, dar le blochează
-  doar pentru tipurile fără `intrerupe_alte_concedii` — celelalte au voie să se suprapună.
-  Lipsa marcajului nu e garanție: fără persoană aleasă harta e goală, iar citirea n-are
-  cursor pe o fereastră de trei ani, deci peste `max_rows` PostgREST o taie tăcut
-  (capcana #2). Judecătorul rămâne verificarea de la trimitere.
-  — `src/domain/leave/zile-ocupate.ts`
-- **Angajatul și tipul din calendar pot veni NULL, fără eroare.** `calendarLunii` îi
-  aduce prin embed imbricat PostgREST (`angajat:employees!employee_id`,
-  `tip:leave_types!leave_requests_leave_type_id_fkey`), deliberat fără `!inner`: un embed
-  to-one filtrat de RLS întoarce NULL, nu elimină rândul. Ziua rămâne pe calendar, cu
-  „Angajat" și „Concediu" în locul numelui și al tipului — nu o citi ca pe date lipsă din
-  bază. — `calendarLunii`, în `src/lib/queries/leave.ts`
-- **Soldul lipsă din coada de aprobări nu înseamnă sold zero.** `/concedii/aprobari` arată
-  zilele rămase ale celui care cere, din `soldAnual` pe anul PRIMEI cereri din coadă: un
-  angajat fără rând de sold pe tipul cerut, un angajat sau tip golit de RLS, ori o coadă
-  întinsă peste doi ani calendaristici ascund cifra, în loc s-o inventeze. Tipurile care
-  nu scad din sold n-o arată deloc. — `src/app/(app)/concedii/aprobari/page.tsx`
-- **Contorul de aprobat urmează lista, nu starea cererii.** `numarDeAprobat` și
-  `deAprobat` se citesc din aceeași sursă; un `count()` naiv pe `approval_tasks` rămâne
-  blocat pe un număr care nu scade. — `src/lib/queries/leave.ts`
+- **Lipsa unei cifre în `/concedii/sold` nu e un zero.** Din `0193` dreptul de odihnă vine
+  din contract și din lunile lucrate, deci `dreptDinRand` întoarce `null` pentru un tip
+  care scade din sold, fără rând în `leave_balances` și fără drept calculat: ecranul scrie
+  „—", fiindcă implicitul tipului ar fi o cifră falsă pentru cineva intrat în octombrie.
+  Dreptul calculat îl are numai fișa privitorului (`drepturileMele`). Tabelul arată
+  implicit doar tipurile cu `scade_din_sold`; `?toate=1` le aduce pe toate, iar restul
+  lipsesc fără niciun mesaj. — `ramaseDinRand`, în `src/lib/queries/leave.ts`
 
 ## Ce se mișcă împreună
 
@@ -188,15 +152,9 @@ zilelor lucrătoare și al drepturilor stă în `src/domain/leave/`, cu teste.
 Nucleul upsert-ului concediu → foaie de prezență stă la pontaj, nu aici:
 `sincronizeazaZileleDeConcediu` plus acțiunea în bloc `sincronizeazaConcediile` —
 `[[modul/pontaj]]`. Concediile îl cheamă punctual, pe zilele unei cereri, în
-`decideCerere`. Indemnizațiile intră în state de plată prin `[[modul/salarizare]]`.
-
-Termenele și evenimentele REGES nu se calculează aici: `genereazaEvenimenteReges`
-(`src/lib/reges/genereaza-evenimente.ts`) le scrie în `reges_evenimente`, pe termenele din
-`reges_termene`, iar transmiterea e a lui `[[modul/reges]]`. Concediile doar cer generarea,
-prin `declaraSuspendareaContractului`.
-
-Contractul de cale în Storage (bucket, entități, limită, MIME) stă în
-`src/lib/documents/cale.ts`, comun cu `[[modul/angajati]]`.
+`decideCerere`. Indemnizațiile intră în state de plată prin `[[modul/salarizare]]`, iar
+`numarCereriInAsteptareLuna` (`src/lib/queries/leave.ts`) e pre-verificarea de acolo, cu
+predicatul copiat din triggerul de pe `payroll_periods`.
 
 ## Când NU e suficientă pagina asta
 

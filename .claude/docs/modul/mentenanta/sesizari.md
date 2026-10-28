@@ -29,8 +29,8 @@ citeste_daca:
   - "un tehnician sau un raportor „nu poate” ceva pe sesizarea lui → „Cine poate ce”"
   - "o tranziție întoarce zero rânduri sau P0001 → „Ce refuză baza tăcut”"
   - "o fotografie sau un document nu se leagă de sesizare → „Rute”, pașii de încărcare"
-scris_pe: d73e7f38df015ae2084b174f6ad451b5ccb31ec2
-scris_la: 2026-10-12
+scris_pe: f437506578f23173e26c942102cdd3ddd2d109c8
+scris_la: 2026-10-28
 tags: [modul, operations]
 ---
 
@@ -45,7 +45,7 @@ comentarii, istoric, fotografii, jurnal de opriri și setări per firmă.
 `nou → in_analiza | in_lucru | respins | retrasa` · `in_analiza → in_lucru | in_asteptare |
 respins | retrasa` · `in_lucru → rezolvat | in_asteptare | in_analiza` · `in_asteptare →
 in_lucru | respins` · `rezolvat → inchis | in_lucru` (redeschidere, cu motiv). `inchis`,
-`respins` și `retrasa` sunt terminale. Sursa, în același cuvinte, e
+`respins` și `retrasa` sunt terminale. Sursa, în aceleași cuvinte, e
 `src/domain/maintenance/sesizari.ts` (`tranzitiiPermise(status, actor)`) și garda
 `internal.fault_reports_garda` — testul de domeniu și proba SQL le țin aliniate.
 
@@ -133,9 +133,11 @@ P0001 tradus. Așa regula trăiește într-un singur loc, probat de
   `public.tehnicieni_mentenanta`: SECURITY INVOKER (lista de oameni trece prin RLS-ul
   apelantului pe `employees`, ca `optiuniAngajati`), cu garda privilegiată
   `app.poate_primi_sesizari` (`update` ≥ team + regula), deci zero rânduri pentru cine nu
-  gestionează. Un gestionar `team` cu `employees:read = team` primește doar echipa lui, nu
-  numele întregii firme (constatarea santinelei, proba (11)). Executantul intervenției
-  rămâne pe `optiuniAngajati`, iar filtrul „Tehnician” al listei, pe toate fișele
+  gestionează; ambele fișe, în aplicație și în portal, o cer doar dacă `poateGestiona` și
+  doar cât sesizarea nu e terminală (`esteTerminala`). Un gestionar `team` cu
+  `employees:read = team` primește doar echipa lui, nu numele întregii firme (constatarea
+  santinelei, proba (11)). Executantul intervenției rămâne pe `optiuniAngajati`, ca și
+  filtrul „Tehnician” al listei, pe toate fișele
   (filtrează atribuiri existente). Proba: `tests/rls/proba-sesizari-tehnician-cu-drept.sql`.
 - **Atribuirea nu schimbă starea, iar luarea ei înapoi merge doar din `nou`/`in_analiza`**:
   `atribuieSesizare` cu tehnician `null` filtrează pe acele două stări, fiindcă garda cere

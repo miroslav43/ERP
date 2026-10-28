@@ -25,8 +25,8 @@ citeste_daca:
   - "intervenția nu se anulează sau „Rezolvată” pare legată de una anulată → „Ce refuză baza tăcut”"
   - "o verificare legală nu se salvează sau PV-ul nu urcă → „Procesul-verbal înaintea intervenției”"
   - "costul pieselor nu e cel tastat → „Piesele”"
-scris_pe: 998374fb285a15c246da9c35df28324beddaa207
-scris_la: 2026-10-12
+scris_pe: f437506578f23173e26c942102cdd3ddd2d109c8
+scris_la: 2026-10-28
 tags: [modul, operations]
 ---
 
@@ -123,6 +123,9 @@ intervenției și triggerul AFTER al liniilor), deci o sumă tastată se înlocu
   audit. Acum id-ul existent (orice firmă, și anulat) dă 23505 pe cheia primară, ca un
   INSERT obișnuit, sub un zăvor pe id; `inregistreazaInterventie` îl citește ca
   trimitere dublă. Proba: `proba-interventii.sql` (11).
+- **Anul numărului nu e mereu al datei** (`internal.an_pv_interventie`, `0210`): în afara
+  intervalului 2000–2200 se ia tăcut anul de azi — altfel `document_sequences_year_check`
+  ar opri inserarea.
 - **Anularea intervenției care a rezolvat o sesizare** `rezolvat` → P0001 cu numărul
   sesizării („Redeschideți întâi…”); pe una `inchis` → definitiv (cazul 31). După
   redeschidere, `intervention_id` e golit de gardă și anularea trece.

@@ -22,8 +22,8 @@ tabele: [vehicle_handovers, vehicle_assignments, vehicles, registru_documente, d
 permisiuni: [vehicles:read, vehicles:update, employees:read]
 feature: fleet
 capcane: [17, 18, 22, 23, 29, 30, 31]
-scris_pe: ba781f3ae6b4f86b485459dac636d2e5a5cc728d
-scris_la: 2026-10-23
+scris_pe: f437506578f23173e26c942102cdd3ddd2d109c8
+scris_la: 2026-10-28
 tags: [modul, operations]
 ---
 
@@ -73,13 +73,21 @@ transfer: `capete-pv.ts`, din alocările deja citite.
 ## Ce refuză baza tăcut sau cu P0001
 
 - **Garda de firmă vine prima** (Y2) în `pv_vehicul_inainte`: alocările se caută înaintea
-  WITH CHECK, deci un PV pus pe altă firmă afla dacă alocarea există acolo.
-  Acum 42501 neutru. Proba: `tests/rls/proba-oracol-intre-firme.sql`.
-- **Scanul semnat e fișierul PV-ului** (X2): `scan_path` = `{org}/vehicles/{vehicul}/pv-{id PV}-{uuid}-{fișier}`,
-  forma pe care o semnează doar `pregatesteScanPv` (`construiesteCaleScanPv`); altă cale din
-  folderul vehiculului (RCA, talon) dă P0001. Poarta bucketului dă fișierul egal cu
-  `scan_path` și celor care văd doar PV-ul (fostul șofer), deci fără prefix adminul putea
-  expune orice document de bord. Proba: `proba-flota-pv.sql` (31).
+  WITH CHECK, deci un PV pus pe altă firmă afla dacă alocarea există acolo. Acum 42501
+  neutru, la fel și pentru rândul FĂRĂ firmă: `null = any(...)` e NULL, iar `not NULL` nu
+  ridică, deci garda cere `coalesce(…, false)` — NOT NULL se judecă abia după WITH CHECK.
+  Proba: `tests/rls/proba-oracol-intre-firme.sql`.
+- **Scanul hârtiei semnate e fișierul PV-ului** (X2): `pregatesteScanPv` → urcare →
+  `confirmaScanPv`, în `org-flota`, în folderul VEHICULULUI (0202) dar cu numele legat de
+  PV: `scan_path` = `{org}/vehicles/{vehicul}/pv-{id PV}-{uuid}-{fișier}`, forma pe care o
+  semnează doar `construiesteCaleScanPv`. Doar pe PV-ul finalizat, doar cine administrează
+  parcul; altă cale — document de bord (RCA, talon), scanul altui PV, alt vehicul — dă
+  P0001 și, înaintea bazei, VALIDARE pe câmp (`caleScanPvValida`, fără drum la bază). Îl
+  citește cine vede vehiculul ȘI cine vede PV-ul (fostul șofer, managerul lui, partea fără
+  `vehicles:read`), doar pe calea exactă `scan_path`: fără prefixul PV-ului adminul putea
+  lega de PV orice document din folderul vehiculului, iar fostul șofer îl citea prin PV.
+  0215 rescrie `app.flota_poate_fisier` (0202), deci o rescriere ulterioară pornește de la
+  forma din 0215. Proba: `proba-flota-pv.sql`, (31) și (34).
 
 - **Politica SELECT nu filtrează `deleted_at`** (0164): cu filtrul, ștergerea logică a ciornei
   ar da 42501. Fiecare citire pune explicit `.is("deleted_at", null)`. — capcana #31
@@ -115,12 +123,6 @@ transfer: `capete-pv.ts`, din alocările deja citite.
   vehiculului: din 0225 stă în `vehicle_costuri`, sub citirea costurilor, iar hr-ul cu
   mașină primește embed-ul `null` (`[[modul/flota/service-si-costuri]]`).
 - **Cine întocmește**: doar `vehicles:update = all` și membru. `super_admin` vede, nu scrie.
-- **Scanul hârtiei semnate** (`pregatesteScanPv` → urcare → `confirmaScanPv`) stă în
-  `org-flota`, în folderul VEHICULULUI (0202): doar pe PV-ul finalizat, doar cine
-  administrează parcul; altă cale dă P0001. Îl citește cine vede vehiculul ȘI cine vede PV-ul
-  (fostul șofer, managerul lui, partea fără `vehicles:read`), doar pe calea exactă
-  `scan_path`: 0215 rescrie `app.flota_poate_fisier` (0202), deci o rescriere ulterioară
-  pornește de la forma din 0215.
 
 Proba: `tests/rls/proba-flota-pv.sql`, plus blocul `(l) F12c` din `tests/rls/izolare.sql`,
 cu rânduri numărate pe toate cele cinci roluri.
