@@ -5,7 +5,6 @@ aliases: [concedii-actiuni, concedii-citiri]
 cai:
   - "src/app/(app)/concedii/actions.ts"
   - "src/app/(app)/concedii/suspendare-contract.ts"
-  - "src/lib/queries/leave.ts"
   - "src/schemas/leave.ts"
 tabele:
   [
@@ -23,17 +22,22 @@ tabele:
   ]
 permisiuni: [leave:read, leave:create, leave:update, leave:approve]
 feature: leave
-capcane: [2, 3, 11, 17, 33]
-scris_pe: 81081549cb2cb8ebe26b396c7e7ea56df1678591
-scris_la: 2026-10-07
+capcane: [3, 11, 17, 33]
+scris_pe: 6e0792e9aa37ea9f4b874d856489a4f0b9344c20
+scris_la: 2026-10-29
 tags: [modul, hr]
 ---
 
 # Concedii — acțiuni și citiri
 
-Scrierile cererii și citirile ei. Ce refuză baza tăcut stă în
-trunchi, [[modul/concedii]], fiindcă acolo se ajunge dintr-un bug. Configurarea firmei e
-în [[modul/concedii/setari]].
+Scrierile cererii. Ce refuză baza tăcut stă în trunchi, [[modul/concedii]], fiindcă acolo
+se ajunge dintr-un bug. Configurarea firmei e în [[modul/concedii/setari]].
+
+## Paginile modulului
+
+| Pagină                            | Ce ține                                                                                       |
+| --------------------------------- | --------------------------------------------------------------------------------------------- |
+| [[modul/concedii/actiuni/citiri]] | funcțiile din `src/lib/queries/leave.ts`, soldul afișat, ce se mișcă la o schimbare de citire |
 
 ## Server Actions
 
@@ -70,18 +74,29 @@ Cine adaugă un apelant nou trebuie să le **afișeze pe amândouă** (`zileInlo
 `suspendare`): primul spune că aprobatorul tocmai a schimbat pontajul altcuiva, al doilea
 că a rămas un termen legal de respectat; sunt independente, iar al doilea n-are voie să-l
 ascundă pe primul. E singurul loc în care cineva care poate repara se uită la ecran. Azi
-le arată `DecizieAprobare`
-(`aprobari/decizie-aprobare.tsx`, folosită și de `/concedii/[id]`), ca listă de `atentii`
-cu `role="alert"` care supraviețuiește închiderii panoului, `ActiuniCerere`
-(`[id]/actiuni-cerere.tsx`, folosită și de portal) și `DialogCerereNoua`, prin toast-uri
-separate. `formular-cerere.tsx` din portal nu: trece rezultatul prin `Formular`, care
-păstrează doar `id`-ul, pentru navigare. În plus, când `inlocuite > 0` și fișa are cont de
-utilizator, `sincronizeazaConcediulAprobat` îi scrie angajatului o notificare în
-`notifications`, cu clientul admin, filtrat pe organizație: `kind: "info"`, „Zile pontate
-trecute pe concediu", cu link spre `/portal/pontajul-meu` — el a pontat zilele alea, deci
-trebuie să afle că i s-a schimbat foaia. Nu mai e un `warning` despre suprapunere, fiindcă
-nu mai are nimic de verificat cu responsabilul de pontaj. Notificarea e un plus, nu poarta:
-dacă INSERT-ul cade, eșecul se loghează și aprobarea rămâne dată.
+le arată `DecizieAprobare` (`aprobari/decizie-aprobare.tsx`, folosită și de
+`/concedii/[id]`), ca listă de `atentii` cu `role="alert"` care supraviețuiește închiderii
+panoului, `ActiuniCerere` (`[id]/actiuni-cerere.tsx`, folosită și de portal) și
+`DialogCerereNoua`, prin toast-uri separate. `formular-cerere.tsx` din portal nu: trece
+rezultatul prin `Formular`, care păstrează doar `id`-ul, pentru navigare. În plus, când
+`inlocuite > 0` și fișa are cont de utilizator, `sincronizeazaConcediulAprobat` îi scrie
+angajatului o notificare în `notifications`, cu clientul admin, filtrat pe organizație:
+`kind: "info"`, „Zile pontate trecute pe concediu", cu link spre `/portal/pontajul-meu` —
+el a pontat zilele alea, deci trebuie să afle că i s-a schimbat foaia. Notificarea e un
+plus, nu poarta: dacă INSERT-ul cade, eșecul se loghează și aprobarea rămâne dată.
+
+**Ce se verifică abia la TRIMITERE stă într-o funcție proprie.**
+`verificaInainteDeTrimitere` are doi apelanți — crearea cu `trimite: true` și
+`trimiteCerere`, care ridică o ciornă existentă — și rulează într-o ordine care nu e
+cosmetică: `refuzulPerioadei` (`src/domain/leave/verificari.ts`) ÎNAINTEA soldului, apoi
+soldul, apoi plafonul legal anual, apoi suprapunerea; de ce, în [[modul/concedii]]. Data
+angajării intră în `CerereDeVerificat` ca `angajatDin` și e luată de pe fișa CERERII, nu a
+celui care apasă: la crearea pentru sine vine din aceeași citire care aduce `id`-ul fișei
+proprii, iar pentru o fișă aleasă explicit sau la ridicarea unei ciorne dintr-un drum
+separat, `dataAngajarii`, cu clientul admin și filtru explicit pe organizație — rolul
+`employee` nu-și vede fișa prin RLS, iar aici trebuie o singură cale pentru ambele
+scope-uri. Mesajele de refuz numără zilele cu `textZile` (`src/lib/format/numar.ts`), nu
+cu `formatAmount`: „1 zi", nu „1,00 zile".
 
 **Declararea suspendării de contract stă în fișier propriu.**
 `src/app/(app)/concedii/suspendare-contract.ts` exportă `declaraSuspendareaContractului`
@@ -94,7 +109,8 @@ corecta cu un al doilea mesaj. Scrie `contract_suspendari` și, prin
 explicit pe `organization_id`: politica de INSERT cere `employees:update = all`, pe care un
 aprobator cu `leave:approve = team` nu-l are. Contractul activ îl caută în
 `employment_contracts`. Nu aruncă niciodată — ce n-a mers iese ca `motiv`, în cuvintele
-omului care trebuie să repare.
+omului care trebuie să repare. Consecințele pe termene și transmitere:
+[[modul/concedii/suspendare]].
 
 **Octeții documentului justificativ nu trec prin nicio acțiune.**
 `pregatesteIncarcareDocumentConcediu` întoarce `{ cale, urlSemnat }` — adresa semnată
@@ -111,6 +127,16 @@ prin `caleInPrefix` (`src/lib/documents/cale.ts`), nu prin `startsWith`: pe lân
 fișei se cer segmente curate — cad segmentul gol, `.`, `..`, formele lor
 procent-codificate, `\` și caracterele de control, fiindcă normalizarea unei căi se
 întâmplă abia la `fetch`, adică după ce ea a fost deja scrisă în rând.
+
+Imediat după cale, și ÎNAINTEA oricărei citiri a tipului de concediu, vine
+`verificaDocumentulAtasat`: măsoară obiectul urcat (`src/lib/storage/masoara-obiectul.ts`),
+îi citește capul (`src/lib/storage/primii-octeti.ts`) și compară semnătura cu tipul
+MĂSURAT, nu cu cel declarat de browser (`src/lib/storage/semnatura.ts`) — totul cu
+clientul utilizatorului, deci RLS-ul de Storage decide dacă își poate citi înapoi propriul
+fișier. Ce nu se potrivește iese ca VALIDARE pe `atasament_path`, iar obiectul e scos din
+bucket cu clientul de serviciu. Un singur punct acoperă ambele ecrane; ce trebuie să facă
+ecranul după o respingere e în [[modul/concedii/documente]].
+
 `linkDocumentConcediu` face drumul invers — citește RÂNDUL cu clientul utilizatorului, ca
 RLS să decidă cine vede cererea, și abia calea din rândul întors se semnează, pentru un
 minut. Eroarea citirii se scrie `throw traduEroare(error)`: `traduEroare` din `./erori`
@@ -119,50 +145,15 @@ ramura „document lipsă" de mai jos și ieșea pe ecran ca `notFound`. Compone
 `incarcare-document.tsx` și `link-document.tsx` stau în `src/app/(app)/concedii/`; prima e
 folosită și de formularul din portal, deci se schimbă pentru amândouă ecranele deodată.
 
-## Citiri
+## Schemele
 
-`src/lib/queries/leave.ts`: `listeazaCereri`, `citesteCerere`, `zileleCererii`,
-`lantulAprobarii`, `soldAnual`, `istoricSold`, `numarDeAprobat`, `deAprobat`,
-`calendarLunii`, `angajatiPlanificator`, `zileNelucratoare`, `cereriCareOcupaZile`.
-Citirile de configurare — `configurareConcedii`, `previzualizeazaDrepturi`,
-`coduriIndemnizatieMedicala`, `varianteConcediu` — sunt în [[modul/concedii/setari]].
-
-`calendarLunii` își traduce singură angajatul și tipul, prin embed imbricat PostgREST
-(`angajat:employees!employee_id`, `tip:leave_types!leave_requests_leave_type_id_fkey`),
-nu printr-un al doilea val de interogări în `src/app/(app)/concedii/calendar/page.tsx`.
-Deliberat fără `!inner`: un embed to-one pe care RLS îl golește întoarce NULL, nu elimină
-rândul — v. [[modul/concedii]] pentru ce vede omul atunci. `.returns<RandZiCalendar[]>()`
-rămâne obligatoriu, dar **nu** fiindcă ar lipsi relațiile din tipurile generate: ambele
-chei străine au `isOneToOne: false`, deci inferența supabase-js dă tablou acolo unde
-rândul are obiect, iar `RandZiCalendar`, `AngajatEmbedCalendar` și `TipEmbedCalendar` o
-corectează de mână. Din embed au ieșit `id` și `status`-ul cererii, iar din selecția
-exterioară `leave_request_id`; `status`-ul ZILEI rămâne, e altul.
-
-`cereriCareOcupaZile` întoarce INTERVALE, nu zile — capetele sunt sute pe an acolo unde
-zilele sunt zeci de mii — iar desfacerea o face clientul, prin `zileOcupate`
-(`src/domain/leave/zile-ocupate.ts`), care e și locul unde se filtrează pe persoana
-aleasă. Filtrul de status (`trimisa`, `in_aprobare`, `aprobata`) e același cu
-predicatul constrângerii `leave_requests_fara_suprapunere` din `0009_leave.sql` și cu cel
-al verificării de suprapunere din `verificaInainteDeTrimitere`: se schimbă deodată, altfel
-calendarul ori marchează zile pe care baza le-ar accepta, ori le lasă libere pe cele pe
-care le va refuza. O ciornă nu ocupă nimic, deliberat. Nu filtrează pe angajat — RLS
-îngustează singură, iar un `hr` cu `leave:read = all` are nevoie de toate, fiindcă depune
-cereri în numele altora. Embed-ul `tip:leave_types!leave_type_id(denumire)` e to-one fără
-`!inner`, ca la `calendarLunii`: golit de RLS vine NULL, iar denumirea cade pe `"Concediu"`.
-Citirea n-are nici `limit`, nici cursor, pe o fereastră de trei ani — peste `max_rows = 1000`
-PostgREST trunchiază tăcut (capcana #2), și se pierd exact marcajele: cererea tot va fi
-refuzată la trimitere, dar omul n-o vede venind. Eticheta din tooltip se compune pe server,
-în `dateCerereNoua` (`src/app/(app)/concedii/date-cerere-noua.ts`), fiindcă stratul de
-citiri n-are voie să importe din arborele de rute.
-
-`zileNelucratoare` e memoizată pe cerere cu `cache()` din React, ca `resolveTenant` și
-`getPermissionMap` — o pagină care o cheamă din corpul ei și din secțiunea streamată
-plătește un singur val. Memoizarea ține doar fiindcă argumentele sunt primitive
-(`organizationId`, doi ani): `cache()` compară prin identitate, deci un argument-obiect
-n-ar nimeri niciodată în cache. E consumată și din afara modulului — `[[modul/pontaj]]`,
-`[[modul/salarizare]]` și portal — deci semnătura ei nu se schimbă local. Consumatorii
-rămân însă exclusiv de server: fișierul începe cu `import "server-only"`, deci o
-componentă client care ar importa din el cade la build, nu tăcut la rulare.
+`src/schemas/leave.ts` vorbește în formatul pe care îl vede omul, nu în cel pe care îl
+trimite: `IntrareData` (`src/components/ui/intrare-data.tsx`) arată `zz.ll.aaaa` și
+trimite ISO, deci mesajele lui `dataObligatorie` cer „o dată (zz.ll.aaaa)", iar singura
+cauză reală a erorii e câmpul gol. `superRefine`-ul care validează anul retestează
+`RE_DATA` și **iese** când o dată n-a trecut regexul: o rafinare rulează și după ce o
+problemă de câmp a fost deja raportată, deci fără garda asta un câmp gol primea două
+mesaje lipite.
 
 ## Ce se mișcă împreună la o schimbare de formă
 
@@ -175,11 +166,8 @@ adnotarea `CerereTrimisa` din `audit.entityId`, declarată ÎNAINTEA lui `revali
 `TData` se inferează din prima adnotare văzută, deci două forme diferite dărâmă restul
 obiectului.
 
-O citire are propriul trio: șirul din `.select()`, interfața exportată pe care o impune
-`.returns<T>()` și consumatorul care umblă prin rânduri. Nimic nu leagă primele două —
-`.returns<T>()` afirmă, nu verifică — deci un câmp scos din `select` și lăsat în tip trece
-de `pnpm typecheck` și cade abia la rulare, ca `undefined`. `calendarLunii` cu
-`calendar/page.tsx` e cazul cu cele mai multe verigi.
+Trio-ul propriu al unei citiri (`.select()`, `.returns<T>()`, consumatorul) e în
+[[modul/concedii/actiuni/citiri]].
 
 ## Când NU e suficientă pagina asta
 

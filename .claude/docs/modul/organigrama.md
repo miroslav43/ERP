@@ -21,8 +21,8 @@ capcane: [2, 18]
 citeste_daca:
   - "scope `team` care vede prea mult sau prea puțin → secțiunea `manager_path`"
   - "un angajat care se vede singur, fără șefi deasupra → `lantul_meu_de_sefi`"
-scris_pe: 8b46aa6015ab5a8f558e72a2e13b37148c114114
-scris_la: 2026-10-13
+scris_pe: 6e0792e9aa37ea9f4b874d856489a4f0b9344c20
+scris_la: 2026-10-29
 tags: [modul]
 ---
 
@@ -63,6 +63,12 @@ e a apelantului primește 42501, înaintea oricărei căutări. Apoi ridică P00
   UN SINGUR mesaj pentru toate trei, ca răspunsul să nu spună ce fișe există în altă firmă;
 - relația ar deveni **circulară** (`new.id` e deja în lanțul managerului);
 - lanțul ar depăși **12 niveluri**.
+
+Garda de firmă e prima fiindcă triggerul BEFORE rulează înaintea clauzei `with check`:
+cât timp managerul se căuta doar în firma rândului, un rând pus de administratorul altei
+firme pe firma noastră răspundea diferit după cum managerul indicat exista aici (42501, de
+la politică) sau nu (P0001, din trigger) — adică spunea ce fișe există la noi. Proba e
+`tests/rls/proba-securitate-reziduala.sql`, cazurile 1d și 1f.
 
 Coloana e calculată de trigger, nu trimisă de client: politica de INSERT din `0005` cere
 literal `manager_path = '{}'`. Un client care încearcă s-o scrie e respins.

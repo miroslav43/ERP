@@ -34,6 +34,7 @@ permisiuni:
     employees:update,
     employees:read,
     leave:read,
+    payroll:create,
     payroll:update,
   ]
 feature: attendance
@@ -42,8 +43,8 @@ citeste_daca:
   - "buton de aprobare care nu apare → [[rol/manager]]"
   - "tranziție de perioadă respinsă → [[date/pontaj]]"
   - "zi respinsă pentru contract suspendat → [[modul/reges]]"
-scris_pe: bd516e390b0ca4dbe758079da30184b7288ceeb5
-scris_la: 2026-10-12
+scris_pe: 6e0792e9aa37ea9f4b874d856489a4f0b9344c20
+scris_la: 2026-10-29
 tags: [modul, hr]
 ---
 
@@ -82,7 +83,7 @@ Pagina asta e trunchiul; restul s-a spart pe subarborele de rute
 | `/pontaj?angajat=…`        | aceeași poartă; filtru de INTRARE pe un singur om, vezi [[modul/pontaj/navigare]]                                                                                             |
 | `/pontaj/aprobare`         | `attendance:approve` team; blocarea cere `all`; ancora `#saptamana-<id>` pentru notificări                                                                                    |
 | `/pontaj/arhiva`           | `attendance:export` **all** — aceeași cheie ca `pontaj_arhive_lunare_select` (0134), nu `attendance:read`: un manager cu `read = team` ar deschide o listă goală, fără eroare |
-| `/pontaj/perioade`         | `attendance:approve` team/all, `attendance:create` all                                                                                                                        |
+| `/pontaj/perioade`         | `attendance:read` own; blocarea cere `approve` **all**                                                                                                                        |
 | `/pontaj/perioade/[id]`    | `attendance:read` team                                                                                                                                                        |
 | `/pontaj/saptamana`        | `attendance:create` own; decizia cere `approve` team; titlul, săptămâna implicită (`saptamanaImplicita`) și navigarea înainte (`existaSaptamanaUrmatoare`) depind de variantă |
 | `/pontaj/setari`           | `attendance:update` all — fila **Pontarea**: `varianta_pontaj`, `mod_pontare_rapida`, `verificare_pontare`, `program_start`                                                   |
@@ -90,7 +91,9 @@ Pagina asta e trunchiul; restul s-a spart pe subarborele de rute
 | `/pontaj/setari/coduri-qr` | `departments:update` all — fila **Coduri QR**: poarta SECRETULUI, ca afișul din `puncte-lucru`                                                                                |
 
 Toate trec întâi prin `requireFeature(tenant.organizationId, "attendance")`. De ce codurile
-QR nu se deschid cu cheia pontajului și ce butoane pune antetul: [[modul/pontaj/foaia]].
+QR nu se deschid cu cheia pontajului și ce butoane pune antetul: [[modul/pontaj/foaia]]. Pe
+`/pontaj/perioade`, „Deschide luna" cere `attendance:create` **all**, iar blocarea și
+redeschiderea trec printr-o casetă cu cifre, [[modul/pontaj/navigare]].
 
 **Luna se naște deschisă** (`0132_pontaj_luni_deschise_implicit.sql`): rândul din
 `attendance_periods` îl creează `internal.pontaj_perioada_lunii` la prima scriere, deci nu
@@ -134,10 +137,16 @@ loc, `stareaLunii` (`src/domain/attendance/luna.ts`); singura stare care refuză
   dovada rămâne în `audit_logs`. De aici `inlocuite` în rezultat; `pastrate` înseamnă acum
   UPDATE cu zero rânduri — ziua fusese aprobată între timp, iar `attendance_entries_update`
   o refuză celui fără `attendance:approve`. — capcana #17
+- **Pontajul numărat de pe alt ecran poate fi 0, fără eroare**: `numarZilePontatePerioada`
+  trece prin RLS, deci un rol cu `payroll:create` dar fără `attendance:read` numără zero
+  zile — exact ce ar aduna și calculul lui, `pontaj_agregat_salarizare` fiind SECURITY
+  INVOKER (`0049_salarizare_agregare_pontaj.sql`). Zilele respinse ies și ele din contor,
+  [[modul/pontaj/foaia]].
 - **`employee` nu-și poate citi propria fișă cu clientul autentificat**: politica
   `employees_select` (`0005_hr_rls.sql`) nu deschide drumul, deci `fisaProprie` folosește
   `createAdminSupabase()` cu filtru explicit pe `organization_id` și cere
-  `is_primary = true`, cerința lui `app.current_employee_id`. Același motiv pentru
+  `is_primary = true`, cerința lui `app.current_employee_id`; `fisaDePontat` face la fel cu
+  fișa ALEASĂ pe scope `all`, pentru `hired_on`. Același motiv pentru
   `puncte_lucru`: `puncte_lucru_select` (`0030_onboarding_companie.sql`) cere
   `departments:read`, pe care rolul `employee` nu-l are, deci codul de pe afiș se rezolvă
   tot cu clientul admin, filtrat pe organizație. — `0096_pontaj_rapid.sql`

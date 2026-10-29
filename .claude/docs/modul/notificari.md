@@ -16,8 +16,8 @@ cai:
 tabele: [notifications, notification_preferences, dispozitive_push, push_livrari]
 permisiuni: []
 capcane: [17, 39]
-scris_pe: 4a7494c169d49b92dc1c538a5d42748cdeab5ea7
-scris_la: 2026-10-09
+scris_pe: 6e0792e9aa37ea9f4b874d856489a4f0b9344c20
+scris_la: 2026-10-29
 tags: [modul]
 ---
 
@@ -27,16 +27,27 @@ Clopoțelul: rândurile din `notifications` adresate utilizatorului curent. Tabe
 `0001_kernel.sql`, deci e mai veche decât aproape tot restul aplicației, iar module foarte
 diferite scriu în ea.
 
-## Singurul modul fără poartă de permisiune
+## Paginile modulului
 
-`/notificari` cere doar `requireTenant`. **Nu** are `requireFeature`, nu cheamă
-`getPermissionMap`, nu compară niciun scope — și e corect așa: nu există cheie
-`notifications:*` în `role_permissions`, iar una inventată ar întoarce `none`, adică refuz
-tăcut pentru toată lumea.
+Trunchiul ține poarta, acțiunile, citirile și **unde duce o notificare** — plus secțiunea
+pentru care se deschide pagina dintr-un bug. Lanțul de livrare pe telefon s-a spart
+(`.claude/docs/meta/conventii.md`).
 
-Filtrarea o face **exclusiv RLS**: fiecare vede rândurile lui. Cine adaugă aici un ecran
-„toate notificările firmei" are nevoie întâi de o resursă de permisiune, nu de un filtru în
-TypeScript.
+| Pagină                    | Ce ține                                                                         |
+| ------------------------- | ------------------------------------------------------------------------------- |
+| [[modul/notificari/push]] | cele cinci verigi ale push-ului, secretul în trei locuri, comentariile din 0122 |
+
+## Fără poartă de permisiune pe modul — dar cu poarta paginilor-țintă
+
+`/notificari` cere doar `requireTenant`. **Nu** are `requireFeature` și nu compară niciun
+scope ca să decidă dacă intri — și e corect așa: nu există cheie `notifications:*` în
+`role_permissions`, iar una inventată ar întoarce `none`, adică refuz tăcut pentru toată
+lumea. Filtrarea rândurilor o face **exclusiv RLS**: fiecare vede rândurile lui.
+
+`getPermissionMap` și `getEnabledFeatures` se cheamă totuși, din `page.tsx` și din
+`citesteNotificarileRecente` — nu ca să te lase înăuntru, ci ca să decidă ce rând devine
+link și ce rând rămâne text (mai jos). Cine adaugă aici un ecran „toate notificările
+firmei" are nevoie întâi de o resursă de permisiune, nu de un filtru în TypeScript.
 
 Poarta de SCRIERE e însă reală și trăiește tot în politică: cine scrie o notificare **în
 numele altui utilizator** trebuie să aibă `announcements:create`. De aceea fanout-ul din
@@ -54,7 +65,18 @@ Ce pun totuși — și ce ține acum pe loc `actions.test.ts`: `requireUser` ÎN
 (fără sesiune, baza nu e atinsă deloc), Zod `z.uuid` ⇒ `VALIDARE` cu `fieldErrors.id` și
 zero scrieri, filtru explicit pe `user_id` peste cel al politicii, `.is("read_at", null)`,
 erorile prin `mapPostgrestError` (42501 ⇒ `INTERZIS`; necunoscutul ⇒ `EROARE_INTERNA` cu
-`requestId` în mesaj), iar revalidarea **doar** după succes.
+`requestId` în mesaj), iar revalidarea **doar** după succes. Fiindcă ocolesc
+`createAction`, ambele fișiere de acțiuni importă `@/schemas/mesaje-zod` pentru efectul
+lui: altfel harta de mesaje în română a lui Zod nu se încarcă, iar `z.flattenError` ar
+întoarce engleza.
+
+`citesteNotificarileRecente`, din același fișier, servește previzualizarea de la
+clopoțelul din antet (`src/components/layout/clopotel.tsx`): necititele, tăiate la cinci,
+cu aceeași traducere la obiect ca pe `/notificari`. Se cer LA DESCHIDEREA meniului, nu în
+antet — antetul se randează pe fiecare navigare, iar contextul de legături costă o citire
+sub RLS, pentru un meniu deschis rar. E singura din fișier care trece prin `requireTenant`
+(are nevoie de organizație pentru porți) și singura cu `try`, fiindcă
+`listeazaNotificarile` aruncă.
 
 `reimprospateazaCutiaPostala` atinge trei căi — `/notificari`,
 `/portal/notificarile-mele` și `/portal`, fiindcă pastila de necitite trăiește în antetul
@@ -74,32 +96,45 @@ data". Poarta care o prinde acum în două secunde e `pnpm check:server`. — ca
 `src/lib/queries/notifications.ts`, marcat `import "server-only"` — un import dinspre
 client cade la build, nu în producție. `numaraNecitite` înghite eroarea și întoarce `0`:
 pastila e ornament, iar o excepție acolo ar doborî antetul, deci navigarea.
-`listeazaNotificarile` aruncă, și taie la `LIMITA_LISTA_NOTIFICARI` — exportată tocmai ca
-ecranul să ȘTIE unde s-a oprit, altfel lungimea listei trece drept total.
+`listeazaNotificarile` aruncă, taie la `LIMITA_LISTA_NOTIFICARI` — exportată tocmai ca
+ecranul să ȘTIE unde s-a oprit, altfel lungimea listei trece drept total — și aduce
+`entity_type`/`entity_id`, fără care traducerea de mai jos n-ar avea obiect.
 
 ## Unde duce o notificare — se decide LA RANDARE, nu la scriere
 
 Producătorii (triggere, câteva acțiuni) scriu un `link` fix: coada în loc de cerere,
 `/pontaj/saptamana` fără săptămână, `/portal/...` pentru oricine și-a pontat ziua, `/reges`
-și la firmele fără modul. Rândul NU se corectează în bază; se traduce de două ori:
+și la firmele fără modul. Rândul NU se corectează în bază; se traduce în trei locuri, pe
+aceeași regulă: **obiectul bate coada, iar ținta trece prin poarta paginii-ȚINTĂ**.
 
-- **Aplicația mare**: `notificari/legaturi.ts` (`caleaInAplicatie`, pur, testat) + `context.ts`
-  (o citire pe lot, sub RLS: săptămâni, înrolări, anunțuri încă vizibile). Obiectul
-  (`entity_type`/`entity_id`) bate coada; ținta trece prin poarta paginii-ȚINTĂ
-  (`poateDeschide`); ce nu se deschide devine `null` = text, nu refuz. Rută necunoscută
-  registrului = se lasă cum e.
+- **Aplicația mare**: `notificari/legaturi.ts` (`caleaInAplicatie`, pur, testat) +
+  `context.ts` (o citire pe lot, sub RLS: săptămâni, înrolări, anunțuri încă vizibile).
+  Obiectul (`entity_type`/`entity_id`) bate coada; `prinPoarta` cere `poateDeschide` din
+  `src/config/porti-ruta.ts`; ce nu se deschide devine `null` = text, nu refuz. Rută
+  necunoscută registrului = se lasă cum e. Legăturile de portal ajunse la un manager sau
+  la HR se traduc în echivalentul din aplicație, pe fișa proprie (`idFisaProprie`) —
+  altfel layout-ul portalului i-ar scoate pe `/panou`.
 - **Portal**: `caleaDePortal(link, context, entitate)` — al treilea argument deschide
-  săptămâna exactă; `/onboarding/<id>` doar pentru parcursul propriu.
-- **Push**: `construiesteMesaj({ rol })` — pentru un rol din aplicația mare rămân link DOAR
-  obiectele proprii (`TIPAR_OBIECT_PROPRIU`); restul cade pe cutia poștală. `golesteCoada`
-  citește rolul din `organization_members` per dispozitiv.
+  săptămâna exactă (`attendance_week_submission` prin `saptamani` din context;
+  `attendance_week_submission_missing` o citește din corp, cu `ziuaRomaneascaDinText`).
+  Clasa „aceeași legătură pleacă și la aprobator" cere proprietate dovedită:
+  `/onboarding/<id>` prin `integrariProprii`, `/flota/foi/<uuid>` prin `foiProprii` —
+  proprietarul de portal al foii e ȘOFERUL ei, nu aprobatorul. Ce nu-i aparține rămâne
+  text. `/flota/rezervari` e în harta fixă; coada aprobatorilor
+  `/flota/rezervari?stare=ceruta`, nu.
+- **Push**: `construiesteMesaj({ rol })` — pentru un rol din aplicația mare rămân link
+  DOAR obiectele proprii (`TIPAR_OBIECT_PROPRIU`); restul cade pe cutia poștală.
+  `golesteCoada` citește rolul per dispozitiv din `organization_members`
+  (`roluriPeDispozitiv`); citirea picată lasă rolul necunoscut, adică tratare ca angajat.
 
-Producătorul REGES e singurul reparat la sursă: fără `organization_features.reges` nu
-scrie anunț (`genereaza-evenimente.ts`). Lipsesc încă senderii pentru KPI și predări de
-inventar. Au sender din W2-03 (`0192_notificari_fluxuri_lipsa.sql` + TS lângă producător):
-diurna (trimitere, decizie pe deplasare și pe cheltuială), pontajul lunar (zi respinsă, zi
-aprobată, bloc — una per angajat pe lună, `pontaj/anunta-*.ts`), tichetele (repartizare,
-comentarii publice — triggere) și legarea fișei de un membru existent la înrolare.
+Producătorul REGES e singurul reparat la sursă: fără `organization_features.reges` activ
+nu scrie anunț, iar linkul e coada (`/reges?stare=de_transmis`), cu termenul în
+`zz.ll.aaaa` prin `formatDate` (`genereaza-evenimente.ts`). Lipsesc încă senderii pentru
+KPI și predări de inventar. Au sender din W2-03
+(`0192_notificari_fluxuri_lipsa.sql` + TS lângă producător): diurna (trimitere, decizie pe
+deplasare și pe cheltuială), pontajul lunar (zi respinsă, zi aprobată, bloc — una per
+angajat pe lună, `pontaj/anunta-*.ts`), tichetele (repartizare, comentarii publice —
+triggere) și legarea fișei de un membru existent la înrolare.
 Închiderea „de aprobat": triggerul generic pe `approval_tasks` marchează citite
 notificările aprobatorului când sarcina lui iese din `in_asteptare` (decisă sau anulată de
 surori); tichetele își închid `approval`-ul la ieșirea din `in_aprobare`; deplasările, fără
@@ -114,88 +149,19 @@ surori); tichetele își închid `approval`-ul la ieșirea din `in_aprobare`; de
   două căi spre gol — notificare ștearsă sau a altcuiva — n-au nimic de comunicat celui
   care își golește cutia. Un `throw` pe rezultat gol ar face din dublul clic o eroare.
   Excepția e fixată de `actions.test.ts`; nu o „repara" după capcana #17.
+- **O citire de context picată nu oprește ecranul — doar retrogradează legătura.**
+  `contextAplicatie` și `contexteDestinatar` loghează eroarea pe `console.error` și
+  întorc contextul gol; rândul rămâne pe linkul lui de bază, trecut prin poartă, ori
+  devine text. Verificat pe clientul fals în
+  `src/app/(portal)/portal/notificarile-mele/context.test.ts`.
 - **Notificarea e un plus, nu poarta.** Acolo unde o acțiune scrie și o notificare — decizia
   pe o cerere de concediu, de exemplu — INSERT-ul eșuat se loghează, iar acțiunea principală
   rămâne dată. Un flux care depinde de sosirea notificării ca să fie corect e proiectat
   greșit.
 
-## Push pe telefon — lanțul, și unde se rupe
-
-Din `0122_push_dispozitive.sql`. Cinci verigi, fiecare cu propriul fel de a tăcea:
-
-1. **Aplicația** (`mobil/`) își înregistrează jetonul Expo la FIECARE pornire —
-   `inregistrat` e un `useRef`, deci se pierde la repornire. `POST /api/dispozitive`.
-2. **Declanșatorul** `internal.push_pune_in_coada()` pune un rând în `push_livrari` per
-   dispozitiv viu — dar NUMAI dacă `notification_preferences.push` nu e `false` pentru
-   acel `(user, organizație, kind)`. Fără rând de preferință, implicitul e `true`.
-3. **Timerul** `deploy/push-livrare.timer`, la un minut, cheamă `POST /api/push/livreaza`.
-4. **`golesteCoada`** ia lotul cu `for update skip locked` și îl trimite la `exp.host`.
-5. **Aplicația** primește și, la atingere, deschide calea din `data.cale`.
-
-### Ce refuză tăcut, pe fiecare verigă
-
-- **Secret gol ⇒ ruta răspunde 404 la TOT.** Indistinct de „rută inexistentă". Iar
-  `PUSH_CRON_SECRET` trebuie să fie în TREI locuri: `.env.production`, blocul
-  `environment:` din `docker-stack.yml` (Swarm nu propagă ce nu e enumerat) și
-  `/etc/administrativo/push.env`. Lipsa din oricare oprește tot lanțul, fără eroare.
-- **Timerul NU poate ajunge la aplicație pe `127.0.0.1:3000`** — serviciul Swarm nu
-  publică porturi. Se merge prin nginx-ul local, cu `--resolve`, fără `-L`.
-- **Un bilet „ok" de la Expo nu înseamnă LIVRAT**, ci acceptat. Chitanțele
-  (`getReceipts`) nu se cer încă — vezi mai jos.
-- **Canalul Android.** `channelId: "implicit"` se creează în aplicație, la pornire.
-  Android ignoră tăcut o notificare trimisă pe un canal inexistent.
-- **Legătura care duce în 404.** `caleaDePortal` traduce `/concedii/<uuid>` și
-  `/ticketing/<uuid>` DOAR dacă entitatea îi aparține destinatarului: aceleași legături
-  ajung, din triggere, și la HR, aprobatori sau managerul direct, iar ecranele „ale mele"
-  cheamă `notFound()`. Fără `ContextDestinatar`, nu se traduce — implicitul e cel sigur.
-- **Caractere de control în link.** Poarta de formă `^/[^/\\]` — aceeași ca `check`-ul de
-  pe `notifications.link`, `0001_kernel.sql:381` — acceptă un tab pe poziția a doua, iar
-  parserele de URL care elimină tab-ul și newline-ul citesc apoi șirul ca URL absolut
-  protocol-relativ. `areCaractereDeControl` din `src/lib/push/mesaj.ts` îl oprește, tăcut,
-  pe `CALE_IMPLICITA`. Stratul din cod e deliberat mai strict decât constrângerea din
-  bază: migrarea aplicată nu se mai atinge, iar asimetria merge în direcția sigură.
-  Astăzi poarta e inaccesibilă — toate valorile `link` sunt literale din cod sau derivate
-  dintr-un UUID, niciuna intrare de utilizator.
-- **Predarea telefonului abandonează doar `in_asteptare`.** Când jetonul înregistrat e al
-  altcuiva, `retrageDispozitivPrinAdmin` (`src/app/api/dispozitive/route.ts`) trece pe
-  `abandonat` numai livrările `in_asteptare`; cele `in_lucru` sunt deja în zbor spre
-  `exp.host` sub `for update skip locked`, iar marcarea lor de aici ar fi o cursă
-  scriere-scriere cu `golesteCoada` — și o minciună în jurnal, fiindcă notificarea chiar a
-  plecat. Nu scapă nimic: Pasul 1 din `app.push_ia_din_coada` abandonează orice rând al
-  unui dispozitiv retras, iar un `in_lucru` agățat e recuperat după zece minute.
-- **Cele trei scrieri ale retragerii nu sunt o tranzacție** — motivul exact al eșecului
-  merge în jurnal (`console.error`), răspunsul rămâne generic, iar remediul diferă după
-  care a picat. Dacă e rândul de audit, retragerea E făcută, dar rămâne doar urma
-  triggerului, cu `actor_id` NULL sub `service_role`: se știe CĂ s-a întâmplat, nu și CINE
-  a preluat telefonul.
-
-### Două comentarii FALSE în `0122`, care nu se pot repara acolo
-
-Migrarea e aplicată pe cloud (2026-09-04 06:08:16); forward-only, deci fișierul nu se mai
-atinge — o editare i-ar schimba suma de control față de `internal.migrari_aplicate` și ar
-semnala un drift care nu există. Corecțiile stau aici:
-
-- `0122:189-191` descrie potrivirea pe `organization_id` din politica `_update`. A fost
-  **scoasă** la reparația 5; politica potrivește azi doar pe `user_id`.
-- `0122:288-289` spune că „repo-ul n-are niciun `alter default privileges`". E literal
-  fals — sunt trei, `on functions`, la `0002:1559-1561`. Concluzia rămâne corectă;
-  formularea a pierdut calificativul. Din cauza lor, `service_role` are pe
-  `push_livrari` și drepturi care nu apar în `grant`-ul explicit din `0122` (`DELETE`,
-  folosit de retenția din `coada.ts`).
-
-### Ce NU există încă
-
-- **Chitanțele Expo.** `push_livrari` n-are coloană pentru id-ul biletului, deci
-  corelarea cere o migrare. Consecință: un jeton care a murit între înregistrare și
-  livrare rămâne în tabelă până când Expo îl respinge la o trimitere ulterioară.
-- **Matricea de preferințe pe fel × canal.** `notification_preferences` o suportă, dar
-  n-are ecran nici aici, nici în aplicația mare. `portal/notificarile-mele` are doar
-  comutatorul „toate felurile, pe telefon".
-
 ## Când NU e suficientă pagina asta
 
+- Lanțul de livrare pe telefon, de la jeton la atingere: [[modul/notificari/push]].
 - Cine produce notificările: [[modul/anunturi]], [[modul/concedii]], [[modul/onboarding]].
-- Instalarea timerului și cele trei locuri ale secretului: `DEPLOY.md`.
-- Aplicația mobilă în sine (build EAS, magazine, ce nu se poate proba local): `mobil/README.md`.
-- Lotul 7m: clopoțelul din antet previzualizează ultimele 5 necitite, traduse la obiect la deschidere (`citesteNotificarileRecente`): [[strat/navigare]].
+- Registrul de porți pe rută (`poateDeschide`, `legaturaSigura`) și clopoțelul din antet: [[strat/navigare]].
 - Lotul 7n (migrări 0188–0189, pe banc; producția după confirmare): duplicatul primește linkul lui; aprobatorii respectă rândul de membru (`internal.scope_membru`): [[strat/navigare]].

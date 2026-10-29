@@ -1,7 +1,7 @@
 ---
 tip: modul
 titlu: Integrare (onboarding)
-aliases: [onboarding, integrare, checklist]
+aliases: [onboarding, integrare, parcurs, checklist]
 cai:
   - "src/app/(app)/onboarding/**"
   - "src/lib/queries/checklist.ts"
@@ -24,11 +24,11 @@ permisiuni: [checklists:read, checklists:create, checklists:update, checklists:a
 feature: onboarding
 capcane: [2, 12]
 citeste_daca:
-  - "„Checklistul este închis” pe un checklist deschis → secțiunea D6"
-  - "pas obligatoriu care nu se poate bifa niciodată → secțiunea D4"
+  - "butoanele de închidere lipsesc pe un parcurs în curs → secțiunea Ce refuză baza tăcut"
+  - "„Dovada nu există încă” pe un parcurs finalizat → secțiunea Ce refuză baza tăcut"
   - "câmpul de filtru rămâne plin după „Șterge filtrele” → secțiunea Ce se mișcă împreună"
-scris_pe: 9d5b6a4bd8cfd34399ecbf06fa5edd27286eaabd
-scris_la: 2026-10-05
+scris_pe: 6e0792e9aa37ea9f4b874d856489a4f0b9344c20
+scris_la: 2026-10-29
 tags: [modul, hr]
 ---
 
@@ -38,10 +38,17 @@ Parcursuri pe șablon pentru angajatul nou — predare de echipament, semnături
 regulament — cu pași atribuiți unor **responsabili** care nu sunt subiectul parcursului.
 La final se emite o dovadă **imutabilă**, cu checksum.
 
-Modulul e cel mai corectat din proiect: `0088` a închis nouă defecte tăcute deodată,
-niciunul prins de typecheck, lint, teste sau de cele trei bariere SQL. Toate se manifestau
-ca **refuz fără eroare** sau ca **acceptare în gol**. Secțiunile de mai jos le păstrează
-sub codurile din migrare, ca să se poată căuta.
+În interfață nu se mai scrie „checklist", ci **parcurs**, iar modulul se numește „Integrare
+angajați". Ruta, tabelele, cheile de permisiune și numele acțiunilor au rămas pe
+`onboarding`/`checklist`: cele două vocabulare se ating doar în textele de ecran și în
+`src/app/(app)/onboarding/etichete.ts` (unde `offboarding` se citește „Plecare din firmă").
+
+## Paginile modulului
+
+| Pagină                       | Ce ține                                                                        |
+| ---------------------------- | ------------------------------------------------------------------------------ |
+| [[modul/onboarding/dovezi]]  | dovada de pas: cei trei timpi ai încărcării și ce nu se crede de la client     |
+| [[modul/onboarding/defecte]] | defectele tăcute închise de `0088`, sub codurile din migrare (D1, D4, D6, D10) |
 
 ## Rute și cine ajunge
 
@@ -54,7 +61,9 @@ sub codurile din migrare, ca să se poată căuta.
 | `/onboarding/sabloane`, `/onboarding/sabloane/nou`, `/onboarding/sabloane/[id]` | `checklists:read` own; scrierea cere `create`/`update` all |
 | `/onboarding/sarcinile-mele`                                                    | `checklists:read` own                                      |
 
-Toate intră cu `own`. Ce diferă e booleanul de scriere.
+Toate intră cu `own`. Ce diferă e booleanul de scriere — plus două porți de pe
+`/onboarding/[id]` care NU se citesc din `can()` singur: închiderea parcursului și linkul
+spre dovadă (vezi „Ce refuză baza tăcut").
 
 ## Server Actions
 
@@ -70,84 +79,6 @@ Toate intră cu `own`. Ce diferă e booleanul de scriere.
 | Șabloane | `creeazaSablon`, `salveazaSablon`, `adaugaPas`                  | `checklists:create` / all   |
 | Șabloane | `actualizeazaSablon`, `actualizeazaPas`, `stergePas`, `mutaPas` | `checklists:update` / all   |
 
-## D1 — de ce managerul are `checklists:update` la `own`, nu la `team`
-
-Managerul n-avea deloc `checklists:update`, deci ramura scrisă pentru el în `0014` era cod
-mort din ziua întâi: nu putea bifa niciun pas. `0088` i-a dat cheia, dar la scope **`own`**,
-care deschide exact ramura pe responsabil — „pot bifa pasul al cărui responsabil sunt".
-
-`team` ar fi fost greșit din două motive, ambele verificate în migrare:
-
-- ar fi aprins politicile de vizibilitate pe Inventar, care cereau fix `update >= team`,
-  deschizând stocul întregii firme (D9);
-- s-ar fi ancorat pe subordonarea față de **subiect**, nu pe faptul că e responsabilul
-  desemnat — deci managerul ar fi putut bifa pașii HR-ului din onboardingul subalternului.
-
-D9 s-a reparat în **aceeași** migrare, chiar dacă `own` nu aprindea politicile atunci:
-ecranul de permisiuni per membru (`0063`) lasă orice `org_admin` să acorde mâine
-`checklists:update = team` unui manager anume, și atunci s-ar fi deschis tăcut.
-
-## D6 — mesajul fals „Checklistul este închis"
-
-Două jumătăți ale aceluiași defect:
-
-- **Responsabilul nu vedea INSTANȚA**, doar pasul. Orice pagină citește întâi instanța,
-  deci sarcina atribuită se năștea moartă, cu 404. `0088` adaugă o politică PERMISSIVE
-  suplimentară — se însumează prin OR, politica din `0014` rămâne neatinsă.
-- **Triggerul mințea.** Sub `security invoker`, citirea statusului instanței trecea prin
-  RLS cu drepturile celui care bifează; pentru un responsabil care nu e subiectul, rândul
-  era invizibil, statusul ieșea NULL, iar `null is distinct from 'in_curs'` e adevărat —
-  refuz cu o cauză inexistentă. Funcția e azi `security definer`.
-
-Regula generală, dincolo de caz: **un trigger nu are voie să depindă de o politică de
-citire ca să afle un fapt.**
-
-## D4 — pași obligatorii și nebifabili pe veci
-
-`acces_revocat` și `documente_semnate` există în enumul din `0014` și n-au fost
-implementate niciodată. Interfața le arăta dezactivate, dar schema Zod accepta enumul
-ÎNTREG — iar o Server Action se poate chema direct. Un pas creat pe una din ele era
-obligatoriu prin `_automat_ck` și nebifabil, deci instanța devenea imposibil de finalizat.
-
-Valorile **nu** s-au scos din enum (Postgres nu știe `drop value`, iar `0014` e aplicată):
-s-au închis printr-un CHECK. Rămân vizibile în catalog ca istorie, dar nu se mai pot scrie.
-
-## D10 — parcursul gol care se finalizează singur
-
-Poarta de finalizare aduna cu `array_agg` pașii obligatorii nebifați și verifica dacă
-rezultatul e nenul. Peste **zero** rânduri, `array_agg` întoarce NULL — deci „nu există
-pași nebifați" era adevărat **în gol**. În producție există deja o dovadă imutabilă, cu
-checksum, care atestă o integrare încheiată cu `total_pasi = 0` și conținut vid: un
-document care nu atestă nimic, dar arată exact ca unul care atestă.
-
-Precedentul reparației era deja în repo — `internal.cursuri_pregateste_inrolarea` refuză
-înrolarea la un curs fără nicio lecție. Modulul de cursuri învățase lecția; integrarea nu.
-
-## Dovada de pas — ce nu se crede de la client
-
-Trei timpi: `pregatesteIncarcareDovada` întoarce `cale` + `urlSemnat`
-(`createSignedUploadUrl`), browserul urcă octeții cu `urcaPeUrlSemnat` — un `PUT`
-obișnuit, nu clientul Supabase din browser —, iar `salveazaDovada` scrie rândul.
-
-- **Un fișier urcat în pas satisface dovada de tip `document`.** Triggerul din `0092`,
-  `dovadaLipseste` din `pas-checklist.tsx` și pre-verificarea din `bifeazaPas` trebuie să
-  spună același lucru — de aceea handlerul citește și `dovada_fisier_path`, nu doar
-  `tip_dovada`: altfel bifarea era respinsă cu VALIDARE exact după gestul cerut.
-- **Calea se re-verifică cu `caleInPrefix`, nu cu `startsWith`.** Prefixul include PASUL,
-  ca poarta de aplicație să nu fie mai laxă decât `app.checklist_poate_dovada`, iar
-  `caleInPrefix` respinge în plus segmentele goale și `.`/`..`, inclusiv
-  procent-codificate — pe care un `startsWith` le lasă să treacă.
-- **`mime` și `marime_bytes` din `input` NU ajung în rând.** Sunt doar ce a declarat
-  browserul înainte să urce ceva, iar tokenul semnat nu le fixează; rămân în allow-list-ul
-  de audit, atât. Rândul se scrie cu ce raportează Storage prin `masoaraObiectul`, trecut
-  din nou prin `verificaDovada` **pe server** — deci un fișier care a trecut de
-  verificarea din browser poate fi respins abia la înregistrare.
-- **Mărimea e măsurată, tipul e doar raportat.** `content_type` e antetul cu care s-a
-  urcat obiectul, nu o citire a primilor octeți: verificarea prin magic bytes rămâne cea
-  a materialelor de curs, din `src/lib/media/cale.ts`.
-- **Obiectul rămâne în bucket când rândul nu se scrie.** Ecranul nu șterge nimic de pe
-  client — curățarea trece prin `service_role`, după audit —, ci cere reluarea încărcării.
-
 ## Ce refuză baza tăcut
 
 - **`checklist_completion_records` nu are `deleted_at`.** Un `.is("deleted_at", null)` pe
@@ -157,6 +88,17 @@ obișnuit, nu clientul Supabase din browser —, iar `salveazaDovada` scrie rân
 - **Nicio tabelă `checklist_*` nu are politică DELETE.** Ștergerea e logică peste tot.
 - **`checklists:approve` era seedat și citit de zero politici** până la `0088`, care i-a
   dat conținut: e cheia care ÎNCHIDE parcursul (`finalizeazaInstanta`, `anuleazaInstanta`).
+- **Cheia `checklists:approve` la scope `team` nu ajunge ca să închizi un parcurs.**
+  Politica de UPDATE din `0088` cere, pe lângă cheie, subordonarea față de SUBIECT: un
+  manager care vede parcursul doar fiindcă e responsabil de un pas primea butoanele și un
+  UPDATE cu zero rânduri. De aceea `/onboarding/[id]` cere în plus ca subiectul să fi venit
+  din `angajatiDupaId` (`angajat !== undefined`) — dovada că s-a citit prin subordonare —,
+  nu doar `can()`. Pe scope `all`, condiția cade.
+- **Pagina dovezii cere aceeași subordonare, nu calitatea de responsabil.** `0088` a adăugat
+  ramura de responsabil pe instanțe, nu pe `checklist_completion_records`: fără subordonare
+  pagina răspundea „Dovada nu există încă", cu o cauză falsă. Linkul spre ea se arată acum
+  doar când `finalizata_la` e nenul ȘI subiectul e vizibil — pe un parcurs în curs sau
+  anulat dovada chiar nu există încă.
 - **Pașii unui grup de instanțe trec de plafonul PostgREST.** `progresInstante` îi citește
   în buclă cu `.range()`, iar la atingerea plafonului de iterații **aruncă** — procentele
   din semafor s-ar calcula altfel din rânduri tăiate tăcut, fără nicio eroare. — capcana #2
@@ -176,17 +118,35 @@ Opțiunile asistentului vin din `sabloane/_componente/optiuni.ts`, același `opt
 pentru „nou" și „[id]": cursurile și materialele se cer doar cu modulul `courses` activ
 (lista goală dezactivează cardul, nu scoate pagina pe 404), iar departamentele se citesc cu
 `deleted_at is null` — `activ` singur lăsa un departament șters logic să rămână țintă.
+Ramura FĂRĂ drept de editare din `/onboarding/sabloane/[id]` cheamă azi același
+`optiuniAsistent` numai ca să NUMEASCĂ cursul, materialul și responsabilul fiecărui pas;
+legătura spre ei trece prin `poateDeschide` din `src/config/porti-ruta.ts`, deci un nume
+necunoscut sau o rută închisă rămân text, nu link mort.
 
 Citirile din `src/lib/queries/checklist.ts` sunt marcate `server-only`: un import dintr-o
-componentă client cade la build, nu în producție.
+componentă client cade la build, nu în producție. Două coloane de acolo există numai pentru
+legături și se pierd tăcut dacă le scoți din `select`: `curs_id` pe `pasiiInstantei` (ținta
+pasului `curs_finalizat`) și `deleted_at` pe `angajatiDupaId`, cerut de `hrefFisa()` din
+`src/lib/navigare/fisa.ts` — fără el, o fișă ștearsă logic capătă link. `PasChecklist`
+primește `responsabili` și `hrefCurs` ca proprietăți OPȚIONALE, fiindcă e partajată cu
+portalul, care nu le trimite: fără ele rămâne eticheta de tip („Managerul direct"), iar un
+responsabil al cărui rând n-a venit prin RLS rămâne tot acolo, fără nume și fără link.
+
+`?sablon=` e filtru de intrare dinspre pagina șablonului: e în `filtreInstanteSchema`, în
+`listeazaInstante` și declarat `cheiExterne` în `FiltreInstante` — pastilă fără câmp în
+formular, altfel „Filtrează" l-ar pierde. `/onboarding/noua` citește `?sablon=` și
+`?angajat=` ca preselecție, dar numai dacă sunt UUID-uri: un id necunoscut nu se potrivește
+cu nicio opțiune, iar selectul cade pe prima, fără eroare.
 
 Lista de instanțe își ia filtrele din `filtre-instante.tsx`, ca restul ecranelor cu
-`filtre-*.tsx`. `/onboarding/sabloane` face **excepție**: își scrie formularul GET de mână,
-în `page.tsx`. Câmpurile lui sunt necontrolate (`defaultValue` se citește doar la montare),
-deci au nevoie de `key` legat de valoarea din adresă — „Șterge filtrele" din `StareGoala` e
-un `<Link>`, care navighează pe client fără să remonteze câmpul; fără `key`, rămânea textul
-vechi peste o listă nefiltrată și se reaplica la următoarea apăsare pe „Filtrează". Orice
-filtru nou pe ecranul ăsta se scrie cu aceeași pereche `key` + `defaultValue`.
+`filtre-*.tsx`; câmpurile de dată de acolo trec prin `IntrareData`, a cărei valoare inițială
+se numește `implicit`, nu `defaultValue`. `/onboarding/sabloane` face **excepție**: își
+scrie formularul GET de mână, în `page.tsx`. Câmpurile lui sunt necontrolate (`defaultValue`
+se citește doar la montare), deci au nevoie de `key` legat de valoarea din adresă — „Șterge
+filtrele" din `StareGoala` e un `<Link>`, care navighează pe client fără să remonteze
+câmpul; fără `key`, rămânea textul vechi peste o listă nefiltrată și se reaplica la
+următoarea apăsare pe „Filtrează". Orice filtru nou pe ecranul ăsta se scrie cu aceeași
+pereche `key` + `defaultValue`.
 
 Numerotarea sare de la `0090` la `0092` și de la `0093` la `0095`: două coliziuni cu
 sesiunea care livra invitațiile. Convenția e să-ți redenumești **propria** migrare.
@@ -198,4 +158,4 @@ sesiunea care livra invitațiile. Convenția e să-ți redenumești **propria** 
 - Ce verifică fiecare acțiune înainte de bază: `actions-instante.test.ts`,
   `actions-sabloane.test.ts`, `actions-dovezi.test.ts`, `erori.test.ts` — pe clientul
   Supabase fals, deci nu țin loc de `tests/rls/`.
-- Bunurile nereturnate → fișa obiectului, `?sablon=` pe instanțe, șablonul citit numește cursul/materialul/responsabilul, rândul „Pași de integrare” din panou: [[strat/navigare]].
+- Bunurile nereturnate (vizibile doar cu modulul `inventory` și `inventory:read` team), ancora `#pas-<id>` dinspre „Sarcinile mele", șablonul care se numește pe sine, rândul „Pași de integrare” din panou: [[strat/navigare]].

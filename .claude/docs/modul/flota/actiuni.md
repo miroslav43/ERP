@@ -11,9 +11,19 @@ cai:
   - "src/app/(app)/flota/[id]/valori-document.ts"
   - "src/app/(app)/flota/foi/date-foaie-noua.ts"
   - "supabase/migrations/0173_flota_alocari.sql"
+  - "supabase/migrations/0225_flota_costuri_ascunse.sql"
   - "tests/rls/proba-flota-alocari.sql"
 tabele:
-  [vehicles, vehicle_documents, vehicle_assignments, trip_sheets, fuel_entries, odometer_anomalies]
+  [
+    vehicles,
+    vehicle_documents,
+    vehicle_costuri,
+    vehicle_document_costuri,
+    vehicle_assignments,
+    trip_sheets,
+    fuel_entries,
+    odometer_anomalies,
+  ]
 permisiuni:
   [
     vehicles:read,
@@ -26,8 +36,8 @@ permisiuni:
   ]
 feature: fleet
 capcane: [22, 23]
-scris_pe: 4e95b7cbf409195aaf371cdcafaac92aeb7ed7af
-scris_la: 2026-10-22
+scris_pe: 6e0792e9aa37ea9f4b874d856489a4f0b9344c20
+scris_la: 2026-10-29
 tags: [modul, operations]
 ---
 
@@ -76,6 +86,27 @@ tabelele flotei primesc grant doar pe `select`, `insert` și `update`
 (`0012_fleet.sql:1080`). Contractele scrierilor și ale traducerii de erori sunt fixate pe
 clientul fals: `actions-*.test.ts`, `erori-etichete.test.ts`.
 
+## Costurile se scriu în tabele proprii (0225)
+
+**Valoarea de achiziție și costul documentului NU mai pleacă pe rândul-părinte.**
+`creeazaVehicul` și `actualizeazaVehicul` scot `valoare_achizitie` din încărcătura
+lui `vehicles`, `adaugaDocument` și `actualizeazaDocument` scot `cost` din cea a
+documentului, iar cifra ajunge într-o a doua scriere, în `vehicle_costuri` sau
+`vehicle_document_costuri` — tabele cu RLS-ul costurilor
+(`app.poate_vedea_costurile_vehiculului`). Forma lor, cine le vede și intrarea de
+compatibilitate din coloanele vechi: `[[modul/flota/service-si-costuri/costuri]]`.
+
+- La **creare**, costul se scrie doar dacă a venit (`!== null`) și DUPĂ ce părintele a
+  intrat, deci o eroare pe el nu se mai poate raporta generic: omul ar reintroduce
+  vehiculul sau documentul, iar a doua încercare ar cădea pe numărul dublat. Ambele
+  acțiuni întorc o regulă de business care spune explicit că părintele E salvat și cere
+  doar reintroducerea cifrei din „Modifică", respectiv „Corectează".
+- La **modificare**, costul e un `upsert` cu `onConflict: "vehicle_id"`, respectiv
+  `"document_id"`, trimis **și cu `null`**: câmpul golit în formular trebuie să golească
+  valoarea, iar coloana veche ignoră deliberat `null`.
+- Zero rânduri pe UPDATE-ul părintelui = NEGASIT, **fără** să atingă tabela de costuri.
+  Contractele celor patru scrieri: `actions-vehicule.test.ts`.
+
 ## Alocarea șoferului
 
 - **Șoferul vehiculului NU se scrie pe `vehicles`** (0173). `vehicles.employee_id` e
@@ -109,6 +140,18 @@ capcane tăcute stau acolo, prinse de `valori-vehicul.test.ts` și `valori-docum
 `kmDePlecareSugerat`, `combustibilPeFoi`, `alimentarileFoii`, `anomaliiNeconfirmate`,
 `anomaliiPeFoi`, `curseleFoii`, `sabloaneTraseu`, `numeleContului`, `setariFlota`,
 `candidatiResponsabiliFlota`, plus, pentru portal, `vehicululMeu` și `foileMele` (filtru
-explicit pe șofer). Service, intervenții, cheltuieli și costuri: `fleet-service.ts`;
+explicit pe șofer).
+
+**Costul vine prin embed, nu din coloană** (0225): `citesteVehicul` cere
+`costuri:vehicle_costuri(valoare_achizitie)` și `documenteleVehiculului`
+`costuri:vehicle_document_costuri(cost)`, amândouă **fără** `!inner` — cine nu vede
+costurile (angajatul, hr-ul, managerul pe pool) primește rândul întreg și `null` în loc
+de cifră, nu o eroare și nici o listă mai scurtă. Ambele funcții plătesc embed-ul la
+întoarcere, într-un `map`, ca tipul public să rămână plat. Coloanele
+`vehicles.valoare_achizitie` și `vehicle_documents.cost` sunt GOLITE de 0225 și nu se mai
+citesc: poarta e `src/lib/queries/coloane.test.ts`. În `costuriVehicul` embed-ul E
+`!inner`, cu altă consecință tăcută — `[[modul/flota/service-si-costuri/costuri]]`.
+
+Service, intervenții, cheltuieli și costuri: `fleet-service.ts`;
 `pragSaltVehicul` (un singur număr, pentru cine nu citește `fleet_settings`): `fleet.ts`.
 Codurile UIT ale foii (`uiturileFoii`, `stareETransportPeFoi`): `[[modul/flota/uit]]`.

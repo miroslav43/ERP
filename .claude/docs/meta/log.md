@@ -319,3 +319,10 @@ de oricine face un push.
 - module atinse: —
 - straturi atinse: —
 - pagini rescrise: modul/concedii.md modul/evaluari.md modul/flota/declaratia-soferului.md modul/flota/proces-verbal.md modul/mentenanta/interventii.md modul/mentenanta/sesizari.md rol/hr.md modul/concedii/documente.md modul/concedii/suspendare.md modul/concedii/vederi.md modul/evaluari/actiuni.md modul/evaluari/kpi.md rol/hr/matricea.md
+
+## 2026-10-29
+
+- commit-uri în ultimele 24h: 1
+- module atinse: —
+- straturi atinse: —
+- pagini rescrise: modul/concedii/actiuni.md modul/flota/actiuni.md modul/notificari.md modul/onboarding.md modul/organigrama.md modul/pontaj.md modul/pontaj/foaia.md modul/pontaj/saptamana.md modul/concedii/actiuni/citiri.md modul/notificari/push.md modul/onboarding/defecte.md modul/onboarding/dovezi.md modul/pontaj/saptamana/antet.md modul/pontaj/saptamana/concediu.md

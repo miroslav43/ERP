@@ -23,8 +23,8 @@ tabele: [attendance_entries, puncte_lucru]
 permisiuni: [attendance:read, attendance:create, departments:read, departments:update, leave:read]
 feature: attendance
 capcane: [2]
-scris_pe: bd516e390b0ca4dbe758079da30184b7288ceeb5
-scris_la: 2026-10-12
+scris_pe: 6e0792e9aa37ea9f4b874d856489a4f0b9344c20
+scris_la: 2026-10-29
 tags: [modul, hr]
 ---
 
@@ -100,7 +100,9 @@ ore ale firmei. Adunarea era scrisă separat în foaia colectivă — pe coloan�
 în totalul general — și încă o dată în ecranele portalului, iar nicăieri nu se uita la
 respingere; un total din care ziua respinsă iese într-un loc și rămâne în altul e mai rău
 decât unul greșit peste tot, fiindcă cifrele nu se mai pot compara. Ziua NEDECISĂ rămâne
-numărată. Același filtru a ajuns și în agregarea pentru salarizare
+numărată. Filtrul e doar pe ORE: zilele speciale (`CATEGORII_SPECIALE` din
+`src/app/(app)/pontaj/foaie-colectiva.tsx`) se numără toate, respinse sau nu — piciorul
+foii numără zile, nu ore. Același filtru a ajuns și în agregarea pentru salarizare
 (`0198_agregat_fara_zile_respinse.sql`), ca fluturașul să se potrivească cu foaia, și în
 `numarZilePontatePerioada`, avertismentul de pe ciorna de stat.
 
