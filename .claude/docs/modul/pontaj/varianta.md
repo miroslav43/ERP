@@ -8,12 +8,13 @@ cai:
   - "src/app/(app)/pontaj/actions.ts"
   - "src/app/(app)/pontaj/saptamana/scrie-pontajul.ts"
   - "src/app/(app)/pontaj/sectiune-saptamana.tsx"
+  - "src/domain/attendance/zi-de-pontat.ts"
 tabele: [setari_pontare_rapida, attendance_entries, attendance_week_submissions]
 permisiuni: [attendance:create, attendance:approve, attendance:update]
 feature: attendance
 capcane: []
-scris_pe: bd516e390b0ca4dbe758079da30184b7288ceeb5
-scris_la: 2026-10-12
+scris_pe: 3760e43cc77bfb934a236ef82ab1475d647c0a11
+scris_la: 2026-10-30
 tags: [modul, hr]
 ---
 
@@ -46,6 +47,12 @@ rândurile de concediu și UPDATE-urile care ating doar decizia. Portița pe
 `leave_request_id`, coloană scrisă de CLIENT, a fost strânsă de
 `0166_pontaj_saptamanal_fara_portita_concediu.sql`.
 
+Garda variantei merge PRIMA în `salveazaZiPontaj`, înaintea refuzului zilei din viitor sau
+dinaintea angajării (`refuzulZilei`, `mesajRefuzZi`): pe `saptamanal` omul primește mesajul
+variantei, nu pe celălalt. Al doilea refuz nu are scăparea pe `attendance:create = all` —
+nici responsabilul de pontaj nu scrie o zi care n-a venit — iar textul lui trimite la fișa
+săptămânii pe ORICE variantă, fiindcă acolo e planificarea și pe `zilnic`.
+
 ## Fișa devine pontaj
 
 Fișa devine pontaj prin `scrieSaptamanaInPontaj` — la aprobare, sau pe loc la trimiterea
@@ -53,4 +60,9 @@ care se închide singură (0167). Scrierea e best-effort, fiindcă aprobarea e d
 înregistrată când se ajunge la ea, deci plasa zilnică
 `internal.recupereaza_saptamani_fara_pontaj` (0169) reface ce a căzut și anunță ce nu se
 poate deriva în SQL. Zilele unei luni `blocata` nu se scriu niciodată: clientul admin e
-scutit de triggerul lunii, deci garda stă în cod. Restul: [[modul/pontaj/saptamana]].
+scutit de triggerul lunii, deci garda stă în cod.
+
+`scrieSaptamanaInPontaj` scrie legitim zile VIITOARE — săptămâna aprobată înainte să fi
+trecut — și de aceea refuzul zilei din viitor stă în `salveazaZiPontaj`, nu într-un CHECK pe
+`attendance_entries`: o constrângere în bază ar fi omorât exact calea pe care varianta
+`saptamanal` o face singura cale. Restul: [[modul/pontaj/saptamana]].

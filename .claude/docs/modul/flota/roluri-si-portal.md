@@ -1,22 +1,28 @@
 ---
 tip: modul
 titlu: Flotă — drepturile pe roluri și „Mașina mea”
-aliases: [masina-mea, flota-roluri, portal flota]
+aliases: [flota-roluri, portal flota]
 cai:
   - "supabase/migrations/0199_flota_roluri.sql"
-  - "src/app/(portal)/portal/masina-mea/**"
-  - "src/app/(app)/flota/foi/dialog-foaie-noua.tsx"
-  - "src/app/(app)/flota/foi/date-foaie-noua.ts"
+  - "supabase/migrations/0226_securitate_reziduala.sql"
   - "tests/rls/proba-flota-roluri.sql"
   - "tests/rls/proba-flota-matrice-roluri.sql"
   - "tests/rls/proba-livrare-roluri.sql"
-tabele: [vehicles, vehicle_assignments, trip_sheets, fuel_entries, vehicle_costuri]
+tabele:
+  [
+    vehicles,
+    vehicle_assignments,
+    trip_sheets,
+    fuel_entries,
+    vehicle_costuri,
+    vehicle_document_costuri,
+  ]
 permisiuni:
   [vehicles:read, trip_sheets:read, trip_sheets:create, trip_sheets:update, trip_sheets:approve]
 feature: fleet
 capcane: [17, 18]
-scris_pe: cf35535c22a8126c8901d50e9ad66f96d31fc430
-scris_la: 2026-10-23
+scris_pe: 3760e43cc77bfb934a236ef82ab1475d647c0a11
+scris_la: 2026-10-30
 tags: [modul, operations]
 ---
 
@@ -24,6 +30,16 @@ tags: [modul, operations]
 
 Extrasă din `[[modul/flota]]`. Descrie faza F3 a planului „Flotă completă”: cine scrie
 ce, din migrarea `0199_flota_roluri.sql`.
+
+## Paginile modulului
+
+Trunchiul ține matricea rolurilor, **ce refuză baza tăcut** și probele. Rutele
+portalului și caseta foii noi s-au spart pe subpagini (`.claude/docs/meta/conventii.md`).
+
+| Pagină                                      | Ce ține                                                         |
+| ------------------------------------------- | --------------------------------------------------------------- |
+| [[modul/flota/roluri-si-portal/masina-mea]] | rutele „Mașina mea”, poarta fiecăreia, citirile pe fișa proprie |
+| [[modul/flota/roluri-si-portal/foaie-noua]] | de unde vine șoferul foii, caseta „Foaie nouă”, unde apare      |
 
 ## Matricea din seed
 
@@ -79,56 +95,14 @@ permisiuni rămâne așa. Matricea publică (`matrice-roluri.ts`) și fișa de m
   orice scope și urmează și copiii**: alimentările și cursele se scriu doar pe ciornă,
   iar ștergerea logică e ireversibilă — `[[modul/flota/foaia-zilnica-garzi]]`.
 - **Foaia în numele altcuiva** sub `own` cade pe `foi_insert` (`app.poate_crea_foaie`) cu 42501. `creeazaFoaie` o refuză înainte, cu CONFLICT și text clar.
+- **Administratorul de platformă citește foile, nu le scrie.** `foi_select` a primit
+  ramura `app.is_platform_admin()` în `supabase/migrations/0226_securitate_reziduala.sql`,
+  ca `alimentari_select` și `curse_select`; până atunci `super_admin` număra zero foi de
+  parcurs. Filtrul de rând al firmei rămâne cel din 0016, iar scrierea foii nu primește
+  ramura.
 - **Storage.** `app.can_path` verifică entitatea la `team` și `own` și pe `trip_sheets`
   (segmentul 3 = fișa șoferului) și pe `vehicles` (segmentul 3 = vehiculul, proprietar =
   șoferul alocat; pool-ul doar la citire). `courses` își păstrează excepția din 0144.
-
-## Șoferul foii în aplicație
-
-`creeazaFoaie`: cu `trip_sheets:create = all` șoferul vine din formular (`null` →
-VALIDARE pe `employee_id`). Sub `all`, șoferul e fișa PRINCIPALĂ a contului, citită prin
-RLS (`fisaProprieFoaie`): fără ea, CONFLICT; cu alt id trimis, CONFLICT.
-`foaieNouaSchema.employee_id` e deci nullable.
-
-Caseta „Foaie nouă” (`DialogFoaieNoua`) primește `angajati: null` când șoferul e cel
-conectat: selectorul dispare, iar câmpul lipsă pleacă `null`. Datele vin din
-`dateFoaieNoua(org, { fel: "propriu", fisaId })` — mașina alocată plus pool-ul, NU tot ce
-vede rolul (managerul vede și mașinile echipei, pe care foaia ar cădea cu P0001).
-`bazaFoaie` alege unde duce „Deschide ciorna”. Contractul e fixat de
-`dialog-foaie-noua.test.tsx` (happy-dom). Cheia casetei vine din `cheieCasetaFoaie(deschide,
-vehicul)` pe ambele pagini: vehiculul propus de asistent intră în cheie, deci a doua
-propunere, pe altă mașină, remontează caseta (F12e).
-
-Pe `/flota/foi/[id]`, închiderea și alimentarea apar doar pe foaia proprie când
-`trip_sheets:update` nu e `all`. Pe `/flota/[id]`, „Foaie nouă pe acest vehicul” apare sub
-`all` doar pe pool sau pe mașina proprie.
-
-## Portalul: `/portal/masina-mea`
-
-| Rută                              | Poartă                                                              |
-| --------------------------------- | ------------------------------------------------------------------- |
-| `/portal/masina-mea`              | doar modulul fleet (0215: și omul fără drept pe foi)                |
-| `/portal/masina-mea?foaie=noua`   | caseta, cu `trip_sheets:create`                                     |
-| `/portal/masina-mea/foi/[id]`     | `trip_sheets:read` own; foaia altcuiva → 404                        |
-| `/portal/masina-mea?incident=nou` | declarația de incident, cu `vehicle_incidents:create` own (0206 §F) |
-| `/portal/masina-mea/rezervari`    | `vehicle_reservations:read` (0216): `[[modul/flota/rezervari]]`     |
-
-Din 0215 (F12c, decizia 3), pagina nu mai cere `trip_sheets:read`: omul FĂRĂ drept pe foi
-sau pe vehicule (de regulă `hr`) care conduce o mașină a firmei vede aici vehiculul alocat
-LUI și PV-urile la care e parte, fără semafor, fără mașini comune și fără foi (secțiunea
-foilor lipsește). Ramura e în `vehicule_select`; cardul mașinii nu o moștenește (0214
-judecă prin `app.poate_vedea_vehicul_dupa_id`). Meniul ține încă intrarea pe
-`trip_sheets:read`: hr-ul ajunge la pagină din notificare. PV-urile:
-`[[modul/flota/proces-verbal]]`.
-
-Declarația șoferului (mașina lui sau pool, doar declarațiile proprii, notificarea
-responsabilului): `[[modul/flota/declaratia-soferului]]`.
-
-Intrarea de meniu `portal-masina` (fără slot pe bara de jos). Citirile filtrează EXPLICIT
-pe fișa proprie (`vehicululMeu`, `foileMele` cu keyset peste `listeazaFoi`), ca la tot
-portalul: un administrator care e și șofer ar vedea altfel tot parcul. Semaforul mașinii
-e `semaforVehicul` din `src/domain/fleet/scadente.ts`, aceeași funcție ca în `/flota`.
-Acțiunile foii revalidează și `/portal`, `/portal/masina-mea`, `/portal/masina-mea/foi/<id>`.
 
 ## Probe
 
@@ -143,14 +117,22 @@ firme, sub org_admin, hr, manager și doi angajați, numără rândurile văzute
 tabelă a flotei (plus `expirables`, `compliance_alerts`, `org-flota`), funcțiile
 `public.*` ale flotei și INSERT/UPDATE pe tabelele de administrare și costuri, față de
 matricea intenționată (hr: doar permisele; manager: echipa + pool, costurile doar ale
-echipei; angajatul: mașina lui + pool, fără costuri); firma B numără zero.
+echipei; angajatul: mașina lui + pool, fără costuri); firma B numără zero. Blocul
+pool-ului alocat unui om din echipă are și poarta POZITIVĂ de lângă refuz: pe mașina
+echipei care nu e în pool, managerul vede în continuare service-ul și cheltuielile.
 `avantaj_natura_flota` e a salarizării (`payroll:read = all`): hr o primește.
 
 **Scrierea reală pe toate tabelele livrării**: `tests/rls/proba-livrare-roluri.sql`. Pe
-un singur fixture, fiecare tabelă și funcție `public.*` nouă din 0191, 0199–0206 și
-0210–0218, sub super_admin, org_admin, hr, manager, doi angajați și administratorul altei
-firme: SELECT numărat, INSERT și UPDATE efective (derulate înapoi), plus legarea din firma
-străină de obiectele firmei A. `flota_fiscal_luna` (SECURITY INVOKER peste `vehicles`)
+un singur fixture, fiecare tabelă și funcție `public.*` nouă din 0191, 0199–0206,
+0210–0218, 0225 și 0226, sub super_admin, org_admin, hr, manager, doi angajați și
+administratorul altei firme: SELECT numărat, INSERT și UPDATE efective (derulate înapoi),
+plus legarea din firma străină de obiectele firmei A. Acoperă costul documentelor
+(`vehicle_document_costuri`, cu coloana veche `vehicle_documents.cost` goală), ramura de
+platformă a foilor, repotrivirea tranzacțiilor de card și loturile de import
+(`import_uploads`: le vede și le consumă doar cine le-a creat). Rândurile pool-ului alocat
+unui om din echipă trec acum prin aceeași matrice, sub toate cele șapte identități;
+alocarea cere pool-ul fără rezervări active, deci administratorul le anulează întâi sub
+identitatea lui, ca în aplicație. `flota_fiscal_luna` (SECURITY INVOKER peste `vehicles`)
 filtrează pe `app.poate_vedea_vehicul`, deci hr-ul cu mașină nu moștenește ramura
 „decizia 3” în raportul fiscal (reparat în 0205).
 

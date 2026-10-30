@@ -23,8 +23,8 @@ permisiuni:
   ]
 feature: fleet
 capcane: [17, 18, 22, 23, 31]
-scris_pe: 0603507aed9e67b2414392e415e4d4ce8592b689
-scris_la: 2026-10-22
+scris_pe: 3760e43cc77bfb934a236ef82ab1475d647c0a11
+scris_la: 2026-10-30
 tags: [modul, operations]
 ---
 
@@ -81,7 +81,12 @@ prins `employees.full_name` nullable): `listeazaRezervari` și `rezervarileMele`
   `rezervari_inainte`, în `alocari_rezervari` și în `internal.alocari_inainte` (0233,
   primul BEFORE pe `vehicle_assignments`). Rulează înaintea WITH CHECK, deci un rând pus pe
   altă firmă afla din refuzuri dacă vehiculul ei e în pool, ieșit din parc, alocat, cu foaie
-  sau din ce zi e rezervat. Acum 42501 neutru. Proba: `tests/rls/proba-oracol-intre-firme.sql`.
+  sau din ce zi e rezervat. Acum 42501 neutru, ocolit doar de contextul de serviciu — NU de
+  steagul `app.flota_rezervari_sistem`. E scrisă `not coalesce(…, false)`: pe forma fără
+  `coalesce`, o rezervare cu `organization_id` lăsat gol trecea pe lângă gardă (comparația cu
+  NULL nu ridică), iar NOT NULL se judecă abia după WITH CHECK. Proba:
+  `tests/rls/proba-oracol-intre-firme.sql`, verificările (g17) rezervarea pe altă firmă,
+  (n7) rezervarea fără firmă, (g18) alocarea, și pozitiva (p8).
 - **Statusul îl pune triggerul** (`rezervari_inainte`): `confirmata` fără aprobare sau pentru
   cine are `approve = all` (și rezervarea proprie a administratorului, decizia I-d9),
   altfel `ceruta`. O cerere `ceruta` blochează zilele ca una confirmată (EXCLUDE pe gist).

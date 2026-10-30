@@ -7,12 +7,21 @@ cai:
   - "supabase/migrations/0035_reguli_concediu.sql"
   - "supabase/migrations/0037_fix_grile_pe_tip_reglementat.sql"
   - "supabase/migrations/0193_concediu_proportional_cu_lunile.sql"
-tabele: [leave_types, leave_type_variants, leave_entitlement_rules, leave_balances, organizations]
-permisiuni: [leave:read, leave:create, leave:update]
+tabele:
+  [
+    leave_types,
+    leave_type_variants,
+    leave_entitlement_rules,
+    leave_balances,
+    organizations,
+    employees,
+    approval_tasks,
+  ]
+permisiuni: [leave:read, leave:create, leave:update, leave:approve, employees:read]
 feature: leave
 capcane: [17]
-scris_pe: 711e5225e1df2ceab9324037466c87fda8abd8a0
-scris_la: 2026-09-04
+scris_pe: 3760e43cc77bfb934a236ef82ab1475d647c0a11
+scris_la: 2026-10-30
 tags: [modul, hr]
 ---
 
@@ -31,9 +40,10 @@ Trunchiul modulului — cererea, aprobarea, soldul — e [[modul/concedii]].
 `hr` are `leave` pe `all`, iar `manager` îl are pe `team` cu doar `{read,approve}` — deci
 pagina nu e ascunsă de manager, e refuzată prin `AccesRestrictionat`.
 
-Preambulul pornește `requireFeature(..., "leave")` și `getPermissionMap` împreună, într-un
-`Promise.all`, nu înlănțuite ca în tiparul canonic: sunt două citiri independente, pe
-tabele diferite, iar înlănțuirea costa un dus-întors în plus, integral rețea. Ordinea
+Preambulul pornește `requireFeature(..., "leave")`, `getPermissionMap` și
+`getEnabledFeatures` împreună, într-un `Promise.all`, nu înlănțuite ca în tiparul canonic:
+sunt citiri independente, pe tabele diferite, iar înlănțuirea costa câte un dus-întors în
+plus, integral rețea (comentariul de deasupra lor a rămas la „două citiri"). Ordinea
 porților rămâne aceeași — `requireFeature` cheamă `notFound()`, iar `Promise.all` respinge
 la prima respingere, deci un modul dezactivat dă tot 404 înainte ca harta de permisiuni să
 ajungă la `can()`. Tiparul e al întregului modul, nu al acestei pagini ([[modul/concedii]]);
@@ -43,6 +53,18 @@ Ecranul are câte o zonă per obiect: `tabel-tipuri-reglementate.tsx` și
 `card-tip-adaptabil.tsx` pentru tipuri, `tabel-reguli.tsx` cu `formular-regula-noua.tsx`
 pentru grile, `formular-zile-baza.tsx` pentru zilele de bază și
 `buton-aplica-drepturi.tsx` pentru recalcul.
+
+## Linkurile se închid pe poarta țintei
+
+- Criteriul „Departament: X" din `tabel-reguli.tsx` devine link spre `/departamente` doar
+  dacă `poateDeschide` (`src/config/porti-ruta.ts`) trece pe ruta ȚINTĂ — de aici al
+  treilea membru al `Promise.all`-ului: poarta cere și modulele active, nu doar
+  permisiunile. Booleanul se calculează pe server, ca `poateDeschideDepartament`.
+- Numele din previzualizare trece prin `hrefFisa(angajat, permisiuni)`
+  (`src/lib/navigare/fisa.ts`) — de aceea `select`-ul pe `employees` cere și `deleted_at`:
+  fără coloana aia în citire, `hrefFisa` presupune rândul nești și ar lega fișa unui
+  angajat șters. `LinkEntitate` lasă text simplu când href-ul e `null` (angajat absent din
+  hartă, deci ascuns de RLS, sau `employees:read` lipsă).
 
 ## Server Actions
 
@@ -58,6 +80,10 @@ Toate declară aceeași pereche de revalidare, `/concedii/setari` + `/concedii/s
 soldul e a doua față a oricărei schimbări de configurare, iar o pagină de setări care nu
 mișcă soldul lasă omul să creadă că n-a avut efect. `seteazaZileConcediuImplicit` adaugă
 `/setari/organizatie`.
+
+Testul lor rulează pe clientul Supabase fals —
+`src/app/(app)/concedii/setari/actions.test.ts`: pragul `all` pe fiecare, categoria
+generată din criteriu, și P0001-ul triggerului ajuns `CONFLICT` cu textul lui.
 
 ## Ce refuză baza — tăcut și cu voce
 
@@ -142,11 +168,21 @@ mai mult decât noul drept apare cu `ramase_dupa` negativ (permis de 0017: HR po
 soldul în negativ retroactiv). Funcția parcurge doar `employees.status = 'activ'`, deci
 soldul unui angajat deja încetat nu se recalculează.
 
+Reușita nu rămâne doar în tabel: `buton-aplica-drepturi.tsx` arată un toast cu acțiunea
+„Vezi soldurile" spre `/concedii/sold`, iar mesajul de după o grilă nouă leagă ancora
+`#aplicare` a secțiunii de aplicare, în loc să trimită omul s-o caute cu ochii.
+
+Zilele nu sunt bani: previzualizarea și tabelele de tipuri și de grile le scriu cu
+`formatNumar` din `src/lib/format/numar.ts`, nu cu `formatAmount`, care forța două
+zecimale — „13,00 zile".
+
 ## Citiri
 
 `src/lib/queries/leave.ts`: `configurareConcedii` (tipurile, grilele și zilele de bază
 într-o singură trecere), `previzualizeazaDrepturi`, `coduriIndemnizatieMedicala`,
-`varianteConcediu`.
+`varianteConcediu`. Plus `deAprobat`, chemată doar când `leave:approve = team` trece:
+numără `approval_tasks` pentru insigna din `NavConcedii`, și de la ea vine `user` din
+`requireTenant`.
 
 ## Ce se mișcă împreună
 

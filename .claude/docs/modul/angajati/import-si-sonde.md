@@ -12,15 +12,18 @@ cai:
 tabele: [import_uploads, employees, employee_sensitive_data, leave_balances, employment_contracts]
 permisiuni: [employees:read, employees:create, employees:update]
 capcane: []
-scris_pe: 39b722927256b17b7eb5903a5404da19db53378a
-scris_la: 2026-10-23
+scris_pe: 3760e43cc77bfb934a236ef82ab1475d647c0a11
+scris_la: 2026-10-30
 tags: [modul, hr, nucleu]
 ---
 
 # Angajați — importul și refuzurile care nu deosebesc firmele
 
-Secțiune extrasă din [[modul/angajati]] (pagina principală e la plafon): două reguli de
-securitate din 0226 (X2), cu proba lor în `tests/rls/proba-securitate-reziduala.sql`.
+Secțiune extrasă din [[modul/angajati]] (pagina principală e la plafon): regulile pe
+care baza le aplică fișei de angajat fără să deosebească firmele — cele două din 0226
+(X2), cu proba lor în `tests/rls/proba-securitate-reziduala.sql`, și trecerea
+sistematică din `supabase/migrations/0233_oracol_intre_firme.sql`, cu
+`tests/rls/proba-oracol-intre-firme.sql`.
 
 ## Lotul de import e emis de bază
 
@@ -63,10 +66,19 @@ ceilalți.
 
 Garda se scrie `not coalesce(org = any (current_org_ids()), false)`: pe `organization_id`
 null, forma fără `coalesce` e NULL și nu ridică, iar NOT NULL se judecă abia după WITH
-CHECK (0233 §3, proba-oracol-intre-firme §n). Tot din 0233 (§8), contractul
-(`tg_contracts_validari`) caută angajatul doar în firma lui, după aceeași gardă: un singur
-P0001, „Angajatul indicat nu există în organizația dumneavoastră.”, în locul perechii cu
-„aparțin unor organizații diferite”.
+CHECK (0233 §3, proba-oracol-intre-firme §n). Forma veche nu mai e nicăieri: verificarea
+§11 a lui 0233 citește, la aplicare, definițiile tuturor funcțiilor vii din `public`,
+`internal` și `app` și oprește migrarea dacă mai găsește o gardă fără `coalesce`.
+
+Tot din 0233 (§8), contractul (`tg_contracts_validari`) caută angajatul doar în firma lui,
+după aceeași gardă: un singur P0001, „Angajatul indicat nu există în organizația
+dumneavoastră.”, în locul perechii cu „aparțin unor organizații diferite”. Proba rulează
+aceeași scriere de două ori — cu un angajat care există în firma vecină și cu un id
+inventat — și cere răspunsuri identice: 42501 neutru pe un contract pus pe firma vecină
+(g26), același 42501 pe un contract lăsat fără firmă (n12, locul unde garda fără
+`coalesce` trecea) și același P0001 pe un contract al firmei proprii (h5). Poarta pozitivă
+e p9: cu garda pusă, un `hr` întocmește în continuare contractul unui angajat al firmei
+lui.
 
 Cheile străine COMPUSE spre `employees` (`(employee_id, organization_id)`) nu sunt o
 sondă: id-ul inventat și cel din altă firmă dau același 23503, cu același mesaj (proba (8)),

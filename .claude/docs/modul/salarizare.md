@@ -20,14 +20,15 @@ tabele:
     salary_component_types,
     medical_leave_codes,
   ]
-permisiuni: [payroll:read, payroll:create, payroll:update, payroll:approve, payroll:export]
+permisiuni:
+  [payroll:read, payroll:create, payroll:update, payroll:approve, payroll:export, employees:read]
 feature: payroll
 capcane: [2, 17]
 citeste_daca:
   - "perioadă care nu se recalculează → [[date/pontaj]]"
   - "sumă greșită → src/domain/payroll/, nu pagina asta"
-scris_pe: 5621e9e8308157d5103f0b52dd696cb318da688c
-scris_la: 2026-09-10
+scris_pe: 3760e43cc77bfb934a236ef82ab1475d647c0a11
+scris_la: 2026-10-30
 tags: [modul, finance]
 ---
 
@@ -38,89 +39,66 @@ Perioade lunare de salarizare: se creează, se calculează din pontaj, se aprob�
 legale** — plafoane, deduceri personale, cote — care sunt marcate în `NOTES.md` ca
 neconfirmate de contabil.
 
+## Paginile modulului
+
+Pagina asta e trunchiul; restul s-a spart pe subarborele de rute
+(`.claude/docs/meta/conventii.md`).
+
+| Pagină                             | Ce ține                                                                |
+| ---------------------------------- | ---------------------------------------------------------------------- |
+| [[modul/salarizare/actiuni]]       | scrierile, porțile lor, pre-verificările dinaintea bazei, setările     |
+| [[modul/salarizare/calcul]]        | motorul `calculatePayrollEntry`, etapele lui, catalogul de atenționări |
+| [[modul/salarizare/livrabile]]     | cele patru descărcări ale perioadei aprobate, porțile și antetele lor  |
+| [[modul/salarizare/nomenclatoare]] | `/salarizare/componente` și `/salarizare/popriri`: poarta lor aparte   |
+| [[modul/salarizare/portal]]        | ce vede angajatul din portal despre propriul fluturaș                  |
+
 ## Rute și cine ajunge
 
-| Rută                                            | Poartă                                                                    |
-| ----------------------------------------------- | ------------------------------------------------------------------------- |
-| `/salarizare`                                   | `payroll:read`/`create`/`update`, toate **all**                           |
-| `/salarizare/[id]`                              | `payroll:read` all; butoanele cer `create`, `update`, `approve`, `export` |
-| `/salarizare/[id]/[entryId]`                    | `payroll:read` all                                                        |
-| `/salarizare/componente`, `/salarizare/popriri` | `payroll:read` la orice scope; butoanele cer `create`/`update` all        |
-| `/salarizare/istoric-venituri`                  | `payroll:create` all                                                      |
-| `/salarizare/setari`                            | `payroll:update` all                                                      |
+| Rută                                            | Poartă                                                                                  |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `/salarizare`                                   | `payroll:read` all; „Istoric venituri" cere `payroll:create`, „Setări" `payroll:update` |
+| `/salarizare/[id]`                              | `payroll:read` all; butoanele cer `create`, `update`, `approve`, `export`               |
+| `/salarizare/[id]/[entryId]`                    | `payroll:read` all                                                                      |
+| `/salarizare/componente`, `/salarizare/popriri` | `payroll:read` la orice scope ([[modul/salarizare/nomenclatoare]])                      |
+| `/salarizare/istoric-venituri`                  | `payroll:create` all                                                                    |
+| `/salarizare/setari`                            | `payroll:update` all                                                                    |
 
 **Niciun scope de „echipă".** Modulul nu are noțiunea: cele patru ecrane
 administrative cer `all` direct, iar `manager` — care are `payroll` pe `none`
-(`0002_authz.sql:1191`) — nu trece de niciunul.
+(`0002_authz.sql:1191`) — nu trece de niciunul. Preambulul cere `requireFeature`,
+`getPermissionMap` **și** `getEnabledFeatures` prin `Promise.all`, în toate paginile
+modulului — citiri independente, respinse la fel ca înlănțuite.
 
-Cele două nomenclatoare fac excepție: `componente/page.tsx:51-52` și
-`popriri/page.tsx:33-34` cer doar ca `payroll:read` să EXISTE, la orice scope, și lasă
-baza să îngusteze lista. Poarta compară cu `null` **și** cu `"none"`, fiindcă
-`getPermissionMap` scoate scope-ul `none` din hartă după rezolvare
-(`permissions.ts:127`), iar `scopeFor` întoarce `null` pentru o cheie absentă
-(`permissions.ts:142-144`) — o poartă scrisă doar pe `=== "none"` nu se închide
-niciodată. (Preambulul cere `requireFeature` și `getPermissionMap` prin `Promise.all`, în
-toate paginile modulului — două citiri independente, respinse la fel ca înlănțuite.)
-
-## Server Actions
-
-`src/app/(app)/salarizare/actions.ts`, plus `popriri/`, `componente/`, `setari/`.
-
-| Funcție                                                                                     | Permisiune / minScope                    |
-| ------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| `creeazaPerioada`, `calculeazaPerioada`                                                     | `payroll:create` / all                   |
-| `aprobaPerioada`, `inchidePerioada`                                                         | `payroll:approve` / all                  |
-| `redeschidePerioada`                                                                        | `payroll:update` / all                   |
-| `adaugaPrima`, `adaugaRetinere`, `salveazaIstoricVenit`                                     | `payroll:create` / all                   |
-| `stergePrima`, `stergeRetinere`                                                             | `payroll:update` / all                   |
-| `trimiteFluturasii`                                                                         | `payroll:export` / all                   |
-| `creeazaPoprire` / `inchidePoprire`                                                         | `payroll:create` / `payroll:update`, all |
-| `creeazaSablonComponenta` / `actualizeazaSablonComponenta` / `dezactiveazaSablonComponenta` | `payroll:create` / `payroll:update`, all |
-| `salveazaSetari`                                                                            | `payroll:update` / all                   |
-
-Cele trei formulare de adăugare — `FormularSablonComponentaNou`, `FormularPoprireNoua`,
-`FormularIstoricVenit` — se cer dintr-un buton și se deschid în casetă, prin
-`FormularDialog` (`src/components/ui/formular-dialog.tsx`), nu desfăcute sub antet: în
-spate rămâne vizibilă lista de citit înainte de a scrie — cod intern liber, dosare de
-poprire, luni de venit deja introduse. Închiderea și `router.refresh()` le face
-componenta, deci ecranele nu mai țin `deschis` și `laReusita`. `FormularIstoricVenit` își
-dezactivează butonul când nu are niciun angajat de ales. `setari/formular-setari.tsx`
-rămâne în pagină — e ecranul însuși, nu o adăugare.
+**Fiecare link de IEȘIRE trece prin poarta paginii-ȚINTĂ**, nu prin a salarizării:
+`poateDeschide` din `src/config/porti-ruta.ts`. Pontajul, concediile, diurna și
+rapoartele sunt module opționale, iar `requireFeature` dă 404 fără ele; fișa angajatului
+cere `employees:read` all, deci numele devin linkuri (`LinkEntitate`) numai atunci.
+Atenționările fluturașului își iau adresa din `legaturi-avertismente.ts`: ruta generică
+(`unde`) din catalogul `src/domain/payroll/erori.ts` devine ecranul omului și al lunii,
+sau text simplu dacă ținta e închisă. Traducerea se face la randare, din cod, deci
+acoperă și fluturașii vechi, fără schimbarea formei salvate.
 
 ## Citiri
 
-`src/lib/queries/payroll.ts` — cel mai mare fișier de citiri din proiect:
-`listeazaPerioade`, `citestePerioada`, `listeazaInregistrari`, `citesteInregistrare`,
-`citesteFluturasulPropriu`, `perioadaInregistrarii`, `pontajAgregatPerioada`,
-`zileLucratoareLuna`, `angajatiActiviCuContract`, `scutiriActivePerioada`,
-`componenteSalarialeActivePerioada`,
-`primeSiRetineriPerioada`, `istoricVenitPerAngajat`, `certificateMedicaleLuna`,
-`compensariLuna`, `diurnaLunaPerAngajat`, `plafoaneDiurnaLuna`, `popririActive`,
-`dosarePopriri`, plus setările valabile la o dată.
+`src/lib/queries/payroll.ts` — cel mai mare fișier de citiri din proiect, marcat
+`"server-only"`: `listeazaPerioade`, `citestePerioada`, `listeazaInregistrari`,
+`citesteInregistrare`, `citesteFluturasulPropriu`, `perioadaInregistrarii`,
+`pontajAgregatPerioada`, `zileLucratoareLuna`, `angajatiActiviCuContract`,
+`scutiriActivePerioada`, `componenteSalarialeActivePerioada`, `primeSiRetineriPerioada`,
+`istoricVenitPerAngajat`, `certificateMedicaleLuna`, `compensariLuna`,
+`diurnaLunaPerAngajat`, `plafoaneDiurnaLuna`, `popririActive`, `dosarePopriri`,
+`salariulMinimLaData`, `angajatiFaraIban`, `rezumatSalarizareAngajat`,
+`perioadaSalarizariiPentruPontaj`, plus setările valabile la o dată.
 
-## Livrabilele perioadei
+`listeazaInregistrari` numără `calc_warnings` la citire (`avertismente`) și ridică
+`programSubCinciZile`: tabelul perioadei are coloana „Atenționări" și NUMEȘTE oamenii cu
+program sub cinci zile pe săptămână, în loc să-i afli deschizând fiecare fluturaș. Codul
+vechi `NORMA_SUB_CINCI_ZILE` rămâne recunoscut, pentru perioadele aprobate înainte de
+redenumire, deci nerecalculate.
 
-Panoul „Livrabile" de pe `/salarizare/[id]` apare doar când perioada e `aprobat` sau
-`inchis`. Cele patru descărcări — `bancar`, `nota`, `stat`, `d112`, sub
-`src/app/api/export/salarizare/` — se cer prin `ButonDescarcare`
-(`src/components/incarcare/buton-descarcare.tsx`), **nu** prin `<a href>`: rutele refuză
-în `text/plain`, nu în JSON (`d112/route.ts:43`, `bancar/route.ts:31`), iar printr-o
-navigare refuzul înlocuia ecranul cu pagina aia de text; prin `fetch` ajunge într-o
-notificare și omul rămâne pe perioadă.
-
-`d112` cere `payroll:export` all **și** `employees:read` all (`d112/route.ts:70-78`) —
-declarația conține CNP-ul fiecărui asigurat, deci `payroll:export` singur nu ajunge.
-
-Cifrele de control ale exportului nu sunt în corpul răspunsului, ci în antete:
-`bancar/route.ts:174-176` trimite `x-plati-incluse`, `x-suma-control` și `x-fara-iban` —
-ce NU a intrat în fișier. `ButonDescarcare` le citește și le pune în notificarea de
-reușită. `d112/route.ts` trimite și `x-atentionari` (atenționări ANAF neblocante, câte
-una pe asigurat cu sumă neimpozabilă), iar butonul îl are în `ANTETE_CONTROL`: numărul
-apare în notificare, dar NU cine sunt — mesajele rămân în ruta de generare.
-
-`d112` citește `calc_breakdown` și declară `A_5` (baza CAM) = brut − suma neimpozabilă.
-Tipul de asigurat 51 și `A_13S` nu se generează, iar fișierul nu trece XSD-ul ANAF, nici
-cel curent, nici cel din 2019 (validat): [[modul/salarizare/calcul]], `NOTES.md` §3.
+`rezumatSalarizareAngajat` și `perioadaSalarizariiPentruPontaj` sunt drumurile inverse —
+spre fișa angajatului și spre perioada de pontaj — pe care modulul nu le avea: lega doar
+dinspre el însuși.
 
 ## Ce refuză baza tăcut
 
@@ -129,27 +107,30 @@ cel curent, nici cel din 2019 (validat): [[modul/salarizare/calcul]], `NOTES.md`
   `inchidePerioada` și `redeschidePerioada` tratează rezultatul gol drept conflict. — capcana #17
 - **Agregarea din pontaj se paginează după angajat.** PostgREST trunchiază tăcut peste
   `max_rows`; `pontajAgregatPerioada` citește pe angajați, nu pe rânduri de pontaj. — capcana #2
+- **`istoricVenitPerAngajat` și `diurnaLunaPerAngajat` citeau fără fereastră și fără
+  `ORDER`**, deci creșteau cu fiecare lună calculată până la trunchierea tăcută: media
+  pentru indemnizațiile CO/CM scădea, iar diurna unor deplasări lipsea de pe stat. Acum
+  trec prin `citesteTot` (`src/lib/queries/citeste-tot.ts`), cu cursor keyset. — capcana #2
+- **`baremLegalZi` din `diurnaLunaPerAngajat` e plafonul ÎNTREGII deplasări, deja
+  înmulțit cu multiplul**, nu baremul legal pe zi; „ziua" e sintetică. De aceea
+  `calculeazaPerioada` îl împarte la `multiplicatorPlafonZilnic` înainte de a-l da etapei,
+  ca ea să-l reaplice exact. Până la 2 oct 2026 etapa îl mai înmulțea o dată și îl compara
+  cu suma TOTALĂ: o deplasare de o zi ieșea neimpozitată, una lungă impozitată fără temei.
+- **Un pontaj blocat, dar GOL, trece prin calcul fără o vorbă** și dă „brut 0,00 lei"
+  pentru toată lumea — salariul se plătește pe zilele din pontaj. Ecranul perioadei
+  întreabă `numarZilePontatePerioada` și pune un AVERTISMENT, nu un blocaj (o firmă în
+  pauză are legitim o lună fără pontaj), iar calculul marchează fiecare fluturaș cu
+  `SAL_PONTAJ_FARA_ZILE`.
 - **Traducerea erorilor acoperă șase coduri**, mai multe decât oriunde altundeva:
   `23505`, `42P10`, `23514`, `22003`, `22012`, `P0001` (`erori.ts`). `22003` și `22012`
   sunt depășire numerică și împărțire la zero — vin din calcul, nu din autorizare, unde
   un mesaj generic ar trimite investigația greșit.
-- **`/salarizare/popriri` deschis nu înseamnă lista întreagă.**
-  `payroll_garnishments_select` trece prin `app.poate_accesa_salariul(…, 'read')`
-  (`0059_salarizare_popriri.sql:106-111`), deci sub `all` rămân doar dosarele proprii —
-  listă scurtă sau `StareGoala`, niciodată eroare. Catalogul de la
-  `/salarizare/componente` e invers: `salary_component_types_select`
-  (`0005_hr_rls.sql:751-759`) filtrează numai pe organizație — un șablon nu e salariul
-  nimănui.
 - **Funcția de pe fluturașul trimis pe e-mail vine din coloană, nu din embed.**
   `0110_functia_pe_fisa.sql` a desființat nomenclatorul `job_positions` și a mutat
   denumirea pe `employees.functie`. `job_position_id` a rămas pe tabelă, dar nu-l mai
   populează nimeni, deci embed-ul vechi întorcea `null` — fără eroare — pentru fiecare
-  fișă creată după 0110. `COLOANE_FLUTURAS_EMAIL` (`actions.ts:244`) cere azi `functie`,
-  la fel ca `api/export/salarizare/fluturas/route.ts:70`.
-- **`zile_fara_plata` e cheie OBLIGATORIE în `payroll_scrie_rezultate`** de la
-  `0126_d112_ore_suspendate.sql`: omisă, lotul cade cu `P0001`. Până atunci se agrega
-  (`0064`) și se pierdea la ieșirea din RPC, iar D112 declara `A_7 = 0` fără eroare;
-  perioadele calculate înainte de 0126 rămân pe zero.
+  fișă creată după 0110. `COLOANE_FLUTURAS_EMAIL` cere azi `functie`, la fel ca
+  `api/export/salarizare/fluturas/route.ts:70`.
 - **Indemnizația de CM se împarte în trei baze**, după `retine_cas`/`retine_impozit`/
   `retine_cass` din `medical_leave_codes` (`0127_indemnizatie_cm_retineri.sql`). Înainte,
   impozitul cădea pe toată indemnizația — inclusiv maternitate (`11`) și risc maternal
@@ -158,26 +139,6 @@ cel curent, nici cel din 2019 (validat): [[modul/salarizare/calcul]], `NOTES.md`
 - **Valorile legale nu sunt adevăr.** Plafoanele și cotele din `payroll_settings` și
   `payroll_personal_deduction_brackets` sunt marcate în `NOTES.md` ca ⚠ de confirmat de
   contabil înainte de orice calcul real.
-- **Perioadele NU mai sunt complet închise pentru angajat** — de la
-  `0113_luna_fluturasului_propriu.sql`. `payroll_periods_select` cerea `payroll:read = all`,
-  deci `an` și `luna` îi erau refuzate tăcut, iar portalul își scria fluturașul fără lună
-  (`perioada={null}` stătea literal în cod). Ramura nouă îi dă EXACT perioadele
-  `aprobat`/`inchis` în care are propriul fluturaș, prin `app.are_fluturas_in_perioada`
-  (definer, ca verificarea să nu treacă prin RLS-ul lui `payroll_entries` — vezi 0027).
-  Poarta pozitivă e `tests/rls/proba-fluturas-luna.sql`, care cade pe verificarea (1) dacă
-  cineva restrânge politica la loc.
-
-## Ce vede angajatul din portal
-
-`citesteFluturasulPropriu` (cel mai recent, dintr-o perioadă aprobată) plus
-`perioadaInregistrarii` pentru luna lui — un al doilea drum, fiindcă `period_id` se află
-abia după primul. NU se face embed PostgREST pe `payroll_periods`: un embed refuzat de RLS
-întoarce `null` în loc de rând, fără eroare, adică exact bug-ul închis în 0027.
-
-Cele două ecrane care le folosesc: `/portal/salariul-meu` (fluturașul întreg, prin
-`Fluturas`) și cardul de pe ecranul de start, `portal/card-salariu.tsx` — net de plată,
-luna, și un inel cu două felii (net vs. CAS+CASS+impozit, care însumează brutul). Cardul
-NU e pe fundal plin: `Inel` își desenează separatoarele în `var(--color-background)`.
 
 ## Ce se mișcă împreună
 
@@ -196,6 +157,6 @@ Pontajul care alimentează calculul (`[[modul/pontaj]]`), diurna, și fișa anga
 ## Când NU e suficientă pagina asta
 
 - Orice întrebare despre o cifră: `src/domain/payroll/` plus `NOTES.md` §valorile legale.
-- Exportul: route handlers sub `src/app/api/export/salarizare/` — aici doar cum se cer
-  și ce antete întorc.
+- Exportul: route handlers sub `src/app/api/export/salarizare/` — [[modul/salarizare/livrabile]]
+  spune doar cum se cer și ce antete întorc.
 - Legăturile dintre ecrane (lotul 7i: atenționările → ecranul de reparat, `legaturi-avertismente.ts`): [[strat/navigare]].

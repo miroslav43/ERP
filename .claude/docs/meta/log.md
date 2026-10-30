@@ -326,3 +326,10 @@ de oricine face un push.
 - module atinse: —
 - straturi atinse: —
 - pagini rescrise: modul/concedii/actiuni.md modul/flota/actiuni.md modul/notificari.md modul/onboarding.md modul/organigrama.md modul/pontaj.md modul/pontaj/foaia.md modul/pontaj/saptamana.md modul/concedii/actiuni/citiri.md modul/notificari/push.md modul/onboarding/defecte.md modul/onboarding/dovezi.md modul/pontaj/saptamana/antet.md modul/pontaj/saptamana/concediu.md
+
+## 2026-10-30
+
+- commit-uri în ultimele 24h: 1
+- module atinse: —
+- straturi atinse: —
+- pagini rescrise: modul/angajati/import-si-sonde.md modul/concedii/setari.md modul/flota/rezervari.md modul/flota/roluri-si-portal.md modul/pontaj/varianta.md modul/salarizare.md modul/flota/roluri-si-portal/foaie-noua.md modul/flota/roluri-si-portal/masina-mea.md modul/salarizare/actiuni.md modul/salarizare/livrabile.md modul/salarizare/nomenclatoare.md modul/salarizare/portal.md
