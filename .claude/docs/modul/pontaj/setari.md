@@ -7,11 +7,12 @@ cai:
   - "src/domain/attendance/pontare-rapida.ts"
   - "src/domain/attendance/limite-legale.ts"
 tabele: [setari_pontare_rapida, attendance_settings, puncte_lucru]
-permisiuni: [attendance:update, attendance:read, departments:update]
+permisiuni:
+  [attendance:update, attendance:read, departments:update, departments:read, payroll:update]
 feature: attendance
-capcane: [17]
-scris_pe: 9bcef48615294790f0c04bd5416cda7105bee151
-scris_la: 2026-09-19
+capcane: [7, 17]
+scris_pe: a67bb3cc1be0a37072b4d1bb96fb262cf8338586
+scris_la: 2026-10-31
 tags: [modul, hr]
 ---
 
@@ -22,12 +23,23 @@ Două ritmuri de scriere, deliberat despărțite. `attendance_settings` e VERSIO
 `setari_pontare_rapida` e un rând per firmă, rescris, fără istoric: acolo stau alegerile
 OPERAȚIONALE, care n-au ce reconstitui pentru o lună trecută.
 
+## Paginile modulului
+
+Pagina asta ține cele două tabele, varianta de pontaj, cele două scrieri și poarta filei
+„Coduri QR". Restul s-a spart pe subpagini (`.claude/docs/meta/conventii.md`).
+
+| Pagină                                | Ce ține                                                                |
+| ------------------------------------- | ---------------------------------------------------------------------- |
+| [[modul/pontaj/setari/aprobarea]]     | `necesita_aprobare` și `tip_prezenta`: ce pași scoate, ce nu adaugă    |
+| [[modul/pontaj/setari/formulare]]     | `Camp`, `Formular`, caseta golită, ce rămâne pe ecran după un refuz    |
+| [[modul/pontaj/setari/limite-legale]] | avertismentele de dreptul muncii: coduri, severități, ce nu se acoperă |
+
 ## Pontarea rapidă are tabela ei (0115)
 
 `setari_pontare_rapida` — **un rând per firmă, fără `valabil_de_la`**. Numele vine de la
-primele trei coloane; din 0118 poartă și `necesita_aprobare`, deci e tabela setărilor
-OPERAȚIONALE de pontaj, nu doar a celor de pe telefon. Cele trei coloane
-(`mod_pontare_rapida`, `verificare_pontare`, `program_start`) au plecat din
+primele trei coloane; din 0118 poartă și `necesita_aprobare`, din 0165 și `varianta_pontaj`,
+deci e tabela setărilor OPERAȚIONALE de pontaj, nu doar a celor de pe telefon. Cele trei
+coloane (`mod_pontare_rapida`, `verificare_pontare`, `program_start`) au plecat din
 `attendance_settings`, unde stăteau într-o scriere VERSIONATĂ: pornirea unui buton de
 pontare cerea reconfirmarea a optsprezece cifre de dreptul muncii și o dată de intrare în
 vigoare. Coloanele vechi rămân pe loc, marcate ca înlocuite (tiparul 0082) — nu se mai
@@ -48,10 +60,57 @@ Cine adaugă o setare operațională o pune în tabela asta, nu în `attendance_
 o trece prin `configPontareRapida` — cele cinci ecrane nu mai recompun regula fiecare cu
 `?? "oprit"`.
 
+## Varianta de pontaj, prima alegere a ecranului (0165)
+
+`varianta_pontaj` (`0165_pontaj_varianta_saptamanala.sql`), `zilnic` sau `saptamanal`,
+intră prin aceeași acțiune ca restul alegerilor operaționale. Pe ecran e PRIMA secțiune,
+fiindcă le ramifică pe toate celelalte: pe `saptamanal`, „Cum se pontează", ora programului
+și „Verificarea prezenței" DISPAR din formular în loc să se dezactiveze — un control mort
+lângă o alegere vie se citește ca o setare care încă se aplică. Ramificat e și textul de
+sub comutatorul de aprobare, în patru variante (`necesitaAprobare` × variantă), fiindcă pe
+`saptamanal` el vorbește despre fișa săptămânii, nu despre zile. Ce se stinge de fapt în
+restul produsului: [[modul/pontaj/varianta]].
+
+Alegerile ascunse se PĂSTREAZĂ neatinse, ca întoarcerea pe `zilnic` să regăsească firma
+cum era — de aici **cele două refuzuri care nu se arată nicăieri**:
+
+- Verificarea de pe client e păzită de `peZi` (`formular-pontare-rapida.tsx`), dar
+  `setariPontareRapidaSchema` cere în continuare `program_start` pentru `confirmare` și
+  `ambele`. Cine alege `confirmare` fără oră, trece pe `saptamanal` și salvează primește
+  `VALIDARE` pe `program_start` — un câmp care nu mai e desenat — iar propoziția generală
+  se stinge tocmai fiindcă există o eroare pe câmp: ecranul nu arată NIMIC.
+- Garda afișelor din acțiune rulează indiferent de variantă, deci o firmă cu `cod_qr`
+  salvat și fără niciun punct activ cu cod e refuzată cu un mesaj despre afișe tocmai la
+  salvarea în care codul QR nu mai pontează nimic.
+
+Implicitul `zilnic` e scris în trei locuri care trebuie să rămână identice:
+`IMPLICIT_PONTARE_RAPIDA.varianta`, `internal.pontaj_varianta` în SQL și `.default()`-ul
+din schemă — ultimul e cel care ține un apelant vechi să nu mute firma pe săptămână din
+greșeală. Întrebarea se pune o singură dată, cu `sePonteazaPeZi`.
+
+## Cele două scrieri: 23505 nu e „o zi de pontaj"
+
+`salveazaSetariPontaj` INSEREAZĂ întotdeauna, niciun UPDATE: o versiune nouă la fiecare
+salvare. `attendance_settings_valabilitate_uq` (`0013_attendance.sql:54`) respinge a doua
+versiune cu același `valabil_de_la`, iar `traduEroare` al pontajului traduce ORICE 23505 în
+mesajul zilei de pontaj — omul de pe ecranul de setări citea despre „o zi de pontaj pentru
+acest angajat". De aceea codul e prins ÎNAINTE de `traduEroare`, cu data cerută în mesaj.
+
+`salveazaPontareaRapida` face invers: citire, apoi INSERT sau UPDATE. `.upsert()` nu e o
+alternativă — indexul unic al tabelei e PARȚIAL (`where deleted_at is null`), iar PostgREST
+nu emite predicatul în `ON CONFLICT`: Postgres refuză inferența la PLANIFICARE, deci apelul
+ar cădea cu 42P10 la FIECARE salvare, nu doar la conflict (capcana #7). Refuzul politicii
+se vede doar prin `.select()` după `.update()`, cu rezultatul gol tratat drept CONFLICT
+(capcana #17). Amândouă au testele lor în `actions.test.ts`, pe clientul Supabase fals.
+
+Revalidarea pontării rapide atinge și ecranele săptămânii, în aplicație și în portal —
+`/pontaj/saptamana`, `/portal/pontajul-meu`, `/portal/pontajul-meu/saptamana` — nu doar
+`/portal/ceas`: varianta schimbă exact ce desenează ele.
+
 ## Fila „Coduri QR": alt secret, altă poartă
 
-`/pontaj/setari/coduri-qr` e a treia filă din `NavSetariPontaj` și singura care nu salvează
-nicio setare — arată codul însuși, din `puncte_lucru`, fără să dubleze nimic în bază. Lista
+`/pontaj/setari/coduri-qr` e a treia filă a setărilor și singura care nu salvează nicio
+setare — arată codul însuși, din `puncte_lucru`, fără să dubleze nimic în bază. Lista
 „Afișele de pontare" din fila „Pontarea" a plecat aici; acolo a rămas doar trimiterea,
 fiindcă acolo se ia decizia care o face necesară.
 
@@ -61,9 +120,18 @@ fiindcă acolo se ia decizia care o face necesară.
 - Fila vecină cere `attendance:update = all`. Pe matricea de ROLURI cele două nu se despart;
   un refuz PER MEMBRU da — `role_permissions.member_id` bate rândul de rol, inclusiv pe
   valoarea `none` (`0143_seful_iese_din_departament.sql:80`).
-- `NavSetariPontaj` desenează fila NECONDIȚIONAT, deci acel membru o vede și cade pe
-  `AccesRestrictionat`. Din antetul modulului, `ButonSetariPontaj` face invers: ascunde
-  linkul, pe `poateVedeaCoduriQr` (`file-pontaj.ts`), ținut separat de `poateConfigura`.
+- Banda nu se mai scrie de mână: `FileModul` filtrează `FILE_SETARI_PONTAJ`
+  (`src/config/file-module.ts`) prin poarta FIECĂREI file, din registrul porților de rută.
+  Fila se stinge singură pentru cine n-o poate deschide, iar o bandă rămasă cu o singură
+  filă nu se randează deloc — deci membrul refuzat per membru pe `attendance:update` vede
+  pagina asta fără nicio navigare, nu o filă care cade pe `AccesRestrictionat`.
+  `NavSetariPontaj` nu mai există. Restul linkurilor: [[modul/pontaj/navigare]].
+- Linkurile care ies din ecran se sting în TEXT, nu dispar: „Coduri QR" din fila „Pontarea"
+  (`poateVedeaCoduriQr`, pasat de pagină), „Salarizare → Setări" din fila juridică
+  (`poateVedeaSalarizare` = modulul `payroll` activ ȘI `payroll:update` la `all`), iar în
+  fila „Coduri QR" numele punctului de lucru și acțiunea stării goale cer `departments:read`
+  — pe care `departments:update` n-o implică la un refuz per membru. Propoziția care explică
+  de ce sporurile se setează în altă parte trebuie să rămână citibilă și fără link.
 - **Baza nu e a doua barieră**: `puncte_lucru_select` cere doar `departments:read`. De asta
   verificarea stă înaintea citirii, nu după.
 
@@ -73,119 +141,10 @@ adresa de sub cod, scrisă acolo intenționat, ca cineva s-o verifice înainte d
 
 `ButonCodQr` importă `rotesteCodPontaj` din `puncte-lucru/actions` în loc s-o rescrie: a
 doua copie ar fi însemnat a doua allow-list de audit goală și al doilea `.select()` după
-`.update()` (capcana 17). Acțiunea revalidează `/puncte-lucru`, **nu ruta asta** — poza nouă
+`.update()` (capcana #17). Acțiunea revalidează `/puncte-lucru`, **nu ruta asta** — poza nouă
 vine din `router.refresh()`, nu din răspuns, deși răspunsul chiar conține codul; la refuz nu
 se reîmprospătează nimic, ca mesajul să rămână pe ecran.
 
 `afise` rămâne prop al lui `FormularPontareRapida` deși lista a plecat: „Numai prin cod QR"
 se stinge când niciun punct ACTIV n-are cod, altfel alegerea ar fi oprit pontarea pentru
 toată firma, tăcut.
-
-## Locul de muncă și aprobarea ca alegere a firmei (0118)
-
-**`attendance_entries.tip_prezenta`** — același enum `attendance_presence_kind` ca planul
-săptămânal (0041), ajuns pe pontajul REAL abia acum. **Nullable, fără `default`**: zilele
-de dinainte de 0118 și tot ce scrie pontarea rapidă de pe telefon n-au declarat nimic, iar
-un backfill s-ar citi mai târziu drept alegerea cuiva — lecția scrisă în 0115 despre
-`mod_pontare_rapida = 'oprit'`. Implicitul pentru o zi NOUĂ e `birou` și stă în COD
-(`celula-zi.tsx`); o zi EXISTENTĂ fără declarație se deschide pe „Nedeclarat", altfel
-„Salvează" ar scrie o afirmație pe care n-a făcut-o nimeni.
-
-**`setari_pontare_rapida.necesita_aprobare`** — `true` implicit, și pentru firma FĂRĂ rând.
-Sursa unică a implicitului e perechea `internal.pontaj_necesita_aprobare` (SQL) ↔
-`IMPLICIT_PONTARE_RAPIDA.necesitaAprobare` (TS): dacă una se schimbă, triggerul și ecranul
-decid altfel pentru aceeași firmă.
-
-Stinsă, setarea scoate PAȘI, nu adaugă privilegii — și asta e toată ideea:
-
-- Politica INSERT (`0013:789`) cere `approved_at is null`; politica UPDATE (`0013:795`)
-  lasă modificările **doar** cât timp e null. Împreună dau exact ce vrea o firmă fără
-  aprobare: ziua se salvează, rămâne salvată și rămâne EDITABILĂ. Nimic nu se ștampilează,
-  deci reaprinderea setării e simetrică.
-- Planul săptămânal e singurul care are nevoie de o stare terminală: triggerul din §3 îl
-  duce direct pe `aprobata`, fără `approval_tasks` și fără notificări (`notifica_decizie`
-  e păzită de aceeași funcție — altfel angajatul primea „a fost aprobat" de la nimeni).
-- **Capcana pe care o repară §5**: upsert-ul din `trimite_saptamana_pontaj` (`0084:103`)
-  are `where … status in ('ciorna','trimisa','respinsa')`, deci auto-aprobarea ar fi
-  ÎNGHEȚAT planul la prima trimitere, cu mesajul „Săptămâna a fost deja aprobată". Garda se
-  ridică doar unde n-a decis nimeni. Ecranele au ramura pereche în `poateEdita`; despărțite,
-  ar oferi un buton pe care baza îl refuză.
-- Badge-ul trece prin `etichetaStareSaptamana(stare, necesitaAprobare)`: `aprobata` fără
-  pas de aprobare se scrie **„Salvat"**, nu „Aprobată" — n-a decis nimeni nimic.
-
-Ce se DESENEAZĂ se decide o singură dată, în `file-pontaj.ts`: `poateAproba` compune
-permisiunea cu alegerea firmei, iar `necesitaAprobare` rămâne separat pentru textul de pe
-butoane (un `employee` are `poateAproba = false` oricum, dar butonul lui trebuie să spună
-„Trimite spre aprobare" într-o firmă care aprobă). Condiția stătea în CINCI locuri; a doua
-condiție adăugată în fiecare garanta că unul rămâne în urmă.
-
-**Ascunderea nu e barieră.** `refuzaCandAprobareaEStinsa` (`aprobarea-firmei.ts`) oprește
-cele trei acțiuni de decizie, iar `/pontaj/aprobare` arată o stare goală care trimite în
-Setări în loc de o listă goală care s-ar citi drept „nu mai are nimeni nimic de aprobat".
-
-## Refuzul se arată lângă caseta vinovată, nu sub buton
-
-Ambele formulare ale ecranului trec prin `Camp` (`src/components/ui/camp.tsx`); cel
-juridic trece și prin `Formular` (`src/components/ui/formular.tsx`). Trei consecințe care
-nu se citesc din markup:
-
-- **Caseta golită nu se mai salvează ca zero.** Cele trei câmpuri numerice CONTROLATE ale
-  formularului juridic — `ore_pe_zi`, `pauza_masa_minute`, `pauza_obligatorie_peste_ore` —
-  pleacă din stare, nu din `FormData`, și golite ajung `null` sau șir gol, niciodată `0`.
-  Un `?? 0` pe drum ar fi ocolit chiar plasa din schemă: `numarObligatoriu`
-  (`src/schemas/comun.ts:205`) scoate golul ÎNAINTE de coerciție, dar un zero explicit
-  arată ca o cifră aleasă — iar șapte parametri ai ecranului au plafonul de jos chiar 0.
-  „Repaus zilnic minim: 0 ore" e o afirmație juridică pe care n-a făcut-o nimeni, și pe
-  care `app.verifica_pontaj` o folosește apoi ca să nu mai avertizeze niciodată.
-- **Ce s-a tastat rămâne pe ecran după un refuz.** Cu `<form action={…}>` și câmpuri
-  necontrolate, React 19 RESETEAZĂ formularul după acțiune; `Formular` ține valorile prin
-  `useActionState` și le dă înapoi. Fără el, o cifră greșită într-o casetă golea celelalte
-  paisprezece.
-- **`required` nu oprește nimic în browser**: `Formular` pune `noValidate` pe `<form>`, ca
-  bulele native în engleză să nu ia locul mesajelor românești ale schemei. Steluța și
-  „(obligatoriu)" din `Camp` sunt semantică, nu barieră — refuzul rămâne al lui Zod și al
-  `check`-urilor din bază.
-
-Fila „Pontarea" NU poate folosi `Formular`: nu e un `<form>` — alegerile sunt carduri, iar
-salvarea e un `onClick`. Își ține harta de erori de mână, din același
-`ActionResult.fieldErrors`, și verifică pe client regula „modul care propune un interval
-cere o oră" înainte de drumul la server, cu mesajul schemei cuvânt cu cuvânt
-(`setariPontareRapidaSchema`, `src/schemas/attendance.ts:507`). Butonul „Salvează" nu se
-mai stinge când lipsește ora: un buton stins nu spune ce lipsește.
-
-Drumul de la `ActionResult` până la pixelul de lângă câmp e prins la nivelul ECRANULUI, nu
-al schemei, în `formular-setari-pontaj.test.tsx` și `formular-pontare-rapida.test.tsx`.
-
-## Limitele legale: se AVERTIZEAZĂ, nu se refuză
-
-`src/domain/attendance/limite-legale.ts` (pur, cu teste) + `pontaj/avertismente.ts`
-(citirile) + `pontaj/lista-avertismente.tsx` (ecranul). Cele două acțiuni de scriere —
-`salveazaZiPontaj` și `trimiteSaptamanaPontaj` — întorc `{ id, avertismente }`, calculate
-DUPĂ scriere. Forma veche a rezultatului a rămas întreagă; `avertismente` s-a adăugat
-lângă ea.
-
-Codurile: `repaus_zilnic` · `repaus_saptamanal` · `saptamana_peste_maxim` ·
-`saptamana_peste_norma` · `medie_perioada_referinta` · `suplimentare_nepermise` ·
-`noapte_nepermisa` · `zi_de_repaus_lucrata` · `sarbatoare_lucrata` ·
-`compensare_sarbatoare`. Severitatea `informativ` e pentru ce e legal și doar merită spus
-(norma depășită = ore suplimentare); `avertisment` e pentru o limită a firmei depășită.
-
-Trei reguli care nu se pot deduce din cod citindu-l pe sărite:
-
-- **Firma fără rând în `attendance_settings` nu primește NICIUN avertisment.**
-  `limiteleFirmei(null)` întoarce `null`, iar toate cele trei intrări publice ies cu
-  listă goală. Un plafon implicit ar fi pus o cifră juridică neconfirmată pe ecran.
-- **Aceleași coduri și aceeași aritmetică sunt deja în SQL**, în `app.verifica_pontaj`
-  (`0013_attendance.sql:582`), care NU e apelabilă: trăiește în schema `app`, iar
-  PostgREST expune doar `public`. Cine schimbă formula într-un loc o schimbă în amândouă.
-- **`termen_compensare_suplimentare_zile` rămâne neacoperit**, deliberat:
-  `overtime_compensation` n-are niciun scriitor în tot produsul — nici trigger, nici cod —
-  deci n-ar avea ce număra. Perechea lui, `termen_compensare_sarbatoare_zile`, se
-  verifică: triggerul `internal.pontaj_genereaza_compensare_sarbatoare` (`0013:387`) chiar
-  scrie rândul în `holiday_compensation`, de unde salarizarea plătește.
-
-Ce se vede unde: formularul zilei din portal RĂMÂNE pe ecran când există avertismente (o
-navigare imediată le-ar fi făcut să clipească); formularul săptămânii le arată sub cifre;
-foaia colectivă le calculează în CLIENT, din luna deja încărcată, fără nicio citire nouă —
-de aceea acolo lipsesc media pe perioada de referință și repausul de la granița lunii, iar
-panoul o spune.

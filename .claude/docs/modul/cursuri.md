@@ -7,10 +7,8 @@ cai:
   - "src/lib/queries/cursuri.ts"
   - "src/schemas/cursuri.ts"
   - "src/domain/cursuri/**"
-  - "src/lib/documents/cale.ts"
-  - "src/lib/media/cale.ts"
-  - "src/lib/storage/urca-semnat.ts"
   - "supabase/migrations/0075_cursuri.sql"
+  - "supabase/migrations/0076_cursuri_punte_integrare.sql"
   - "supabase/migrations/0077_cursuri_test_grila.sql"
   - "supabase/migrations/0078_cursuri_reguli_atribuire.sql"
 tabele:
@@ -28,8 +26,8 @@ feature: courses
 capcane: [17]
 citeste_daca:
   - "curs care nu acceptă înrolări → secțiunea „ce refuză baza”"
-scris_pe: 592cbf5b63e99ecbd46a87285dc6b2968523809e
-scris_la: 2026-10-03
+scris_pe: a67bb3cc1be0a37072b4d1bb96fb262cf8338586
+scris_la: 2026-10-31
 tags: [modul, hr]
 ---
 
@@ -43,6 +41,16 @@ angajat cu ciclu de reluare, test grilă cu prag de trecere și adeverință imu
 urmare fiecare ramură `scope >= team AND is_manager_of` scrisă în politicile lui `0014` era
 cod mort, iar cerința aici e explicit ca **managerul să poată construi** cursuri pentru
 echipa lui. `0075` a introdus resursa proprie `courses`, cu `manager` la scope `team`.
+
+## Paginile modulului
+
+Pagina asta e trunchiul; restul s-a spart pe subarborele de rute
+(`.claude/docs/meta/conventii.md`).
+
+| Pagină                       | Ce ține                                                                                   |
+| ---------------------------- | ----------------------------------------------------------------------------------------- |
+| [[modul/cursuri/actiuni]]    | Server Actions: tabelul și pragul de scope comun                                          |
+| [[modul/cursuri/biblioteca]] | `/cursuri/biblioteca/**`: octeții, asistentul de material, cheia de răspuns, „Folosit în” |
 
 ## Rute și cine ajunge
 
@@ -63,49 +71,20 @@ un `courses:read` fără `create` vede lista fără butoane, nu un ecran restric
 Angajatul are `courses` la `own` cu `{read, update, export}` — nu compune cursuri, dar
 progresul și semnătura trec prin `update`, din portal.
 
+Rutele citesc filtre din URL ca indicatorii și celulele să poată trimite în lista deja
+filtrată: stadiul prin `filtreDinUrl` (`?status=`, `?doar_restante=da`, `?angajat=`, cu
+pastile de retragere), conformitatea prin `?arata=probleme`, care restrânge matricea la
+oamenii cu o celulă lipsă, expirată sau critică — aceeași matrice, nu o sublistă
+inventată. Drumurile care IES din modul trec prin poarta paginii-țintă, nu a sursei:
+`employees:read` pentru lista și fișele de angajați (fără el numele rămâne text, iar
+starea goală nu mai promite un buton pe care omul n-ar avea voie să apese),
+`poateDeschide("/onboarding/sabloane/[id]", …)` pentru șabloane. Mecanica e în
+[[strat/navigare]].
+
 Preambulul rulează `requireFeature` și `getPermissionMap` **în paralel**, prin `Promise.all`,
 în toate paginile modulului — abatere deliberată de la înlănțuirea din rețeta canonică, fiindcă
 sunt două citiri independente și costul e rețea, nu bază. Ordinea observabilă nu se schimbă:
 `requireFeature` cheamă `notFound()`, iar `can()` rulează oricum după `await`.
-
-## Server Actions
-
-`src/app/(app)/cursuri/actions.ts` — **toate** pe `minScope: "team"`, ceea ce face din
-`courses` unul dintre puținele module în care managerul e autor, nu doar aprobator.
-
-| Grup      | Funcții                                                                                                                  | Permisiune          |
-| --------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------- |
-| Curs      | `creeazaCurs`; `actualizeazaCurs`, `publicaCurs`, `dezactiveazaCurs`                                                     | `create` / `update` |
-| Materiale | `creeazaMaterial`, `pregatesteIncarcareMaterial`, `salveazaVersiuneFisier`, `salveazaVersiuneLink`, `renuntaLaIncarcare` | `courses:create`    |
-| Materiale | `actualizeazaMaterial`, `stergeMaterial`                                                                                 | `courses:update`    |
-| Lecții    | `adaugaLectie`; `actualizeazaLectie`, `stergeLectie`, `mutaLectie`                                                       | `create` / `update` |
-| Înrolări  | `atribuieCurs`, `aplicaRegulile`, `creeazaRegula`; `anuleazaInrolare`, `stergeRegula`                                    | `create` / `update` |
-| Test      | `salveazaTest`                                                                                                           | `courses:update`    |
-| Materiale | `linkPreviewMaterial`                                                                                                    | `courses:read`      |
-
-## Octeții fișierelor nu trec prin server
-
-`pregatesteIncarcareMaterial` întoarce `{ cale, urlSemnat }` — adresa semnată întreagă
-(`data.signedUrl`), nu jetonul din ea —, iar octeții urcă direct în `BUCKET_CURSURI` cu un
-`PUT` binar prin `urcaPeUrlSemnat` (`src/lib/storage/urca-semnat.ts`), nu prin
-`uploadToSignedUrl` din SDK: tokenul din adresă E autorizația, verificată la semnare sub
-sesiunea apelantului, deci `incarcare-versiune.tsx` și `asistent-material.tsx` nu mai țin
-un client Supabase în browser. Funcția întoarce `boolean` — rețea căzută, CORS sau filă
-închisă înseamnă același lucru pentru ecran.
-
-Nici MIME-ul declarat de browser, nici `fel`-ul din formular nu sunt crezute la salvare:
-`salveazaVersiuneFisier` ia `fel` din RÂNDUL materialului și îl trece prin
-`verificaMaterial` (`src/lib/media/cale.ts`) înainte de a atinge obiectul, abia apoi
-verifică primii octeți urcați cu `potrivesteSemnatura`. Pregătirea validase plafoanele pe
-`fel`-ul venit de la client, iar materialul se putea schimba între timp — altfel un film
-devenea versiunea curentă a unui material „document". Ce nu trece se șterge din bucket
-prin clientul admin, ca să nu rămână obiect orfan. — `actions-versiuni.test.ts`
-
-Căile venite de la client (`salveazaVersiuneFisier`, inclusiv `subtitrare_cale`, și
-`renuntaLaIncarcare`) trec prin `caleInPrefix` (`src/lib/documents/cale.ts`), nu prin
-`startsWith`: peste prefixul organizației și al materialului se cer segmente curate — cad
-segmentul gol, `.`, `..`, formele lor procent-codificate, `\` și caracterele de control,
-fiindcă o cale se normalizează abia la `fetch`, adică după ce a fost deja scrisă în rând.
 
 ## Citiri
 
@@ -123,15 +102,12 @@ ora 3 ziua UTC e încă ieri —, iar pe sortarea după `termen` paginarea trece
 NULL: cu keyset-ul simplu, o pagină terminată pe o înrolare fără scadență n-avea
 continuare, iar după o valoare NULL-urile nu mai apăreau deloc.
 
-## Cheia de răspuns stă în tabelă separată
-
-RLS **n-are granularitate pe coloană**. Dacă răspunsurile corecte ar sta lângă întrebări,
-orice angajat care poate citi întrebările — și trebuie să le poată citi — le-ar citi și pe
-ele printr-un `select *` prin PostgREST.
-
-Separarea într-o tabelă proprie, fără nicio politică pentru `authenticated`, e singura
-barieră reală; altfel testul ar fi decorativ. Cine adaugă un ecran de administrare a
-testului trece prin Server Action cu client admin, nu prin clientul utilizatorului.
+`numeAngajati` întoarce `{ nume, deleted_at }` pe fiecare id, nu doar numele: prezența în
+hartă înseamnă „rândul a trecut de RLS pentru cine privește", iar `deleted_at` hotărăște
+dacă numele devine link — o fișă ștearsă rămâne cu nume în istoricul înrolării, fără drum.
+`sabloaneCuCursul` citește pașii de integrare legați de curs
+(`checklist_template_items.curs_id`, `0076`), cu șabloanele șterse tăiate în JS, fiindcă
+`deleted_at` de pe tabela încorporată nu intră în `.is()` de pe cererea de bază.
 
 ## Ce refuză baza
 
@@ -144,11 +120,11 @@ testului trece prin Server Action cu client admin, nu prin clientul utilizatorul
 - **Termenul e opțional** (`0085_cursuri_termen_optional.sql`, redenumită din `0079` după o
   coliziune amonte). Un curs fără termen nu e un curs „expirat imediat": ecranele și
   rapoartele de conformitate trebuie să trateze NULL ca „fără scadență".
-- **Mutarea materialului pe versiunea nouă e un UPDATE separat, cu altă permisiune.**
-  Inserția versiunii cere `courses:create`, dar `versiune_curenta_id` se scrie pe
-  `course_materials`, adică sub `courses:update`. Fără `.select()` după, zero rânduri
-  treceau drept succes: versiunea rămânea orfană, materialul pe cea veche. Ambele căi —
-  fișier și link — raportează acum CONFLICT. — capcana #17, `actions-versiuni.test.ts`
+- **Indicatorii din stadiu nu se pot număra din lista afișată.** `listeazaInrolari` taie
+  lista la 50 de rânduri ȘI o primește deja filtrată din URL: pe `?status=finalizat`,
+  „Înrolări" arăta doar finalizații, iar „Au parcurs" se compara cu el însuși. Totalurile
+  se cer separat, de la filtrele implicite (`filtreInrolariSchema.parse({})`), și vin din
+  `count`, nu din rândurile aduse. — `src/app/(app)/cursuri/[id]/stadiu/page.tsx`
 - **`aplicaRegulile` verifică eroarea pe FIECARE citire paralelă**, nu doar pe reguli și
   fișe. Rolurile vin din `organization_members`, iar cine e deja înrolat din
   `course_enrollments`; o citire picată acolo nu dă eroare, dă listă goală — adică
@@ -166,7 +142,9 @@ testului trece prin Server Action cu client admin, nu prin clientul utilizatorul
 checklist se bifează **singur** când angajatul termină cursul legat de el. Mecanismul nu e
 nou — e același `verificare_automata` care bifează „Predare echipament" la returnarea
 ultimului bun. Un al doilea mecanism ar fi însemnat două locuri în care se decide același
-lucru.
+lucru. Legătura se vede acum și dinspre curs: pagina lui listează șabloanele cu un pas
+legat de el, fiindcă retragerea din publicare sau dezactivarea ar rupe tăcut un parcurs de
+integrare, iar până atunci nimic de pe ecran nu spunea pe care.
 
 `course_materials` e biblioteca comună: pașii de integrare care cer citirea unui
 regulament o refolosesc, în loc să-și construiască una paralelă.
@@ -178,4 +156,5 @@ Regulile de atribuire (`0078`) există pentru un singur caz, dar acela contează
 
 - Ecranul angajatului și adeverința: `src/app/(portal)/portal/cursurile-mele/`.
 - Instruirile SSM, care sunt alt modul cu altă lege: [[modul/ssm]].
-- „Folosit în” pe material și pe curs, adeverința din stadiu, `?arata=probleme`: [[strat/navigare]].
+- Tiparul linkurilor de entitate, al pastilelor de filtru și al toastului cu acțiune, cu
+  poarta paginii-țintă: [[strat/navigare]].

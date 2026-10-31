@@ -7,10 +7,26 @@ cai:
   - "src/lib/queries/panou.ts"
   - "src/lib/navigation/build-navigation.ts"
 tabele: []
-permisiuni: [attendance:approve, leave:approve, per_diem:approve, employees:read, reges:transmit]
+permisiuni:
+  [
+    attendance:approve,
+    leave:read,
+    per_diem:approve,
+    trip_sheets:approve,
+    vehicle_reservations:approve,
+    tickets:approve,
+    vehicles:update,
+    checklists:read,
+    announcements:read,
+    employees:read,
+    employees:create,
+    organizations:update,
+    departments:create,
+    reges:transmit,
+  ]
 capcane: [26]
-scris_pe: e5b1284cf22200665cb82dfd4cf275baaf869673
-scris_la: 2026-09-13
+scris_pe: a67bb3cc1be0a37072b4d1bb96fb262cf8338586
+scris_la: 2026-10-31
 tags: [modul]
 ---
 
@@ -20,17 +36,36 @@ Ecranul de pornire: contoare, o coadă de „ce am de făcut" și scurtături. N
 proprii — e o compunere peste toate celelalte module, ceea ce îl face locul unde greșelile
 de poartă din restul aplicației devin vizibile primele.
 
+## Paginile modulului
+
+Trunchiul ține porțile contorilor, cifra din antet și **ce refuză baza** — secțiunea pentru
+care se deschide pagina dintr-un bug. Adresele către care duc cifrele s-au spart separat
+(`.claude/docs/meta/conventii.md`).
+
+| Pagină                   | Ce ține                                                              |
+| ------------------------ | -------------------------------------------------------------------- |
+| [[modul/panou/legaturi]] | linkurile cifrelor, „Firma azi", blocul „Pornire", meniul de rezervă |
+
 ## Fiecare contor are poarta lui
 
 `contoarePanouPentru` din `src/lib/queries/panou.ts` primește `features` (modulele active),
-harta întreagă de permisiuni și `userId`, apoi decide **contor cu contor** dacă îl cere. Un
-contor cerut fără drept n-ar da eroare — ar întoarce zero, iar utilizatorul ar citi „nimic
-de făcut" în loc de „n-ai acces". De aceea decizia se ia înaintea interogării, nu după.
+harta întreagă de permisiuni, `userId` și `role`, apoi decide **contor cu contor** dacă îl
+cere. Un contor cerut fără drept n-ar da eroare — ar întoarce zero, iar utilizatorul ar
+citi „nimic de făcut" în loc de „n-ai acces". De aceea decizia se ia înaintea interogării,
+nu după.
 
 Poarta unui contor e cea a **acțiunii** către care duce, nu cea a listei. `vedeReges` cere
 `reges:transmit` la `all`, deși intrarea de meniu se deschide pe `reges:read`: cine doar
 citește registrul ar fi primit un număr care îl cheamă undeva unde n-are ce apăsa. Aceeași
-regulă ține `vedeAnomalii` pe `vehicles:update`, nu pe `vehicles:read`.
+regulă ține `vedeAnomalii` pe `vehicles:update` și `vedeRezervari` pe
+`vehicle_reservations:approve` la `team` — nu pe `vehicle_reservations:read`, pragul cu care
+se deschide `/flota/rezervari`. `vedeIntegrare` (`checklists:read`) și `vedeAvizier`
+(`announcements:read`) sunt cele două porți pe `own`: pașii de integrare și anunțurile
+necitite sunt treaba cuiva anume, nu a unei echipe.
+
+`role` intră în `Porti` fiindcă pașii de integrare se atribuie și pe rol, nu doar pe fișă:
+`sarcinileMele` caută `responsabil_employee_id` egal cu fișa mea SAU `responsabil_tip` de
+tip rol cu rolul meu, deci fără el contorul ar fi ratat tocmai pașii lui „oricine e HR".
 
 „Netransmis" înseamnă `de_pregatit` SAU `pregatit` — un eveniment pregătit pare rezolvat și
 tocmai de aceea e cel mai aproape de a fi uitat; `transmis`, `confirmat` și `respins` au
@@ -40,16 +75,30 @@ plecat deja, `anulat` a fost retras deliberat. Stările sunt cele din enumerarea
 spre deosebire de concedii, aici starea CHIAR stă în coloana entității numărate.
 
 `resolveTenant` (nu `requireTenant`) plus `redirect`: fără organizație aleasă, pagina
-trimite la selecție, nu afișează un panou gol. Tot de acolo vine `user.id`, al patrulea
-argument al lui `contoarePanouPentru` — memoizarea `React.cache()` compară prin identitate,
-deci argumentele rămân primitive, niciodată un obiect construit la fața locului.
+trimite la selecție, nu afișează un panou gol. Tot de acolo vin `user.id` și rolul, pe care
+`contoarePanouPentru` le primește ca argumente — memoizarea `React.cache()` compară prin
+identitate, deci argumentele rămân primitive, niciodată un obiect construit la fața locului.
 
 Meniul se construiește din aceeași hartă, prin `buildNavigation` — un modul deblocat care
 nu apare în meniu înseamnă aproape întotdeauna `getPermissionMap` chemat fără `memberId`,
 v. [[rol/manager]]. Insignele lui (`leave_pending`, `attendance_pending`, `ssm_expiring`,
-`fleet_expiring`, `maintenance_due`, `reges_pending`) vin din `insigneMeniu`, deci din
-aceiași contori; `null` și `0` se omit amândouă, așa că o pastilă absentă nu spune dacă
-blocul e gol sau ascuns.
+`fleet_expiring`, `maintenance_due`, `reges_pending`, `announcements_unread`) vin din
+`insigneMeniu`, deci din aceiași contori; `null` și `0` se omit amândouă, așa că o pastilă
+absentă nu spune dacă blocul e gol sau ascuns. `announcements_unread` e singura alimentată
+din afara cozii — `ContoarePanou.avizier` stă lângă `coada`, tocmai ca să nu ceară un rând.
+
+## Un singur obiect: linkul duce la el, nu la o listă de un rând
+
+`contorCereriConcediu` și `contorTichete` întorc `ContorCuUnic` — numărul ȘI, când e exact
+unul, id-ul lui. De aceea au pierdut `head: true` și au căpătat `.limit(2)`: `count` rămâne
+exact peste tot filtrul, iar cel mult două rânduri costă la fel. `unicDin` umple `unicId`
+numai când numărul e `1`, iar `coadaDinContoare` duce atunci în `/concedii/<id>`, respectiv
+`/ticketing/<id>`; altfel, la lista filtrată.
+
+`cerereUnicaId` și `tichetUnicId` stau în `CoadaPanou` lângă contori, dar **nu sunt
+contori** — nu produc rânduri. Testul care numără cheile le exclude pe sufix: în
+`coada.test.ts`, `CONTORI` sunt cheile care nu se termină în `Id`. Un contor nou numit cu
+sufixul ăsta ar ieși tăcut din invariantul care păzește coada.
 
 ## Cifra din antet se numără din rânduri, nu din contori
 
@@ -62,9 +111,9 @@ se mai numără.
 Rândurile stau în fișier propriu, nu în `page.tsx`, ca să poată fi testate:
 `queries/panou.ts` începe cu `import "server-only"`, deci un test care ar fi importat
 pagina ar fi căzut la încărcare, nu la aserțiune. `coada.ts` importă doar TIPUL, iar
-`coada.test.ts` verifică — numărând cheile lui `CoadaPanou`, nu dintr-o listă scrisă de
-mână — că fiecare contor din coadă produce un rând. `reges` e singurul rând `urgent`:
-termenul lui e prevăzut de lege.
+`coada.test.ts` verifică — numărând cheile-contor ale lui `CoadaPanou`, nu dintr-o listă
+scrisă de mână — că fiecare produce un rând. `reges` e singurul rând `urgent`: termenul lui
+e prevăzut de lege.
 
 ## Rândul de pontaj poartă luna în link
 
@@ -77,13 +126,19 @@ panoul ar fi numărat o lună și ecranul ar fi arătat alta. Când sunt doar fi
 luna se lasă implicită — fișele se arată în capul ecranului, indiferent de lună. Aceeași
 sumă `zile + fise` alimentează insigna `attendance_pending`.
 
-## Două praguri, două surse — deliberat
+## Pragurile vin din domeniu, nu din panou
 
-`PRAG_PANOU_ZILE` = 30 e pragul panoului. Scadențele de flotă folosesc **alt** prag,
-`PRAG_FLOTA_AVERTIZARE_ZILE`, din modulul lor. Cifra a fost la un moment dat aceeași în
-ambele locuri: în ziua în care una s-ar fi schimbat, contorul de pe panou și lista din flotă
-ar fi arătat numere diferite, fără nicio eroare. Contractele care expiră rămân pe pragul
-panoului — nu sunt documente de vehicul, e altă scadență.
+`PRAG_PANOU_ZILE` nu mai e o cifră proprie: e `PRAG_CONTRACTE_EXPIRA_ZILE`, din
+`src/domain/hr/contracte-expira.ts`, adică exact fereastra pe care o filtrează
+`/angajati?contract=expira`. Scadențele de flotă folosesc **alt** prag,
+`PRAG_FLOTA_AVERTIZARE_ZILE`, din modulul lor. Cât timp cifrele stăteau scrise în locuri
+diferite, ziua în care una s-ar fi schimbat ar fi dat contorul de pe panou și lista de
+dincolo cu numere diferite, fără nicio eroare.
+
+Cartela de flotă e locul unde cele două praguri încă se ating: numărul vine pe
+`PRAG_FLOTA_AVERTIZARE_ZILE`, iar nota de dedesubt („Nimic în următoarele … de zile") e
+scrisă cu `PRAG_PANOU_ZILE`. Cât timp sunt egale nu se vede nimic; când se despart, nota
+va descrie altă fereastră decât cifra.
 
 ## Ce refuză baza tăcut
 
@@ -107,11 +162,26 @@ panoului — nu sunt documente de vehicul, e altă scadență.
   o zi neaprobată din ea ar fi stat pe panou pe veci; `pontajDeAprobat` scoate perioadele
   `blocata` înainte de a număra zilele. Tot acolo ies zilele de concediu
   (`leave_request_id`) și cele respinse, exact ca în lista de aprobare. — `e5b1284`
+- **Insigna avizierului dispare cu totul fără fișă proprie.** `anunturiNecitite` întoarce
+  `null` când `idFisaProprie` nu găsește nimic: fără fișă nu există „citit", deci nici
+  cifră. Predicatul e același ca segmentul „Necitite" din `/anunturi`, unde duce insigna —
+  `anunturiPublicate` minus `idAnunturiCitite`. — `a67bb3c`
+- **Pașii de integrare NU dispar fără fișă.** `pasiiDeIntegrareAiMei` trece `null` mai
+  departe ca `employeeId`, iar `sarcinileMele` caută atunci doar ramura pe ROL: același
+  administrator invitat care n-are avizier primește totuși pașii atribuiți rolului lui. Nu
+  e un defect, e asimetria dintre „citit de cineva" și „atribuit unui rol". — `a67bb3c`
+- **Un contor numărat dintr-o listă moștenește plafonul listei.** `anunturiNecitite`
+  numără peste rândurile aduse de `anunturiPublicate` (limită implicită), iar
+  `numarRezervariDeAprobat` își reteză `count`-ul la `PLAFON_DE_APROBAT`. Peste plafon
+  cifra iese mai mică decât realitatea, fără eroare și fără antet — forma cea mai
+  liniștitoare a unei cifre greșite. — `a67bb3c`
 
 ## Când NU e suficientă pagina asta
 
 - De unde vine fiecare cifră: pagina modulului respectiv — pentru evenimentele netransmise,
   [[modul/reges]]; pentru zile și fișe săptămânale, [[modul/pontaj]]; pentru cererile în
-  curs, [[modul/concedii]].
+  curs, [[modul/concedii]]; pentru rezervările de pool, [[modul/flota]]; pentru anunțurile
+  necitite, [[modul/anunturi]].
 - De ce un card lipsește: [[rol/manager]], [[rol/hr]].
-- Rândul „Pași de integrare care îți revin” (`pasiIntegrare`, `sarcinileMele` pe fișă + rol): [[strat/navigare]].
+- Rândul „Pași de integrare care vă revin” (`pasiIntegrare`, `sarcinileMele` pe fișă + rol):
+  [[modul/onboarding]], iar pentru porți și linkuri, [[strat/navigare]].

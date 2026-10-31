@@ -16,6 +16,7 @@ cai:
 tabele:
   [
     equipment,
+    equipment_costuri,
     equipment_meters,
     maintenance_plans,
     maintenance_interventions,
@@ -34,8 +35,8 @@ citeste_daca:
   - "o acțiune nouă sau o poartă care pare prea largă → „Cine are ce poartă”"
   - "un P0001 apare ca mesaj generic în loc de textul bazei → „Erorile traduse”"
   - "o listă taie tăcut rânduri sau un tip nu se potrivește → „Citirile”"
-scris_pe: edd51fa9be907ae26d1faa9eceae838a5ca4d69b
-scris_la: 2026-10-12
+scris_pe: a67bb3cc1be0a37072b4d1bb96fb262cf8338586
+scris_la: 2026-10-31
 tags: [modul, operations]
 ---
 
@@ -84,8 +85,16 @@ raportor, responsabil de utilaj) pe `read` / own, iar decizia o ia baza.
 | `iscir/`                     | `actualizeazaAutorizatie`, `suspendaAutorizatie`, `reactiveazaAutorizatie`, `reinnoiesteAutorizatie`, `stergeAutorizatie`                                 | —                                                                                                                                                                                                         |
 | `sesizari/`                  | `atribuieSesizare`, `inregistreazaOprire`; pe `update` / all: `salveazaSetariMentenanta`                                                                  | `tehnicianSchimbaStarea`, `retrageSesizare`, `inchideSesizare`, `redeschideSesizare`, `actualizeazaSesizare`, `comenteazaSesizare`, `pregatesteFisier`, `confirmaFisier`, `stergeFisier`, `inchideOprire` |
 
-Două detalii care schimbă comportamentul:
+Detaliile care schimbă comportamentul:
 
+- `creeazaEchipament` și `actualizeazaEchipament` stau pe `update` / team, dar
+  `valoare_achizitie` cere `ctx.scope === "all"`, verificat PRIMUL din handler, înaintea
+  oricărei scrieri (INTERZIS). Valoarea se destructurează din input și merge în
+  `equipment_costuri` (0232): `insert` după echipament la creare, `upsert` pe
+  `onConflict: "equipment_id"` la editare — și cu `null`, ca un câmp golit să golească
+  valoarea. Dacă inserarea costului cade după ce echipamentul a intrat, mesajul spune că
+  utilajul e salvat și cere valoarea din „Modifică": a doua creare ar pica pe codul dublat.
+  Nu e în allow-list-ul de audit. — [[modul/mentenanta/echipamente]]
 - `inregistreazaContor` recitește harta de permisiuni în handler: cine n-are
   `maintenance:update` / team primește un refuz EXPLICAT la resetare și nu-și alege
   `citit_de_employee_id` — i se pune fișa lui principală, sau `null` dacă n-are. Și politica
@@ -115,7 +124,11 @@ politica nu o face, cursor keyset în loc de `.range()`:
   (`opririSesizare`, `opririEchipament`, `opririDeschise`), ISCIR (`autorizatiiIscir`,
   `listeazaAutorizatiiIscir`, `stareRsvti`), atașamentele (`atasamente`, `urlSemnate`),
   setările (`setariMentenanta`) și selectoarele (`optiuniAngajati`, `optiuniDepartamente`,
-  `optiuniEchipamente`, `categoriiEchipamente`).
+  `optiuniEchipamente`, `categoriiEchipamente`). `optiuniTehnicieni` nu e tabelă, ci RPC-ul
+  `public.tehnicieni_mentenanta` — cont activ și `maintenance:read` EFECTIV ≠ none, regula
+  triggerului de atribuire; cine nu gestionează mentenanța primește zero rânduri, fără
+  eroare. `optiuniAngajati` dădea și angajați fără acces la modul, iar sesizarea atribuită
+  lor nu se deschidea. — [[modul/mentenanta/sesizari]]
 - **`src/lib/queries/maintenance-rapoarte.ts`** — citirile raportului, paginate keyset cu
   plafon și semnalul `trunchiat` (`interventiiInPerioada`, `sesizariInPerioada`,
   `opririInPerioada`, `planuriPentruRaport`, `echipamentePentruRaport`).
@@ -125,6 +138,12 @@ politica nu o face, cursor keyset în loc de `.range()`:
 fiindcă `hrefFisa()` decide pe rând dacă numele devine link: o fișă ștearsă rămâne text, nu
 link spre 404. Căutarea liberă trece prin `tiparContine` (`src/lib/queries/cursor.ts`):
 `%` și `_` tastate de om ar fi jokeri.
+
+`citesteEchipament` și `echipamentePentruRaport` NU mai citesc `equipment.valoare_achizitie`
+(goală din 0232, poarta e `src/lib/queries/coloane.test.ts`): o iau prin embed-ul
+`costuri:equipment_costuri(valoare_achizitie)`, aplatizat în același câmp. Cui nu are dreptul
+s-o vadă îi vine `null`, fără eroare — același `null` ca al unei valori neintroduse, deci
+ecranul arată „—" și nu poate spune care din două. — [[modul/mentenanta/echipamente]]
 
 Selectoarele din tabele ale ALTOR module nu se citesc cu clientul utilizatorului când
 rolul care scrie n-are cheia vecină (punctele de lucru cer `departments:read`).

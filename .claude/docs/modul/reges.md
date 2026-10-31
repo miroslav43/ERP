@@ -27,13 +27,22 @@ tabele:
     salary_components,
     notifications,
   ]
-permisiuni: [reges:read, reges:create, reges:update, reges:transmit, reges:configure, reges:export]
+permisiuni:
+  [
+    reges:read,
+    reges:create,
+    reges:update,
+    reges:transmit,
+    reges:configure,
+    reges:export,
+    employees:read,
+  ]
 feature: reges
-capcane: [17]
+capcane: [17, 53]
 citeste_daca:
   - "meniu care nu arată modulul deși rolul pare potrivit → [[rol/hr]]"
-scris_pe: e5b1284cf22200665cb82dfd4cf275baaf869673
-scris_la: 2026-09-13
+scris_pe: a67bb3cc1be0a37072b4d1bb96fb262cf8338586
+scris_la: 2026-10-31
 tags: [modul, hr]
 ---
 
@@ -47,14 +56,13 @@ Numele vechi era Revisal; `0086_reges_redenumire.sql` a redenumit `revisal_confi
 `reges_termene`. Valorile legale au rămas acolo unde erau — `0087` n-a adus niciun termen
 nou.
 
-## De ce n-a existat un fișier oficial
+## Paginile modulului
 
-Până la REGES-Online, aplicația **nu putea** produce documentul cerut: `.rvs` e formatul
-de IEȘIRE al aplicației Revisal, codificat, nu unul pe care un terț să-l poată scrie.
-Drumul real ar fi fost `ERP → XML → import în Revisal → .rvs`, iar acel XSD nu era în
-posesie. Serializarea nu s-a inventat, deliberat: un fișier care arată plauzibil dar are un
-element greșit se descoperă abia la import. CSV-ul de lucru a rămas, ca instrument intern.
-— antetul lui `src/domain/reges/export.ts`
+| Pagină                     | Ce ține                                                                    |
+| -------------------------- | -------------------------------------------------------------------------- |
+| [[modul/reges/actiuni]]    | Server Actions: cele două fișiere, poarta fiecăreia, ciclul de transmitere |
+| [[modul/reges/evenimente]] | De unde vine un rând în registru, cine e anunțat, termenul, absențele      |
+| [[modul/reges/protocol]]   | Forma mesajului: vocabularul de protocol, nomenclatoarele, actul adițional |
 
 ## Rute și cine ajunge
 
@@ -73,6 +81,15 @@ Butoanele se calculează pe server, fiecare cu cheia lui la scope `all`:
 (`reges:transmit`), `poateExporta` (`reges:export`), `poateConfigura` (`reges:configure`).
 `meetsScope` face comparația, nu `can()`.
 
+`/reges/[id]` arată azi aceleași butoane ca coada („Transmite", „Anulează"), cu EXACT
+condițiile din `/reges`: cine deschide mesajul dintr-o notificare sau de pe fișa omului nu
+mai e trimis înapoi în coadă ca să-l transmită.
+
+Legătura către fișa salariatului — din coadă, din registru, din propunerile **trimise** —
+apare doar la `employees:read` la scope `all` (`poateDeschideFisa`): cu o suprascriere pe
+`team`, fișa unui om din afara echipei dă 404, iar rândul ar promite un ecran inexistent.
+Propunerea **primită** descrie omul altui angajator, deci nu se leagă niciodată.
+
 Din `0087`, cheile merg la `super_admin`, `org_admin` și `hr` — inclusiv `configure`,
 fiindcă specialistul de personal e cel care obține accesul din portalul REGES. `manager` și
 `employee` nu primesc niciun rând: absența permisiunii ESTE refuzul. Strângerea lui
@@ -86,101 +103,33 @@ deploy. — v. [[rol/hr]]
 stare legitimă, dar de știut înainte de apăsare, nu din eroarea de după. `comutaActivarea`
 refuză pornirea cât timp rezumatul n-are secret, n-are parolă sau `verificatOk !== true`.
 
-## Server Actions
+## Citiri
 
-Sunt în **două** fișiere, toate la scope `all`:
+`src/lib/queries/reges.ts` începe cu `import "server-only"`: o valoare importată de acolo
+într-un fișier `"use client"` cade la `pnpm check:server`, nu abia la build. Vocabularul
+partajat (etichete, opțiuni de filtru, scheme) stă în `src/app/(app)/reges/constante.ts`,
+care NU e `server-only`. — capcana #53
 
-- `src/app/(app)/reges/actions.ts` — ce nu atinge rețeaua: `marcheazaTransmis`
-  (`reges:update`) și `exportaEvenimente` (`reges:export`).
-- `src/app/(app)/reges/actiuni-api.ts` — ce vorbește cu Inspecția Muncii; antetul lui spune
-  de ce ocolește RLS. `pregatesteTransmiterea`, `propunePlecarea` → `reges:create`;
-  `transmiteMesajul`, `raspundePropunerii` → `reges:transmit`; `anuleazaMesajul`,
-  `salveazaClasificarea` → `reges:update`; `salveazaCredentialele`, `testeazaConexiunea`,
-  `comutaActivarea`, `sincronizeazaNomenclatoarele`, `creeazaSporAngajator` →
-  `reges:configure`. `creeazaSporAngajator` înregistrează un spor **propriu firmei** în
-  registrul angajatorului și scrie UUID-ul întors în
-  `salary_component_types.reges_tip_spor_id` — act de configurare, nu transmitere de
-  contract; n-are încă ecran.
-
-**Poarta acțiunii trebuie să fie identică cu poarta paginii.** `marcheazaTransmis` a
-declarat până la `0087` o cheie de citire, în timp ce pagina ținea butonul în spatele unei
-chei de scriere — iar o Server Action se poate chema direct, fără ecran. Marcarea unui
-eveniment drept transmis e o afirmație despre registrul oficial, deci acțiunea cere azi
-exact ce gatează pagina. Regula se aplică peste tot, nu doar aici.
-
-Reconcilierea cozii nu e o acțiune, ci ruta `src/app/api/reges/reconciliere/route.ts`.
-Comanda care o cheamă nu se reproduce din memorie — sursa de adevăr e
-`deploy/reges-reconciliere.service`, care trece secretul prin `-K -`, nu prin argv.
-
-## Evenimentul nou își anunță singur transmițătorul
-
-`genereazaEvenimenteReges` (`src/lib/reges/genereaza-evenimente.ts`) e chemată de
-[[modul/angajati]], [[modul/concedii]] și [[modul/pontaj]] după ce își scriu ele rândul;
-transmiterea rămâne manuală, deci altfel evenimentul ar aștepta tăcut, cu termenul curgând,
-într-un modul pe care nimeni n-are motiv să-l deschidă în ziua aceea. După INSERT,
-`anuntaDeTransmis` scrie câte un rând în `notifications` — `kind = "task"`, link `/reges`,
-cu numărul evenimentelor și cel mai apropiat termen din lot — pentru membrii activi cu rol
-`org_admin` sau `hr`. Lista (`ROLURI_CARE_TRANSMIT`) e scrisă în cod, nu citită din
-`role_permissions`: o firmă care strânge cheia dintr-un rând propriu primește cel mult un
-anunț în plus, niciodată un drept. `super_admin` nu primește nimic — n-are rând în
-`organization_members`.
-
-Două tăceri: funcția **nu aruncă**, fiindcă evenimentul e deja scris când se ajunge acolo —
-un anunț pierdut se vede doar în log, nu în ecran; iar evenimentele deduplicate (`sarite`)
-nu produc anunț, se anunță doar lotul chiar inserat.
+`interogheazaEvenimenteReges` și `interogheazaMesajeReges` primesc amândouă filtrul
+`angajat` — intrarea de pe fișa omului, validată ca UUID pe server și ignorată altfel.
+Coada are plafon propriu, iar **statisticile ei se numără în bază** când pagina iese plină:
+socotite peste rândurile afișate, mesajele vechi încă de transmis dispăreau și din contor,
+nu doar din tabel. `RandReges.angajatVizibil` spune dacă fișa mai există (`false` =
+„Angajat șters", linkul n-are țintă), `RandMesaj.evenimentId` leagă mesajul de rândul din
+registru, iar `RandPropunere.mesajId` / `employeeId` leagă propunerea trimisă de mesajul ei
+și de salariatul nostru — rezolvat prin contract, **sub RLS**, ca legătura să existe doar
+când poate fi deschisă.
 
 ## Stările unui mesaj
 
 `reges_stare_mesaj` = `de_transmis` → `in_curs` → `asteapta_raspuns` → `reusit` | `esuat`,
 plus `anulat`. `in_curs` există exact ca să nu trimită de două ori același mesaj un ciclu
 de reconciliere care se suprapune cu apăsarea butonului „Transmite"; `reges_inchiriere`
-serializează ciclul.
+serializează ciclul. Cine o revendică și cum se iese din ea la refuz sau la excepție:
+[[modul/reges/actiuni]].
 
 Tranzițiile se scriu cu `.select()` după `.update()`: un rând care nu mai e în starea
 așteptată nu produce eroare, produce zero rânduri. — capcana #17
-
-## Vocabularul de protocol rămâne în engleză
-
-`reges_operatie` conține literal valorile din enum-ul `MessageType` al schemei REGES 2025,
-inclusiv scrierea PascalCase — `InregistrareSalariat`, `AdaugareContract`,
-`IncetareSuspendareContract`. Sunt vocabular de protocol, ca numele metodelor HTTP, nu
-identificatori de domeniu: o traducere ar cere o tabelă de mapare ținută sincronizată cu un
-sistem pe care nu-l controlăm, iar prima valoare uitată acolo ar produce un mesaj respins
-fără explicație. Regula proiectului „identificatorii de domeniu în română" **nu** se aplică
-aici.
-
-## Nomenclatorul complet ≠ ce se oferă în formular
-
-`TIPURI_ACT_IDENTITATE` rămâne lista REGES întreagă; `TIPURI_ACT_IDENTITATE_ALEGERE`
-(`src/domain/reges/operatii.ts`) e subsetul oferit în formulare, fără `BuletinIdentitate` —
-documentul tip carnet, neemis din 1997, vecin în listă cu `CarteIdentitate` și greu de
-deosebit de el pentru cine nu le știe istoria, iar alegerea greșită pleacă la ITM. Scoaterea
-din ofertă NU e scoatere din nomenclator: eticheta, schemele Zod și transmiterea îl acceptă
-mai departe, iar `optiuniActIdentitate` din
-`src/app/(app)/angajati/formular-angajat.tsx` îl readaugă în `<select>` când e chiar valoarea
-fișei — altfel browserul ar fi afișat prima opțiune, iar prima salvare ar fi rescris tăcut
-actul omului. Același tipar ca `TIPURI_ZI_ALEGERE` din [[modul/pontaj]]. — v. [[modul/angajati]]
-
-## Nomenclatoarele se referențiază prin UUID, nu prin cod
-
-În mesajul de contract, unde fișierele Revisal vechi purtau coduri: `Cor` e azi un
-`Referinta`, nu perechea `{ cod, versiune }` — `idCor` ia UUID-ul din oglinda locală
-(`reges_nomenclatoare`, `tip = "Cor"`, `activ`), nu live de la ITM, iar `codCor` rămâne pe
-`ContractIntern` pentru validare. Și `salariu` a încetat să fie un număr: e
-`{ salariuBaza, sporuri? }`, cu `SporSalarial` = `referintaTipSpor` (UUID **brut**, nu
-`Referinta`) + `valoare` + `esteProcent`, fără `$type` și fără monedă. `sporuri` se **omite**
-când e gol — `[]` nu e același lucru cu absența câmpului pentru un deserializator strict.
-
-`compuneContract` le primește pe amândouă de la apelant, ca să rămână sincronă; în
-reconciliere le rezolvă `idCor` și `sporurileContractului`, care citește doar
-`kind in ('spor_procent', 'spor_suma')`, active la data trimiterii — aceeași linie trasă în
-bază de `salary_component_types_spor_reges_ck` (`0129`). Maparea nu se ghicește din denumire.
-
-**Ce lipsește din oglindă OPREȘTE mesajul, nu se sare tăcut.** `verificaContract` refuză
-contractul cu `regesCorId` null și sporul cu `referintaTipSpor` gol: o referință inventată
-trece de schemă și e refuzată **asincron**, ore mai târziu, cu termenul deja curgând, iar un
-spor sărit ar declara un salariu mai mic decât cel real. Tot acolo cad valoarea ≤ 0 și
-procentul peste 100.
 
 ## Credențialele
 
@@ -190,27 +139,9 @@ procentul peste 100.
 firmei în cozile REGES și e **stabil**: schimbat, coada se reia de la capăt și rezultatele
 deja împerecheate se reprocesează.
 
-## Absențele nemotivate — al doilea drum către o suspendare
-
-`0128` a adăugat `suspendare_nemotivata` și `reluare_nemotivata` în `reges_tip_eveniment`.
-**Nu sunt operații noi de protocol** — `plan.ts` le mapează la `SuspendareContract` și
-`ReactivareContract`, ca surorile lor. Diferența e despre **termen**, iar `reges_termene` are
-un rând per `event_type`: nu încap două sub aceeași cheie. Rândurile de platformă din `0128`
-dau 3 zile lucrătoare **de la** suspendare (absența nu poate fi anunțată în ziua anterioară)
-și **zero** zile la reluare, ca întoarcerea neanunțată să nu apară ca întârziere.
-
-Detecția e `seriiDeAbsente` din `src/domain/reges/absente.ts`, modul pur. „Consecutiv" NU
-înseamnă zile calendaristice la rând: weekendul și sărbătoarea nelucrate lasă seria deschisă,
-iar o zi în care omul a **făcut** ceva (a lucrat, concediu, medical) o rupe — de aceea
-funcția primește toate zilele lunii, nu doar absențele. Pragul, `PRAG_ZILE_ALERTA`, stă în
-cod: e convenție de produs, nu regulă legală.
-
-Aplicația **semnalează**, nu suspendă singură — emiterea e decizie de om, în
-`src/app/(app)/pontaj/suspendare-absente.ts` (v. [[modul/pontaj]]). Suspendarea se deschide
-cu `data_sfarsit` NULL și se închide când pontajul primește ore lucrate;
-`contract_suspendari.sursa` (`manuala` | `concediu` | `absenta_nemotivata`) dă detecției de
-conflict un predicat în loc de text liber, iar o suspendare suprapusă cade pe
-`contract_suspendari_fara_suprapunere` cu **23P01**.
+Ambele baze din `BAZE_API` (`src/lib/reges/client.ts`) sunt azi confirmate în folosire
+reală; avertismentul „NEVERIFICATĂ" de pe cea de producție a căzut odată cu prima
+transmitere a unei firme reale.
 
 ## Ce se mișcă împreună
 
@@ -227,7 +158,7 @@ scris per firmă de `creeazaSporAngajator`, cu unicitate pe `(organization_id, t
 
 ## Când NU e suficientă pagina asta
 
-- Forma unui mesaj și clientul HTTP: `src/lib/reges/`.
+- Forma unui mesaj și clientul HTTP: `src/lib/reges/`, plus [[modul/reges/protocol]].
 - Termenele legale: `reges_termene`, plus `NOTES.md` — valorile ⚠ cer confirmarea unui
   jurist înainte de a fi folosite în calcul real.
 - Numele din coadă, `?eveniment=` și „N mesaje în coadă”, rândul nou din propuneri: [[strat/navigare]].
