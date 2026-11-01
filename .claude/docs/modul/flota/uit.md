@@ -14,8 +14,8 @@ tabele: [trip_sheet_uit, trip_sheet_curse]
 permisiuni: [trip_sheets:read, trip_sheets:update]
 feature: fleet
 capcane: [17, 18, 22, 23]
-scris_pe: 97b5acfddbe7d49a15a6f59fb55916822462a40a
-scris_la: 2026-10-22
+scris_pe: c78f84c1a25c63c9490dcfe8104b51bf51aff507
+scris_la: 2026-11-01
 tags: [modul, operations]
 ---
 
@@ -77,6 +77,12 @@ din rândul șters. Pe foaia aprobată garda de stare se ocolește prin GUC-ul l
 `app.flota_cascada_uit`, pe care PostgREST nu-l poate seta. Funcțiile sunt SECURITY
 DEFINER; pe proiect `postgres` are `rolbypassrls`.
 
+Cine declanșează cascada e însă treaba foii, nu a UIT-ului: o foaie care a primit
+număr FP (trimisă o dată, apoi retrasă în ciornă) nu se mai șterge de șofer — §E4 din
+`0200_flota_foaia_zilnica.sql` dă P0001 „Foaia are deja numărul …; o poate anula doar
+administratorul flotei.” oricui n-are `trip_sheets:update = all`. Codurile ei rămân
+vii până o anulează administratorul flotei; cascada e apoi aceeași.
+
 ## Cine scrie
 
 | Rol           | Citește                     | Scrie                                     |
@@ -121,8 +127,9 @@ documentul care însoțește transportul. Excelul lunar: coloana „UIT” în r
 ## Probe
 
 `tests/rls/proba-flota-uit.sql`: pozitive pe toate rolurile care scriu, negative pe
-format, identitate, stare, roluri și izolare, cascada pe cursă, pe ciornă și pe foaia
-aprobată stornată, rânduri NUMĂRATE. `izolare.sql`: fixture pe ambele firme și blocul
+format, identitate, stare, roluri și izolare, cascada pe cursă, pe ciorna numerotată
+(P13: șoferul primește P0001, o anulează `org_admin`) și pe foaia aprobată stornată,
+rânduri NUMĂRATE. `izolare.sql`: fixture pe ambele firme și blocul
 `(l) F12f`.
 
 ## Ce NU e aici

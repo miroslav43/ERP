@@ -7,6 +7,8 @@ cai:
   - "src/lib/queries/registru.ts"
   - "src/lib/queries/nomenclator.ts"
   - "src/lib/registru/document-generat.ts"
+  - "src/lib/registru/filtre.ts"
+  - "src/components/registru/numar-registru.tsx"
   - "src/schemas/registru.ts"
   - "supabase/migrations/0120_registru_documente.sql"
   - "supabase/migrations/0135_registru_nomenclator_si_rezolvare.sql"
@@ -23,13 +25,13 @@ tabele:
     document_sequences,
   ]
 permisiuni: [registru:read, registru:export, registru:update, organizations:update]
-capcane: [2, 17, 41, 42]
+capcane: [12, 17, 41, 42]
 citeste_daca:
   - "index fără `where deleted_at is null` care pare o scăpare → secțiunea „fără ștergere logică”"
   - "„Registrul pe anul X este închis” → secțiunea exercițiului"
   - "42501 pe un `.insert()` în `registru_documente` → secțiunea celor trei drumuri"
-scris_pe: a7c2b58cec1e1cbb3045ddf085fd245122a50e7a
-scris_la: 2026-10-08
+scris_pe: c78f84c1a25c63c9490dcfe8104b51bf51aff507
+scris_la: 2026-11-01
 tags: [modul]
 ---
 
@@ -44,6 +46,12 @@ Specificațiile, în `docs/superpowers/specs/`: `2026-09-03-registru-inregistrar
 `2026-09-10-registru-acoperire-totala-design.md` (nomenclator, indicativ, răspunsuri, surse) și
 `2026-10-08-registru-navigare-si-panou-design.md` (angajat, panou, filtre, sortare, grupare).
 
+## Paginile modulului
+
+| Pagină                   | Ce ține                                                                |
+| ------------------------ | ---------------------------------------------------------------------- |
+| [[modul/registru/ecran]] | ecranul `/registru`, panoul, filtrele, legăturile și ce refuză citirea |
+
 ## Rute și cine ajunge
 
 | Rută                    | Poartă                    |
@@ -57,41 +65,6 @@ Toate sub `requireFeature(..., "nucleu")`. Din seed-ul lui `0120`: `super_admin`
 `manager` și `employee` n-au niciun rând — absența permisiunii ESTE refuzul. Nomenclatorul
 se **scrie** cu `registru:update` (`0135` §5). `hr` ajunge pe `/registru/nomenclator` fără
 să poată schimba ceva — intenționat.
-
-## Ecranul: tot ce e stare stă în URL
-
-`/registru` citește din `searchParams` filtrele (`an`, `sens`, `tip`, `de_la`, `pana_la`,
-`q`, `angajat`, `dosar`, `stare`, `sursa`), sortarea (`sort`, forma `-data`), gruparea
-(`grup` = `tip|dosar|luna|angajat`), pagina (`cursor`, `limita`) și **documentul deschis în
-panou** (`doc` = uuid). Orice link pornește din parametrii existenți (`adresa()`), deci
-niciun clic nu șterge ce era înainte.
-
-- **Rândul e apăsabil** prin `Tabel` cu `href` → `?doc=<id>` și `pastreazaDerularea`
-  (`scroll: false`, altfel App Router sare la începutul listei). Panoul
-  (`panou-document.tsx`, `PanouLateral`) ține `deschis` local și la închidere face
-  `router.replace` fără `doc`; conținutul (`detaliu-document.tsx`) vine randat pe server din
-  `citesteDocumentRegistru`. Id nevalid → fără panou; id negăsit sau ascuns de RLS → panou cu
-  `Callout`, nu adresă ignorată.
-- **„Deschide documentul"** vine din `legaturi.ts` (funcție pură, **nu aruncă**): pagină
-  proprie pe id, pagina părintelui pentru `TIPURI_CU_PARINTE` (vehicul, stingător, echipament
-  ISCIR, obiect de inventar, perioadă de salarizare, deplasare — părintele e citit în
-  `citesteParinte`, cu selecturi literale ca `coloane.test.ts` să le verifice), fișa
-  angajatului pentru contracte/documente/evaluări, lista modulului unde nu există pagină,
-  `null` pentru `manual` și cele șapte tabele fără ecran. Documentele emise au PDF
-  (`/documente/[id]?format=pdf`) montat **la cerere** (`previzualizare-pdf.tsx`): ruta
-  randează PDF-ul la fiecare cerere.
-- **Sortarea** e keyset cu **`numar` ca departajator**, nu `id` (`predicatKeyset(…, "numar")`,
-  parametru adăugat în `cursor.ts`): cu anul fixat numărul e unic ȘI e ordinea registrului.
-  Chei permise `numar`, `data`, `tip`, `dosar` (nulabil, `predicatKeysetNulabil`); `emitent`
-  NU, fiindcă garda din 0148 îl pinuiește și un `''` existent s-ar confunda cu `VALOARE_NULA`.
-- **Gruparea nu se paginează**: `listeazaRegistruComplet` ia tot anul filtrat în pagini de
-  1000, plafon `MAX_RANDURI_EXPORT` cu `trunchiat`; `Tabel` primește prop-ul `grupare` (rânduri
-  de antet în același corp). Antetele nu sortează cât e activă.
-- **Banda de cifre** și tipurile/dosarele pentru filtre vin din `citesteSumarAn` — o singură
-  citire în buclă de 1000, agregată în TypeScript. `listeazaTipuriDocument` nu mai există.
-- Etichetele: `etichete.ts` are TOATE codurile din harta SQL (test de drift care citește 0142
-  de pe disc), `eticheteazaRezolvare` (stările brute `aprobata` → „Aprobată", `null` → „În
-  lucru"), `eticheteazaSursa`, `TON_SENS`.
 
 ## Angajatul e o coloană, nu o deducție (0184, 0185)
 
@@ -137,15 +110,27 @@ s-au **anulat**, nu șters.
 | `actualizeazaDosarNomenclator` | `registru.nomenclator_dosar` | `registru:update` all      |
 | `actualizeazaAvizNomenclator`  | `registru.nomenclator_aviz`  | `registru:update` all      |
 
+`inregistreazaDocumentManual` întoarce `numarAfisat`, iar dialogul îl **arată** în toast, cu
+acțiune „Arată în registru" spre `?q=<numărul>`: numărul alocat e singurul lucru care trebuie
+scris pe hârtie, iar rândul nou poate fi ascuns de filtrele curente.
+
 ⚠️ `inchideExercitiu` și `redeschideExercitiu` n-au **niciun apelant** în interfață.
 `traduEroare` (`erori.ts`) propagă P0001 cu mesajul bazei; pe 42501 cere ca mesajul să
 conțină `registru_documente`. Testele acțiunilor și citirilor rulează pe clientul fals.
+`src/schemas/registru.ts` importă `./mesaje-zod`, deci o regulă fără mesaj propriu spune
+ceva românesc, nu textul implicit al lui Zod.
 
 ## Registrul NU are `deleted_at`
 
 **Abatere deliberată**: OMFP pct. 58 lit. d) interzice eliminările. Un rând se **anulează**
 (`anulat_la` + `motiv_anulare`). Consecința: **indexurile nu sunt parțiale**, iar lipsa
 predicatului e intenționată — numai pe registru; nomenclatorul are `deleted_at` ca oriunde.
+
+⚠️ Consecința pe care o uită codul: `numereRegistruPentru` (`src/lib/queries/registru.ts`) —
+drumul INVERS, de pe fișa documentului-sursă spre rândul lui, folosit de
+`src/components/registru/numar-registru.tsx` — filtrează `.is("deleted_at", null)` pe tabela
+asta. Un filtru pe o coloană care nu există întoarce **42703**, iar nici `tsc`, nici clientul
+fals din teste nu-l prind (capcana #12). Verifică pe staging înainte să te sprijini pe el.
 
 ## Ce refuză baza
 
@@ -179,16 +164,6 @@ firmă migrată nu pornește de la 1. Nomenclatorul implicit se seamănă per fi
 de registru cere `drop function if exists` înainte de `create or replace` (capcana #41 —
 0184 a făcut exact asta la alocator și la RPC-ul manual), iar `drop` șterge și
 `comment on function`, care se re-adaugă.
-
-## Ce refuză citirea tăcut
-
-- `max_rows = 1000` trunchiază tăcut: `listeazaAni`, `citesteSumarAn` și
-  `listeazaRegistruComplet` citesc în buclă cu salt peste ultima valoare — capcana #2.
-- Eticheta tipului se citește cu `Object.hasOwn`: `constructor` e cod valid ȘI cheie de
-  prototip — la fel în `legaturi.ts`.
-- Nomenclatorul NU e paginat (`MAX_DOSARE`); baza îl ordonează alfabetic, ecranul îl
-  reordonează cu `comparaIndicative` (`indicativ.ts`), corect și de la „IX" în sus.
-- `indicativ_dosar` gol nu e o eroare — ecranul scrie „Neclasat", nu „—".
 
 ## Când NU e suficientă pagina asta
 

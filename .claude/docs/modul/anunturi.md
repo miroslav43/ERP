@@ -4,6 +4,7 @@ titlu: Avizier (anunțuri)
 aliases: [anunturi, avizier, announcements]
 cai:
   - "src/app/(app)/anunturi/**"
+  - "src/domain/announcements/anunt.ts"
   - "src/lib/queries/announcements.ts"
   - "src/schemas/announcement.ts"
   - "supabase/migrations/0028_announcements.sql"
@@ -11,8 +12,8 @@ tabele: [announcements, announcement_reads, notifications]
 permisiuni: [announcements:read, announcements:create, announcements:update]
 feature: announcements
 capcane: [2, 17]
-scris_pe: 9464e60307064ec5eacd03ce40769dc9c68ceb1b
-scris_la: 2026-10-09
+scris_pe: c78f84c1a25c63c9490dcfe8104b51bf51aff507
+scris_la: 2026-11-01
 tags: [modul]
 ---
 
@@ -61,6 +62,26 @@ nu există în `PERMISSION_KEYS`. Toate trei stau în `[id]/actiuni-anunt.tsx`.
 
 `marcheazaAnuntCitit` e singura acțiune din modul pe care o poate chema un angajat — de
 aceea e pe `read`, nu pe `update`: confirmarea de citire nu e o modificare a anunțului.
+
+`anuntEditareSchema` e `anuntNouSchema` fără `publica_acum`, cu `id` — limitele de titlu
+și conținut sunt deci aceleași la creare și la editare, dintr-un singur loc.
+
+Expirarea are două porți, nu una. Schema e pură (fără `new Date()`), deci regula de ceas
+stă în acțiune: `refuzaExpirareaTrecuta` aruncă `invalidInput` PE CÂMPUL `expira_la`
+înainte de orice interogare, cu granița `<=` a lui `expirareInTrecut` — „azi" trece
+(caseta trimite `sfarsitulZileiRomania`, 23:59:59 al zilei), „ieri" nu. La editare,
+poarta se deschide doar dacă omul a ATINS ziua: `actualizeazaAnunt` citește `expira_la`
+stocat ÎNAINTE de UPDATE (golul e NEGASIT, nu UPDATE orb), iar `expirareLaEditare`
+compară pe ZIUA românească, nu pe moment. O zi neschimbată nu intră deloc în payload —
+altfel un anunț expirat sau retras nu se mai putea corecta la text fără să fie repus pe
+avizier, iar unul retras azi la 10:00 își pierdea tăcut retragerea până la miezul
+nopții, fiindcă 23:59:59 al zilei e în viitor. Golirea datei și o zi viitoare rămân
+scrieri explicite: acolo omul a cerut chiar repunerea pe avizier.
+
+Reușita fiecărei scrieri se spune prin `arataToast`, nu prin ce apare pe ecran după
+navigare: fișa pe care aterizează administratorul după publicare își marchează singură
+citirea și scrie „Confirmat citit." — textul altei acțiuni, luat la probă drept
+confirmarea publicării (ADM-029). Eroarea rămâne lângă buton, în `<p role="alert">`.
 
 Auditul lui `creeazaAnunt` are allow-list `["titlu", "fixat"]`: `continut` nu intră
 niciodată în jurnal, deci jurnalul de audit nu e o a doua copie a textului anunțului.
@@ -115,13 +136,26 @@ nu doar tăietura — `src/lib/queries/announcements.test.ts` verifică ambele.
   fanout-ul e respins, acțiunea întoarce eroare și nu revalidează nimic, dar anunțul rămâne
   pe disc, publicat și fără notificări. Un „a eșuat" pe ecran nu înseamnă aici „nu s-a
   scris nimic".
+- **Cele trei constrângeri CHECK ale tabelei ajung pe câmp, nu în Callout**
+  (`0028_announcements.sql:34-37`). `traduEroare` din `src/app/(app)/anunturi/erori.ts`
+  prinde 23514 și potrivește numele constrângerii din `error.message`:
+  `announcements_expirare_ck` → `expira_la`, `announcements_titlu_len` → `titlu`,
+  `announcements_continut_len` → `continut`. Zod nu vede niciuna dintre căile astea:
+  publicarea unei ciorne vechi cu expirarea deja trecută, editarea cu expirarea înaintea
+  publicării, retragerea unui anunț PROGRAMAT (`now() < publicat_la`). Până la
+  traducere, toate dădeau „Datele nu respectă regulile de validare. Cod de referință:
+  …", fără niciun câmp marcat (ADM-029). Se aruncă `invalidInput`, nu `businessRule`: al
+  doilea n-are `fieldErrors`, deci mesajul ar ateriza în capul formularului și
+  `<Camp nume="expira_la">` n-ar primi `aria-invalid`. Orice alt cod — și orice 23514 cu
+  alt nume de constrângere — urcă neschimbat, pe `mapPostgrestError`
+  (`src/app/(app)/anunturi/erori.test.ts`).
 - **Un anunț nepublicat e invizibil angajaților**, dar rămâne vizibil administratorilor, ca
   să-l poată edita înainte de publicare sau după expirare. Deci o listă goală pentru
   angajat, cu rânduri pentru admin, e comportamentul corect, nu un defect de filtrare.
 - **Lista de administrare se taie la o limită proprie, declarată.** Fără `.limit()`,
   PostgREST ar fi tăiat la `max_rows` fără eroare și fără antet, exact anunțurile cele mai
   vechi. `LIMITA_ANUNTURI` e mai mică și, mai ales, cunoscută de ecran, care spune în clar
-  că lista s-a oprit (`src/app/(app)/anunturi/page.tsx:206-208`). — capcana #2
+  că lista s-a oprit (`src/app/(app)/anunturi/page.tsx:232-236`). — capcana #2
 - **`publicaAnunt` e o tranziție**: face `.select()` după `.update()`, iar rezultatul gol
   înseamnă conflict, nu succes. — capcana #17
 
@@ -144,7 +178,10 @@ integrarea era pregătită din nucleu, nu improvizată la `0028`. Ecranul care l
 
 - Tiparul complet al unei pagini noi: `docs/project-overview.md`.
 - Ce se întâmplă cu notificarea după fanout: [[modul/notificari]].
-- Comportamentul exact al celor trei acțiuni, executabil:
+- Comportamentul exact al acțiunilor, executabil:
   `src/app/(app)/anunturi/actions.test.ts` — payload-uri, filtre, allow-list de audit, căi
-  revalidate și cursa pe confirmarea de citire. Straturile comune ale lui `createAction` se
-  verifică o singură dată, în `src/app/(app)/salarizare/actions.test.ts`.
+  revalidate, cazurile expirării la editare și cursa pe confirmarea de citire.
+  Straturile comune ale lui `createAction` se verifică o singură dată, în
+  `src/app/(app)/salarizare/actions.test.ts`.
+- Logica pură din spatele stărilor, al extrasului și al expirării (fără I/O, fără ceas
+  propriu): `src/domain/announcements/anunt.ts`.

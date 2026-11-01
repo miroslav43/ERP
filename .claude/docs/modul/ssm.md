@@ -28,9 +28,10 @@ feature: ssm
 capcane: [26, 32]
 citeste_daca:
   - "listă goală fără eroare la scadențe → [[rol/hr]]"
-  - "instruire periodică respinsă la salvare → 0021, secțiunea de mai jos"
-scris_pe: a2cdfa5180b0b036c983f85f493fe74846b2909c
-scris_la: 2026-10-06
+  - "instruire periodică respinsă la salvare → [[modul/ssm/instruiri]]"
+  - "listă goală cu `?scadenta=` în adresă → „Ce refuză baza tăcut”"
+scris_pe: c78f84c1a25c63c9490dcfe8104b51bf51aff507
+scris_la: 2026-11-01
 tags: [modul, hr]
 ---
 
@@ -40,6 +41,14 @@ Instruiri periodice, medicina muncii cu restricții de aptitudine, accidente de 
 comunicarea lor la ITM, echipament individual de protecție, stingătoare cu verificări, și
 autorizații nominale. Rolul care îl administrează e `hr` — care, tocmai de asta, are aici
 cele mai multe refuzuri tăcute din proiect.
+
+## Paginile modulului
+
+| Pagină                  | Ce ține                                                            |
+| ----------------------- | ------------------------------------------------------------------ |
+| [[modul/ssm/actiuni]]   | Server Actions + refuzurile tăcute de pe calea de scriere          |
+| [[modul/ssm/erori]]     | ce coduri traduce `erori.ts` și ce aruncă mai departe; etichetele  |
+| [[modul/ssm/instruiri]] | defectul `0021`: cheia de scadență cu două puncte, și cum a scăpat |
 
 ## Rute și cine ajunge
 
@@ -63,41 +72,25 @@ Pragul de intrare e `own`, dar tot ce e dincolo de propriul dosar cere `team`. U
 
 `/ssm/instruiri` e singura rută din modul cu poartă dublă: matricea are o coloană
 „Angajat", deci fără `employees:read` team nu se poate compune, iar pagina refuză din
-start în loc să afișeze o coloană goală. `/ssm/stingatoare/[id]/editeaza` e singura care
-cere `ssm:update`.
+start în loc să afișeze o coloană goală; `/ssm` aplică de acum ACEEAȘI poartă dublă
+cardurilor de instruiri, iar starea goală a listelor oferă butonul de adăugare doar cu
+`ssm:create` — înainte amândouă duceau în refuz pe cine n-are a doua cheie.
+`/ssm/stingatoare/[id]/editeaza` e singura care cere `ssm:update`.
+
+Listele acceptă filtre de INTRARE, puse din alt ecran: `?angajat=<uuid>` (medicina
+muncii, accidente, EIP, autorizații), `?scadenta=` (aceleași, din cardurile lui `/ssm`),
+`?departament=<uuid>` și `?domeniu=` pe instruiri. Autorizațiile și matricea își
+validează valoarea cu un tipar de UUID în `page.tsx`, restul prin `filtreDinUrl`; pe
+ambele căi valoarea nepotrivită e IGNORATĂ, deci adresa stricată dă lista nefiltrată.
 
 Preambulul paginilor rulează `requireFeature` și `getPermissionMap` în `Promise.all`, nu
 înlănțuite: sunt două citiri independente, pe tabele diferite, iar înlănțuite costau două
-dus-întorsuri seriale spre PostgREST. Ordinea logică a porții nu se schimbă — dacă
-funcționalitatea `ssm` e stinsă, `requireFeature` cheamă `notFound()`, respingerea
-propagă prin `Promise.all` și `can()` nu mai apucă să fie evaluat; singura diferență e că
-harta de permisiuni se citește și atunci degeaba.
-
-## Server Actions
-
-`src/app/(app)/ssm/actions.ts` — toate pe `minScope: "team"`, în afara nomenclatorului.
-
-| Grup            | Funcții                                                                        | Permisiune          |
-| --------------- | ------------------------------------------------------------------------------ | ------------------- |
-| Instruiri       | `inregistreazaInstruireBloc`                                                   | `ssm:create`        |
-| Medicina muncii | `adaugaFisaAptitudine`                                                         | `ssm:create`        |
-| Accidente       | `inregistreazaAccident`; `comunicaAccidentLaItm`, `finalizeazaCercetare`       | `create` / `update` |
-| Stingătoare     | `adaugaStingator`, `inregistreazaVerificareStingator`; `actualizeazaStingator` | `create` / `update` |
-| EIP             | `predaEip`; `marcheazaEipReturnat`, `confirmaPrimireaEip`                      | `create` / `update` |
-| Autorizații     | `adaugaAutorizatieNominala`; `schimbaSuspendareaAutorizatiei`                  | `create` / `update` |
-| Nomenclator     | `nomenclatorInstruiri`                                                         | `ssm:read` / own    |
-
-`nomenclatorInstruiri` e singura pe `own` și n-are `revalidate`: o cheamă `DosarulMeu`
-direct dintr-un Server Component, iar `revalidatePath` în timpul randării aruncă. E și
-singura care citește prin `createAdminSupabase()`, cu filtru explicit pe
-`organization_id`: `ssm_training_types` n-are coloană de angajat, deci `app.ssm_acces`
-cere scope ≥ `team` și un `employee` ar vedea UUID-uri în loc de denumiri.
-
-Contractele sunt fixate pe clientul fals: `actions-instruiri-medicina.test.ts`,
-`actions-accidente.test.ts`, `actions-stingatoare.test.ts`,
-`actions-eip-autorizatii.test.ts`, plus `actions-modul.test.ts`, care ia lista din
-exporturile lui `./actions` și verifică pe fiecare cheia `feature` — o acțiune legată din
-greșeală de alt modul trece toate celelalte teste.
+dus-întorsuri seriale spre PostgREST; `/ssm/autorizatii` are acolo o a treia citire,
+`getEnabledFeatures`, cerută de `poateDeschide` pentru coloana de echipamente ISCIR.
+Ordinea logică a porții nu se schimbă — dacă funcționalitatea `ssm` e stinsă,
+`requireFeature` cheamă `notFound()`, respingerea propagă prin `Promise.all` și `can()`
+nu mai apucă să fie evaluat; singura diferență e că harta de permisiuni se citește și
+atunci degeaba.
 
 ## Citiri
 
@@ -111,6 +104,16 @@ explicit.
 Fișierul începe cu `import "server-only"`: citirile SSM nu pot fi importate dintr-o
 componentă client nici din greșeală. Un astfel de import pică la build, cu numele
 fișierului, nu tăcut la rulare.
+
+Filtrul `?scadenta=` nu e un predicat SQL: contoarele de pe `/ssm` se calculează în JS,
+peste `stareScadentaSsm`, deci lista citește întâi id-urile cu ACEEAȘI funcție și le trece
+prin `.in("id", …)`, pe rânduri ȘI pe numărătoare — cifra de pe card și rândurile de sub
+ea nu pot diverge. Pe autorizații, nomenclator fără paginare keyset, filtrul se aplică în
+pagină, după citire, deci numai peste rândurile aduse de plafonul explicit.
+
+`angajatiDupaId()` citește și `deleted_at`, fiindcă `hrefFisa()` din
+`src/lib/navigare/fisa.ts` decide per rând dacă numele devine link: fără coloană ar
+presupune nești, iar fișa ștearsă logic ar primi un link spre `notFound()`.
 
 `stingatoare()` scapă jokerii LIKE din căutarea după cod: `%` și `_` devin text, `*`
 devine spațiu (PostgREST îl traduce oricum în `%`). Nu prin `tiparContine` — ghilimelele
@@ -130,51 +133,13 @@ scăpare, „100%" întorcea tot ce începe cu 100, fără eroare. — `src/lib/
   un stingător, o autorizație de mediu — cere cel puțin `team`. Consecința: pentru un
   `employee` tabelele fără ancoră de angajat sunt invizibile, iar ecranul arată gol în loc
   să arate refuz.
-- **Coloanele pe care acțiunile NU le trimit**, fiindcă le pune un trigger BEFORE din
-  `0011` și numai când primește `null`: `ssm_trainings.urmatoarea_scadenta`,
-  `work_accidents.termen_comunicare_ore`, `ppe_issuances.data_inlocuirii` și cele trei
-  `fire_extinguishers.scadenta_*` (rescrise integral la fiecare scriere). Trimise din
-  client, periodicitatea legală configurată e ignorată fără eroare. Din triggere AFTER vin
-  rândul de `employee_work_restrictions` (un INSERT manual dă 23505 pe indexul unic
-  parțial) și `ultima_*` de pe stingător, după o verificare — fără un al doilea UPDATE din
-  acțiune. `created_by`/`updated_by` le scrie `internal.set_actor`, altfel decât în
-  [[modul/flota]]. — `actions-stingatoare.test.ts`, `actions-accidente.test.ts`
-- **Fișa de aptitudine e art. 9 GDPR în audit.** `rezultat`, `medic`, `unitate_medicala` și
-  `cost` stau în afara allow-list-ului lui `adaugaFisaAptitudine`, pe ambele căi — succes
-  și eșec; `observatii` nici nu e în schemă. Allow-list STRICTĂ, deci un câmp nou nu intră
-  în jurnal decât adăugat explicit: nu-l adăuga. — `actions-instruiri-medicina.test.ts`
+- **Lista cu `?scadenta=` iese goală când nimic nu e scadent**, și nu fiindcă politicile
+  ar fi respins ceva: `.in("id", …)` primește atunci un singur UUID imposibil, fiindcă un
+  `in` gol e eroare PostgREST. Golul e corect; ce ar fi defect e un card cu cifră nenulă
+  care duce într-o listă goală. — `src/lib/queries/ssm.ts`
 
-## Erori traduse
-
-`src/app/(app)/ssm/erori.ts` dă mesaj propriu doar pentru `23505` (potrivit pe numele
-constrângerii — stingător, autorizație nominală, număr intern de accident; altfel duplicat
-generic), `22012`/`22003` și `P0001`, al cărui text vine din triggerele lui `0011` cu
-cifre în el și se propagă neschimbat, tăiat la 300 de caractere. Orice alt cod — `42501`,
-`23503`, `23514`, `PGRST116` — se aruncă MAI DEPARTE neatins, către traducerea generică
-din `createAction`; la fel o eroare care nu e PostgREST, chiar cu cod `23505`.
-— `erori.test.ts`
-
-`etichete.ts` e lipit de enumurile din `src/schemas/ssm.ts` prin `Record<Enum, string>`:
-tsc prinde valoarea fără text. Ce nu vede tsc e gravitatea tonului — `pericol` cade exact
-pe accidentele cu comunicare la ITM. — `etichete.test.ts`
-
-## De ce nicio instruire periodică nu se putea salva (0021)
-
-`internal.ssm_training_sync()` compunea cheia scadenței ca `domeniu || ':' || cod` —
-`ssm:periodic` — și o trimitea în `public.expirables`, unde constrângerea `expirables_kind_ck`
-acceptă `^[a-z][a-z0-9_]{1,48}$`. Tiparul nu are două puncte. Deci exact cazul obișnuit —
-instruirea periodică, cea cerută de ITM la control — pica la salvare cu 23514, pentru
-oricine. Tipurile fără periodicitate treceau, fiindcă nu produc scadență, iar asta făcea
-defectul să pară intermitent.
-
-`0021_fix_instruiri_ssm.sql` schimbă separatorul în underscore și validează cheia în
-funcție, cu mesaj propriu, înainte de a atinge tabela.
-
-De reținut e cum a scăpat: migrarea se aplică fără eroare (constrângerea se evaluează la
-INSERT, nu la crearea funcției), cele trei bariere SQL treceau, iar testul de izolare
-demonstra absența accesului NEautorizat — nu prezența celui autorizat. L-a prins doar
-verificarea `(l)` din `tests/rls/izolare.sql`, extinsă cu o instruire inserată ca
-utilizator obișnuit.
+Refuzurile tăcute de pe calea de SCRIERE — coloanele puse de triggerele lui `0011` și
+allow-list-ul art. 9 GDPR al fișei de aptitudine — sunt în [[modul/ssm/actiuni]].
 
 ## Ce NU e aici
 
@@ -188,5 +153,7 @@ Documentele scanate ale angajatului și dosarul lui de personal: [[modul/angajat
 
 - Calculul stării unei scadențe: `src/domain/ssm/scadente.ts`, cu teste.
 - De ce `hr` nu vede o listă pe care o administrează: [[rol/hr]].
-- Lotul 7f: celulele Expirat/Lipsă deschid formularul precompletat (`?angajat=&tip=`), „Instruire nouă” poartă domeniul, `?departament=` pe matrice (din panoul departamentului), situația SSM la data accidentului, echipamentele ISCIR ale titularului: [[strat/navigare]].
-- Lotul 7m: celula matricei de instruiri se deschide (durata, scadența, semnătura) și confirmă semnătura (`confirmaSemnaturaInstruire`, `ssm:update`): [[strat/navigare]].
+- Loturile 7f/7m — drumurile dintre ecrane, cu numele porților lor: celula Expirat/Lipsă
+  deschide formularul precompletat, celula cu instruire se deschide pe loc, fișa expirată
+  duce la reînnoire, situația SSM la data accidentului, numărul de registru pe accident,
+  echipamentele ISCIR ale titularului: [[strat/navigare]].
