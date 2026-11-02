@@ -7,11 +7,14 @@ cai:
   - "supabase/migrations/0026_payroll.sql"
   - "supabase/migrations/0009_leave.sql"
   - "supabase/migrations/0079_concedii_anulare_dupa_aprobare.sql"
+  - "supabase/migrations/0132_pontaj_luni_deschise_implicit.sql"
+  - "supabase/migrations/0146_bani_si_timp.sql"
+  - "supabase/migrations/0233_oracol_intre_firme.sql"
 tabele: [attendance_periods, attendance_entries, payroll_periods, leave_requests, approval_tasks]
 permisiuni: [attendance:approve, payroll:create, payroll:update, payroll:approve]
 capcane: [6, 7, 9, 12, 17]
-scris_pe: 0815fbff2c885cd44b5768ee25f084f16a9e95b8
-scris_la: 2026-09-03
+scris_pe: daa23bafd3b2f07d33e50bb968134ab39c11c965
+scris_la: 2026-11-02
 tags: [date]
 ---
 
@@ -30,11 +33,20 @@ attendance_periods: deschisa → in_aprobare → blocata
 leave_requests în ('trimisa','in_aprobare') suprapuse peste lună → BLOCHEAZĂ calculul
 ```
 
-Nicio scriere de pontaj nu există în afara unei perioade: `internal.pontaj_intrare_pregateste`
-caută luna cererii și, dacă n-o găsește, ridică P0001 („Luna de pontaj nu a fost deschisă").
-Dacă o găsește blocată, tot P0001. De asta sincronizarea concediilor în pontaj e
-best-effort și de asta o aprobare de concediu rămâne dată chiar când sincronizarea pică —
-v. [[modul/concedii]].
+Luna de pontaj **nu mai trebuie deschisă de nimeni**: din
+`0132_pontaj_luni_deschise_implicit.sql` se naște singură, în `deschisa`, la prima scriere
+din luna aceea — `internal.pontaj_perioada_lunii`, `security definer`, deci fără nicio
+politică lărgită (`attendance_periods_insert` cere tot `attendance:create = all` pentru un
+INSERT direct). `internal.pontaj_intrare_pregateste`, în forma curentă din
+`0146_bani_si_timp.sql`, ridică P0001 doar în două cazuri: nașterea a eșuat, sau luna e
+`blocata`. Din `0146` e refuzată și mutarea unei zile **dintr-o** lună `blocata` în alta —
+garda se uită acum și la luna sursă, nu doar la cea în care aterizează ziua.
+
+Refuzul pe `blocata` are scutire `app.is_service_context()` în trigger, deci sincronizarea
+concediilor scrie și într-o lună sigilată; butonul „Sincronizează concediile"
+(`app.sincronizeaza_pontaj_concedii`) nu are scutirea și refuză luna `blocata`.
+Sincronizarea rămâne best-effort, iar o aprobare de concediu rămâne dată chiar când
+scrierea în pontaj pică — v. [[modul/concedii]].
 
 ## Perioada de pontaj — trei stări, tranzițiile enumerate
 
@@ -66,17 +78,25 @@ OLD** la fiecare UPDATE: trimise de client, sunt ignorate tăcut, nu respinse. L
 Din `aprobata` se mai poate ieși doar spre `anulata` sau `intrerupta`
 (`0079_concedii_anulare_dupa_aprobare.sql`) — restul e capăt de drum.
 
-Aici sunt **două** mecanisme de refuz, și se confundă ușor:
+Aici sunt **trei** mecanisme de refuz, și se confundă ușor. Primele două vin din
+`internal.leave_requests_pregateste`, a cărui formă curentă e în
+`0233_oracol_intre_firme.sql`:
 
-- **P0001, cu mesaj**, din `internal.leave_requests_pregateste`: tip inexistent sau
-  dezactivat, tip din altă organizație, angajat din altă organizație, document lipsă la
-  trimiterea unui tip care-l cere, dată de început mai veche de doi ani.
+- **42501**, verificat primul: cererea e scrisă pe o firmă care nu e în
+  `app.current_org_ids()`.
+- **P0001, cu mesaj**: tip inexistent, dezactivat **sau din altă firmă** — toate trei
+  primesc deliberat același mesaj, ca să nu spună dacă tipul există la vecin; angajat din
+  altă organizație; document lipsă la trimiterea unui tip care-l cere; dată de început mai
+  veche de doi ani. Excepția la document: `medical`, `maternitate` și `donator_sange` au
+  `necesita_document`, dar originalul se predă pe hârtie, deci trimiterea nu așteaptă
+  fișier — aceleași chei, în aceeași ordine, ca `TIPURI_CU_ORIGINAL_FIZIC` din
+  `src/domain/leave/documente-fizice.ts`.
 - **Zero rânduri, fără nicio eroare**, când politica RLS respinge tranziția prin clauza
   `USING` — cazul canonic e un angajat care încearcă `in_aprobare` → `aprobata` pe propria
   cerere. Orice acțiune de tranziție face `.select()` după `.update()` și tratează
   rezultatul gol drept conflict. — capcana #17
 
-Al doilea e cel periculos: omul vede „succes" fără ca nimic să se fi schimbat.
+Ultimul e cel periculos: omul vede „succes" fără ca nimic să se fi schimbat.
 
 ## Perioada de salarizare — patru stări, `inchis` e terminal
 
